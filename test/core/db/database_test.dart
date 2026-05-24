@@ -113,4 +113,44 @@ void main() {
     expect(tracks, hasLength(1));
     expect(tracks.first.workId, 'RJ_fk');
   });
+
+  test('ImportedFolders insert + watch streams newest first', () async {
+    final older = DateTime(2026, 1, 1);
+    final newer = DateTime(2026, 1, 2);
+    await db.into(db.importedFolders).insert(ImportedFoldersCompanion.insert(
+          id: 'older',
+          displayName: 'Older',
+          bookmarkBase64: 'b1',
+          createdAt: older,
+          updatedAt: older,
+        ));
+    await db.into(db.importedFolders).insert(ImportedFoldersCompanion.insert(
+          id: 'newer',
+          displayName: 'Newer',
+          bookmarkBase64: 'b2',
+          createdAt: newer,
+          updatedAt: newer,
+        ));
+
+    final rows = await (db.select(db.importedFolders)
+          ..orderBy([(f) => OrderingTerm.desc(f.createdAt)]))
+        .get();
+    expect(rows.map((f) => f.id), ['newer', 'older']);
+  });
+
+  test('ImportedFolders delete removes row', () async {
+    final now = DateTime.now();
+    await db.into(db.importedFolders).insert(ImportedFoldersCompanion.insert(
+          id: 'to-delete',
+          displayName: 'Goodbye',
+          bookmarkBase64: 'b',
+          createdAt: now,
+          updatedAt: now,
+        ));
+    await (db.delete(db.importedFolders)
+          ..where((f) => f.id.equals('to-delete')))
+        .go();
+    final rows = await db.select(db.importedFolders).get();
+    expect(rows, isEmpty);
+  });
 }

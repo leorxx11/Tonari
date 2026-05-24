@@ -4142,12 +4142,388 @@ class SubtitlesCompanion extends UpdateCompanion<Subtitle> {
   }
 }
 
+class $ImportedFoldersTable extends ImportedFolders
+    with TableInfo<$ImportedFoldersTable, ImportedFolder> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ImportedFoldersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _displayNameMeta = const VerificationMeta(
+    'displayName',
+  );
+  @override
+  late final GeneratedColumn<String> displayName = GeneratedColumn<String>(
+    'display_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _bookmarkBase64Meta = const VerificationMeta(
+    'bookmarkBase64',
+  );
+  @override
+  late final GeneratedColumn<String> bookmarkBase64 = GeneratedColumn<String>(
+    'bookmark_base64',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    displayName,
+    bookmarkBase64,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'imported_folders';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ImportedFolder> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('display_name')) {
+      context.handle(
+        _displayNameMeta,
+        displayName.isAcceptableOrUnknown(
+          data['display_name']!,
+          _displayNameMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_displayNameMeta);
+    }
+    if (data.containsKey('bookmark_base64')) {
+      context.handle(
+        _bookmarkBase64Meta,
+        bookmarkBase64.isAcceptableOrUnknown(
+          data['bookmark_base64']!,
+          _bookmarkBase64Meta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_bookmarkBase64Meta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ImportedFolder map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ImportedFolder(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      displayName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}display_name'],
+      )!,
+      bookmarkBase64: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}bookmark_base64'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $ImportedFoldersTable createAlias(String alias) {
+    return $ImportedFoldersTable(attachedDatabase, alias);
+  }
+}
+
+class ImportedFolder extends DataClass implements Insertable<ImportedFolder> {
+  final String id;
+  final String displayName;
+  final String bookmarkBase64;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const ImportedFolder({
+    required this.id,
+    required this.displayName,
+    required this.bookmarkBase64,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['display_name'] = Variable<String>(displayName);
+    map['bookmark_base64'] = Variable<String>(bookmarkBase64);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  ImportedFoldersCompanion toCompanion(bool nullToAbsent) {
+    return ImportedFoldersCompanion(
+      id: Value(id),
+      displayName: Value(displayName),
+      bookmarkBase64: Value(bookmarkBase64),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory ImportedFolder.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ImportedFolder(
+      id: serializer.fromJson<String>(json['id']),
+      displayName: serializer.fromJson<String>(json['displayName']),
+      bookmarkBase64: serializer.fromJson<String>(json['bookmarkBase64']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'displayName': serializer.toJson<String>(displayName),
+      'bookmarkBase64': serializer.toJson<String>(bookmarkBase64),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  ImportedFolder copyWith({
+    String? id,
+    String? displayName,
+    String? bookmarkBase64,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => ImportedFolder(
+    id: id ?? this.id,
+    displayName: displayName ?? this.displayName,
+    bookmarkBase64: bookmarkBase64 ?? this.bookmarkBase64,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  ImportedFolder copyWithCompanion(ImportedFoldersCompanion data) {
+    return ImportedFolder(
+      id: data.id.present ? data.id.value : this.id,
+      displayName: data.displayName.present
+          ? data.displayName.value
+          : this.displayName,
+      bookmarkBase64: data.bookmarkBase64.present
+          ? data.bookmarkBase64.value
+          : this.bookmarkBase64,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ImportedFolder(')
+          ..write('id: $id, ')
+          ..write('displayName: $displayName, ')
+          ..write('bookmarkBase64: $bookmarkBase64, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, displayName, bookmarkBase64, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ImportedFolder &&
+          other.id == this.id &&
+          other.displayName == this.displayName &&
+          other.bookmarkBase64 == this.bookmarkBase64 &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class ImportedFoldersCompanion extends UpdateCompanion<ImportedFolder> {
+  final Value<String> id;
+  final Value<String> displayName;
+  final Value<String> bookmarkBase64;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const ImportedFoldersCompanion({
+    this.id = const Value.absent(),
+    this.displayName = const Value.absent(),
+    this.bookmarkBase64 = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ImportedFoldersCompanion.insert({
+    required String id,
+    required String displayName,
+    required String bookmarkBase64,
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       displayName = Value(displayName),
+       bookmarkBase64 = Value(bookmarkBase64),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<ImportedFolder> custom({
+    Expression<String>? id,
+    Expression<String>? displayName,
+    Expression<String>? bookmarkBase64,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (displayName != null) 'display_name': displayName,
+      if (bookmarkBase64 != null) 'bookmark_base64': bookmarkBase64,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ImportedFoldersCompanion copyWith({
+    Value<String>? id,
+    Value<String>? displayName,
+    Value<String>? bookmarkBase64,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return ImportedFoldersCompanion(
+      id: id ?? this.id,
+      displayName: displayName ?? this.displayName,
+      bookmarkBase64: bookmarkBase64 ?? this.bookmarkBase64,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (displayName.present) {
+      map['display_name'] = Variable<String>(displayName.value);
+    }
+    if (bookmarkBase64.present) {
+      map['bookmark_base64'] = Variable<String>(bookmarkBase64.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ImportedFoldersCompanion(')
+          ..write('id: $id, ')
+          ..write('displayName: $displayName, ')
+          ..write('bookmarkBase64: $bookmarkBase64, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$TonariDatabase extends GeneratedDatabase {
   _$TonariDatabase(QueryExecutor e) : super(e);
   $TonariDatabaseManager get managers => $TonariDatabaseManager(this);
   late final $WorksTable works = $WorksTable(this);
   late final $TracksTable tracks = $TracksTable(this);
   late final $SubtitlesTable subtitles = $SubtitlesTable(this);
+  late final $ImportedFoldersTable importedFolders = $ImportedFoldersTable(
+    this,
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -4156,6 +4532,7 @@ abstract class _$TonariDatabase extends GeneratedDatabase {
     works,
     tracks,
     subtitles,
+    importedFolders,
   ];
 }
 
@@ -6370,6 +6747,216 @@ typedef $$SubtitlesTableProcessedTableManager =
       Subtitle,
       PrefetchHooks Function({bool trackId})
     >;
+typedef $$ImportedFoldersTableCreateCompanionBuilder =
+    ImportedFoldersCompanion Function({
+      required String id,
+      required String displayName,
+      required String bookmarkBase64,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$ImportedFoldersTableUpdateCompanionBuilder =
+    ImportedFoldersCompanion Function({
+      Value<String> id,
+      Value<String> displayName,
+      Value<String> bookmarkBase64,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$ImportedFoldersTableFilterComposer
+    extends Composer<_$TonariDatabase, $ImportedFoldersTable> {
+  $$ImportedFoldersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get displayName => $composableBuilder(
+    column: $table.displayName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get bookmarkBase64 => $composableBuilder(
+    column: $table.bookmarkBase64,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ImportedFoldersTableOrderingComposer
+    extends Composer<_$TonariDatabase, $ImportedFoldersTable> {
+  $$ImportedFoldersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get displayName => $composableBuilder(
+    column: $table.displayName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get bookmarkBase64 => $composableBuilder(
+    column: $table.bookmarkBase64,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ImportedFoldersTableAnnotationComposer
+    extends Composer<_$TonariDatabase, $ImportedFoldersTable> {
+  $$ImportedFoldersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get displayName => $composableBuilder(
+    column: $table.displayName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get bookmarkBase64 => $composableBuilder(
+    column: $table.bookmarkBase64,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$ImportedFoldersTableTableManager
+    extends
+        RootTableManager<
+          _$TonariDatabase,
+          $ImportedFoldersTable,
+          ImportedFolder,
+          $$ImportedFoldersTableFilterComposer,
+          $$ImportedFoldersTableOrderingComposer,
+          $$ImportedFoldersTableAnnotationComposer,
+          $$ImportedFoldersTableCreateCompanionBuilder,
+          $$ImportedFoldersTableUpdateCompanionBuilder,
+          (
+            ImportedFolder,
+            BaseReferences<
+              _$TonariDatabase,
+              $ImportedFoldersTable,
+              ImportedFolder
+            >,
+          ),
+          ImportedFolder,
+          PrefetchHooks Function()
+        > {
+  $$ImportedFoldersTableTableManager(
+    _$TonariDatabase db,
+    $ImportedFoldersTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ImportedFoldersTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ImportedFoldersTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ImportedFoldersTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> displayName = const Value.absent(),
+                Value<String> bookmarkBase64 = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ImportedFoldersCompanion(
+                id: id,
+                displayName: displayName,
+                bookmarkBase64: bookmarkBase64,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String displayName,
+                required String bookmarkBase64,
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => ImportedFoldersCompanion.insert(
+                id: id,
+                displayName: displayName,
+                bookmarkBase64: bookmarkBase64,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ImportedFoldersTableProcessedTableManager =
+    ProcessedTableManager<
+      _$TonariDatabase,
+      $ImportedFoldersTable,
+      ImportedFolder,
+      $$ImportedFoldersTableFilterComposer,
+      $$ImportedFoldersTableOrderingComposer,
+      $$ImportedFoldersTableAnnotationComposer,
+      $$ImportedFoldersTableCreateCompanionBuilder,
+      $$ImportedFoldersTableUpdateCompanionBuilder,
+      (
+        ImportedFolder,
+        BaseReferences<_$TonariDatabase, $ImportedFoldersTable, ImportedFolder>,
+      ),
+      ImportedFolder,
+      PrefetchHooks Function()
+    >;
 
 class $TonariDatabaseManager {
   final _$TonariDatabase _db;
@@ -6380,4 +6967,6 @@ class $TonariDatabaseManager {
       $$TracksTableTableManager(_db, _db.tracks);
   $$SubtitlesTableTableManager get subtitles =>
       $$SubtitlesTableTableManager(_db, _db.subtitles);
+  $$ImportedFoldersTableTableManager get importedFolders =>
+      $$ImportedFoldersTableTableManager(_db, _db.importedFolders);
 }
