@@ -1,167 +1,57 @@
-import 'dart:async';
-
-import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:just_audio_background/just_audio_background.dart';
 
-import '../../../core/db/database.dart';
-import '../../../core/db/providers.dart';
-import '../../../core/files/folder_bookmark.dart';
+import '../data/playback_controller.dart';
 
 class PlayerPage extends ConsumerStatefulWidget {
-  const PlayerPage({
-    super.key,
-    required this.work,
-    required this.tracks,
-    required this.initialIndex,
-    this.bookmarkBase64,
-  });
-
-  final Work work;
-  final List<Track> tracks;
-  final int initialIndex;
-
-  /// Security-scoped bookmark of the folder these tracks live in. When
-  /// non-null, the player keeps the scope alive for the page's lifetime
-  /// so iOS lets just_audio read the file. Pass null for in-sandbox files
-  /// or test scenarios.
-  final String? bookmarkBase64;
+  const PlayerPage({super.key});
 
   @override
   ConsumerState<PlayerPage> createState() => _PlayerPageState();
 }
 
 class _PlayerPageState extends ConsumerState<PlayerPage> {
-  late final AudioPlayer _player;
-  late int _index;
-  StreamSubscription<ProcessingState>? _processingSub;
-  Timer? _positionSaveTimer;
-  String? _resolvedFolderUrl;
   double _speed = 1;
-
-  Track get _track => widget.tracks[_index];
 
   @override
   void initState() {
     super.initState();
-    _player = AudioPlayer();
-    _index = widget.initialIndex;
-    _processingSub = _player.processingStateStream.listen((state) async {
-      if (state == ProcessingState.completed) {
-        await _bumpPlayCount();
-        await _playNext();
-      }
-    });
-    _positionSaveTimer = Timer.periodic(
-      const Duration(seconds: 5),
-      (_) => _savePosition(),
-    );
-    _initAudio();
-  }
-
-  Future<void> _initAudio() async {
-    final bookmark = widget.bookmarkBase64;
-    if (bookmark != null) {
-      try {
-        final resolution = await FolderBookmark.resolve(bookmark);
-        _resolvedFolderUrl = resolution.url;
-      } catch (_) {
-        // Best effort: try to play with the raw filePath. Simulator and
-        // in-sandbox files don't need security scope; real device with a
-        // stale bookmark will fail at setFilePath and surface a player error.
-      }
-    }
-    await _loadAndPlay(resume: true);
-  }
-
-  @override
-  void dispose() {
-    _positionSaveTimer?.cancel();
-    _processingSub?.cancel();
-    unawaited(_savePosition());
-    _player.dispose();
-    final url = _resolvedFolderUrl;
-    if (url != null) unawaited(FolderBookmark.release(url));
-    super.dispose();
-  }
-
-  Future<void> _loadAndPlay({bool resume = false}) async {
-    await _player.setAudioSource(
-      AudioSource.uri(
-        Uri.file(_track.filePath),
-        tag: MediaItem(
-          id: _track.id,
-          title: _track.title,
-          artist: widget.work.title,
-          album: widget.work.productId,
-        ),
-      ),
-    );
-    if (resume && _track.lastPositionMs > 0) {
-      await _player.seek(Duration(milliseconds: _track.lastPositionMs));
-    }
-    await _player.setSpeed(_speed);
-    await _player.play();
-    if (mounted) setState(() {});
-  }
-
-  Future<void> _playAt(int index) async {
-    if (index < 0 || index >= widget.tracks.length) return;
-    await _savePosition();
-    setState(() => _index = index);
-    await _loadAndPlay(resume: true);
-  }
-
-  Future<void> _playNext() async {
-    if (_index + 1 < widget.tracks.length) {
-      await _playAt(_index + 1);
-      return;
-    }
-    await _player.pause();
-    await _player.seek(Duration.zero);
-  }
-
-  Future<void> _playPrevious() async {
-    if (_index > 0) await _playAt(_index - 1);
-  }
-
-  Future<void> _seekBy(Duration delta) async {
-    final duration = _player.duration ?? Duration.zero;
-    final target = _player.position + delta;
-    final clamped = Duration(
-      milliseconds: target.inMilliseconds.clamp(0, duration.inMilliseconds),
-    );
-    await _player.seek(clamped);
+    _speed = ref.read(playbackControllerProvider.notifier).player.speed;
   }
 
   Future<void> _setSpeed(double speed) async {
     setState(() => _speed = speed);
-    await _player.setSpeed(speed);
+    await ref.read(playbackControllerProvider.notifier).setSpeed(speed);
   }
 
-  Future<void> _savePosition() async {
-    final ms = _player.position.inMilliseconds;
-    final db = ref.read(databaseProvider);
-    await (db.update(db.tracks)..where((t) => t.id.equals(_track.id))).write(
-      TracksCompanion(lastPositionMs: Value(ms)),
+  Future<void> _seekBy(Duration delta) async {
+    final controller = ref.read(playbackControllerProvider.notifier);
+    final duration = controller.player.duration ?? Duration.zero;
+    final target = controller.player.position + delta;
+    final clamped = Duration(
+      milliseconds: target.inMilliseconds.clamp(0, duration.inMilliseconds),
     );
-  }
-
-  Future<void> _bumpPlayCount() async {
-    final db = ref.read(databaseProvider);
-    await db.customStatement(
-      'UPDATE tracks SET play_count = play_count + 1 WHERE id = ?',
-      [_track.id],
-    );
+    await controller.seek(clamped);
   }
 
   @override
   Widget build(BuildContext context) {
+    final state = ref.watch(playbackControllerProvider);
+    final controller = ref.watch(playbackControllerProvider.notifier);
     final theme = Theme.of(context);
+    final track = state.currentTrack;
+    final work = state.work;
+
+    if (track == null || work == null) {
+      return Scaffold(
+        appBar: AppBar(),
+        body: const Center(child: Text('未在播放')),
+      );
+    }
+
     return Scaffold(
-      appBar: AppBar(title: Text(widget.work.title)),
+      appBar: AppBar(title: Text(work.title)),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -188,7 +78,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                     ),
                     const SizedBox(height: 28),
                     Text(
-                      _track.title,
+                      track.title,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
@@ -196,7 +86,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '${_index + 1} / ${widget.tracks.length} · ${_track.parentDirName}',
+                      '${state.currentIndex + 1} / ${state.tracks.length} · ${track.parentDirName}',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
@@ -204,7 +94,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                   ],
                 ),
               ),
-              _ProgressBar(player: _player),
+              _ProgressBar(player: controller.player),
               const SizedBox(height: 12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -212,7 +102,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                   IconButton(
                     tooltip: '上一首',
                     icon: const Icon(Icons.skip_previous),
-                    onPressed: _index == 0 ? null : _playPrevious,
+                    onPressed: state.hasPrevious ? controller.previous : null,
                   ),
                   IconButton(
                     tooltip: '后退 10 秒',
@@ -220,14 +110,13 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                     onPressed: () => _seekBy(const Duration(seconds: -10)),
                   ),
                   StreamBuilder<bool>(
-                    stream: _player.playingStream,
-                    initialData: _player.playing,
+                    stream: controller.player.playingStream,
+                    initialData: controller.player.playing,
                     builder: (context, snapshot) {
                       final playing = snapshot.data ?? false;
                       return FilledButton(
-                        onPressed: () {
-                          playing ? _player.pause() : _player.play();
-                        },
+                        onPressed: () =>
+                            playing ? controller.pause() : controller.play(),
                         child: Icon(playing ? Icons.pause : Icons.play_arrow),
                       );
                     },
@@ -240,9 +129,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                   IconButton(
                     tooltip: '下一首',
                     icon: const Icon(Icons.skip_next),
-                    onPressed: _index + 1 == widget.tracks.length
-                        ? null
-                        : _playNext,
+                    onPressed: state.hasNext ? controller.next : null,
                   ),
                 ],
               ),
@@ -292,9 +179,8 @@ class _ProgressBar extends StatelessWidget {
                   max: durationMs == 0 ? 1 : durationMs.toDouble(),
                   onChanged: durationMs == 0
                       ? null
-                      : (value) {
-                          player.seek(Duration(milliseconds: value.round()));
-                        },
+                      : (value) =>
+                          player.seek(Duration(milliseconds: value.round())),
                 ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,

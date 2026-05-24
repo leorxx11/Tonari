@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/db/database.dart';
+import '../../player/data/playback_controller.dart';
 import '../../player/presentation/player_page.dart';
 import '../data/works_providers.dart';
 
@@ -120,16 +121,15 @@ class _TrackDirectoryView extends ConsumerWidget {
     final bookmark = await ref.read(
       bookmarkForWorkProvider(work.productId).future,
     );
-    if (!context.mounted) return;
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => PlayerPage(
+    await ref.read(playbackControllerProvider.notifier).startWork(
           work: work,
           tracks: tracks,
           initialIndex: index,
           bookmarkBase64: bookmark,
-        ),
-      ),
+        );
+    if (!context.mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const PlayerPage()),
     );
   }
 

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/favorites/presentation/favorites_page.dart';
 import '../../features/history/presentation/history_page.dart';
 import '../../features/library/presentation/library_page.dart';
+import '../../features/player/presentation/mini_player.dart';
 import '../../features/settings/presentation/settings_page.dart';
 import '../providers/selected_tab_index.dart';
 
@@ -21,7 +22,12 @@ class RootTabView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final index = ref.watch(selectedTabIndexProvider);
     return Scaffold(
-      body: IndexedStack(index: index, children: _pages),
+      body: Column(
+        children: [
+          Expanded(child: IndexedStack(index: index, children: _pages)),
+          const MiniPlayer(),
+        ],
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
         onDestinationSelected: (i) =>
