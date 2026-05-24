@@ -17,7 +17,7 @@ class ImportFlow {
     try {
       final path = _urlToPath(resolution.url);
       final scan = await FolderScanner.scan(path);
-      return await importer.applyScanResult(scan);
+      return await importer.applyScanResult(scan, sourceFolderId: folder.id);
     } finally {
       await FolderBookmark.release(resolution.url);
     }

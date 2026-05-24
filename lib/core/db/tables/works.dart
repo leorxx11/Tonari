@@ -57,10 +57,11 @@ class Works extends Table {
   DateTimeColumn get scrapedAt => dateTime().nullable()();
   DateTimeColumn get localImportedAt => dateTime()();
   TextColumn get localFolderPath => text()();
+  TextColumn get importedFolderId => text().nullable()();
   DateTimeColumn get lastPlayedAt => dateTime().nullable()();
   TextColumn get lastPlayedTrackId => text().nullable()();
-  BoolColumn get isFavorite =>
-      boolean().withDefault(const Constant(false))();
+  BoolColumn get isFavorite => boolean().withDefault(const Constant(false))();
+  BoolColumn get isRemoved => boolean().withDefault(const Constant(false))();
   IntColumn get userRating => integer().nullable()();
   TextColumn get userTags => text()
       .map(const StringListConverter())

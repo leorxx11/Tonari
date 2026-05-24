@@ -373,6 +373,17 @@ class $WorksTable extends Works with TableInfo<$WorksTable, Work> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _importedFolderIdMeta = const VerificationMeta(
+    'importedFolderId',
+  );
+  @override
+  late final GeneratedColumn<String> importedFolderId = GeneratedColumn<String>(
+    'imported_folder_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _lastPlayedAtMeta = const VerificationMeta(
     'lastPlayedAt',
   );
@@ -408,6 +419,21 @@ class $WorksTable extends Works with TableInfo<$WorksTable, Work> {
     requiredDuringInsert: false,
     defaultConstraints: GeneratedColumn.constraintIsAlways(
       'CHECK ("is_favorite" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _isRemovedMeta = const VerificationMeta(
+    'isRemoved',
+  );
+  @override
+  late final GeneratedColumn<bool> isRemoved = GeneratedColumn<bool>(
+    'is_removed',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_removed" IN (0, 1))',
     ),
     defaultValue: const Constant(false),
   );
@@ -499,9 +525,11 @@ class $WorksTable extends Works with TableInfo<$WorksTable, Work> {
     scrapedAt,
     localImportedAt,
     localFolderPath,
+    importedFolderId,
     lastPlayedAt,
     lastPlayedTrackId,
     isFavorite,
+    isRemoved,
     userRating,
     userTags,
     notes,
@@ -732,6 +760,15 @@ class $WorksTable extends Works with TableInfo<$WorksTable, Work> {
     } else if (isInserting) {
       context.missing(_localFolderPathMeta);
     }
+    if (data.containsKey('imported_folder_id')) {
+      context.handle(
+        _importedFolderIdMeta,
+        importedFolderId.isAcceptableOrUnknown(
+          data['imported_folder_id']!,
+          _importedFolderIdMeta,
+        ),
+      );
+    }
     if (data.containsKey('last_played_at')) {
       context.handle(
         _lastPlayedAtMeta,
@@ -754,6 +791,12 @@ class $WorksTable extends Works with TableInfo<$WorksTable, Work> {
       context.handle(
         _isFavoriteMeta,
         isFavorite.isAcceptableOrUnknown(data['is_favorite']!, _isFavoriteMeta),
+      );
+    }
+    if (data.containsKey('is_removed')) {
+      context.handle(
+        _isRemovedMeta,
+        isRemoved.isAcceptableOrUnknown(data['is_removed']!, _isRemovedMeta),
       );
     }
     if (data.containsKey('user_rating')) {
@@ -944,6 +987,10 @@ class $WorksTable extends Works with TableInfo<$WorksTable, Work> {
         DriftSqlType.string,
         data['${effectivePrefix}local_folder_path'],
       )!,
+      importedFolderId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}imported_folder_id'],
+      ),
       lastPlayedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}last_played_at'],
@@ -955,6 +1002,10 @@ class $WorksTable extends Works with TableInfo<$WorksTable, Work> {
       isFavorite: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}is_favorite'],
+      )!,
+      isRemoved: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_removed'],
       )!,
       userRating: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
@@ -1039,9 +1090,11 @@ class Work extends DataClass implements Insertable<Work> {
   final DateTime? scrapedAt;
   final DateTime localImportedAt;
   final String localFolderPath;
+  final String? importedFolderId;
   final DateTime? lastPlayedAt;
   final String? lastPlayedTrackId;
   final bool isFavorite;
+  final bool isRemoved;
   final int? userRating;
   final List<String> userTags;
   final String? notes;
@@ -1082,9 +1135,11 @@ class Work extends DataClass implements Insertable<Work> {
     this.scrapedAt,
     required this.localImportedAt,
     required this.localFolderPath,
+    this.importedFolderId,
     this.lastPlayedAt,
     this.lastPlayedTrackId,
     required this.isFavorite,
+    required this.isRemoved,
     this.userRating,
     required this.userTags,
     this.notes,
@@ -1202,6 +1257,9 @@ class Work extends DataClass implements Insertable<Work> {
     }
     map['local_imported_at'] = Variable<DateTime>(localImportedAt);
     map['local_folder_path'] = Variable<String>(localFolderPath);
+    if (!nullToAbsent || importedFolderId != null) {
+      map['imported_folder_id'] = Variable<String>(importedFolderId);
+    }
     if (!nullToAbsent || lastPlayedAt != null) {
       map['last_played_at'] = Variable<DateTime>(lastPlayedAt);
     }
@@ -1209,6 +1267,7 @@ class Work extends DataClass implements Insertable<Work> {
       map['last_played_track_id'] = Variable<String>(lastPlayedTrackId);
     }
     map['is_favorite'] = Variable<bool>(isFavorite);
+    map['is_removed'] = Variable<bool>(isRemoved);
     if (!nullToAbsent || userRating != null) {
       map['user_rating'] = Variable<int>(userRating);
     }
@@ -1305,6 +1364,9 @@ class Work extends DataClass implements Insertable<Work> {
           : Value(scrapedAt),
       localImportedAt: Value(localImportedAt),
       localFolderPath: Value(localFolderPath),
+      importedFolderId: importedFolderId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(importedFolderId),
       lastPlayedAt: lastPlayedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(lastPlayedAt),
@@ -1312,6 +1374,7 @@ class Work extends DataClass implements Insertable<Work> {
           ? const Value.absent()
           : Value(lastPlayedTrackId),
       isFavorite: Value(isFavorite),
+      isRemoved: Value(isRemoved),
       userRating: userRating == null && nullToAbsent
           ? const Value.absent()
           : Value(userRating),
@@ -1372,11 +1435,13 @@ class Work extends DataClass implements Insertable<Work> {
       scrapedAt: serializer.fromJson<DateTime?>(json['scrapedAt']),
       localImportedAt: serializer.fromJson<DateTime>(json['localImportedAt']),
       localFolderPath: serializer.fromJson<String>(json['localFolderPath']),
+      importedFolderId: serializer.fromJson<String?>(json['importedFolderId']),
       lastPlayedAt: serializer.fromJson<DateTime?>(json['lastPlayedAt']),
       lastPlayedTrackId: serializer.fromJson<String?>(
         json['lastPlayedTrackId'],
       ),
       isFavorite: serializer.fromJson<bool>(json['isFavorite']),
+      isRemoved: serializer.fromJson<bool>(json['isRemoved']),
       userRating: serializer.fromJson<int?>(json['userRating']),
       userTags: serializer.fromJson<List<String>>(json['userTags']),
       notes: serializer.fromJson<String?>(json['notes']),
@@ -1424,9 +1489,11 @@ class Work extends DataClass implements Insertable<Work> {
       'scrapedAt': serializer.toJson<DateTime?>(scrapedAt),
       'localImportedAt': serializer.toJson<DateTime>(localImportedAt),
       'localFolderPath': serializer.toJson<String>(localFolderPath),
+      'importedFolderId': serializer.toJson<String?>(importedFolderId),
       'lastPlayedAt': serializer.toJson<DateTime?>(lastPlayedAt),
       'lastPlayedTrackId': serializer.toJson<String?>(lastPlayedTrackId),
       'isFavorite': serializer.toJson<bool>(isFavorite),
+      'isRemoved': serializer.toJson<bool>(isRemoved),
       'userRating': serializer.toJson<int?>(userRating),
       'userTags': serializer.toJson<List<String>>(userTags),
       'notes': serializer.toJson<String?>(notes),
@@ -1470,9 +1537,11 @@ class Work extends DataClass implements Insertable<Work> {
     Value<DateTime?> scrapedAt = const Value.absent(),
     DateTime? localImportedAt,
     String? localFolderPath,
+    Value<String?> importedFolderId = const Value.absent(),
     Value<DateTime?> lastPlayedAt = const Value.absent(),
     Value<String?> lastPlayedTrackId = const Value.absent(),
     bool? isFavorite,
+    bool? isRemoved,
     Value<int?> userRating = const Value.absent(),
     List<String>? userTags,
     Value<String?> notes = const Value.absent(),
@@ -1521,11 +1590,15 @@ class Work extends DataClass implements Insertable<Work> {
     scrapedAt: scrapedAt.present ? scrapedAt.value : this.scrapedAt,
     localImportedAt: localImportedAt ?? this.localImportedAt,
     localFolderPath: localFolderPath ?? this.localFolderPath,
+    importedFolderId: importedFolderId.present
+        ? importedFolderId.value
+        : this.importedFolderId,
     lastPlayedAt: lastPlayedAt.present ? lastPlayedAt.value : this.lastPlayedAt,
     lastPlayedTrackId: lastPlayedTrackId.present
         ? lastPlayedTrackId.value
         : this.lastPlayedTrackId,
     isFavorite: isFavorite ?? this.isFavorite,
+    isRemoved: isRemoved ?? this.isRemoved,
     userRating: userRating.present ? userRating.value : this.userRating,
     userTags: userTags ?? this.userTags,
     notes: notes.present ? notes.value : this.notes,
@@ -1614,6 +1687,9 @@ class Work extends DataClass implements Insertable<Work> {
       localFolderPath: data.localFolderPath.present
           ? data.localFolderPath.value
           : this.localFolderPath,
+      importedFolderId: data.importedFolderId.present
+          ? data.importedFolderId.value
+          : this.importedFolderId,
       lastPlayedAt: data.lastPlayedAt.present
           ? data.lastPlayedAt.value
           : this.lastPlayedAt,
@@ -1623,6 +1699,7 @@ class Work extends DataClass implements Insertable<Work> {
       isFavorite: data.isFavorite.present
           ? data.isFavorite.value
           : this.isFavorite,
+      isRemoved: data.isRemoved.present ? data.isRemoved.value : this.isRemoved,
       userRating: data.userRating.present
           ? data.userRating.value
           : this.userRating,
@@ -1670,9 +1747,11 @@ class Work extends DataClass implements Insertable<Work> {
           ..write('scrapedAt: $scrapedAt, ')
           ..write('localImportedAt: $localImportedAt, ')
           ..write('localFolderPath: $localFolderPath, ')
+          ..write('importedFolderId: $importedFolderId, ')
           ..write('lastPlayedAt: $lastPlayedAt, ')
           ..write('lastPlayedTrackId: $lastPlayedTrackId, ')
           ..write('isFavorite: $isFavorite, ')
+          ..write('isRemoved: $isRemoved, ')
           ..write('userRating: $userRating, ')
           ..write('userTags: $userTags, ')
           ..write('notes: $notes, ')
@@ -1718,9 +1797,11 @@ class Work extends DataClass implements Insertable<Work> {
     scrapedAt,
     localImportedAt,
     localFolderPath,
+    importedFolderId,
     lastPlayedAt,
     lastPlayedTrackId,
     isFavorite,
+    isRemoved,
     userRating,
     userTags,
     notes,
@@ -1765,9 +1846,11 @@ class Work extends DataClass implements Insertable<Work> {
           other.scrapedAt == this.scrapedAt &&
           other.localImportedAt == this.localImportedAt &&
           other.localFolderPath == this.localFolderPath &&
+          other.importedFolderId == this.importedFolderId &&
           other.lastPlayedAt == this.lastPlayedAt &&
           other.lastPlayedTrackId == this.lastPlayedTrackId &&
           other.isFavorite == this.isFavorite &&
+          other.isRemoved == this.isRemoved &&
           other.userRating == this.userRating &&
           other.userTags == this.userTags &&
           other.notes == this.notes &&
@@ -1810,9 +1893,11 @@ class WorksCompanion extends UpdateCompanion<Work> {
   final Value<DateTime?> scrapedAt;
   final Value<DateTime> localImportedAt;
   final Value<String> localFolderPath;
+  final Value<String?> importedFolderId;
   final Value<DateTime?> lastPlayedAt;
   final Value<String?> lastPlayedTrackId;
   final Value<bool> isFavorite;
+  final Value<bool> isRemoved;
   final Value<int?> userRating;
   final Value<List<String>> userTags;
   final Value<String?> notes;
@@ -1854,9 +1939,11 @@ class WorksCompanion extends UpdateCompanion<Work> {
     this.scrapedAt = const Value.absent(),
     this.localImportedAt = const Value.absent(),
     this.localFolderPath = const Value.absent(),
+    this.importedFolderId = const Value.absent(),
     this.lastPlayedAt = const Value.absent(),
     this.lastPlayedTrackId = const Value.absent(),
     this.isFavorite = const Value.absent(),
+    this.isRemoved = const Value.absent(),
     this.userRating = const Value.absent(),
     this.userTags = const Value.absent(),
     this.notes = const Value.absent(),
@@ -1899,9 +1986,11 @@ class WorksCompanion extends UpdateCompanion<Work> {
     this.scrapedAt = const Value.absent(),
     required DateTime localImportedAt,
     required String localFolderPath,
+    this.importedFolderId = const Value.absent(),
     this.lastPlayedAt = const Value.absent(),
     this.lastPlayedTrackId = const Value.absent(),
     this.isFavorite = const Value.absent(),
+    this.isRemoved = const Value.absent(),
     this.userRating = const Value.absent(),
     this.userTags = const Value.absent(),
     this.notes = const Value.absent(),
@@ -1949,9 +2038,11 @@ class WorksCompanion extends UpdateCompanion<Work> {
     Expression<DateTime>? scrapedAt,
     Expression<DateTime>? localImportedAt,
     Expression<String>? localFolderPath,
+    Expression<String>? importedFolderId,
     Expression<DateTime>? lastPlayedAt,
     Expression<String>? lastPlayedTrackId,
     Expression<bool>? isFavorite,
+    Expression<bool>? isRemoved,
     Expression<int>? userRating,
     Expression<String>? userTags,
     Expression<String>? notes,
@@ -1996,9 +2087,11 @@ class WorksCompanion extends UpdateCompanion<Work> {
       if (scrapedAt != null) 'scraped_at': scrapedAt,
       if (localImportedAt != null) 'local_imported_at': localImportedAt,
       if (localFolderPath != null) 'local_folder_path': localFolderPath,
+      if (importedFolderId != null) 'imported_folder_id': importedFolderId,
       if (lastPlayedAt != null) 'last_played_at': lastPlayedAt,
       if (lastPlayedTrackId != null) 'last_played_track_id': lastPlayedTrackId,
       if (isFavorite != null) 'is_favorite': isFavorite,
+      if (isRemoved != null) 'is_removed': isRemoved,
       if (userRating != null) 'user_rating': userRating,
       if (userTags != null) 'user_tags': userTags,
       if (notes != null) 'notes': notes,
@@ -2043,9 +2136,11 @@ class WorksCompanion extends UpdateCompanion<Work> {
     Value<DateTime?>? scrapedAt,
     Value<DateTime>? localImportedAt,
     Value<String>? localFolderPath,
+    Value<String?>? importedFolderId,
     Value<DateTime?>? lastPlayedAt,
     Value<String?>? lastPlayedTrackId,
     Value<bool>? isFavorite,
+    Value<bool>? isRemoved,
     Value<int?>? userRating,
     Value<List<String>>? userTags,
     Value<String?>? notes,
@@ -2089,9 +2184,11 @@ class WorksCompanion extends UpdateCompanion<Work> {
       scrapedAt: scrapedAt ?? this.scrapedAt,
       localImportedAt: localImportedAt ?? this.localImportedAt,
       localFolderPath: localFolderPath ?? this.localFolderPath,
+      importedFolderId: importedFolderId ?? this.importedFolderId,
       lastPlayedAt: lastPlayedAt ?? this.lastPlayedAt,
       lastPlayedTrackId: lastPlayedTrackId ?? this.lastPlayedTrackId,
       isFavorite: isFavorite ?? this.isFavorite,
+      isRemoved: isRemoved ?? this.isRemoved,
       userRating: userRating ?? this.userRating,
       userTags: userTags ?? this.userTags,
       notes: notes ?? this.notes,
@@ -2222,6 +2319,9 @@ class WorksCompanion extends UpdateCompanion<Work> {
     if (localFolderPath.present) {
       map['local_folder_path'] = Variable<String>(localFolderPath.value);
     }
+    if (importedFolderId.present) {
+      map['imported_folder_id'] = Variable<String>(importedFolderId.value);
+    }
     if (lastPlayedAt.present) {
       map['last_played_at'] = Variable<DateTime>(lastPlayedAt.value);
     }
@@ -2230,6 +2330,9 @@ class WorksCompanion extends UpdateCompanion<Work> {
     }
     if (isFavorite.present) {
       map['is_favorite'] = Variable<bool>(isFavorite.value);
+    }
+    if (isRemoved.present) {
+      map['is_removed'] = Variable<bool>(isRemoved.value);
     }
     if (userRating.present) {
       map['user_rating'] = Variable<int>(userRating.value);
@@ -2291,9 +2394,11 @@ class WorksCompanion extends UpdateCompanion<Work> {
           ..write('scrapedAt: $scrapedAt, ')
           ..write('localImportedAt: $localImportedAt, ')
           ..write('localFolderPath: $localFolderPath, ')
+          ..write('importedFolderId: $importedFolderId, ')
           ..write('lastPlayedAt: $lastPlayedAt, ')
           ..write('lastPlayedTrackId: $lastPlayedTrackId, ')
           ..write('isFavorite: $isFavorite, ')
+          ..write('isRemoved: $isRemoved, ')
           ..write('userRating: $userRating, ')
           ..write('userTags: $userTags, ')
           ..write('notes: $notes, ')
@@ -4572,9 +4677,11 @@ typedef $$WorksTableCreateCompanionBuilder =
       Value<DateTime?> scrapedAt,
       required DateTime localImportedAt,
       required String localFolderPath,
+      Value<String?> importedFolderId,
       Value<DateTime?> lastPlayedAt,
       Value<String?> lastPlayedTrackId,
       Value<bool> isFavorite,
+      Value<bool> isRemoved,
       Value<int?> userRating,
       Value<List<String>> userTags,
       Value<String?> notes,
@@ -4618,9 +4725,11 @@ typedef $$WorksTableUpdateCompanionBuilder =
       Value<DateTime?> scrapedAt,
       Value<DateTime> localImportedAt,
       Value<String> localFolderPath,
+      Value<String?> importedFolderId,
       Value<DateTime?> lastPlayedAt,
       Value<String?> lastPlayedTrackId,
       Value<bool> isFavorite,
+      Value<bool> isRemoved,
       Value<int?> userRating,
       Value<List<String>> userTags,
       Value<String?> notes,
@@ -4838,6 +4947,11 @@ class $$WorksTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get importedFolderId => $composableBuilder(
+    column: $table.importedFolderId,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<DateTime> get lastPlayedAt => $composableBuilder(
     column: $table.lastPlayedAt,
     builder: (column) => ColumnFilters(column),
@@ -4850,6 +4964,11 @@ class $$WorksTableFilterComposer
 
   ColumnFilters<bool> get isFavorite => $composableBuilder(
     column: $table.isFavorite,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isRemoved => $composableBuilder(
+    column: $table.isRemoved,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5084,6 +5203,11 @@ class $$WorksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get importedFolderId => $composableBuilder(
+    column: $table.importedFolderId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get lastPlayedAt => $composableBuilder(
     column: $table.lastPlayedAt,
     builder: (column) => ColumnOrderings(column),
@@ -5096,6 +5220,11 @@ class $$WorksTableOrderingComposer
 
   ColumnOrderings<bool> get isFavorite => $composableBuilder(
     column: $table.isFavorite,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isRemoved => $composableBuilder(
+    column: $table.isRemoved,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -5288,6 +5417,11 @@ class $$WorksTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get importedFolderId => $composableBuilder(
+    column: $table.importedFolderId,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<DateTime> get lastPlayedAt => $composableBuilder(
     column: $table.lastPlayedAt,
     builder: (column) => column,
@@ -5302,6 +5436,9 @@ class $$WorksTableAnnotationComposer
     column: $table.isFavorite,
     builder: (column) => column,
   );
+
+  GeneratedColumn<bool> get isRemoved =>
+      $composableBuilder(column: $table.isRemoved, builder: (column) => column);
 
   GeneratedColumn<int> get userRating => $composableBuilder(
     column: $table.userRating,
@@ -5409,9 +5546,11 @@ class $$WorksTableTableManager
                 Value<DateTime?> scrapedAt = const Value.absent(),
                 Value<DateTime> localImportedAt = const Value.absent(),
                 Value<String> localFolderPath = const Value.absent(),
+                Value<String?> importedFolderId = const Value.absent(),
                 Value<DateTime?> lastPlayedAt = const Value.absent(),
                 Value<String?> lastPlayedTrackId = const Value.absent(),
                 Value<bool> isFavorite = const Value.absent(),
+                Value<bool> isRemoved = const Value.absent(),
                 Value<int?> userRating = const Value.absent(),
                 Value<List<String>> userTags = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
@@ -5453,9 +5592,11 @@ class $$WorksTableTableManager
                 scrapedAt: scrapedAt,
                 localImportedAt: localImportedAt,
                 localFolderPath: localFolderPath,
+                importedFolderId: importedFolderId,
                 lastPlayedAt: lastPlayedAt,
                 lastPlayedTrackId: lastPlayedTrackId,
                 isFavorite: isFavorite,
+                isRemoved: isRemoved,
                 userRating: userRating,
                 userTags: userTags,
                 notes: notes,
@@ -5500,9 +5641,11 @@ class $$WorksTableTableManager
                 Value<DateTime?> scrapedAt = const Value.absent(),
                 required DateTime localImportedAt,
                 required String localFolderPath,
+                Value<String?> importedFolderId = const Value.absent(),
                 Value<DateTime?> lastPlayedAt = const Value.absent(),
                 Value<String?> lastPlayedTrackId = const Value.absent(),
                 Value<bool> isFavorite = const Value.absent(),
+                Value<bool> isRemoved = const Value.absent(),
                 Value<int?> userRating = const Value.absent(),
                 Value<List<String>> userTags = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
@@ -5544,9 +5687,11 @@ class $$WorksTableTableManager
                 scrapedAt: scrapedAt,
                 localImportedAt: localImportedAt,
                 localFolderPath: localFolderPath,
+                importedFolderId: importedFolderId,
                 lastPlayedAt: lastPlayedAt,
                 lastPlayedTrackId: lastPlayedTrackId,
                 isFavorite: isFavorite,
+                isRemoved: isRemoved,
                 userRating: userRating,
                 userTags: userTags,
                 notes: notes,

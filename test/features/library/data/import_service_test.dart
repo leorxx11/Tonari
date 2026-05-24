@@ -192,6 +192,32 @@ void main() {
     expect(await db.select(db.tracks).get(), isEmpty);
   });
 
+  test('persists sourceFolderId on insert and update', () async {
+    final scan = ScanResult(
+      rootPath: '/scan',
+      filesScanned: 1,
+      unrecognizedDirs: const [],
+      works: [
+        _work(rj: 'RJ_SRC', rootPath: '/scan/RJ_SRC', audios: [
+          _audio(path: '/scan/RJ_SRC/t.mp3', fileName: 't.mp3', format: 'mp3'),
+        ]),
+      ],
+    );
+    await service.applyScanResult(scan, sourceFolderId: 'folder-A');
+
+    var work = await (db.select(db.works)
+          ..where((w) => w.productId.equals('RJ_SRC')))
+        .getSingle();
+    expect(work.importedFolderId, 'folder-A');
+
+    // Re-scan from a different folder should rebind.
+    await service.applyScanResult(scan, sourceFolderId: 'folder-B');
+    work = await (db.select(db.works)
+          ..where((w) => w.productId.equals('RJ_SRC')))
+        .getSingle();
+    expect(work.importedFolderId, 'folder-B');
+  });
+
   test('multiple works in one scan', () async {
     final summary = await service.applyScanResult(ScanResult(
       rootPath: '/scan',
