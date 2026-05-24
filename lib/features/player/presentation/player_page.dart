@@ -4,6 +4,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:just_audio_background/just_audio_background.dart';
 
 import '../../../core/db/database.dart';
 import '../../../core/db/providers.dart';
@@ -87,7 +88,17 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
   }
 
   Future<void> _loadAndPlay({bool resume = false}) async {
-    await _player.setFilePath(_track.filePath);
+    await _player.setAudioSource(
+      AudioSource.uri(
+        Uri.file(_track.filePath),
+        tag: MediaItem(
+          id: _track.id,
+          title: _track.title,
+          artist: widget.work.title,
+          album: widget.work.productId,
+        ),
+      ),
+    );
     if (resume && _track.lastPositionMs > 0) {
       await _player.seek(Duration(milliseconds: _track.lastPositionMs));
     }
