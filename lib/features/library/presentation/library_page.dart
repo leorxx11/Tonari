@@ -1,74 +1,113 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/db/database.dart';
 import '../../../core/files/folder_picker_service.dart';
+import '../data/import_flow.dart';
+import '../data/works_providers.dart';
+import 'widgets/work_card.dart';
 
-class LibraryPage extends ConsumerWidget {
+class LibraryPage extends ConsumerStatefulWidget {
   const LibraryPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final foldersAsync = ref.watch(importedFoldersProvider);
+  ConsumerState<LibraryPage> createState() => _LibraryPageState();
+}
+
+class _LibraryPageState extends ConsumerState<LibraryPage> {
+  bool _importing = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final worksAsync = ref.watch(allWorksProvider);
     return Scaffold(
       appBar: AppBar(
         title: const Text('媒体库'),
         actions: [
           IconButton(
             tooltip: '导入文件夹',
-            icon: const Icon(Icons.create_new_folder_outlined),
-            onPressed: () => _onImport(context, ref),
+            icon: _importing
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.create_new_folder_outlined),
+            onPressed: _importing ? null : _onImport,
           ),
         ],
       ),
-      body: foldersAsync.when(
+      body: worksAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('加载失败：$e')),
-        data: (folders) => folders.isEmpty
-            ? const _EmptyState()
-            : ListView.separated(
-                itemCount: folders.length,
-                separatorBuilder: (_, _) => const Divider(height: 1),
-                itemBuilder: (context, i) {
-                  final folder = folders[i];
-                  return ListTile(
-                    leading: const Icon(Icons.folder_outlined),
-                    title: Text(folder.displayName),
-                    subtitle: Text('导入于 ${_formatDate(folder.createdAt)}'),
-                    trailing: IconButton(
-                      tooltip: '移除',
-                      icon: const Icon(Icons.delete_outline),
-                      onPressed: () => ref
-                          .read(folderPickerServiceProvider)
-                          .remove(folder.id),
-                    ),
-                  );
-                },
-              ),
+        data: (works) =>
+            works.isEmpty ? const _EmptyState() : _WorksGrid(works: works),
       ),
     );
   }
 
-  Future<void> _onImport(BuildContext context, WidgetRef ref) async {
+  Future<void> _onImport() async {
+    final folder =
+        await ref.read(folderPickerServiceProvider).pickAndPersist();
+    if (folder == null || !mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.clearSnackBars();
+    messenger.showSnackBar(const SnackBar(
+      content: Row(
+        children: [
+          SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          SizedBox(width: 12),
+          Text('扫描中…'),
+        ],
+      ),
+      duration: Duration(minutes: 5),
+    ));
+    setState(() => _importing = true);
+
     try {
-      final result = await ref.read(folderPickerServiceProvider).pickAndPersist();
-      if (result != null && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('已导入 ${result.displayName}')),
-        );
-      }
+      final summary =
+          await ref.read(importFlowProvider).importFromFolder(folder);
+      if (!mounted) return;
+      messenger.clearSnackBars();
+      messenger.showSnackBar(SnackBar(
+        content: Text(
+          '导入完成：${summary.worksInserted} 部新作品 / '
+          '${summary.worksUpdated} 部更新，共 ${summary.tracksTotal} 个音轨',
+        ),
+      ));
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('导入失败：$e')),
-        );
-      }
+      if (!mounted) return;
+      messenger.clearSnackBars();
+      messenger.showSnackBar(SnackBar(content: Text('导入失败：$e')));
+    } finally {
+      if (mounted) setState(() => _importing = false);
     }
   }
+}
 
-  static String _formatDate(DateTime dt) {
-    final l = dt.toLocal();
-    String two(int v) => v.toString().padLeft(2, '0');
-    return '${l.year}-${two(l.month)}-${two(l.day)} ${two(l.hour)}:${two(l.minute)}';
+class _WorksGrid extends StatelessWidget {
+  const _WorksGrid({required this.works});
+
+  final List<Work> works;
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.builder(
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        childAspectRatio: 0.72,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+      ),
+      padding: const EdgeInsets.all(8),
+      itemCount: works.length,
+      itemBuilder: (ctx, i) => WorkCard(work: works[i]),
+    );
   }
 }
 

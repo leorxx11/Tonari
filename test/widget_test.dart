@@ -3,14 +3,36 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tonari/app.dart';
 import 'package:tonari/core/db/database.dart';
-import 'package:tonari/core/files/folder_picker_service.dart';
+import 'package:tonari/features/library/data/works_providers.dart';
 
-Widget testApp({List<ImportedFolder> folders = const []}) => ProviderScope(
+Widget testApp({List<Work> works = const []}) => ProviderScope(
       overrides: [
-        importedFoldersProvider.overrideWith((ref) => Stream.value(folders)),
+        allWorksProvider.overrideWith((ref) => Stream.value(works)),
       ],
       child: const TonariApp(),
     );
+
+Work _work(String rj, {String? title}) {
+  final now = DateTime(2026, 5, 24, 14, 30);
+  return Work(
+    productId: rj,
+    title: title ?? rj,
+    voiceActors: const [],
+    illustrators: const [],
+    scenarioWriters: const [],
+    musicians: const [],
+    fileFormats: const [],
+    genresJson: '[]',
+    sampleImageUrls: const [],
+    sampleImageLocalPaths: const [],
+    localImportedAt: now,
+    localFolderPath: '/imported/$rj',
+    isFavorite: false,
+    userTags: const [],
+    createdAt: now,
+    updatedAt: now,
+  );
+}
 
 void main() {
   testWidgets('root renders 4 navigation tabs', (tester) async {
@@ -23,29 +45,24 @@ void main() {
     expect(find.text('设置'), findsWidgets);
   });
 
-  testWidgets('library tab shows empty state when no folders imported',
-      (tester) async {
+  testWidgets('library tab shows empty state when no works', (tester) async {
     await tester.pumpWidget(testApp());
     await tester.pumpAndSettle();
 
     expect(find.text('媒体库还是空的'), findsOneWidget);
   });
 
-  testWidgets('library tab lists imported folders', (tester) async {
-    final now = DateTime(2026, 5, 24, 14, 30);
-    await tester.pumpWidget(testApp(folders: [
-      ImportedFolder(
-        id: 'f1',
-        displayName: 'RJ01560714',
-        bookmarkBase64: 'b',
-        createdAt: now,
-        updatedAt: now,
-      ),
+  testWidgets('library tab shows works grid when populated', (tester) async {
+    await tester.pumpWidget(testApp(works: [
+      _work('RJ01560714', title: 'Test Work'),
+      _work('RJ00000001', title: 'Another'),
     ]));
     await tester.pumpAndSettle();
 
+    expect(find.text('Test Work'), findsOneWidget);
+    expect(find.text('Another'), findsOneWidget);
     expect(find.text('RJ01560714'), findsOneWidget);
-    expect(find.textContaining('导入于'), findsOneWidget);
+    expect(find.text('RJ00000001'), findsOneWidget);
   });
 
   testWidgets('tapping a tab switches the page', (tester) async {
