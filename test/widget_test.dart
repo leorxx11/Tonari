@@ -17,6 +17,7 @@ Widget testApp({
   List<ImportedFolder> folders = const [],
   RemoveWork? removeWork,
   RestoreWork? restoreWork,
+  ToggleFavorite? toggleFavorite,
   ImportFlow? importFlow,
 }) => ProviderScope(
   overrides: [
@@ -34,12 +35,19 @@ Widget testApp({
     }),
     if (removeWork != null) removeWorkProvider.overrideWithValue(removeWork),
     if (restoreWork != null) restoreWorkProvider.overrideWithValue(restoreWork),
+    if (toggleFavorite != null)
+      toggleFavoriteProvider.overrideWithValue(toggleFavorite),
     if (importFlow != null) importFlowProvider.overrideWithValue(importFlow),
   ],
   child: const TonariApp(),
 );
 
-Work _work(String rj, {String? title, bool isRemoved = false}) {
+Work _work(
+  String rj, {
+  String? title,
+  bool isRemoved = false,
+  bool isFavorite = false,
+}) {
   final now = DateTime(2026, 5, 24, 14, 30);
   return Work(
     productId: rj,
@@ -54,7 +62,7 @@ Work _work(String rj, {String? title, bool isRemoved = false}) {
     sampleImageLocalPaths: const [],
     localImportedAt: now,
     localFolderPath: '/imported/$rj',
-    isFavorite: false,
+    isFavorite: isFavorite,
     isRemoved: isRemoved,
     userTags: const [],
     createdAt: now,
@@ -325,6 +333,74 @@ void main() {
 
     expect(find.text('flac-track'), findsOneWidget);
     expect(find.text('effect-track'), findsNothing);
+  });
+
+  testWidgets('favorite work shows heart icon on card', (tester) async {
+    await tester.pumpWidget(
+      testApp(works: [_work('RJ01560714', isFavorite: true)]),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byIcon(Icons.favorite), findsWidgets);
+  });
+
+  testWidgets('long press menu includes 添加收藏 and triggers toggle',
+      (tester) async {
+    String? toggledId;
+    bool? toggledValue;
+    await tester.pumpWidget(
+      testApp(
+        works: [_work('RJ01560714', title: 'Test Work')],
+        toggleFavorite: (productId, favorite) async {
+          toggledId = productId;
+          toggledValue = favorite;
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.longPress(find.text('Test Work'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('添加收藏'), findsOneWidget);
+    await tester.tap(find.text('添加收藏'));
+    await tester.pumpAndSettle();
+
+    expect(toggledId, 'RJ01560714');
+    expect(toggledValue, true);
+  });
+
+  testWidgets('search button reveals a text field and back closes it',
+      (tester) async {
+    await tester.pumpWidget(testApp());
+    await tester.pumpAndSettle();
+
+    expect(find.byType(TextField), findsNothing);
+
+    await tester.tap(find.byTooltip('搜索'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(TextField), findsOneWidget);
+    expect(find.text('搜索 RJ 编号或标题…'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('关闭搜索'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(TextField), findsNothing);
+  });
+
+  testWidgets('favorite filter button toggles its tooltip', (tester) async {
+    await tester.pumpWidget(testApp());
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('只看收藏'), findsOneWidget);
+    expect(find.byTooltip('取消只看收藏'), findsNothing);
+
+    await tester.tap(find.byTooltip('只看收藏'));
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('只看收藏'), findsNothing);
+    expect(find.byTooltip('取消只看收藏'), findsOneWidget);
   });
 
   testWidgets('library tab exposes 4 sort modes in the menu', (tester) async {

@@ -25,11 +25,55 @@ final workSortProvider = NotifierProvider<WorkSort, WorkSortMode>(
   WorkSort.new,
 );
 
+class WorkFilter {
+  const WorkFilter({this.favoritesOnly = false, this.searchQuery = ''});
+
+  final bool favoritesOnly;
+  final String searchQuery;
+
+  WorkFilter copyWith({bool? favoritesOnly, String? searchQuery}) {
+    return WorkFilter(
+      favoritesOnly: favoritesOnly ?? this.favoritesOnly,
+      searchQuery: searchQuery ?? this.searchQuery,
+    );
+  }
+}
+
+class WorkFilterNotifier extends Notifier<WorkFilter> {
+  @override
+  WorkFilter build() => const WorkFilter();
+
+  void toggleFavoritesOnly() {
+    state = state.copyWith(favoritesOnly: !state.favoritesOnly);
+  }
+
+  void setSearchQuery(String query) {
+    state = state.copyWith(searchQuery: query);
+  }
+}
+
+final workFilterProvider =
+    NotifierProvider<WorkFilterNotifier, WorkFilter>(WorkFilterNotifier.new);
+
 final allWorksProvider = StreamProvider<List<Work>>((ref) {
   final db = ref.watch(databaseProvider);
   final sort = ref.watch(workSortProvider);
+  final filter = ref.watch(workFilterProvider);
+  final query = filter.searchQuery.trim().toLowerCase();
+
   return (db.select(db.works)
-        ..where((w) => w.isRemoved.equals(false))
+        ..where((w) {
+          var expr = w.isRemoved.equals(false);
+          if (filter.favoritesOnly) {
+            expr = expr & w.isFavorite.equals(true);
+          }
+          if (query.isNotEmpty) {
+            final like = '%$query%';
+            expr = expr &
+                (w.productId.lower().like(like) | w.title.lower().like(like));
+          }
+          return expr;
+        })
         ..orderBy([(w) => _orderingFor(sort, w)]))
       .watch();
 });

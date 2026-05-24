@@ -6,6 +6,7 @@ import '../../../core/db/providers.dart';
 
 typedef RemoveWork = Future<void> Function(String productId);
 typedef RestoreWork = Future<void> Function(String productId);
+typedef ToggleFavorite = Future<void> Function(String productId, bool favorite);
 
 final removeWorkProvider = Provider<RemoveWork>((ref) {
   final db = ref.watch(databaseProvider);
@@ -38,3 +39,17 @@ RemoveWork removeWorkWithDatabase(TonariDatabase db) {
     );
   };
 }
+
+final toggleFavoriteProvider = Provider<ToggleFavorite>((ref) {
+  final db = ref.watch(databaseProvider);
+  return (productId, favorite) async {
+    await (db.update(
+      db.works,
+    )..where((w) => w.productId.equals(productId))).write(
+      WorksCompanion(
+        isFavorite: Value(favorite),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  };
+});

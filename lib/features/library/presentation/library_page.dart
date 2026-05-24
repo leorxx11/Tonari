@@ -19,6 +19,20 @@ class LibraryPage extends ConsumerStatefulWidget {
 class _LibraryPageState extends ConsumerState<LibraryPage> {
   bool _importing = false;
   bool _rescanning = false;
+  bool _searching = false;
+  late final TextEditingController _searchController;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,10 +40,46 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     final folders = ref.watch(importedFoldersProvider).value ?? const [];
     final busy = _importing || _rescanning;
     final sort = ref.watch(workSortProvider);
+    final filter = ref.watch(workFilterProvider);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('媒体库'),
+        leading: _searching
+            ? IconButton(
+                tooltip: '关闭搜索',
+                icon: const Icon(Icons.arrow_back),
+                onPressed: _closeSearch,
+              )
+            : null,
+        title: _searching
+            ? TextField(
+                controller: _searchController,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  hintText: '搜索 RJ 编号或标题…',
+                  border: InputBorder.none,
+                ),
+                onChanged: (q) =>
+                    ref.read(workFilterProvider.notifier).setSearchQuery(q),
+              )
+            : const Text('媒体库'),
         actions: [
+          if (!_searching) ...[
+            IconButton(
+              tooltip: '搜索',
+              icon: const Icon(Icons.search),
+              onPressed: () => setState(() => _searching = true),
+            ),
+            IconButton(
+              tooltip: filter.favoritesOnly ? '取消只看收藏' : '只看收藏',
+              icon: Icon(
+                filter.favoritesOnly
+                    ? Icons.favorite
+                    : Icons.favorite_outline,
+              ),
+              onPressed: () =>
+                  ref.read(workFilterProvider.notifier).toggleFavoritesOnly(),
+            ),
+          ],
           PopupMenuButton<WorkSortMode>(
             tooltip: '排序',
             icon: const Icon(Icons.sort),
@@ -82,8 +132,12 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('加载失败：$e')),
         data: (works) => works.isEmpty
-            ? const _EmptyState()
-            : _WorksGrid(works: works, onRemove: _onRemoveWork),
+            ? _EmptyState(filter: filter)
+            : _WorksGrid(
+                works: works,
+                onRemove: _onRemoveWork,
+                onToggleFavorite: _onToggleFavorite,
+              ),
       ),
     );
   }
@@ -189,13 +243,29 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
       context,
     ).showSnackBar(SnackBar(content: Text('已移除 ${work.title}')));
   }
+
+  Future<void> _onToggleFavorite(Work work) async {
+    final next = !work.isFavorite;
+    await ref.read(toggleFavoriteProvider).call(work.productId, next);
+  }
+
+  void _closeSearch() {
+    setState(() => _searching = false);
+    _searchController.clear();
+    ref.read(workFilterProvider.notifier).setSearchQuery('');
+  }
 }
 
 class _WorksGrid extends StatelessWidget {
-  const _WorksGrid({required this.works, required this.onRemove});
+  const _WorksGrid({
+    required this.works,
+    required this.onRemove,
+    required this.onToggleFavorite,
+  });
 
   final List<Work> works;
   final ValueChanged<Work> onRemove;
+  final ValueChanged<Work> onToggleFavorite;
 
   @override
   Widget build(BuildContext context) {
@@ -211,6 +281,7 @@ class _WorksGrid extends StatelessWidget {
       itemBuilder: (ctx, i) => WorkCard(
         work: works[i],
         onRemove: () => onRemove(works[i]),
+        onToggleFavorite: () => onToggleFavorite(works[i]),
         onTap: () {
           Navigator.of(context).push(
             MaterialPageRoute<void>(
@@ -224,11 +295,15 @@ class _WorksGrid extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState();
+  const _EmptyState({required this.filter});
+
+  final WorkFilter filter;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isFiltered =
+        filter.favoritesOnly || filter.searchQuery.trim().isNotEmpty;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -236,15 +311,22 @@ class _EmptyState extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              Icons.library_music_outlined,
+              isFiltered
+                  ? Icons.filter_alt_outlined
+                  : Icons.library_music_outlined,
               size: 64,
               color: theme.colorScheme.onSurfaceVariant,
             ),
             const SizedBox(height: 16),
-            Text('媒体库还是空的', style: theme.textTheme.titleMedium),
+            Text(
+              isFiltered ? '没有匹配的作品' : '媒体库还是空的',
+              style: theme.textTheme.titleMedium,
+            ),
             const SizedBox(height: 8),
             Text(
-              '点右上角导入一个包含 RJ 编号的文件夹',
+              isFiltered
+                  ? '换个搜索词，或者关掉"只看收藏"过滤'
+                  : '点右上角导入一个包含 RJ 编号的文件夹',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
