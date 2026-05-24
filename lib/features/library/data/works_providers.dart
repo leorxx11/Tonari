@@ -30,3 +30,22 @@ final tracksByWorkProvider = StreamProvider.family<List<Track>, String>((
         ..orderBy([(t) => OrderingTerm.asc(t.filePath)]))
       .watch();
 });
+
+/// Resolves a Work to the bookmark stored on its source ImportedFolder.
+/// Returns null if the work has no linkage (e.g. imported before C2) or
+/// the folder was deleted.
+final bookmarkForWorkProvider = FutureProvider.family<String?, String>((
+  ref,
+  productId,
+) async {
+  final db = ref.watch(databaseProvider);
+  final work = await (db.select(
+    db.works,
+  )..where((w) => w.productId.equals(productId))).getSingleOrNull();
+  final folderId = work?.importedFolderId;
+  if (folderId == null) return null;
+  final folder = await (db.select(
+    db.importedFolders,
+  )..where((f) => f.id.equals(folderId))).getSingleOrNull();
+  return folder?.bookmarkBase64;
+});

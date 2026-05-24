@@ -1,30 +1,43 @@
 import 'dart:async';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 
 import '../../../core/db/database.dart';
+import '../../../core/db/providers.dart';
+import '../../../core/files/folder_bookmark.dart';
 
-class PlayerPage extends StatefulWidget {
+class PlayerPage extends ConsumerStatefulWidget {
   const PlayerPage({
     super.key,
     required this.work,
     required this.tracks,
     required this.initialIndex,
+    this.bookmarkBase64,
   });
 
   final Work work;
   final List<Track> tracks;
   final int initialIndex;
 
+  /// Security-scoped bookmark of the folder these tracks live in. When
+  /// non-null, the player keeps the scope alive for the page's lifetime
+  /// so iOS lets just_audio read the file. Pass null for in-sandbox files
+  /// or test scenarios.
+  final String? bookmarkBase64;
+
   @override
-  State<PlayerPage> createState() => _PlayerPageState();
+  ConsumerState<PlayerPage> createState() => _PlayerPageState();
 }
 
-class _PlayerPageState extends State<PlayerPage> {
+class _PlayerPageState extends ConsumerState<PlayerPage> {
   late final AudioPlayer _player;
   late int _index;
   StreamSubscription<ProcessingState>? _processingSub;
+  Timer? _positionSaveTimer;
+  String? _resolvedFolderUrl;
   double _speed = 1;
 
   Track get _track => widget.tracks[_index];
@@ -34,21 +47,50 @@ class _PlayerPageState extends State<PlayerPage> {
     super.initState();
     _player = AudioPlayer();
     _index = widget.initialIndex;
-    _processingSub = _player.processingStateStream.listen((state) {
-      if (state == ProcessingState.completed) _playNext();
+    _processingSub = _player.processingStateStream.listen((state) async {
+      if (state == ProcessingState.completed) {
+        await _bumpPlayCount();
+        await _playNext();
+      }
     });
-    _loadAndPlay();
+    _positionSaveTimer = Timer.periodic(
+      const Duration(seconds: 5),
+      (_) => _savePosition(),
+    );
+    _initAudio();
+  }
+
+  Future<void> _initAudio() async {
+    final bookmark = widget.bookmarkBase64;
+    if (bookmark != null) {
+      try {
+        final resolution = await FolderBookmark.resolve(bookmark);
+        _resolvedFolderUrl = resolution.url;
+      } catch (_) {
+        // Best effort: try to play with the raw filePath. Simulator and
+        // in-sandbox files don't need security scope; real device with a
+        // stale bookmark will fail at setFilePath and surface a player error.
+      }
+    }
+    await _loadAndPlay(resume: true);
   }
 
   @override
   void dispose() {
+    _positionSaveTimer?.cancel();
     _processingSub?.cancel();
+    unawaited(_savePosition());
     _player.dispose();
+    final url = _resolvedFolderUrl;
+    if (url != null) unawaited(FolderBookmark.release(url));
     super.dispose();
   }
 
-  Future<void> _loadAndPlay() async {
+  Future<void> _loadAndPlay({bool resume = false}) async {
     await _player.setFilePath(_track.filePath);
+    if (resume && _track.lastPositionMs > 0) {
+      await _player.seek(Duration(milliseconds: _track.lastPositionMs));
+    }
     await _player.setSpeed(_speed);
     await _player.play();
     if (mounted) setState(() {});
@@ -56,8 +98,9 @@ class _PlayerPageState extends State<PlayerPage> {
 
   Future<void> _playAt(int index) async {
     if (index < 0 || index >= widget.tracks.length) return;
+    await _savePosition();
     setState(() => _index = index);
-    await _loadAndPlay();
+    await _loadAndPlay(resume: true);
   }
 
   Future<void> _playNext() async {
@@ -85,6 +128,22 @@ class _PlayerPageState extends State<PlayerPage> {
   Future<void> _setSpeed(double speed) async {
     setState(() => _speed = speed);
     await _player.setSpeed(speed);
+  }
+
+  Future<void> _savePosition() async {
+    final ms = _player.position.inMilliseconds;
+    final db = ref.read(databaseProvider);
+    await (db.update(db.tracks)..where((t) => t.id.equals(_track.id))).write(
+      TracksCompanion(lastPositionMs: Value(ms)),
+    );
+  }
+
+  Future<void> _bumpPlayCount() async {
+    final db = ref.read(databaseProvider);
+    await db.customStatement(
+      'UPDATE tracks SET play_count = play_count + 1 WHERE id = ?',
+      [_track.id],
+    );
   }
 
   @override

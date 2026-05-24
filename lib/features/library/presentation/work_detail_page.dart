@@ -67,7 +67,7 @@ class _WorkDetailViewState extends ConsumerState<_WorkDetailView> {
   }
 }
 
-class _TrackDirectoryView extends StatelessWidget {
+class _TrackDirectoryView extends ConsumerWidget {
   const _TrackDirectoryView({
     required this.work,
     required this.folders,
@@ -81,7 +81,7 @@ class _TrackDirectoryView extends StatelessWidget {
   final ValueChanged<String> onFolderSelected;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final selected = _selectedFolder();
     return SliverMainAxisGroup(
       slivers: [
@@ -103,21 +103,33 @@ class _TrackDirectoryView extends StatelessWidget {
           itemBuilder: (context, index) {
             return _TrackTile(
               track: selected.tracks[index],
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => PlayerPage(
-                      work: work,
-                      tracks: selected.tracks,
-                      initialIndex: index,
-                    ),
-                  ),
-                );
-              },
+              onTap: () => _openPlayer(context, ref, index, selected.tracks),
             );
           },
         ),
       ],
+    );
+  }
+
+  Future<void> _openPlayer(
+    BuildContext context,
+    WidgetRef ref,
+    int index,
+    List<Track> tracks,
+  ) async {
+    final bookmark = await ref.read(
+      bookmarkForWorkProvider(work.productId).future,
+    );
+    if (!context.mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => PlayerPage(
+          work: work,
+          tracks: tracks,
+          initialIndex: index,
+          bookmarkBase64: bookmark,
+        ),
+      ),
     );
   }
 
