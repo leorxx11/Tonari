@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:isolate';
 
 import 'file_classifier.dart';
 import 'rj_id.dart';
@@ -8,14 +7,17 @@ import 'scan_models.dart';
 class FolderScanner {
   FolderScanner._();
 
-  /// Scans [rootPath] for RJ-id works, recursively. Runs on a background
-  /// isolate so callers don't block the UI. Accepts either a filesystem
-  /// path or a `file://` URL.
-  static Future<ScanResult> scan(String rootPath) {
+  /// Scans [rootPath] for RJ-id works, recursively. Runs on the main
+  /// isolate because iOS security-scoped bookmark access is bound to the
+  /// NSURL object held by the main isolate and does not propagate to a
+  /// spawned isolate. (Simulator doesn't strictly enforce sandbox so the
+  /// isolate version "worked" there, masking the issue on device.)
+  /// Accepts either a filesystem path or a `file://` URL.
+  static Future<ScanResult> scan(String rootPath) async {
     final cleanPath = rootPath.startsWith('file://')
         ? Uri.parse(rootPath).toFilePath()
         : rootPath;
-    return Isolate.run(() => scanSync(cleanPath));
+    return scanSync(cleanPath);
   }
 
   /// Same as [scan] but runs on the current isolate. Exposed for tests.
