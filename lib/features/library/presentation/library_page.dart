@@ -100,7 +100,7 @@ class _WorksGrid extends StatelessWidget {
     return GridView.builder(
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
-        childAspectRatio: 0.72,
+        childAspectRatio: 0.82,
         crossAxisSpacing: 8,
         mainAxisSpacing: 8,
       ),

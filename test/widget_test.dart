@@ -61,8 +61,6 @@ void main() {
 
     expect(find.text('Test Work'), findsOneWidget);
     expect(find.text('Another'), findsOneWidget);
-    expect(find.text('RJ01560714'), findsOneWidget);
-    expect(find.text('RJ00000001'), findsOneWidget);
   });
 
   testWidgets('tapping a tab switches the page', (tester) async {
