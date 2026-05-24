@@ -4,13 +4,48 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/db/database.dart';
 import '../../../core/db/providers.dart';
 
+enum WorkSortMode {
+  importedAtDesc('导入时间 ↓'),
+  importedAtAsc('导入时间 ↑'),
+  productIdAsc('RJ 编号'),
+  lastPlayedAtDesc('最近播放');
+
+  const WorkSortMode(this.label);
+  final String label;
+}
+
+class WorkSort extends Notifier<WorkSortMode> {
+  @override
+  WorkSortMode build() => WorkSortMode.importedAtDesc;
+
+  void set(WorkSortMode mode) => state = mode;
+}
+
+final workSortProvider = NotifierProvider<WorkSort, WorkSortMode>(
+  WorkSort.new,
+);
+
 final allWorksProvider = StreamProvider<List<Work>>((ref) {
   final db = ref.watch(databaseProvider);
+  final sort = ref.watch(workSortProvider);
   return (db.select(db.works)
         ..where((w) => w.isRemoved.equals(false))
-        ..orderBy([(w) => OrderingTerm.desc(w.localImportedAt)]))
+        ..orderBy([(w) => _orderingFor(sort, w)]))
       .watch();
 });
+
+OrderingTerm _orderingFor(WorkSortMode mode, $WorksTable w) {
+  return switch (mode) {
+    WorkSortMode.importedAtDesc => OrderingTerm.desc(w.localImportedAt),
+    WorkSortMode.importedAtAsc => OrderingTerm.asc(w.localImportedAt),
+    WorkSortMode.productIdAsc => OrderingTerm.asc(w.productId),
+    WorkSortMode.lastPlayedAtDesc => OrderingTerm(
+        expression: w.lastPlayedAt,
+        mode: OrderingMode.desc,
+        nulls: NullsOrder.last,
+      ),
+  };
+}
 
 final removedWorksProvider = StreamProvider<List<Work>>((ref) {
   final db = ref.watch(databaseProvider);

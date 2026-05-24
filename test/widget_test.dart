@@ -327,6 +327,19 @@ void main() {
     expect(find.text('effect-track'), findsNothing);
   });
 
+  testWidgets('library tab exposes 4 sort modes in the menu', (tester) async {
+    await tester.pumpWidget(testApp());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('排序'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('导入时间 ↓'), findsOneWidget);
+    expect(find.text('导入时间 ↑'), findsOneWidget);
+    expect(find.text('RJ 编号'), findsOneWidget);
+    expect(find.text('最近播放'), findsOneWidget);
+  });
+
   testWidgets('tapping a tab switches the page', (tester) async {
     await tester.pumpWidget(testApp());
     await tester.pumpAndSettle();

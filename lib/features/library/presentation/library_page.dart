@@ -25,10 +25,34 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     final worksAsync = ref.watch(allWorksProvider);
     final folders = ref.watch(importedFoldersProvider).value ?? const [];
     final busy = _importing || _rescanning;
+    final sort = ref.watch(workSortProvider);
     return Scaffold(
       appBar: AppBar(
         title: const Text('媒体库'),
         actions: [
+          PopupMenuButton<WorkSortMode>(
+            tooltip: '排序',
+            icon: const Icon(Icons.sort),
+            initialValue: sort,
+            onSelected: (mode) =>
+                ref.read(workSortProvider.notifier).set(mode),
+            itemBuilder: (context) => [
+              for (final mode in WorkSortMode.values)
+                PopupMenuItem(
+                  value: mode,
+                  child: Row(
+                    children: [
+                      if (mode == sort)
+                        const Icon(Icons.check, size: 18)
+                      else
+                        const SizedBox(width: 18),
+                      const SizedBox(width: 12),
+                      Text(mode.label),
+                    ],
+                  ),
+                ),
+            ],
+          ),
           if (folders.isNotEmpty)
             IconButton(
               tooltip: '重新扫描',
