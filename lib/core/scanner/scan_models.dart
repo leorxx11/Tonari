@@ -85,3 +85,27 @@ class DetectedFile {
   final String path;
   final String fileName;
 }
+
+class MergedTrack {
+  const MergedTrack({
+    required this.baseName,
+    required this.primaryPath,
+    required this.primaryFileName,
+    required this.primaryFormat,
+    required this.primarySizeBytes,
+    required this.parentDirName,
+    required this.alternateQualityPaths,
+    this.categoryHint,
+  });
+
+  final String baseName;
+  final String primaryPath;
+  final String primaryFileName;
+  final String primaryFormat;
+  final int primarySizeBytes;
+  final String parentDirName;
+
+  /// {format: path} for non-primary quality versions.
+  final Map<String, String> alternateQualityPaths;
+  final String? categoryHint;
+}
