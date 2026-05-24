@@ -21,7 +21,7 @@
 - **框架**：Flutter (3.x)
 - **语言**：Dart
 - **状态管理**：Riverpod
-- **本地数据库**：Isar
+- **本地数据库**：Drift（原计划 Isar 3，因 Flutter 3.44 + Riverpod 3 依赖冲突替换为 Drift）
 - **音频核心**：`just_audio` + `audio_service`
 - **HTTP**：`dio` + `cookie_jar` + `dio_cookie_manager`
 - **HTML 解析**：`html` 包
@@ -382,7 +382,7 @@ TabView (底部 Tab)
 |---|---|
 | 跨平台框架 | Flutter |
 | 状态管理 | Riverpod |
-| 本地数据库 | Isar |
+| 本地数据库 | Drift（SQLite，原 Isar 因依赖冲突替换） |
 | 音频库 | just_audio + audio_service |
 | 是否后端 | 无后端，纯客户端 |
 | 是否云同步 | 暂不做（不排除未来用 iCloud） |
