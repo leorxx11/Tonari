@@ -284,6 +284,34 @@ void main() {
     expect(find.text('备用 MP3'), findsOneWidget);
   });
 
+  testWidgets('detail page hides the tab bar (full-screen detail)', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      testApp(
+        works: [_work('RJ01560714', title: 'Test Work')],
+        tracks: [
+          _track(
+            id: 't1',
+            workId: 'RJ01560714',
+            title: 'track01',
+            fileName: 'track01.wav',
+            fileFormat: 'wav',
+          ),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Test Work'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('章节'), findsOneWidget);
+    for (final label in ['媒体库', '收藏', '历史', '设置']) {
+      expect(find.text(label), findsNothing);
+    }
+  });
+
   testWidgets('work detail opens the best original audio folder', (
     tester,
   ) async {

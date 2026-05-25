@@ -11,24 +11,28 @@ import '../providers/selected_tab_index.dart';
 class RootTabView extends ConsumerWidget {
   const RootTabView({super.key});
 
-  static const _pages = <Widget>[
-    LibraryPage(),
-    FavoritesPage(),
-    HistoryPage(),
-    SettingsPage(),
-  ];
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final index = ref.watch(selectedTabIndexProvider);
     return Scaffold(
       body: Column(
         children: [
-          Expanded(child: IndexedStack(index: index, children: _pages)),
+          Expanded(
+            child: IndexedStack(
+              index: index,
+              children: const [
+                LibraryPage(),
+                FavoritesPage(),
+                HistoryPage(),
+                SettingsPage(),
+              ],
+            ),
+          ),
           const MiniPlayer(),
         ],
       ),
       bottomNavigationBar: NavigationBar(
+        height: 64,
         selectedIndex: index,
         onDestinationSelected: (i) =>
             ref.read(selectedTabIndexProvider.notifier).set(i),

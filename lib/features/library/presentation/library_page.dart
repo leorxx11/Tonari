@@ -307,7 +307,7 @@ class _WorksGrid extends StatelessWidget {
         onRemove: () => onRemove(works[i]),
         onToggleFavorite: () => onToggleFavorite(works[i]),
         onTap: () {
-          Navigator.of(context).push(
+          Navigator.of(context, rootNavigator: true).push(
             MaterialPageRoute<void>(
               builder: (_) => WorkDetailPage(work: works[i]),
             ),

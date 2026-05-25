@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/db/database.dart';
 import '../../player/data/playback_controller.dart';
-import '../../player/presentation/player_page.dart';
+import '../../player/presentation/mini_player.dart';
 import '../data/works_providers.dart';
 
 class WorkDetailPage extends ConsumerWidget {
@@ -64,6 +64,7 @@ class _WorkDetailViewState extends ConsumerState<_WorkDetailView> {
           ),
         ],
       ),
+      bottomNavigationBar: const MiniPlayer(),
     );
   }
 }
@@ -104,7 +105,7 @@ class _TrackDirectoryView extends ConsumerWidget {
           itemBuilder: (context, index) {
             return _TrackTile(
               track: selected.tracks[index],
-              onTap: () => _openPlayer(context, ref, index, selected.tracks),
+              onTap: () => _play(ref, index, selected.tracks),
             );
           },
         ),
@@ -112,8 +113,7 @@ class _TrackDirectoryView extends ConsumerWidget {
     );
   }
 
-  Future<void> _openPlayer(
-    BuildContext context,
+  Future<void> _play(
     WidgetRef ref,
     int index,
     List<Track> tracks,
@@ -127,10 +127,6 @@ class _TrackDirectoryView extends ConsumerWidget {
           initialIndex: index,
           bookmarkBase64: bookmark,
         );
-    if (!context.mounted) return;
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const PlayerPage()),
-    );
   }
 
   _AudioFolder _selectedFolder() {
