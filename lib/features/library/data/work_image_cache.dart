@@ -59,6 +59,12 @@ class WorkImageCache {
     return WorkImagePaths(mainImage: mainPath, sampleImages: samplePaths);
   }
 
+  Future<void> evict(String productId) async {
+    final docs = await _documentsDir();
+    final dir = Directory(p.join(docs.path, 'images', productId));
+    if (dir.existsSync()) dir.deleteSync(recursive: true);
+  }
+
   Future<Directory> _ensureWorkDir(String productId) async {
     final docs = await _documentsDir();
     final dir = Directory(p.join(docs.path, 'images', productId));

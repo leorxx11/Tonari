@@ -5,6 +5,7 @@ import '../../../core/db/database.dart';
 import '../../../core/files/folder_picker_service.dart';
 import '../data/import_flow.dart';
 import '../data/import_service.dart';
+import '../data/metadata_enrichment.dart';
 import '../data/work_actions_provider.dart';
 import '../data/works_providers.dart';
 import 'work_detail_page.dart';
@@ -132,13 +133,16 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
       body: worksAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('加载失败：$e')),
-        data: (works) => works.isEmpty
-            ? _EmptyState(filter: filter)
-            : _WorksGrid(
-                works: works,
-                onRemove: _onRemoveWork,
-                onToggleFavorite: _onToggleFavorite,
-              ),
+        data: (works) => RefreshIndicator(
+          onRefresh: () => _onPullToRefresh(folders),
+          child: works.isEmpty
+              ? _EmptyState(filter: filter)
+              : _WorksGrid(
+                  works: works,
+                  onRemove: _onRemoveWork,
+                  onToggleFavorite: _onToggleFavorite,
+                ),
+        ),
       ),
     );
   }
@@ -180,6 +184,24 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
       messenger.showSnackBar(SnackBar(content: Text('导入失败：$e')));
     } finally {
       if (mounted) setState(() => _importing = false);
+    }
+  }
+
+  Future<void> _onPullToRefresh(List<ImportedFolder> folders) async {
+    if (_importing || _rescanning) return;
+    setState(() => _rescanning = true);
+    try {
+      for (final folder in folders) {
+        await ref.read(importFlowProvider).importFromFolder(folder);
+      }
+      await ref.read(metadataEnrichmentProvider).enrichPending();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('刷新失败：$e')),
+      );
+    } finally {
+      if (mounted) setState(() => _rescanning = false);
     }
   }
 
@@ -294,6 +316,7 @@ class _WorksGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GridView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
         childAspectRatio: 0.82,
@@ -328,37 +351,45 @@ class _EmptyState extends StatelessWidget {
     final theme = Theme.of(context);
     final isFiltered =
         filter.favoritesOnly || filter.searchQuery.trim().isNotEmpty;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              isFiltered
-                  ? Icons.filter_alt_outlined
-                  : Icons.library_music_outlined,
-              size: 64,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              isFiltered ? '没有匹配的作品' : '媒体库还是空的',
-              style: theme.textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              isFiltered
-                  ? '换个搜索词，或者关掉"只看收藏"过滤'
-                  : '点右上角导入一个包含 RJ 编号的文件夹',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      children: [
+        SizedBox(
+          height: MediaQuery.of(context).size.height * 0.6,
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    isFiltered
+                        ? Icons.filter_alt_outlined
+                        : Icons.library_music_outlined,
+                    size: 64,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    isFiltered ? '没有匹配的作品' : '媒体库还是空的',
+                    style: theme.textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    isFiltered
+                        ? '换个搜索词，或者关掉"只看收藏"过滤'
+                        : '点右上角导入一个包含 RJ 编号的文件夹',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
               ),
-              textAlign: TextAlign.center,
             ),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 }

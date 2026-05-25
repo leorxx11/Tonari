@@ -110,6 +110,12 @@ final tracksByWorkProvider = StreamProvider.family<List<Track>, String>((
       .watch();
 });
 
+final workByIdProvider = StreamProvider.family<Work?, String>((ref, productId) {
+  final db = ref.watch(databaseProvider);
+  return (db.select(db.works)..where((w) => w.productId.equals(productId)))
+      .watchSingleOrNull();
+});
+
 /// Resolves a Work to the bookmark stored on its source ImportedFolder.
 /// Returns null if the work has no linkage (e.g. imported before C2) or
 /// the folder was deleted.

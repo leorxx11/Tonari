@@ -53,6 +53,14 @@ class MetadataEnrichmentService {
     if (row == null) return;
     if (!force && row.scrapedAt != null) return;
 
+    if (force) {
+      try {
+        await _imageCache.evict(productId);
+      } catch (_) {
+        // best-effort
+      }
+    }
+
     final html = await _fetcher.fetchHtml(productId);
     final work = _fetcher.parseHtml(html, productId);
     DlsiteAjaxData? ajax;

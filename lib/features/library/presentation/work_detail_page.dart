@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/db/database.dart';
 import '../../player/data/playback_controller.dart';
 import '../../player/presentation/mini_player.dart';
+import '../data/metadata_enrichment.dart';
 import '../data/work_actions_provider.dart';
 import '../data/works_providers.dart';
 import 'widgets/sample_gallery.dart';
@@ -36,76 +37,100 @@ class _WorkDetailView extends ConsumerStatefulWidget {
 
 class _WorkDetailViewState extends ConsumerState<_WorkDetailView> {
   String? _selectedFolderPath;
+  bool _refreshing = false;
 
   @override
   Widget build(BuildContext context) {
-    final tracksAsync = ref.watch(tracksByWorkProvider(widget.work.productId));
+    final liveWork = ref.watch(workByIdProvider(widget.work.productId)).value;
+    final work = liveWork ?? widget.work;
+    final tracksAsync = ref.watch(tracksByWorkProvider(work.productId));
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.work.productId),
+        title: Text(work.productId),
         actions: [
           IconButton(
             tooltip: '在 DLsite 中打开',
             icon: const Icon(Icons.open_in_new),
-            onPressed: () => _openOnDlsite(widget.work.productId),
+            onPressed: () => _openOnDlsite(work.productId),
           ),
           IconButton(
-            tooltip: widget.work.isFavorite ? '取消收藏' : '添加收藏',
+            tooltip: work.isFavorite ? '取消收藏' : '添加收藏',
             icon: Icon(
-              widget.work.isFavorite ? Icons.favorite : Icons.favorite_outline,
-              color: widget.work.isFavorite
+              work.isFavorite ? Icons.favorite : Icons.favorite_outline,
+              color: work.isFavorite
                   ? Theme.of(context).colorScheme.primary
                   : null,
             ),
             onPressed: () async {
               final toggle = ref.read(toggleFavoriteProvider);
-              await toggle(widget.work.productId, !widget.work.isFavorite);
+              await toggle(work.productId, !work.isFavorite);
             },
           ),
         ],
       ),
-      body: CustomScrollView(
-        slivers: [
-          SliverToBoxAdapter(child: _HeaderSection(work: widget.work)),
-          SliverToBoxAdapter(child: _StatsSection(work: widget.work)),
-          SliverToBoxAdapter(child: _CreditsSection(work: widget.work)),
-          SliverToBoxAdapter(child: _GenresSection(work: widget.work)),
-          SliverToBoxAdapter(child: _DescriptionSection(work: widget.work)),
-          SliverToBoxAdapter(child: _FileInfoLine(work: widget.work)),
-          tracksAsync.when(
-            loading: () => const SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Center(child: CircularProgressIndicator()),
+      body: RefreshIndicator(
+        onRefresh: () => _onPullToRefresh(work.productId),
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverToBoxAdapter(child: _HeaderSection(work: work)),
+            SliverToBoxAdapter(child: _StatsSection(work: work)),
+            SliverToBoxAdapter(child: _CreditsSection(work: work)),
+            SliverToBoxAdapter(child: _GenresSection(work: work)),
+            SliverToBoxAdapter(child: _DescriptionSection(work: work)),
+            SliverToBoxAdapter(child: _FileInfoLine(work: work)),
+            tracksAsync.when(
+              loading: () => const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
               ),
-            ),
-            error: (e, _) => SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Center(child: Text('加载失败：$e')),
+              error: (e, _) => SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Center(child: Text('加载失败：$e')),
+                ),
               ),
-            ),
-            data: (tracks) => tracks.isEmpty
-                ? const SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsets.all(24),
-                      child: Center(child: Text('没有音轨')),
+              data: (tracks) => tracks.isEmpty
+                  ? const SliverToBoxAdapter(
+                      child: Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Center(child: Text('没有音轨')),
+                      ),
+                    )
+                  : _TrackDirectoryView(
+                      work: work,
+                      folders: _AudioFolder.fromTracks(work, tracks),
+                      selectedFolderPath: _selectedFolderPath,
+                      onFolderSelected: (path) {
+                        setState(() => _selectedFolderPath = path);
+                      },
                     ),
-                  )
-                : _TrackDirectoryView(
-                    work: widget.work,
-                    folders: _AudioFolder.fromTracks(widget.work, tracks),
-                    selectedFolderPath: _selectedFolderPath,
-                    onFolderSelected: (path) {
-                      setState(() => _selectedFolderPath = path);
-                    },
-                  ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 24)),
-        ],
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
+          ],
+        ),
       ),
       bottomNavigationBar: const MiniPlayer(),
     );
+  }
+
+  Future<void> _onPullToRefresh(String productId) async {
+    if (_refreshing) return;
+    _refreshing = true;
+    try {
+      await ref
+          .read(metadataEnrichmentProvider)
+          .enrichOne(productId, force: true);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('刷新失败：$e')),
+      );
+    } finally {
+      _refreshing = false;
+    }
   }
 }
 
