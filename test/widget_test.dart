@@ -70,6 +70,7 @@ Work _work(
     scenarioWriters: const [],
     musicians: const [],
     fileFormats: const [],
+    supportedLanguages: const [],
     genresJson: '[]',
     sampleImageUrls: const [],
     sampleImageLocalPaths: const [],

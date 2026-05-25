@@ -44,6 +44,7 @@ class DlsiteWorkData {
     this.workType,
     this.workTypeName,
     this.fileFormats = const [],
+    this.supportedLanguages = const [],
     this.genres = const [],
     this.fileSize,
     this.seriesId,
@@ -67,6 +68,7 @@ class DlsiteWorkData {
   final String? workType;
   final String? workTypeName;
   final List<String> fileFormats;
+  final List<String> supportedLanguages;
   final List<DlsiteGenre> genres;
   final String? fileSize;
   final String? seriesId;
@@ -89,6 +91,9 @@ class DlsiteAjaxData {
     this.discountRate,
     this.isOnSale,
     this.isDiscount,
+    this.rankDay,
+    this.rankWeek,
+    this.rankMonth,
   });
 
   final String productId;
@@ -102,6 +107,9 @@ class DlsiteAjaxData {
   final int? discountRate;
   final bool? isOnSale;
   final bool? isDiscount;
+  final int? rankDay;
+  final int? rankWeek;
+  final int? rankMonth;
 }
 
 class DlsiteFetchException implements Exception {
@@ -132,7 +140,7 @@ class DlsiteFetcher {
         options: Options(
           headers: {
             'User-Agent': _userAgent,
-            'Cookie': 'adultchecked=1; locale=ja-jp',
+            'Cookie': 'adultchecked=1; locale=zh-cn',
           },
           responseType: ResponseType.plain,
         ),
@@ -160,7 +168,7 @@ class DlsiteFetcher {
         options: Options(
           headers: {
             'User-Agent': _userAgent,
-            'Cookie': 'adultchecked=1; locale=ja-jp',
+            'Cookie': 'adultchecked=1; locale=zh-cn',
           },
           responseType: ResponseType.plain,
         ),
@@ -195,6 +203,7 @@ class DlsiteFetcher {
 
     final price = _tryGet(() => _asInt(node['price']));
     final officialPrice = _tryGet(() => _asInt(node['official_price']));
+    final ranks = _tryGet(() => _parseRanks(node['rank'])) ?? const <String, int>{};
     return DlsiteAjaxData(
       productId: productId,
       dlCount: _tryGet(() => _asInt(node['dl_count'])),
@@ -207,7 +216,23 @@ class DlsiteFetcher {
       discountRate: _tryGet(() => _discountRate(price, officialPrice)),
       isOnSale: _tryGet(() => _asBool(node['on_sale'])),
       isDiscount: _tryGet(() => _asBool(node['is_discount'])),
+      rankDay: ranks['day'],
+      rankWeek: ranks['week'],
+      rankMonth: ranks['month'],
     );
+  }
+
+  static Map<String, int> _parseRanks(dynamic raw) {
+    if (raw is! List) return const {};
+    final out = <String, int>{};
+    for (final item in raw) {
+      if (item is! Map) continue;
+      if (item['category'] != 'all') continue;
+      final term = item['term'];
+      final rank = _asInt(item['rank']);
+      if (term is String && rank != null) out[term] = rank;
+    }
+    return out;
   }
 
   static int? _discountRate(int? price, int? officialPrice) {
@@ -248,19 +273,20 @@ class DlsiteFetcher {
       titleRomaji: _tryGet(() => _attr(doc, 'meta[itemprop="alternateName"]', 'content')),
       circleId: _tryGet(() => _circleId(doc, productId)),
       circleName: _tryGet(() => _textOrNull(doc, '.maker_name')),
-      releaseDate: _tryGet(() => _parseReleaseDate(outline['販売日'])),
-      voiceActors: _tryGet(() => _anchorTexts(outline['声優'])) ?? const [],
-      illustrators: _tryGet(() => _anchorTexts(outline['イラスト'])) ?? const [],
-      scenarioWriters: _tryGet(() => _anchorTexts(outline['シナリオ'])) ?? const [],
-      musicians: _tryGet(() => _anchorTexts(outline['音楽'])) ?? const [],
-      ageRating: _tryGet(() => _ageRating(outline['年齢指定'])),
+      releaseDate: _tryGet(() => _parseReleaseDate(outline['发售日'])),
+      voiceActors: _tryGet(() => _anchorTexts(outline['声优'])) ?? const [],
+      illustrators: _tryGet(() => _anchorTexts(outline['插画'])) ?? const [],
+      scenarioWriters: _tryGet(() => _anchorTexts(outline['剧情'])) ?? const [],
+      musicians: _tryGet(() => _anchorTexts(outline['音乐'])) ?? const [],
+      ageRating: _tryGet(() => _ageRating(outline['年龄指定'])),
       workType: _tryGet(() => _workType(doc, outline['作品形式'])),
       workTypeName: _tryGet(() => _workTypeName(outline['作品形式'])),
-      fileFormats: _tryGet(() => _fileFormats(outline['ファイル形式'])) ?? const [],
-      genres: _tryGet(() => _genres(outline['ジャンル'])) ?? const [],
-      fileSize: _tryGet(() => _fileSize(outline['ファイル容量'])),
-      seriesId: _tryGet(() => _seriesId(outline['シリーズ名'])),
-      seriesName: _tryGet(() => _textOrNullElem(outline['シリーズ名']?.querySelector('a'))),
+      fileFormats: _tryGet(() => _fileFormats(outline['文件形式'])) ?? const [],
+      supportedLanguages: _tryGet(() => _supportedLanguages(outline['支持的语言'])) ?? const [],
+      genres: _tryGet(() => _genres(outline['分类'])) ?? const [],
+      fileSize: _tryGet(() => _fileSize(outline['文件容量'])),
+      seriesId: _tryGet(() => _seriesId(outline['系列名'])),
+      seriesName: _tryGet(() => _textOrNullElem(outline['系列名']?.querySelector('a'))),
       descriptionHtml: _tryGet(() => doc.querySelector('[itemprop="description"]')?.innerHtml.trim()),
       mainImageUrl: mainImageUrlFor(productId),
       sampleImageUrls: _tryGet(() => _sampleImages(doc)) ?? const [],
@@ -352,6 +378,22 @@ class DlsiteFetcher {
       for (final part in extra.text.split('/')) {
         final s = part.trim();
         if (s.isNotEmpty) out.add(s);
+      }
+    }
+    return out;
+  }
+
+  List<String> _supportedLanguages(dom.Element? td) {
+    if (td == null) return const [];
+    final out = <String>[];
+    for (final span in td.querySelectorAll('span[title]')) {
+      final t = span.attributes['title']?.trim();
+      if (t != null && t.isNotEmpty) out.add(t);
+    }
+    if (out.isEmpty) {
+      for (final a in td.querySelectorAll('a')) {
+        final t = a.text.trim();
+        if (t.isNotEmpty) out.add(t);
       }
     }
     return out;

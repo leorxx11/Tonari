@@ -52,7 +52,14 @@ class Works extends Table {
   RealColumn get rating => real().nullable()();
   IntColumn get ratingCount => integer().nullable()();
   IntColumn get dlCount => integer().nullable()();
+  IntColumn get wishlistCount => integer().nullable()();
   IntColumn get reviewCount => integer().nullable()();
+  IntColumn get rankDay => integer().nullable()();
+  IntColumn get rankWeek => integer().nullable()();
+  IntColumn get rankMonth => integer().nullable()();
+  TextColumn get supportedLanguages => text()
+      .map(const StringListConverter())
+      .withDefault(const Constant('[]'))();
 
   DateTimeColumn get scrapedAt => dateTime().nullable()();
   DateTimeColumn get localImportedAt => dateTime()();

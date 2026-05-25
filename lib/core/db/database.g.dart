@@ -328,6 +328,17 @@ class $WorksTable extends Works with TableInfo<$WorksTable, Work> {
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _wishlistCountMeta = const VerificationMeta(
+    'wishlistCount',
+  );
+  @override
+  late final GeneratedColumn<int> wishlistCount = GeneratedColumn<int>(
+    'wishlist_count',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _reviewCountMeta = const VerificationMeta(
     'reviewCount',
   );
@@ -339,6 +350,49 @@ class $WorksTable extends Works with TableInfo<$WorksTable, Work> {
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _rankDayMeta = const VerificationMeta(
+    'rankDay',
+  );
+  @override
+  late final GeneratedColumn<int> rankDay = GeneratedColumn<int>(
+    'rank_day',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _rankWeekMeta = const VerificationMeta(
+    'rankWeek',
+  );
+  @override
+  late final GeneratedColumn<int> rankWeek = GeneratedColumn<int>(
+    'rank_week',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _rankMonthMeta = const VerificationMeta(
+    'rankMonth',
+  );
+  @override
+  late final GeneratedColumn<int> rankMonth = GeneratedColumn<int>(
+    'rank_month',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<List<String>, String>
+  supportedLanguages = GeneratedColumn<String>(
+    'supported_languages',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('[]'),
+  ).withConverter<List<String>>($WorksTable.$convertersupportedLanguages);
   static const VerificationMeta _scrapedAtMeta = const VerificationMeta(
     'scrapedAt',
   );
@@ -521,7 +575,12 @@ class $WorksTable extends Works with TableInfo<$WorksTable, Work> {
     rating,
     ratingCount,
     dlCount,
+    wishlistCount,
     reviewCount,
+    rankDay,
+    rankWeek,
+    rankMonth,
+    supportedLanguages,
     scrapedAt,
     localImportedAt,
     localFolderPath,
@@ -723,6 +782,15 @@ class $WorksTable extends Works with TableInfo<$WorksTable, Work> {
         dlCount.isAcceptableOrUnknown(data['dl_count']!, _dlCountMeta),
       );
     }
+    if (data.containsKey('wishlist_count')) {
+      context.handle(
+        _wishlistCountMeta,
+        wishlistCount.isAcceptableOrUnknown(
+          data['wishlist_count']!,
+          _wishlistCountMeta,
+        ),
+      );
+    }
     if (data.containsKey('review_count')) {
       context.handle(
         _reviewCountMeta,
@@ -730,6 +798,24 @@ class $WorksTable extends Works with TableInfo<$WorksTable, Work> {
           data['review_count']!,
           _reviewCountMeta,
         ),
+      );
+    }
+    if (data.containsKey('rank_day')) {
+      context.handle(
+        _rankDayMeta,
+        rankDay.isAcceptableOrUnknown(data['rank_day']!, _rankDayMeta),
+      );
+    }
+    if (data.containsKey('rank_week')) {
+      context.handle(
+        _rankWeekMeta,
+        rankWeek.isAcceptableOrUnknown(data['rank_week']!, _rankWeekMeta),
+      );
+    }
+    if (data.containsKey('rank_month')) {
+      context.handle(
+        _rankMonthMeta,
+        rankMonth.isAcceptableOrUnknown(data['rank_month']!, _rankMonthMeta),
       );
     }
     if (data.containsKey('scraped_at')) {
@@ -971,9 +1057,31 @@ class $WorksTable extends Works with TableInfo<$WorksTable, Work> {
         DriftSqlType.int,
         data['${effectivePrefix}dl_count'],
       ),
+      wishlistCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}wishlist_count'],
+      ),
       reviewCount: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}review_count'],
+      ),
+      rankDay: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}rank_day'],
+      ),
+      rankWeek: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}rank_week'],
+      ),
+      rankMonth: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}rank_month'],
+      ),
+      supportedLanguages: $WorksTable.$convertersupportedLanguages.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}supported_languages'],
+        )!,
       ),
       scrapedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
@@ -1051,6 +1159,8 @@ class $WorksTable extends Works with TableInfo<$WorksTable, Work> {
       const StringListConverter();
   static TypeConverter<List<String>, String> $convertersampleImageLocalPaths =
       const StringListConverter();
+  static TypeConverter<List<String>, String> $convertersupportedLanguages =
+      const StringListConverter();
   static TypeConverter<List<String>, String> $converteruserTags =
       const StringListConverter();
 }
@@ -1086,7 +1196,12 @@ class Work extends DataClass implements Insertable<Work> {
   final double? rating;
   final int? ratingCount;
   final int? dlCount;
+  final int? wishlistCount;
   final int? reviewCount;
+  final int? rankDay;
+  final int? rankWeek;
+  final int? rankMonth;
+  final List<String> supportedLanguages;
   final DateTime? scrapedAt;
   final DateTime localImportedAt;
   final String localFolderPath;
@@ -1131,7 +1246,12 @@ class Work extends DataClass implements Insertable<Work> {
     this.rating,
     this.ratingCount,
     this.dlCount,
+    this.wishlistCount,
     this.reviewCount,
+    this.rankDay,
+    this.rankWeek,
+    this.rankMonth,
+    required this.supportedLanguages,
     this.scrapedAt,
     required this.localImportedAt,
     required this.localFolderPath,
@@ -1249,8 +1369,25 @@ class Work extends DataClass implements Insertable<Work> {
     if (!nullToAbsent || dlCount != null) {
       map['dl_count'] = Variable<int>(dlCount);
     }
+    if (!nullToAbsent || wishlistCount != null) {
+      map['wishlist_count'] = Variable<int>(wishlistCount);
+    }
     if (!nullToAbsent || reviewCount != null) {
       map['review_count'] = Variable<int>(reviewCount);
+    }
+    if (!nullToAbsent || rankDay != null) {
+      map['rank_day'] = Variable<int>(rankDay);
+    }
+    if (!nullToAbsent || rankWeek != null) {
+      map['rank_week'] = Variable<int>(rankWeek);
+    }
+    if (!nullToAbsent || rankMonth != null) {
+      map['rank_month'] = Variable<int>(rankMonth);
+    }
+    {
+      map['supported_languages'] = Variable<String>(
+        $WorksTable.$convertersupportedLanguages.toSql(supportedLanguages),
+      );
     }
     if (!nullToAbsent || scrapedAt != null) {
       map['scraped_at'] = Variable<DateTime>(scrapedAt);
@@ -1356,9 +1493,22 @@ class Work extends DataClass implements Insertable<Work> {
       dlCount: dlCount == null && nullToAbsent
           ? const Value.absent()
           : Value(dlCount),
+      wishlistCount: wishlistCount == null && nullToAbsent
+          ? const Value.absent()
+          : Value(wishlistCount),
       reviewCount: reviewCount == null && nullToAbsent
           ? const Value.absent()
           : Value(reviewCount),
+      rankDay: rankDay == null && nullToAbsent
+          ? const Value.absent()
+          : Value(rankDay),
+      rankWeek: rankWeek == null && nullToAbsent
+          ? const Value.absent()
+          : Value(rankWeek),
+      rankMonth: rankMonth == null && nullToAbsent
+          ? const Value.absent()
+          : Value(rankMonth),
+      supportedLanguages: Value(supportedLanguages),
       scrapedAt: scrapedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(scrapedAt),
@@ -1431,7 +1581,14 @@ class Work extends DataClass implements Insertable<Work> {
       rating: serializer.fromJson<double?>(json['rating']),
       ratingCount: serializer.fromJson<int?>(json['ratingCount']),
       dlCount: serializer.fromJson<int?>(json['dlCount']),
+      wishlistCount: serializer.fromJson<int?>(json['wishlistCount']),
       reviewCount: serializer.fromJson<int?>(json['reviewCount']),
+      rankDay: serializer.fromJson<int?>(json['rankDay']),
+      rankWeek: serializer.fromJson<int?>(json['rankWeek']),
+      rankMonth: serializer.fromJson<int?>(json['rankMonth']),
+      supportedLanguages: serializer.fromJson<List<String>>(
+        json['supportedLanguages'],
+      ),
       scrapedAt: serializer.fromJson<DateTime?>(json['scrapedAt']),
       localImportedAt: serializer.fromJson<DateTime>(json['localImportedAt']),
       localFolderPath: serializer.fromJson<String>(json['localFolderPath']),
@@ -1485,7 +1642,12 @@ class Work extends DataClass implements Insertable<Work> {
       'rating': serializer.toJson<double?>(rating),
       'ratingCount': serializer.toJson<int?>(ratingCount),
       'dlCount': serializer.toJson<int?>(dlCount),
+      'wishlistCount': serializer.toJson<int?>(wishlistCount),
       'reviewCount': serializer.toJson<int?>(reviewCount),
+      'rankDay': serializer.toJson<int?>(rankDay),
+      'rankWeek': serializer.toJson<int?>(rankWeek),
+      'rankMonth': serializer.toJson<int?>(rankMonth),
+      'supportedLanguages': serializer.toJson<List<String>>(supportedLanguages),
       'scrapedAt': serializer.toJson<DateTime?>(scrapedAt),
       'localImportedAt': serializer.toJson<DateTime>(localImportedAt),
       'localFolderPath': serializer.toJson<String>(localFolderPath),
@@ -1533,7 +1695,12 @@ class Work extends DataClass implements Insertable<Work> {
     Value<double?> rating = const Value.absent(),
     Value<int?> ratingCount = const Value.absent(),
     Value<int?> dlCount = const Value.absent(),
+    Value<int?> wishlistCount = const Value.absent(),
     Value<int?> reviewCount = const Value.absent(),
+    Value<int?> rankDay = const Value.absent(),
+    Value<int?> rankWeek = const Value.absent(),
+    Value<int?> rankMonth = const Value.absent(),
+    List<String>? supportedLanguages,
     Value<DateTime?> scrapedAt = const Value.absent(),
     DateTime? localImportedAt,
     String? localFolderPath,
@@ -1586,7 +1753,14 @@ class Work extends DataClass implements Insertable<Work> {
     rating: rating.present ? rating.value : this.rating,
     ratingCount: ratingCount.present ? ratingCount.value : this.ratingCount,
     dlCount: dlCount.present ? dlCount.value : this.dlCount,
+    wishlistCount: wishlistCount.present
+        ? wishlistCount.value
+        : this.wishlistCount,
     reviewCount: reviewCount.present ? reviewCount.value : this.reviewCount,
+    rankDay: rankDay.present ? rankDay.value : this.rankDay,
+    rankWeek: rankWeek.present ? rankWeek.value : this.rankWeek,
+    rankMonth: rankMonth.present ? rankMonth.value : this.rankMonth,
+    supportedLanguages: supportedLanguages ?? this.supportedLanguages,
     scrapedAt: scrapedAt.present ? scrapedAt.value : this.scrapedAt,
     localImportedAt: localImportedAt ?? this.localImportedAt,
     localFolderPath: localFolderPath ?? this.localFolderPath,
@@ -1677,9 +1851,18 @@ class Work extends DataClass implements Insertable<Work> {
           ? data.ratingCount.value
           : this.ratingCount,
       dlCount: data.dlCount.present ? data.dlCount.value : this.dlCount,
+      wishlistCount: data.wishlistCount.present
+          ? data.wishlistCount.value
+          : this.wishlistCount,
       reviewCount: data.reviewCount.present
           ? data.reviewCount.value
           : this.reviewCount,
+      rankDay: data.rankDay.present ? data.rankDay.value : this.rankDay,
+      rankWeek: data.rankWeek.present ? data.rankWeek.value : this.rankWeek,
+      rankMonth: data.rankMonth.present ? data.rankMonth.value : this.rankMonth,
+      supportedLanguages: data.supportedLanguages.present
+          ? data.supportedLanguages.value
+          : this.supportedLanguages,
       scrapedAt: data.scrapedAt.present ? data.scrapedAt.value : this.scrapedAt,
       localImportedAt: data.localImportedAt.present
           ? data.localImportedAt.value
@@ -1743,7 +1926,12 @@ class Work extends DataClass implements Insertable<Work> {
           ..write('rating: $rating, ')
           ..write('ratingCount: $ratingCount, ')
           ..write('dlCount: $dlCount, ')
+          ..write('wishlistCount: $wishlistCount, ')
           ..write('reviewCount: $reviewCount, ')
+          ..write('rankDay: $rankDay, ')
+          ..write('rankWeek: $rankWeek, ')
+          ..write('rankMonth: $rankMonth, ')
+          ..write('supportedLanguages: $supportedLanguages, ')
           ..write('scrapedAt: $scrapedAt, ')
           ..write('localImportedAt: $localImportedAt, ')
           ..write('localFolderPath: $localFolderPath, ')
@@ -1793,7 +1981,12 @@ class Work extends DataClass implements Insertable<Work> {
     rating,
     ratingCount,
     dlCount,
+    wishlistCount,
     reviewCount,
+    rankDay,
+    rankWeek,
+    rankMonth,
+    supportedLanguages,
     scrapedAt,
     localImportedAt,
     localFolderPath,
@@ -1842,7 +2035,12 @@ class Work extends DataClass implements Insertable<Work> {
           other.rating == this.rating &&
           other.ratingCount == this.ratingCount &&
           other.dlCount == this.dlCount &&
+          other.wishlistCount == this.wishlistCount &&
           other.reviewCount == this.reviewCount &&
+          other.rankDay == this.rankDay &&
+          other.rankWeek == this.rankWeek &&
+          other.rankMonth == this.rankMonth &&
+          other.supportedLanguages == this.supportedLanguages &&
           other.scrapedAt == this.scrapedAt &&
           other.localImportedAt == this.localImportedAt &&
           other.localFolderPath == this.localFolderPath &&
@@ -1889,7 +2087,12 @@ class WorksCompanion extends UpdateCompanion<Work> {
   final Value<double?> rating;
   final Value<int?> ratingCount;
   final Value<int?> dlCount;
+  final Value<int?> wishlistCount;
   final Value<int?> reviewCount;
+  final Value<int?> rankDay;
+  final Value<int?> rankWeek;
+  final Value<int?> rankMonth;
+  final Value<List<String>> supportedLanguages;
   final Value<DateTime?> scrapedAt;
   final Value<DateTime> localImportedAt;
   final Value<String> localFolderPath;
@@ -1935,7 +2138,12 @@ class WorksCompanion extends UpdateCompanion<Work> {
     this.rating = const Value.absent(),
     this.ratingCount = const Value.absent(),
     this.dlCount = const Value.absent(),
+    this.wishlistCount = const Value.absent(),
     this.reviewCount = const Value.absent(),
+    this.rankDay = const Value.absent(),
+    this.rankWeek = const Value.absent(),
+    this.rankMonth = const Value.absent(),
+    this.supportedLanguages = const Value.absent(),
     this.scrapedAt = const Value.absent(),
     this.localImportedAt = const Value.absent(),
     this.localFolderPath = const Value.absent(),
@@ -1982,7 +2190,12 @@ class WorksCompanion extends UpdateCompanion<Work> {
     this.rating = const Value.absent(),
     this.ratingCount = const Value.absent(),
     this.dlCount = const Value.absent(),
+    this.wishlistCount = const Value.absent(),
     this.reviewCount = const Value.absent(),
+    this.rankDay = const Value.absent(),
+    this.rankWeek = const Value.absent(),
+    this.rankMonth = const Value.absent(),
+    this.supportedLanguages = const Value.absent(),
     this.scrapedAt = const Value.absent(),
     required DateTime localImportedAt,
     required String localFolderPath,
@@ -2034,7 +2247,12 @@ class WorksCompanion extends UpdateCompanion<Work> {
     Expression<double>? rating,
     Expression<int>? ratingCount,
     Expression<int>? dlCount,
+    Expression<int>? wishlistCount,
     Expression<int>? reviewCount,
+    Expression<int>? rankDay,
+    Expression<int>? rankWeek,
+    Expression<int>? rankMonth,
+    Expression<String>? supportedLanguages,
     Expression<DateTime>? scrapedAt,
     Expression<DateTime>? localImportedAt,
     Expression<String>? localFolderPath,
@@ -2083,7 +2301,12 @@ class WorksCompanion extends UpdateCompanion<Work> {
       if (rating != null) 'rating': rating,
       if (ratingCount != null) 'rating_count': ratingCount,
       if (dlCount != null) 'dl_count': dlCount,
+      if (wishlistCount != null) 'wishlist_count': wishlistCount,
       if (reviewCount != null) 'review_count': reviewCount,
+      if (rankDay != null) 'rank_day': rankDay,
+      if (rankWeek != null) 'rank_week': rankWeek,
+      if (rankMonth != null) 'rank_month': rankMonth,
+      if (supportedLanguages != null) 'supported_languages': supportedLanguages,
       if (scrapedAt != null) 'scraped_at': scrapedAt,
       if (localImportedAt != null) 'local_imported_at': localImportedAt,
       if (localFolderPath != null) 'local_folder_path': localFolderPath,
@@ -2132,7 +2355,12 @@ class WorksCompanion extends UpdateCompanion<Work> {
     Value<double?>? rating,
     Value<int?>? ratingCount,
     Value<int?>? dlCount,
+    Value<int?>? wishlistCount,
     Value<int?>? reviewCount,
+    Value<int?>? rankDay,
+    Value<int?>? rankWeek,
+    Value<int?>? rankMonth,
+    Value<List<String>>? supportedLanguages,
     Value<DateTime?>? scrapedAt,
     Value<DateTime>? localImportedAt,
     Value<String>? localFolderPath,
@@ -2180,7 +2408,12 @@ class WorksCompanion extends UpdateCompanion<Work> {
       rating: rating ?? this.rating,
       ratingCount: ratingCount ?? this.ratingCount,
       dlCount: dlCount ?? this.dlCount,
+      wishlistCount: wishlistCount ?? this.wishlistCount,
       reviewCount: reviewCount ?? this.reviewCount,
+      rankDay: rankDay ?? this.rankDay,
+      rankWeek: rankWeek ?? this.rankWeek,
+      rankMonth: rankMonth ?? this.rankMonth,
+      supportedLanguages: supportedLanguages ?? this.supportedLanguages,
       scrapedAt: scrapedAt ?? this.scrapedAt,
       localImportedAt: localImportedAt ?? this.localImportedAt,
       localFolderPath: localFolderPath ?? this.localFolderPath,
@@ -2307,8 +2540,27 @@ class WorksCompanion extends UpdateCompanion<Work> {
     if (dlCount.present) {
       map['dl_count'] = Variable<int>(dlCount.value);
     }
+    if (wishlistCount.present) {
+      map['wishlist_count'] = Variable<int>(wishlistCount.value);
+    }
     if (reviewCount.present) {
       map['review_count'] = Variable<int>(reviewCount.value);
+    }
+    if (rankDay.present) {
+      map['rank_day'] = Variable<int>(rankDay.value);
+    }
+    if (rankWeek.present) {
+      map['rank_week'] = Variable<int>(rankWeek.value);
+    }
+    if (rankMonth.present) {
+      map['rank_month'] = Variable<int>(rankMonth.value);
+    }
+    if (supportedLanguages.present) {
+      map['supported_languages'] = Variable<String>(
+        $WorksTable.$convertersupportedLanguages.toSql(
+          supportedLanguages.value,
+        ),
+      );
     }
     if (scrapedAt.present) {
       map['scraped_at'] = Variable<DateTime>(scrapedAt.value);
@@ -2390,7 +2642,12 @@ class WorksCompanion extends UpdateCompanion<Work> {
           ..write('rating: $rating, ')
           ..write('ratingCount: $ratingCount, ')
           ..write('dlCount: $dlCount, ')
+          ..write('wishlistCount: $wishlistCount, ')
           ..write('reviewCount: $reviewCount, ')
+          ..write('rankDay: $rankDay, ')
+          ..write('rankWeek: $rankWeek, ')
+          ..write('rankMonth: $rankMonth, ')
+          ..write('supportedLanguages: $supportedLanguages, ')
           ..write('scrapedAt: $scrapedAt, ')
           ..write('localImportedAt: $localImportedAt, ')
           ..write('localFolderPath: $localFolderPath, ')
@@ -4673,7 +4930,12 @@ typedef $$WorksTableCreateCompanionBuilder =
       Value<double?> rating,
       Value<int?> ratingCount,
       Value<int?> dlCount,
+      Value<int?> wishlistCount,
       Value<int?> reviewCount,
+      Value<int?> rankDay,
+      Value<int?> rankWeek,
+      Value<int?> rankMonth,
+      Value<List<String>> supportedLanguages,
       Value<DateTime?> scrapedAt,
       required DateTime localImportedAt,
       required String localFolderPath,
@@ -4721,7 +4983,12 @@ typedef $$WorksTableUpdateCompanionBuilder =
       Value<double?> rating,
       Value<int?> ratingCount,
       Value<int?> dlCount,
+      Value<int?> wishlistCount,
       Value<int?> reviewCount,
+      Value<int?> rankDay,
+      Value<int?> rankWeek,
+      Value<int?> rankMonth,
+      Value<List<String>> supportedLanguages,
       Value<DateTime?> scrapedAt,
       Value<DateTime> localImportedAt,
       Value<String> localFolderPath,
@@ -4927,9 +5194,35 @@ class $$WorksTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<int> get wishlistCount => $composableBuilder(
+    column: $table.wishlistCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<int> get reviewCount => $composableBuilder(
     column: $table.reviewCount,
     builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get rankDay => $composableBuilder(
+    column: $table.rankDay,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get rankWeek => $composableBuilder(
+    column: $table.rankWeek,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get rankMonth => $composableBuilder(
+    column: $table.rankMonth,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<List<String>, List<String>, String>
+  get supportedLanguages => $composableBuilder(
+    column: $table.supportedLanguages,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
   );
 
   ColumnFilters<DateTime> get scrapedAt => $composableBuilder(
@@ -5183,8 +5476,33 @@ class $$WorksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get wishlistCount => $composableBuilder(
+    column: $table.wishlistCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get reviewCount => $composableBuilder(
     column: $table.reviewCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get rankDay => $composableBuilder(
+    column: $table.rankDay,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get rankWeek => $composableBuilder(
+    column: $table.rankWeek,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get rankMonth => $composableBuilder(
+    column: $table.rankMonth,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get supportedLanguages => $composableBuilder(
+    column: $table.supportedLanguages,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -5399,8 +5717,28 @@ class $$WorksTableAnnotationComposer
   GeneratedColumn<int> get dlCount =>
       $composableBuilder(column: $table.dlCount, builder: (column) => column);
 
+  GeneratedColumn<int> get wishlistCount => $composableBuilder(
+    column: $table.wishlistCount,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<int> get reviewCount => $composableBuilder(
     column: $table.reviewCount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get rankDay =>
+      $composableBuilder(column: $table.rankDay, builder: (column) => column);
+
+  GeneratedColumn<int> get rankWeek =>
+      $composableBuilder(column: $table.rankWeek, builder: (column) => column);
+
+  GeneratedColumn<int> get rankMonth =>
+      $composableBuilder(column: $table.rankMonth, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<List<String>, String>
+  get supportedLanguages => $composableBuilder(
+    column: $table.supportedLanguages,
     builder: (column) => column,
   );
 
@@ -5542,7 +5880,12 @@ class $$WorksTableTableManager
                 Value<double?> rating = const Value.absent(),
                 Value<int?> ratingCount = const Value.absent(),
                 Value<int?> dlCount = const Value.absent(),
+                Value<int?> wishlistCount = const Value.absent(),
                 Value<int?> reviewCount = const Value.absent(),
+                Value<int?> rankDay = const Value.absent(),
+                Value<int?> rankWeek = const Value.absent(),
+                Value<int?> rankMonth = const Value.absent(),
+                Value<List<String>> supportedLanguages = const Value.absent(),
                 Value<DateTime?> scrapedAt = const Value.absent(),
                 Value<DateTime> localImportedAt = const Value.absent(),
                 Value<String> localFolderPath = const Value.absent(),
@@ -5588,7 +5931,12 @@ class $$WorksTableTableManager
                 rating: rating,
                 ratingCount: ratingCount,
                 dlCount: dlCount,
+                wishlistCount: wishlistCount,
                 reviewCount: reviewCount,
+                rankDay: rankDay,
+                rankWeek: rankWeek,
+                rankMonth: rankMonth,
+                supportedLanguages: supportedLanguages,
                 scrapedAt: scrapedAt,
                 localImportedAt: localImportedAt,
                 localFolderPath: localFolderPath,
@@ -5637,7 +5985,12 @@ class $$WorksTableTableManager
                 Value<double?> rating = const Value.absent(),
                 Value<int?> ratingCount = const Value.absent(),
                 Value<int?> dlCount = const Value.absent(),
+                Value<int?> wishlistCount = const Value.absent(),
                 Value<int?> reviewCount = const Value.absent(),
+                Value<int?> rankDay = const Value.absent(),
+                Value<int?> rankWeek = const Value.absent(),
+                Value<int?> rankMonth = const Value.absent(),
+                Value<List<String>> supportedLanguages = const Value.absent(),
                 Value<DateTime?> scrapedAt = const Value.absent(),
                 required DateTime localImportedAt,
                 required String localFolderPath,
@@ -5683,7 +6036,12 @@ class $$WorksTableTableManager
                 rating: rating,
                 ratingCount: ratingCount,
                 dlCount: dlCount,
+                wishlistCount: wishlistCount,
                 reviewCount: reviewCount,
+                rankDay: rankDay,
+                rankWeek: rankWeek,
+                rankMonth: rankMonth,
+                supportedLanguages: supportedLanguages,
                 scrapedAt: scrapedAt,
                 localImportedAt: localImportedAt,
                 localFolderPath: localFolderPath,

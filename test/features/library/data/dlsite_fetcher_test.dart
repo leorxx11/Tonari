@@ -67,7 +67,7 @@ void main() {
     test('extracts age rating, work type and type name', () {
       expect(data.ageRating, 'R18');
       expect(data.workType, 'SOU');
-      expect(data.workTypeName, 'ボイス・ASMR');
+      expect(data.workTypeName, '音声・ASMR');
     });
 
     test('extracts file formats and file size', () {
@@ -75,12 +75,16 @@ void main() {
       expect(data.fileSize, '3.6GB');
     });
 
+    test('extracts supported languages', () {
+      expect(data.supportedLanguages, ['日语']);
+    });
+
     test('extracts genres with ids', () {
       expect(data.genres.length, greaterThanOrEqualTo(8));
       final names = data.genres.map((g) => g.name).toList();
-      expect(names, contains('淫語'));
-      expect(names, contains('オホ声'));
-      final inGo = data.genres.firstWhere((g) => g.name == '淫語');
+      expect(names, contains('淫语'));
+      expect(names, contains('哦吼淫叫'));
+      final inGo = data.genres.firstWhere((g) => g.name == '淫语');
       expect(inGo.id, '068');
     });
 
@@ -123,14 +127,20 @@ void main() {
     });
 
     test('extracts dl count and wishlist', () {
-      expect(ajax.dlCount, 3867);
-      expect(ajax.wishlistCount, 5113);
+      expect(ajax.dlCount, 3868);
+      expect(ajax.wishlistCount, 5114);
     });
 
     test('extracts rating average and count', () {
       expect(ajax.rateAverage, 4.85);
       expect(ajax.rateCount, 195);
       expect(ajax.reviewCount, 1);
+    });
+
+    test('extracts category=all ranks for day/week/month', () {
+      expect(ajax.rankDay, 2);
+      expect(ajax.rankWeek, 16);
+      expect(ajax.rankMonth, 43);
     });
 
     test('extracts price and computes discount=0 when not discounted', () {
