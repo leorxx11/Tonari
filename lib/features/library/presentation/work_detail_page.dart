@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -566,6 +567,22 @@ class _DescriptionSection extends StatelessWidget {
       for (final b in blocks)
         if (b is _DescImage) b.url,
     ];
+    final localPaths = work.descriptionImageLocalPaths;
+
+    Widget descImage(String url) {
+      final idx = imgUrls.indexOf(url);
+      final localPath =
+          (idx >= 0 && idx < localPaths.length) ? localPaths[idx] : '';
+      if (localPath.isNotEmpty && File(localPath).existsSync()) {
+        return Image.file(
+          File(localPath),
+          fit: BoxFit.fitWidth,
+          width: double.infinity,
+          errorBuilder: (_, _, _) => _networkDescImage(url, theme),
+        );
+      }
+      return _networkDescImage(url, theme);
+    }
 
     return _Section(
       title: '简介',
@@ -603,30 +620,7 @@ class _DescriptionSection extends StatelessWidget {
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(6),
-                    child: Image.network(
-                      u,
-                      fit: BoxFit.fitWidth,
-                      width: double.infinity,
-                      loadingBuilder: (ctx, child, progress) {
-                        if (progress == null) return child;
-                        return AspectRatio(
-                          aspectRatio: 16 / 9,
-                          child: ColoredBox(
-                            color: theme.colorScheme.surfaceContainerHighest,
-                            child: const Center(
-                              child: SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                      errorBuilder: (_, _, _) => const SizedBox.shrink(),
-                    ),
+                    child: descImage(u),
                   ),
                 ),
               ),
@@ -635,6 +629,31 @@ class _DescriptionSection extends StatelessWidget {
       ),
     );
   }
+}
+
+Widget _networkDescImage(String url, ThemeData theme) {
+  return Image.network(
+    url,
+    fit: BoxFit.fitWidth,
+    width: double.infinity,
+    loadingBuilder: (ctx, child, progress) {
+      if (progress == null) return child;
+      return AspectRatio(
+        aspectRatio: 16 / 9,
+        child: ColoredBox(
+          color: theme.colorScheme.surfaceContainerHighest,
+          child: const Center(
+            child: SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        ),
+      );
+    },
+    errorBuilder: (_, _, _) => const SizedBox.shrink(),
+  );
 }
 
 sealed class _DescBlock {

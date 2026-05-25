@@ -74,6 +74,7 @@ Work _work(
     genresJson: '[]',
     sampleImageUrls: const [],
     sampleImageLocalPaths: const [],
+    descriptionImageLocalPaths: const [],
     localImportedAt: now,
     localFolderPath: '/imported/$rj',
     isFavorite: isFavorite,

@@ -16,7 +16,7 @@ class TonariDatabase extends _$TonariDatabase {
   TonariDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -33,6 +33,9 @@ class TonariDatabase extends _$TonariDatabase {
         await m.addColumn(works, works.rankWeek);
         await m.addColumn(works, works.rankMonth);
         await m.addColumn(works, works.supportedLanguages);
+      }
+      if (from < 5) {
+        await m.addColumn(works, works.descriptionImageLocalPaths);
       }
     },
   );

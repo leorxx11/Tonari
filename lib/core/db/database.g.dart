@@ -264,6 +264,19 @@ class $WorksTable extends Works with TableInfo<$WorksTable, Work> {
     requiredDuringInsert: false,
     defaultValue: const Constant('[]'),
   ).withConverter<List<String>>($WorksTable.$convertersampleImageLocalPaths);
+  @override
+  late final GeneratedColumnWithTypeConverter<List<String>, String>
+  descriptionImageLocalPaths =
+      GeneratedColumn<String>(
+        'description_image_local_paths',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('[]'),
+      ).withConverter<List<String>>(
+        $WorksTable.$converterdescriptionImageLocalPaths,
+      );
   static const VerificationMeta _officialPriceMeta = const VerificationMeta(
     'officialPrice',
   );
@@ -569,6 +582,7 @@ class $WorksTable extends Works with TableInfo<$WorksTable, Work> {
     sampleImageUrls,
     mainImageLocalPath,
     sampleImageLocalPaths,
+    descriptionImageLocalPaths,
     officialPrice,
     currentPrice,
     discountRate,
@@ -1033,6 +1047,14 @@ class $WorksTable extends Works with TableInfo<$WorksTable, Work> {
               data['${effectivePrefix}sample_image_local_paths'],
             )!,
           ),
+      descriptionImageLocalPaths: $WorksTable
+          .$converterdescriptionImageLocalPaths
+          .fromSql(
+            attachedDatabase.typeMapping.read(
+              DriftSqlType.string,
+              data['${effectivePrefix}description_image_local_paths'],
+            )!,
+          ),
       officialPrice: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}official_price'],
@@ -1159,6 +1181,8 @@ class $WorksTable extends Works with TableInfo<$WorksTable, Work> {
       const StringListConverter();
   static TypeConverter<List<String>, String> $convertersampleImageLocalPaths =
       const StringListConverter();
+  static TypeConverter<List<String>, String>
+  $converterdescriptionImageLocalPaths = const StringListConverter();
   static TypeConverter<List<String>, String> $convertersupportedLanguages =
       const StringListConverter();
   static TypeConverter<List<String>, String> $converteruserTags =
@@ -1190,6 +1214,7 @@ class Work extends DataClass implements Insertable<Work> {
   final List<String> sampleImageUrls;
   final String? mainImageLocalPath;
   final List<String> sampleImageLocalPaths;
+  final List<String> descriptionImageLocalPaths;
   final int? officialPrice;
   final int? currentPrice;
   final int? discountRate;
@@ -1240,6 +1265,7 @@ class Work extends DataClass implements Insertable<Work> {
     required this.sampleImageUrls,
     this.mainImageLocalPath,
     required this.sampleImageLocalPaths,
+    required this.descriptionImageLocalPaths,
     this.officialPrice,
     this.currentPrice,
     this.discountRate,
@@ -1348,6 +1374,13 @@ class Work extends DataClass implements Insertable<Work> {
       map['sample_image_local_paths'] = Variable<String>(
         $WorksTable.$convertersampleImageLocalPaths.toSql(
           sampleImageLocalPaths,
+        ),
+      );
+    }
+    {
+      map['description_image_local_paths'] = Variable<String>(
+        $WorksTable.$converterdescriptionImageLocalPaths.toSql(
+          descriptionImageLocalPaths,
         ),
       );
     }
@@ -1475,6 +1508,7 @@ class Work extends DataClass implements Insertable<Work> {
           ? const Value.absent()
           : Value(mainImageLocalPath),
       sampleImageLocalPaths: Value(sampleImageLocalPaths),
+      descriptionImageLocalPaths: Value(descriptionImageLocalPaths),
       officialPrice: officialPrice == null && nullToAbsent
           ? const Value.absent()
           : Value(officialPrice),
@@ -1575,6 +1609,9 @@ class Work extends DataClass implements Insertable<Work> {
       sampleImageLocalPaths: serializer.fromJson<List<String>>(
         json['sampleImageLocalPaths'],
       ),
+      descriptionImageLocalPaths: serializer.fromJson<List<String>>(
+        json['descriptionImageLocalPaths'],
+      ),
       officialPrice: serializer.fromJson<int?>(json['officialPrice']),
       currentPrice: serializer.fromJson<int?>(json['currentPrice']),
       discountRate: serializer.fromJson<int?>(json['discountRate']),
@@ -1636,6 +1673,9 @@ class Work extends DataClass implements Insertable<Work> {
       'sampleImageLocalPaths': serializer.toJson<List<String>>(
         sampleImageLocalPaths,
       ),
+      'descriptionImageLocalPaths': serializer.toJson<List<String>>(
+        descriptionImageLocalPaths,
+      ),
       'officialPrice': serializer.toJson<int?>(officialPrice),
       'currentPrice': serializer.toJson<int?>(currentPrice),
       'discountRate': serializer.toJson<int?>(discountRate),
@@ -1689,6 +1729,7 @@ class Work extends DataClass implements Insertable<Work> {
     List<String>? sampleImageUrls,
     Value<String?> mainImageLocalPath = const Value.absent(),
     List<String>? sampleImageLocalPaths,
+    List<String>? descriptionImageLocalPaths,
     Value<int?> officialPrice = const Value.absent(),
     Value<int?> currentPrice = const Value.absent(),
     Value<int?> discountRate = const Value.absent(),
@@ -1745,6 +1786,8 @@ class Work extends DataClass implements Insertable<Work> {
         ? mainImageLocalPath.value
         : this.mainImageLocalPath,
     sampleImageLocalPaths: sampleImageLocalPaths ?? this.sampleImageLocalPaths,
+    descriptionImageLocalPaths:
+        descriptionImageLocalPaths ?? this.descriptionImageLocalPaths,
     officialPrice: officialPrice.present
         ? officialPrice.value
         : this.officialPrice,
@@ -1837,6 +1880,9 @@ class Work extends DataClass implements Insertable<Work> {
       sampleImageLocalPaths: data.sampleImageLocalPaths.present
           ? data.sampleImageLocalPaths.value
           : this.sampleImageLocalPaths,
+      descriptionImageLocalPaths: data.descriptionImageLocalPaths.present
+          ? data.descriptionImageLocalPaths.value
+          : this.descriptionImageLocalPaths,
       officialPrice: data.officialPrice.present
           ? data.officialPrice.value
           : this.officialPrice,
@@ -1920,6 +1966,7 @@ class Work extends DataClass implements Insertable<Work> {
           ..write('sampleImageUrls: $sampleImageUrls, ')
           ..write('mainImageLocalPath: $mainImageLocalPath, ')
           ..write('sampleImageLocalPaths: $sampleImageLocalPaths, ')
+          ..write('descriptionImageLocalPaths: $descriptionImageLocalPaths, ')
           ..write('officialPrice: $officialPrice, ')
           ..write('currentPrice: $currentPrice, ')
           ..write('discountRate: $discountRate, ')
@@ -1975,6 +2022,7 @@ class Work extends DataClass implements Insertable<Work> {
     sampleImageUrls,
     mainImageLocalPath,
     sampleImageLocalPaths,
+    descriptionImageLocalPaths,
     officialPrice,
     currentPrice,
     discountRate,
@@ -2029,6 +2077,7 @@ class Work extends DataClass implements Insertable<Work> {
           other.sampleImageUrls == this.sampleImageUrls &&
           other.mainImageLocalPath == this.mainImageLocalPath &&
           other.sampleImageLocalPaths == this.sampleImageLocalPaths &&
+          other.descriptionImageLocalPaths == this.descriptionImageLocalPaths &&
           other.officialPrice == this.officialPrice &&
           other.currentPrice == this.currentPrice &&
           other.discountRate == this.discountRate &&
@@ -2081,6 +2130,7 @@ class WorksCompanion extends UpdateCompanion<Work> {
   final Value<List<String>> sampleImageUrls;
   final Value<String?> mainImageLocalPath;
   final Value<List<String>> sampleImageLocalPaths;
+  final Value<List<String>> descriptionImageLocalPaths;
   final Value<int?> officialPrice;
   final Value<int?> currentPrice;
   final Value<int?> discountRate;
@@ -2132,6 +2182,7 @@ class WorksCompanion extends UpdateCompanion<Work> {
     this.sampleImageUrls = const Value.absent(),
     this.mainImageLocalPath = const Value.absent(),
     this.sampleImageLocalPaths = const Value.absent(),
+    this.descriptionImageLocalPaths = const Value.absent(),
     this.officialPrice = const Value.absent(),
     this.currentPrice = const Value.absent(),
     this.discountRate = const Value.absent(),
@@ -2184,6 +2235,7 @@ class WorksCompanion extends UpdateCompanion<Work> {
     this.sampleImageUrls = const Value.absent(),
     this.mainImageLocalPath = const Value.absent(),
     this.sampleImageLocalPaths = const Value.absent(),
+    this.descriptionImageLocalPaths = const Value.absent(),
     this.officialPrice = const Value.absent(),
     this.currentPrice = const Value.absent(),
     this.discountRate = const Value.absent(),
@@ -2241,6 +2293,7 @@ class WorksCompanion extends UpdateCompanion<Work> {
     Expression<String>? sampleImageUrls,
     Expression<String>? mainImageLocalPath,
     Expression<String>? sampleImageLocalPaths,
+    Expression<String>? descriptionImageLocalPaths,
     Expression<int>? officialPrice,
     Expression<int>? currentPrice,
     Expression<int>? discountRate,
@@ -2295,6 +2348,8 @@ class WorksCompanion extends UpdateCompanion<Work> {
         'main_image_local_path': mainImageLocalPath,
       if (sampleImageLocalPaths != null)
         'sample_image_local_paths': sampleImageLocalPaths,
+      if (descriptionImageLocalPaths != null)
+        'description_image_local_paths': descriptionImageLocalPaths,
       if (officialPrice != null) 'official_price': officialPrice,
       if (currentPrice != null) 'current_price': currentPrice,
       if (discountRate != null) 'discount_rate': discountRate,
@@ -2349,6 +2404,7 @@ class WorksCompanion extends UpdateCompanion<Work> {
     Value<List<String>>? sampleImageUrls,
     Value<String?>? mainImageLocalPath,
     Value<List<String>>? sampleImageLocalPaths,
+    Value<List<String>>? descriptionImageLocalPaths,
     Value<int?>? officialPrice,
     Value<int?>? currentPrice,
     Value<int?>? discountRate,
@@ -2402,6 +2458,8 @@ class WorksCompanion extends UpdateCompanion<Work> {
       mainImageLocalPath: mainImageLocalPath ?? this.mainImageLocalPath,
       sampleImageLocalPaths:
           sampleImageLocalPaths ?? this.sampleImageLocalPaths,
+      descriptionImageLocalPaths:
+          descriptionImageLocalPaths ?? this.descriptionImageLocalPaths,
       officialPrice: officialPrice ?? this.officialPrice,
       currentPrice: currentPrice ?? this.currentPrice,
       discountRate: discountRate ?? this.discountRate,
@@ -2522,6 +2580,13 @@ class WorksCompanion extends UpdateCompanion<Work> {
         ),
       );
     }
+    if (descriptionImageLocalPaths.present) {
+      map['description_image_local_paths'] = Variable<String>(
+        $WorksTable.$converterdescriptionImageLocalPaths.toSql(
+          descriptionImageLocalPaths.value,
+        ),
+      );
+    }
     if (officialPrice.present) {
       map['official_price'] = Variable<int>(officialPrice.value);
     }
@@ -2636,6 +2701,7 @@ class WorksCompanion extends UpdateCompanion<Work> {
           ..write('sampleImageUrls: $sampleImageUrls, ')
           ..write('mainImageLocalPath: $mainImageLocalPath, ')
           ..write('sampleImageLocalPaths: $sampleImageLocalPaths, ')
+          ..write('descriptionImageLocalPaths: $descriptionImageLocalPaths, ')
           ..write('officialPrice: $officialPrice, ')
           ..write('currentPrice: $currentPrice, ')
           ..write('discountRate: $discountRate, ')
@@ -4924,6 +4990,7 @@ typedef $$WorksTableCreateCompanionBuilder =
       Value<List<String>> sampleImageUrls,
       Value<String?> mainImageLocalPath,
       Value<List<String>> sampleImageLocalPaths,
+      Value<List<String>> descriptionImageLocalPaths,
       Value<int?> officialPrice,
       Value<int?> currentPrice,
       Value<int?> discountRate,
@@ -4977,6 +5044,7 @@ typedef $$WorksTableUpdateCompanionBuilder =
       Value<List<String>> sampleImageUrls,
       Value<String?> mainImageLocalPath,
       Value<List<String>> sampleImageLocalPaths,
+      Value<List<String>> descriptionImageLocalPaths,
       Value<int?> officialPrice,
       Value<int?> currentPrice,
       Value<int?> discountRate,
@@ -5161,6 +5229,12 @@ class $$WorksTableFilterComposer
   ColumnWithTypeConverterFilters<List<String>, List<String>, String>
   get sampleImageLocalPaths => $composableBuilder(
     column: $table.sampleImageLocalPaths,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<List<String>, List<String>, String>
+  get descriptionImageLocalPaths => $composableBuilder(
+    column: $table.descriptionImageLocalPaths,
     builder: (column) => ColumnWithTypeConverterFilters(column),
   );
 
@@ -5446,6 +5520,11 @@ class $$WorksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get descriptionImageLocalPaths => $composableBuilder(
+    column: $table.descriptionImageLocalPaths,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get officialPrice => $composableBuilder(
     column: $table.officialPrice,
     builder: (column) => ColumnOrderings(column),
@@ -5691,6 +5770,12 @@ class $$WorksTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumnWithTypeConverter<List<String>, String>
+  get descriptionImageLocalPaths => $composableBuilder(
+    column: $table.descriptionImageLocalPaths,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<int> get officialPrice => $composableBuilder(
     column: $table.officialPrice,
     builder: (column) => column,
@@ -5874,6 +5959,8 @@ class $$WorksTableTableManager
                 Value<String?> mainImageLocalPath = const Value.absent(),
                 Value<List<String>> sampleImageLocalPaths =
                     const Value.absent(),
+                Value<List<String>> descriptionImageLocalPaths =
+                    const Value.absent(),
                 Value<int?> officialPrice = const Value.absent(),
                 Value<int?> currentPrice = const Value.absent(),
                 Value<int?> discountRate = const Value.absent(),
@@ -5925,6 +6012,7 @@ class $$WorksTableTableManager
                 sampleImageUrls: sampleImageUrls,
                 mainImageLocalPath: mainImageLocalPath,
                 sampleImageLocalPaths: sampleImageLocalPaths,
+                descriptionImageLocalPaths: descriptionImageLocalPaths,
                 officialPrice: officialPrice,
                 currentPrice: currentPrice,
                 discountRate: discountRate,
@@ -5979,6 +6067,8 @@ class $$WorksTableTableManager
                 Value<String?> mainImageLocalPath = const Value.absent(),
                 Value<List<String>> sampleImageLocalPaths =
                     const Value.absent(),
+                Value<List<String>> descriptionImageLocalPaths =
+                    const Value.absent(),
                 Value<int?> officialPrice = const Value.absent(),
                 Value<int?> currentPrice = const Value.absent(),
                 Value<int?> discountRate = const Value.absent(),
@@ -6030,6 +6120,7 @@ class $$WorksTableTableManager
                 sampleImageUrls: sampleImageUrls,
                 mainImageLocalPath: mainImageLocalPath,
                 sampleImageLocalPaths: sampleImageLocalPaths,
+                descriptionImageLocalPaths: descriptionImageLocalPaths,
                 officialPrice: officialPrice,
                 currentPrice: currentPrice,
                 discountRate: discountRate,

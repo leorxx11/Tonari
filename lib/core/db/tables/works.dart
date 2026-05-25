@@ -45,6 +45,9 @@ class Works extends Table {
   TextColumn get sampleImageLocalPaths => text()
       .map(const StringListConverter())
       .withDefault(const Constant('[]'))();
+  TextColumn get descriptionImageLocalPaths => text()
+      .map(const StringListConverter())
+      .withDefault(const Constant('[]'))();
 
   IntColumn get officialPrice => integer().nullable()();
   IntColumn get currentPrice => integer().nullable()();

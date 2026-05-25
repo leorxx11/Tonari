@@ -52,6 +52,7 @@ class DlsiteWorkData {
     this.descriptionHtml,
     required this.mainImageUrl,
     this.sampleImageUrls = const [],
+    this.descriptionImageUrls = const [],
   });
 
   final String productId;
@@ -76,6 +77,7 @@ class DlsiteWorkData {
   final String? descriptionHtml;
   final String mainImageUrl;
   final List<String> sampleImageUrls;
+  final List<String> descriptionImageUrls;
 }
 
 class DlsiteAjaxData {
@@ -267,6 +269,7 @@ class DlsiteFetcher {
   DlsiteWorkData parseHtml(String html, String productId) {
     final doc = html_parser.parse(html);
     final outline = _collectOutline(doc);
+    final description = doc.querySelector('[itemprop="description"]');
     return DlsiteWorkData(
       productId: productId,
       title: _tryGet(() => _textOrNull(doc, '#work_name')) ?? productId,
@@ -287,9 +290,10 @@ class DlsiteFetcher {
       fileSize: _tryGet(() => _fileSize(outline['文件容量'])),
       seriesId: _tryGet(() => _seriesId(outline['系列名'])),
       seriesName: _tryGet(() => _textOrNullElem(outline['系列名']?.querySelector('a'))),
-      descriptionHtml: _tryGet(() => doc.querySelector('[itemprop="description"]')?.innerHtml.trim()),
+      descriptionHtml: _tryGet(() => description?.innerHtml.trim()),
       mainImageUrl: mainImageUrlFor(productId),
       sampleImageUrls: _tryGet(() => _sampleImages(doc)) ?? const [],
+      descriptionImageUrls: _tryGet(() => _descriptionImages(description)) ?? const [],
     );
   }
 
@@ -432,6 +436,18 @@ class DlsiteFetcher {
       if (src == null || src.isEmpty) continue;
       if (src.contains('_img_main')) continue;
       out.add(src.startsWith('//') ? 'https:$src' : src);
+    }
+    return out;
+  }
+
+  List<String> _descriptionImages(dom.Element? description) {
+    if (description == null) return const [];
+    final out = <String>[];
+    for (final img in description.querySelectorAll('img')) {
+      var src = img.attributes['src'] ?? img.attributes['data-src'] ?? '';
+      if (src.isEmpty) continue;
+      if (src.startsWith('//')) src = 'https:$src';
+      out.add(src);
     }
     return out;
   }

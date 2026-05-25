@@ -8,10 +8,15 @@ import 'package:path_provider/path_provider.dart';
 import 'dlsite_fetcher.dart';
 
 class WorkImagePaths {
-  const WorkImagePaths({this.mainImage, this.sampleImages = const []});
+  const WorkImagePaths({
+    this.mainImage,
+    this.sampleImages = const [],
+    this.descriptionImages = const [],
+  });
 
   final String? mainImage;
   final List<String> sampleImages;
+  final List<String> descriptionImages;
 }
 
 typedef ImageDownloader = Future<bool> Function(String url, File target);
@@ -38,6 +43,7 @@ class WorkImageCache {
     required String productId,
     required String mainImageUrl,
     List<String> sampleImageUrls = const [],
+    List<String> descriptionImageUrls = const [],
   }) async {
     final dir = await _ensureWorkDir(productId);
 
@@ -56,7 +62,22 @@ class WorkImageCache {
       if (path != null) samplePaths.add(path);
     }
 
-    return WorkImagePaths(mainImage: mainPath, sampleImages: samplePaths);
+    final descPaths = <String>[];
+    for (var i = 0; i < descriptionImageUrls.length; i++) {
+      final url = descriptionImageUrls[i];
+      final path = await _downloadIfMissing(
+        url: url,
+        file: File(p.join(dir.path, 'desc${i + 1}${_ext(url)}')),
+      );
+      // keep slot alignment with input URLs: empty string = download failed
+      descPaths.add(path ?? '');
+    }
+
+    return WorkImagePaths(
+      mainImage: mainPath,
+      sampleImages: samplePaths,
+      descriptionImages: descPaths,
+    );
   }
 
   Future<void> evict(String productId) async {

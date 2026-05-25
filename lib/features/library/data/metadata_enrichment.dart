@@ -76,6 +76,7 @@ class MetadataEnrichmentService {
         productId: productId,
         mainImageUrl: work.mainImageUrl,
         sampleImageUrls: work.sampleImageUrls,
+        descriptionImageUrls: work.descriptionImageUrls,
       );
     } catch (_) {
       // keep URLs even if local caching failed
@@ -108,6 +109,7 @@ class MetadataEnrichmentService {
         sampleImageUrls: Value(work.sampleImageUrls),
         mainImageLocalPath: Value(images.mainImage),
         sampleImageLocalPaths: Value(images.sampleImages),
+        descriptionImageLocalPaths: Value(images.descriptionImages),
         rating: Value(ajax?.rateAverage),
         ratingCount: Value(ajax?.rateCount),
         reviewCount: Value(ajax?.reviewCount),
