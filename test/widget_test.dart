@@ -7,7 +7,6 @@ import 'package:tonari/app.dart';
 import 'package:tonari/core/db/database.dart';
 import 'package:tonari/core/files/folder_picker_service.dart';
 import 'package:tonari/features/library/data/import_flow.dart';
-import 'package:tonari/features/library/data/import_service.dart';
 import 'package:tonari/features/library/data/metadata_enrichment.dart';
 import 'package:tonari/features/library/data/work_actions_provider.dart';
 import 'package:tonari/features/library/data/works_providers.dart';
@@ -114,37 +113,6 @@ Track _track({
     createdAt: now,
     updatedAt: now,
   );
-}
-
-ImportedFolder _folder(String id) {
-  final now = DateTime(2026, 5, 24, 14, 30);
-  return ImportedFolder(
-    id: id,
-    displayName: id,
-    bookmarkBase64: 'bookmark-$id',
-    createdAt: now,
-    updatedAt: now,
-  );
-}
-
-class _FakeImportFlow implements ImportFlow {
-  _FakeImportFlow(this._summaries);
-
-  final List<ImportSummary> _summaries;
-  var _index = 0;
-
-  @override
-  ImportService get importer => throw UnimplementedError();
-
-  @override
-  void Function(ImportSummary)? get onImported => null;
-
-  @override
-  Future<ImportSummary> importFromFolder(ImportedFolder folder) async {
-    final summary = _summaries[_index];
-    _index++;
-    return summary;
-  }
 }
 
 void main() {
