@@ -74,4 +74,81 @@ void main() {
       '{"mp3":"${tmp.path}/RJ01560714/本編/track01.mp3"}',
     );
   });
+
+  test('imports from resolved iOS file provider path with spaces', () async {
+    final root = Directory('${tmp.path}/File Provider Storage/Downloads/ASMR');
+    final file = File('${root.path}/RJ01560715/track01.mp3');
+    file.parent.createSync(recursive: true);
+    file.writeAsStringSync('x');
+
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      if (call.method == 'resolve') {
+        return {'url': root.path, 'isStale': false};
+      }
+      if (call.method == 'release') return null;
+      throw StateError('Unexpected method ${call.method}');
+    });
+
+    final now = DateTime(2026, 5, 24, 14, 30);
+    final summary = await flow.importFromFolder(
+      ImportedFolder(
+        id: 'folder-1',
+        displayName: 'ASMR',
+        bookmarkBase64: 'bookmark',
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+
+    expect(summary.scannedRootPath, root.path);
+    expect(summary.worksInserted, 1);
+    expect(summary.tracksTotal, 1);
+
+    final work = await db.select(db.works).getSingle();
+    expect(work.productId, 'RJ01560715');
+  });
+
+  test(
+    'imports from percent-encoded resolved iOS file provider path',
+    () async {
+      final root = Directory(
+        '${tmp.path}/File Provider Storage/Downloads/ASMR',
+      );
+      final file = File('${root.path}/RJ01560716/track01.mp3');
+      file.parent.createSync(recursive: true);
+      file.writeAsStringSync('x');
+
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        if (call.method == 'resolve') {
+          return {
+            'url': root.path.replaceAll(
+              'File Provider Storage',
+              'File%20Provider%20Storage',
+            ),
+            'isStale': false,
+          };
+        }
+        if (call.method == 'release') return null;
+        throw StateError('Unexpected method ${call.method}');
+      });
+
+      final now = DateTime(2026, 5, 24, 14, 30);
+      final summary = await flow.importFromFolder(
+        ImportedFolder(
+          id: 'folder-1',
+          displayName: 'ASMR',
+          bookmarkBase64: 'bookmark',
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+
+      expect(summary.scannedRootPath, root.path);
+      expect(summary.worksInserted, 1);
+      expect(summary.tracksTotal, 1);
+
+      final work = await db.select(db.works).getSingle();
+      expect(work.productId, 'RJ01560716');
+    },
+  );
 }

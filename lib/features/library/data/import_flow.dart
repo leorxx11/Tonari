@@ -9,9 +9,9 @@ class ImportFlow {
   ImportFlow({required this.importer});
   final ImportService importer;
 
-  /// Resolves the bookmark, scans the folder on an isolate, and writes
-  /// the scan results to the database. Always releases the security-scoped
-  /// access at the end, even on error.
+  /// Resolves the bookmark, scans the folder, and writes the scan results to
+  /// the database. Always releases the security-scoped access at the end, even
+  /// on error.
   Future<ImportSummary> importFromFolder(ImportedFolder folder) async {
     final resolution = await FolderBookmark.resolve(folder.bookmarkBase64);
     try {
@@ -24,7 +24,7 @@ class ImportFlow {
   }
 
   static String _urlToPath(String url) {
-    if (!url.startsWith('file://')) return url;
+    if (!url.startsWith('file://')) return Uri.decodeComponent(url);
     return Uri.parse(url).toFilePath();
   }
 }

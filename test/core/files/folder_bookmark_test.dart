@@ -22,14 +22,14 @@ void main() {
     expect(bookmark, 'fake-bookmark-base64');
   });
 
-  test('resolve returns url and isStale', () async {
+  test('resolve returns path and isStale', () async {
     messenger.setMockMethodCallHandler(channel, (call) async {
       expect(call.method, 'resolve');
-      return {'url': 'file:///mock/folder', 'isStale': true};
+      return {'url': '/mock/File Provider Storage/folder', 'isStale': true};
     });
 
     final r = await FolderBookmark.resolve('fake-bookmark');
-    expect(r.url, 'file:///mock/folder');
+    expect(r.url, '/mock/File Provider Storage/folder');
     expect(r.isStale, true);
   });
 

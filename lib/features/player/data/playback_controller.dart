@@ -3,11 +3,11 @@ import 'dart:async';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:just_audio_background/just_audio_background.dart';
 
 import '../../../core/db/database.dart';
 import '../../../core/db/providers.dart';
 import '../../../core/files/folder_bookmark.dart';
+import 'now_playing_bridge.dart';
 
 class PlaybackState {
   const PlaybackState({
@@ -36,13 +36,12 @@ class PlaybackState {
     List<Track>? tracks,
     int? currentIndex,
     String? bookmarkBase64,
-  }) =>
-      PlaybackState(
-        work: work ?? this.work,
-        tracks: tracks ?? this.tracks,
-        currentIndex: currentIndex ?? this.currentIndex,
-        bookmarkBase64: bookmarkBase64 ?? this.bookmarkBase64,
-      );
+  }) => PlaybackState(
+    work: work ?? this.work,
+    tracks: tracks ?? this.tracks,
+    currentIndex: currentIndex ?? this.currentIndex,
+    bookmarkBase64: bookmarkBase64 ?? this.bookmarkBase64,
+  );
 
   static const empty = PlaybackState();
 }
@@ -59,15 +58,18 @@ class PlaybackController extends Notifier<PlaybackState> {
   @override
   PlaybackState build() {
     player = AudioPlayer();
+    NowPlayingBridge.setCommandHandler(_handleNowPlayingCommand);
     _processingSub = player.processingStateStream.listen(_onProcessingState);
     _positionTimer = Timer.periodic(
       const Duration(seconds: 5),
-      (_) => _savePosition(),
+      (_) => _syncPlaybackTick(),
     );
 
     ref.onDispose(() {
       _processingSub?.cancel();
       _positionTimer?.cancel();
+      NowPlayingBridge.clearCommandHandler();
+      NowPlayingBridge.clear();
       player.dispose();
       _releaseScope();
     });
@@ -125,21 +127,45 @@ class PlaybackController extends Notifier<PlaybackState> {
   }
 
   Future<void> next() async {
-    if (state.hasNext) await playAt(state.currentIndex + 1);
+    if (state.hasNext) {
+      await playAt(state.currentIndex + 1);
+    } else {
+      await _publishNowPlaying();
+    }
   }
 
   Future<void> previous() async {
-    if (state.hasPrevious) await playAt(state.currentIndex - 1);
+    if (state.hasPrevious) {
+      await playAt(state.currentIndex - 1);
+    } else {
+      await _publishNowPlaying();
+    }
   }
 
-  Future<void> play() => player.play();
-  Future<void> pause() => player.pause();
-  Future<void> seek(Duration d) => player.seek(d);
-  Future<void> setSpeed(double s) => player.setSpeed(s);
+  Future<void> play() async {
+    await player.play();
+    await _publishNowPlaying();
+  }
+
+  Future<void> pause() async {
+    await player.pause();
+    await _publishNowPlaying();
+  }
+
+  Future<void> seek(Duration d) async {
+    await player.seek(d);
+    await _publishNowPlaying();
+  }
+
+  Future<void> setSpeed(double s) async {
+    await player.setSpeed(s);
+    await _publishNowPlaying();
+  }
 
   Future<void> stop() async {
     await _savePosition();
     await player.stop();
+    await NowPlayingBridge.clear();
     await _releaseScope();
     state = PlaybackState.empty;
   }
@@ -149,21 +175,12 @@ class PlaybackController extends Notifier<PlaybackState> {
     final work = state.work;
     if (track == null || work == null) return;
 
-    await player.setAudioSource(
-      AudioSource.uri(
-        Uri.file(track.filePath),
-        tag: MediaItem(
-          id: track.id,
-          title: track.title,
-          artist: work.title,
-          album: work.productId,
-        ),
-      ),
-    );
+    await player.setAudioSource(AudioSource.uri(Uri.file(track.filePath)));
     if (resume && track.lastPositionMs > 0) {
       await player.seek(Duration(milliseconds: track.lastPositionMs));
     }
     await player.play();
+    await _publishNowPlaying();
   }
 
   Future<void> _onProcessingState(ProcessingState s) async {
@@ -174,7 +191,13 @@ class PlaybackController extends Notifier<PlaybackState> {
     } else {
       await player.pause();
       await player.seek(Duration.zero);
+      await _publishNowPlaying();
     }
+  }
+
+  Future<void> _syncPlaybackTick() async {
+    await _savePosition();
+    await _publishNowPlaying();
   }
 
   Future<void> _savePosition() async {
@@ -182,8 +205,9 @@ class PlaybackController extends Notifier<PlaybackState> {
     if (track == null) return;
     final ms = player.position.inMilliseconds;
     final db = ref.read(databaseProvider);
-    await (db.update(db.tracks)..where((t) => t.id.equals(track.id)))
-        .write(TracksCompanion(lastPositionMs: Value(ms)));
+    await (db.update(db.tracks)..where((t) => t.id.equals(track.id))).write(
+      TracksCompanion(lastPositionMs: Value(ms)),
+    );
   }
 
   Future<void> _bumpPlayCount() async {
@@ -196,6 +220,49 @@ class PlaybackController extends Notifier<PlaybackState> {
     );
   }
 
+  Future<void> _publishNowPlaying() async {
+    final track = state.currentTrack;
+    final work = state.work;
+    if (track == null || work == null) {
+      await NowPlayingBridge.clear();
+      return;
+    }
+
+    await NowPlayingBridge.update(
+      NowPlayingSnapshot(
+        title: track.title,
+        album: work.productId,
+        artist: work.title,
+        position: player.position,
+        duration: player.duration ?? Duration(milliseconds: track.durationMs),
+        playing: player.playing,
+        speed: player.speed,
+        hasPrevious: state.hasPrevious,
+        hasNext: state.hasNext,
+      ),
+    );
+  }
+
+  Future<void> _handleNowPlayingCommand(
+    NowPlayingCommand command,
+    Object? arguments,
+  ) async {
+    switch (command) {
+      case NowPlayingCommand.play:
+        await play();
+      case NowPlayingCommand.pause:
+        await pause();
+      case NowPlayingCommand.next:
+        await next();
+      case NowPlayingCommand.previous:
+        await previous();
+      case NowPlayingCommand.seek:
+        final map = Map<Object?, Object?>.from(arguments! as Map);
+        final positionMs = map['positionMs'] as int;
+        await seek(Duration(milliseconds: positionMs));
+    }
+  }
+
   Future<void> _releaseScope() async {
     final url = _resolvedFolderUrl;
     if (url == null) return;
@@ -205,6 +272,4 @@ class PlaybackController extends Notifier<PlaybackState> {
 }
 
 final playbackControllerProvider =
-    NotifierProvider<PlaybackController, PlaybackState>(
-  PlaybackController.new,
-);
+    NotifierProvider<PlaybackController, PlaybackState>(PlaybackController.new);
