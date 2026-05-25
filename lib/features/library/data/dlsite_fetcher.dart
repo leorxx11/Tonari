@@ -208,7 +208,7 @@ class DlsiteFetcher {
     final ranks = _tryGet(() => _parseRanks(node['rank'])) ?? const <String, int>{};
     return DlsiteAjaxData(
       productId: productId,
-      dlCount: _tryGet(() => _asInt(node['dl_count'])),
+      dlCount: _tryGet(() => _asInt(node['dl_count_total']) ?? _asInt(node['dl_count'])),
       wishlistCount: _tryGet(() => _asInt(node['wishlist_count'])),
       rateAverage: _tryGet(() => _asDouble(node['rate_average_2dp']) ?? _asDouble(node['rate_average'])),
       rateCount: _tryGet(() => _asInt(node['rate_count'])),

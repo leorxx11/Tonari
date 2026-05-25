@@ -126,8 +126,8 @@ void main() {
       ajax = DlsiteFetcher().parseAjaxJson(json, 'RJ01560714');
     });
 
-    test('extracts dl count and wishlist', () {
-      expect(ajax.dlCount, 3868);
+    test('uses dl_count_total (cross-language sum), not locale-only dl_count', () {
+      expect(ajax.dlCount, 3991);
       expect(ajax.wishlistCount, 5114);
     });
 
@@ -173,6 +173,12 @@ void main() {
       expect(ajax.officialPrice, 2200);
       expect(ajax.discountRate, 50);
       expect(ajax.isDiscount, isTrue);
+    });
+
+    test('falls back to dl_count when dl_count_total is absent', () {
+      const body = '{"RJ01560714":{"dl_count":42}}';
+      final ajax = DlsiteFetcher().parseAjaxJson(body, 'RJ01560714');
+      expect(ajax.dlCount, 42);
     });
   });
 }
