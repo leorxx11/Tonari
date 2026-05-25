@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:html/dom.dart' as dom;
+import 'package:html/parser.dart' as html_parser;
 
 import '../../../core/db/database.dart';
 import '../../player/data/playback_controller.dart';
@@ -63,7 +65,6 @@ class _WorkDetailViewState extends ConsumerState<_WorkDetailView> {
           SliverToBoxAdapter(child: _CreditsSection(work: widget.work)),
           SliverToBoxAdapter(child: _GenresSection(work: widget.work)),
           SliverToBoxAdapter(child: _DescriptionSection(work: widget.work)),
-          SliverToBoxAdapter(child: _SamplesSection(work: widget.work)),
           SliverToBoxAdapter(child: _FileInfoLine(work: widget.work)),
           tracksAsync.when(
             loading: () => const SliverToBoxAdapter(
@@ -437,163 +438,111 @@ class _GenresSection extends StatelessWidget {
   }
 }
 
-class _DescriptionSection extends StatefulWidget {
+class _DescriptionSection extends StatelessWidget {
   const _DescriptionSection({required this.work});
 
   final Work work;
 
   @override
-  State<_DescriptionSection> createState() => _DescriptionSectionState();
-}
-
-class _DescriptionSectionState extends State<_DescriptionSection> {
-  bool _expanded = false;
-
-  @override
   Widget build(BuildContext context) {
-    final html = widget.work.descriptionHtml;
+    final html = work.descriptionHtml;
     if (html == null || html.isEmpty) return const SizedBox.shrink();
-    final text = _stripHtml(html);
-    if (text.isEmpty) return const SizedBox.shrink();
+    final blocks = _parseDescriptionBlocks(html);
+    if (blocks.isEmpty) return const SizedBox.shrink();
+
     final theme = Theme.of(context);
+    final imgUrls = [
+      for (final b in blocks)
+        if (b is _DescImage) b.url,
+    ];
 
     return _Section(
       title: '简介',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          AnimatedSize(
-            duration: const Duration(milliseconds: 180),
-            curve: Curves.easeOut,
-            alignment: Alignment.topCenter,
-            child: Text(
-              text,
-              maxLines: _expanded ? null : 5,
-              overflow: _expanded
-                  ? TextOverflow.visible
-                  : TextOverflow.ellipsis,
-              style: theme.textTheme.bodyMedium?.copyWith(height: 1.55),
-            ),
-          ),
-          const SizedBox(height: 4),
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () => setState(() => _expanded = !_expanded),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              child: Row(
-                children: [
-                  Text(
-                    _expanded ? '收起' : '展开',
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: theme.colorScheme.primary,
-                      fontWeight: FontWeight.w600,
-                    ),
+          for (final block in blocks)
+            switch (block) {
+              _DescHeading(text: final t) => Padding(
+                padding: const EdgeInsets.only(top: 14, bottom: 8),
+                child: Text(
+                  t,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    height: 1.4,
                   ),
-                  Icon(
-                    _expanded ? Icons.expand_less : Icons.expand_more,
-                    size: 18,
-                    color: theme.colorScheme.primary,
-                  ),
-                ],
+                ),
               ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SamplesSection extends StatefulWidget {
-  const _SamplesSection({required this.work});
-
-  final Work work;
-
-  @override
-  State<_SamplesSection> createState() => _SamplesSectionState();
-}
-
-class _SamplesSectionState extends State<_SamplesSection> {
-  late final PageController _controller = PageController(viewportFraction: 0.88);
-  int _page = 0;
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final samples = _samples(widget.work);
-    if (samples.isEmpty) return const SizedBox.shrink();
-    final theme = Theme.of(context);
-
-    return _Section(
-      title: '样品图',
-      bodyPadding: EdgeInsets.zero,
-      child: Column(
-        children: [
-          SizedBox(
-            height: 200,
-            child: PageView.builder(
-              controller: _controller,
-              itemCount: samples.length,
-              padEnds: false,
-              onPageChanged: (i) => setState(() => _page = i),
-              itemBuilder: (context, i) {
-                final sample = samples[i];
-                return Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    i == 0 ? 16 : 4,
-                    0,
-                    i == samples.length - 1 ? 16 : 4,
-                    0,
+              _DescParagraph(text: final t) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Text(
+                  t,
+                  style: theme.textTheme.bodyMedium?.copyWith(height: 1.6),
+                ),
+              ),
+              _DescImage(url: final u) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: GestureDetector(
+                  onTap: () => SampleGallery.open(
+                    context,
+                    samples: [
+                      for (final url in imgUrls) SampleSource(url: url),
+                    ],
+                    initialIndex: imgUrls.indexOf(u),
                   ),
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: GestureDetector(
-                      onTap: () => SampleGallery.open(
-                        context,
-                        samples: samples,
-                        initialIndex: i,
-                      ),
-                      child: SampleImage(
-                        sample: sample,
-                        fit: BoxFit.cover,
-                      ),
+                    borderRadius: BorderRadius.circular(6),
+                    child: Image.network(
+                      u,
+                      fit: BoxFit.fitWidth,
+                      width: double.infinity,
+                      loadingBuilder: (ctx, child, progress) {
+                        if (progress == null) return child;
+                        return AspectRatio(
+                          aspectRatio: 16 / 9,
+                          child: ColoredBox(
+                            color: theme.colorScheme.surfaceContainerHighest,
+                            child: const Center(
+                              child: SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                      errorBuilder: (_, _, _) => const SizedBox.shrink(),
                     ),
                   ),
-                );
-              },
-            ),
-          ),
-          if (samples.length > 1) ...[
-            const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                for (var i = 0; i < samples.length; i++)
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    margin: const EdgeInsets.symmetric(horizontal: 3),
-                    height: 6,
-                    width: i == _page ? 16 : 6,
-                    decoration: BoxDecoration(
-                      color: i == _page
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.outlineVariant,
-                      borderRadius: BorderRadius.circular(3),
-                    ),
-                  ),
-              ],
-            ),
-          ],
+                ),
+              ),
+            },
         ],
       ),
     );
   }
+}
+
+sealed class _DescBlock {
+  const _DescBlock();
+}
+
+class _DescHeading extends _DescBlock {
+  const _DescHeading(this.text);
+  final String text;
+}
+
+class _DescParagraph extends _DescBlock {
+  const _DescParagraph(this.text);
+  final String text;
+}
+
+class _DescImage extends _DescBlock {
+  const _DescImage(this.url);
+  final String url;
 }
 
 class _FileInfoLine extends StatelessWidget {
@@ -639,12 +588,10 @@ class _Section extends StatelessWidget {
   const _Section({
     required this.title,
     required this.child,
-    this.bodyPadding,
   });
 
   final String title;
   final Widget child;
-  final EdgeInsetsGeometry? bodyPadding;
 
   @override
   Widget build(BuildContext context) {
@@ -659,8 +606,7 @@ class _Section extends StatelessWidget {
             child: Text(title, style: theme.textTheme.titleMedium),
           ),
           Padding(
-            padding:
-                bodyPadding ?? const EdgeInsets.fromLTRB(16, 0, 16, 0),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
             child: child,
           ),
         ],
@@ -1008,38 +954,67 @@ class _FormatChip extends StatelessWidget {
 
 // ---------- Pure helpers ----------
 
-List<SampleSource> _samples(Work work) {
-  final locals = work.sampleImageLocalPaths;
-  final urls = work.sampleImageUrls;
-  final count = locals.length > urls.length ? locals.length : urls.length;
-  final out = <SampleSource>[];
-  for (var i = 0; i < count; i++) {
-    final local = i < locals.length ? locals[i] : null;
-    final url = i < urls.length ? urls[i] : null;
-    if ((local == null || local.isEmpty) && (url == null || url.isEmpty)) {
-      continue;
-    }
-    out.add(SampleSource(localPath: local, url: url));
-  }
-  return out;
-}
+List<_DescBlock> _parseDescriptionBlocks(String html) {
+  final fragment = html_parser.parseFragment(html);
+  final out = <_DescBlock>[];
+  final paraBuf = StringBuffer();
 
-String _stripHtml(String html) {
-  var s = html.replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n');
-  s = s.replaceAll(
-    RegExp(r'</p\s*>|</div\s*>', caseSensitive: false),
-    '\n\n',
-  );
-  s = s.replaceAll(RegExp(r'<[^>]+>'), '');
-  s = s
-      .replaceAll('&nbsp;', ' ')
-      .replaceAll('&amp;', '&')
-      .replaceAll('&lt;', '<')
-      .replaceAll('&gt;', '>')
-      .replaceAll('&quot;', '"')
-      .replaceAll('&#39;', "'");
-  s = s.replaceAll(RegExp(r'\n{3,}'), '\n\n').trim();
-  return s;
+  void flushParagraph() {
+    final cleaned = paraBuf
+        .toString()
+        .replaceAll(RegExp(r'\n[ \t]+'), '\n')
+        .replaceAll(RegExp(r'[ \t]+\n'), '\n')
+        .replaceAll(RegExp(r'\n{3,}'), '\n\n')
+        .trim();
+    paraBuf.clear();
+    if (cleaned.isNotEmpty) out.add(_DescParagraph(cleaned));
+  }
+
+  void walk(dom.Node node) {
+    if (node is dom.Text) {
+      paraBuf.write(node.text);
+      return;
+    }
+    if (node is! dom.Element) return;
+    switch (node.localName) {
+      case 'br':
+        paraBuf.write('\n');
+      case 'h1':
+      case 'h2':
+      case 'h3':
+      case 'h4':
+      case 'h5':
+        flushParagraph();
+        final text = node.text.trim();
+        if (text.isNotEmpty) out.add(_DescHeading(text));
+      case 'img':
+        flushParagraph();
+        var src = node.attributes['src'] ?? node.attributes['data-src'] ?? '';
+        if (src.isEmpty) return;
+        if (src.startsWith('//')) src = 'https:$src';
+        out.add(_DescImage(src));
+      case 'p':
+      case 'div':
+        flushParagraph();
+        for (final child in node.nodes) {
+          walk(child);
+        }
+        flushParagraph();
+      case 'script':
+      case 'style':
+        return;
+      default:
+        for (final child in node.nodes) {
+          walk(child);
+        }
+    }
+  }
+
+  for (final n in fragment.nodes) {
+    walk(n);
+  }
+  flushParagraph();
+  return out;
 }
 
 String _compact(int n) {
