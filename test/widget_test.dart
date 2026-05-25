@@ -180,48 +180,6 @@ void main() {
     expect(find.text('Another'), findsOneWidget);
   });
 
-  testWidgets('rescan message counts unique works and tracks', (tester) async {
-    await tester.pumpWidget(
-      testApp(
-        works: [_work('RJ01560714'), _work('RJ01507563')],
-        folders: [
-          _folder('folder-1'),
-          _folder('folder-2'),
-          _folder('folder-3'),
-        ],
-        importFlow: _FakeImportFlow(const [
-          ImportSummary(
-            worksInserted: 0,
-            worksUpdated: 1,
-            tracksTotal: 2,
-            workIds: {'RJ01560714'},
-            trackIds: {'t1', 't2'},
-          ),
-          ImportSummary(
-            worksInserted: 0,
-            worksUpdated: 1,
-            tracksTotal: 2,
-            workIds: {'RJ01560714'},
-            trackIds: {'t1', 't2'},
-          ),
-          ImportSummary(
-            worksInserted: 0,
-            worksUpdated: 1,
-            tracksTotal: 1,
-            workIds: {'RJ01507563'},
-            trackIds: {'t3'},
-          ),
-        ]),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byTooltip('重新扫描'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('扫描完成：2 部作品，共 3 个音轨'), findsOneWidget);
-  });
-
   testWidgets('long pressing a work shows remove menu action', (tester) async {
     String? removedProductId;
 

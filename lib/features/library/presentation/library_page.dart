@@ -20,7 +20,7 @@ class LibraryPage extends ConsumerStatefulWidget {
 
 class _LibraryPageState extends ConsumerState<LibraryPage> {
   bool _importing = false;
-  bool _rescanning = false;
+  bool _refreshing = false;
   bool _searching = false;
   late final TextEditingController _searchController;
 
@@ -40,7 +40,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
   Widget build(BuildContext context) {
     final worksAsync = ref.watch(allWorksProvider);
     final folders = ref.watch(importedFoldersProvider).value ?? const [];
-    final busy = _importing || _rescanning;
+    final busy = _importing || _refreshing;
     final sort = ref.watch(workSortProvider);
     final filter = ref.watch(workFilterProvider);
     return Scaffold(
@@ -105,18 +105,6 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                 ),
             ],
           ),
-          if (folders.isNotEmpty)
-            IconButton(
-              tooltip: '重新扫描',
-              icon: _rescanning
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.refresh),
-              onPressed: busy ? null : () => _onRescan(folders),
-            ),
           IconButton(
             tooltip: '导入文件夹',
             icon: _importing
@@ -188,8 +176,8 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
   }
 
   Future<void> _onPullToRefresh(List<ImportedFolder> folders) async {
-    if (_importing || _rescanning) return;
-    setState(() => _rescanning = true);
+    if (_importing || _refreshing) return;
+    setState(() => _refreshing = true);
     try {
       for (final folder in folders) {
         await ref.read(importFlowProvider).importFromFolder(folder);
@@ -201,54 +189,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
         SnackBar(content: Text('刷新失败：$e')),
       );
     } finally {
-      if (mounted) setState(() => _rescanning = false);
-    }
-  }
-
-  Future<void> _onRescan(List<ImportedFolder> folders) async {
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.clearSnackBars();
-    messenger.showSnackBar(
-      const SnackBar(
-        content: Row(
-          children: [
-            SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-            SizedBox(width: 12),
-            Text('重新扫描中…'),
-          ],
-        ),
-        duration: Duration(minutes: 5),
-      ),
-    );
-    setState(() => _rescanning = true);
-
-    final workIds = <String>{};
-    final trackIds = <String>{};
-    try {
-      for (final folder in folders) {
-        final summary = await ref
-            .read(importFlowProvider)
-            .importFromFolder(folder);
-        workIds.addAll(summary.workIds);
-        trackIds.addAll(summary.trackIds);
-      }
-      if (!mounted) return;
-      messenger.clearSnackBars();
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text('扫描完成：${workIds.length} 部作品，共 ${trackIds.length} 个音轨'),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      messenger.clearSnackBars();
-      messenger.showSnackBar(SnackBar(content: Text('扫描失败：$e')));
-    } finally {
-      if (mounted) setState(() => _rescanning = false);
+      if (mounted) setState(() => _refreshing = false);
     }
   }
 
