@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:html/dom.dart' as dom;
 import 'package:html/parser.dart' as html_parser;
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/db/database.dart';
 import '../../player/data/playback_controller.dart';
@@ -43,6 +44,11 @@ class _WorkDetailViewState extends ConsumerState<_WorkDetailView> {
       appBar: AppBar(
         title: Text(widget.work.productId),
         actions: [
+          IconButton(
+            tooltip: '在 DLsite 中打开',
+            icon: const Icon(Icons.open_in_new),
+            onPressed: () => _openOnDlsite(widget.work.productId),
+          ),
           IconButton(
             tooltip: widget.work.isFavorite ? '取消收藏' : '添加收藏',
             icon: Icon(
@@ -186,6 +192,7 @@ class _HeaderSection extends StatelessWidget {
                   ),
                 if (work.workTypeName != null && work.workTypeName!.isNotEmpty)
                   _MetaBadge(label: work.workTypeName!),
+                for (final lang in work.supportedLanguages) _MetaBadge(label: lang),
                 if (work.seriesName != null && work.seriesName!.isNotEmpty)
                   _MetaBadge(label: '系列：${work.seriesName!}'),
               ],
@@ -199,6 +206,7 @@ class _HeaderSection extends StatelessWidget {
   bool get _hasBadges =>
       (work.ageRating != null && work.ageRating!.isNotEmpty) ||
       (work.workTypeName != null && work.workTypeName!.isNotEmpty) ||
+      work.supportedLanguages.isNotEmpty ||
       (work.seriesName != null && work.seriesName!.isNotEmpty);
 
   bool get _isAdult {
@@ -218,21 +226,59 @@ class _StatsSection extends StatelessWidget {
     final theme = Theme.of(context);
     final rating = work.rating;
     final dlCount = work.dlCount;
+    final wishlist = work.wishlistCount;
     final price = work.currentPrice;
     final official = work.officialPrice;
     final discount = work.discountRate ?? 0;
+    final rankDay = work.rankDay;
+    final rankWeek = work.rankWeek;
+    final rankMonth = work.rankMonth;
 
-    final hasRatingRow = rating != null || dlCount != null;
+    final hasRanks = rankDay != null || rankWeek != null || rankMonth != null;
+    final hasRatingRow = rating != null || dlCount != null || wishlist != null;
     final hasPriceRow = price != null;
-    if (!hasRatingRow && !hasPriceRow) return const SizedBox.shrink();
+    if (!hasRanks && !hasRatingRow && !hasPriceRow) return const SizedBox.shrink();
+
+    final divider = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Text('·', style: TextStyle(color: theme.colorScheme.outline)),
+    );
+
+    final rankSpans = <Widget>[
+      if (rankDay != null) _RankSpan(label: '24h', rank: rankDay),
+      if (rankWeek != null) _RankSpan(label: '7日', rank: rankWeek),
+      if (rankMonth != null) _RankSpan(label: '30日', rank: rankMonth),
+    ];
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (hasRanks)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: Icon(
+                      Icons.emoji_events_outlined,
+                      size: 16,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  for (var i = 0; i < rankSpans.length; i++) ...[
+                    if (i > 0) divider,
+                    rankSpans[i],
+                  ],
+                ],
+              ),
+            ),
           if (hasRatingRow)
-            Row(
+            Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 if (rating != null) ...[
                   _StarRow(rating: rating),
@@ -253,17 +299,19 @@ class _StatsSection extends StatelessWidget {
                     ),
                   ],
                 ],
-                if (rating != null && dlCount != null) ...[
-                  const SizedBox(width: 12),
-                  Text(
-                    '·',
-                    style: TextStyle(color: theme.colorScheme.outline),
-                  ),
-                  const SizedBox(width: 12),
-                ],
+                if (rating != null && dlCount != null) divider,
                 if (dlCount != null)
                   Text(
-                    '${_compact(dlCount)} DL',
+                    '售出 ${_compact(dlCount)}',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                if ((rating != null || dlCount != null) && wishlist != null)
+                  divider,
+                if (wishlist != null)
+                  Text(
+                    '收藏 ${_compact(wishlist)}',
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
@@ -318,6 +366,44 @@ class _StatsSection extends StatelessWidget {
   }
 }
 
+class _RankSpan extends StatelessWidget {
+  const _RankSpan({required this.label, required this.rank});
+
+  final String label;
+  final int rank;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.baseline,
+      textBaseline: TextBaseline.alphabetic,
+      children: [
+        Text(
+          '$label 第',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        Text(
+          '$rank',
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: theme.colorScheme.primary,
+          ),
+        ),
+        Text(
+          '名',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _StarRow extends StatelessWidget {
   const _StarRow({required this.rating});
 
@@ -354,10 +440,10 @@ class _CreditsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final rows = <(String, List<String>)>[
-      ('声優', work.voiceActors),
-      ('シナリオ', work.scenarioWriters),
-      ('イラスト', work.illustrators),
-      ('音楽', work.musicians),
+      ('声优', work.voiceActors),
+      ('剧情', work.scenarioWriters),
+      ('插画', work.illustrators),
+      ('音乐', work.musicians),
     ].where((r) => r.$2.isNotEmpty).toList();
     if (rows.isEmpty) return const SizedBox.shrink();
 
@@ -1032,4 +1118,11 @@ String _formatDate(DateTime d) {
   final m = d.month.toString().padLeft(2, '0');
   final day = d.day.toString().padLeft(2, '0');
   return '${d.year}-$m-$day';
+}
+
+Future<void> _openOnDlsite(String productId) async {
+  final uri = Uri.parse(
+    'https://www.dlsite.com/maniax/work/=/product_id/$productId.html/?locale=zh_CN',
+  );
+  await launchUrl(uri, mode: LaunchMode.externalApplication);
 }
