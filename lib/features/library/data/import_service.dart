@@ -15,6 +15,10 @@ class ImportSummary {
     required this.tracksTotal,
     this.workIds = const {},
     this.trackIds = const {},
+    this.scannedRootPath = '',
+    this.filesScanned = 0,
+    this.unrecognizedDirs = const [],
+    this.scanErrors = const [],
   });
 
   final int worksInserted;
@@ -22,6 +26,13 @@ class ImportSummary {
   final int tracksTotal;
   final Set<String> workIds;
   final Set<String> trackIds;
+
+  // Debug fields — surfaced in the import-complete dialog so we can see
+  // why a scan returned zero works on device.
+  final String scannedRootPath;
+  final int filesScanned;
+  final List<String> unrecognizedDirs;
+  final List<String> scanErrors;
 }
 
 class ImportService {
@@ -159,6 +170,10 @@ class ImportService {
       tracksTotal: tracksTotal,
       workIds: workIds,
       trackIds: trackIds,
+      scannedRootPath: scan.rootPath,
+      filesScanned: scan.filesScanned,
+      unrecognizedDirs: scan.unrecognizedDirs,
+      scanErrors: scan.errors,
     );
   }
 

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/db/database.dart';
 import '../../../core/files/folder_picker_service.dart';
 import '../data/import_flow.dart';
+import '../data/import_service.dart';
 import '../data/work_actions_provider.dart';
 import '../data/works_providers.dart';
 import 'work_detail_page.dart';
@@ -172,14 +173,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
           .importFromFolder(folder);
       if (!mounted) return;
       messenger.clearSnackBars();
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            '导入完成：${summary.worksInserted} 部新作品 / '
-            '${summary.worksUpdated} 部更新，共 ${summary.tracksTotal} 个音轨',
-          ),
-        ),
-      );
+      await _showImportDebugDialog(summary);
     } catch (e) {
       if (!mounted) return;
       messenger.clearSnackBars();
@@ -242,6 +236,36 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text('已移除 ${work.title}')));
+  }
+
+  Future<void> _showImportDebugDialog(ImportSummary s) async {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('导入诊断'),
+        content: SingleChildScrollView(
+          child: SelectableText(
+            '根路径: ${s.scannedRootPath}\n'
+            '\n'
+            '总扫描文件: ${s.filesScanned}\n'
+            '识别作品: ${s.workIds.length}（新增 ${s.worksInserted} / 更新 ${s.worksUpdated}）\n'
+            '识别音轨: ${s.tracksTotal}\n'
+            '\n'
+            '未识别的子目录 (${s.unrecognizedDirs.length}):\n'
+            '${s.unrecognizedDirs.take(20).join("\n")}\n'
+            '\n'
+            '错误 (${s.scanErrors.length}):\n'
+            '${s.scanErrors.take(10).join("\n")}',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('关闭'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _onToggleFavorite(Work work) async {
