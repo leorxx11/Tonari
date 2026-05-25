@@ -1,18 +1,32 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/favorites/presentation/favorites_page.dart';
 import '../../features/history/presentation/history_page.dart';
+import '../../features/library/data/metadata_enrichment.dart';
 import '../../features/library/presentation/library_page.dart';
 import '../../features/player/presentation/mini_player.dart';
 import '../../features/settings/presentation/settings_page.dart';
 import '../providers/selected_tab_index.dart';
 
-class RootTabView extends ConsumerWidget {
+class RootTabView extends ConsumerStatefulWidget {
   const RootTabView({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<RootTabView> createState() => _RootTabViewState();
+}
+
+class _RootTabViewState extends ConsumerState<RootTabView> {
+  @override
+  void initState() {
+    super.initState();
+    unawaited(ref.read(metadataEnrichmentProvider).enrichPending());
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final index = ref.watch(selectedTabIndexProvider);
     return Scaffold(
       body: Column(

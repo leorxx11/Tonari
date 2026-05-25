@@ -8,6 +8,7 @@ import 'package:tonari/core/db/database.dart';
 import 'package:tonari/core/files/folder_picker_service.dart';
 import 'package:tonari/features/library/data/import_flow.dart';
 import 'package:tonari/features/library/data/import_service.dart';
+import 'package:tonari/features/library/data/metadata_enrichment.dart';
 import 'package:tonari/features/library/data/work_actions_provider.dart';
 import 'package:tonari/features/library/data/works_providers.dart';
 
@@ -38,9 +39,21 @@ Widget testApp({
     if (toggleFavorite != null)
       toggleFavoriteProvider.overrideWithValue(toggleFavorite),
     if (importFlow != null) importFlowProvider.overrideWithValue(importFlow),
+    metadataEnrichmentProvider.overrideWith((ref) => _NoopEnrichment()),
   ],
   child: const TonariApp(),
 );
+
+class _NoopEnrichment implements MetadataEnrichmentService {
+  @override
+  Future<void> enrichBatch(Iterable<String> productIds) async {}
+
+  @override
+  Future<void> enrichOne(String productId, {bool force = false}) async {}
+
+  @override
+  Future<void> enrichPending() async {}
+}
 
 Work _work(
   String rj, {
@@ -120,6 +133,9 @@ class _FakeImportFlow implements ImportFlow {
 
   @override
   ImportService get importer => throw UnimplementedError();
+
+  @override
+  void Function(ImportSummary)? get onImported => null;
 
   @override
   Future<ImportSummary> importFromFolder(ImportedFolder folder) async {
@@ -277,6 +293,13 @@ void main() {
     await tester.tap(find.text('Test Work'));
     await tester.pumpAndSettle();
 
+    await tester.dragUntilVisible(
+      find.text('track01'),
+      find.byType(CustomScrollView),
+      const Offset(0, -200),
+    );
+    await tester.pumpAndSettle();
+
     expect(find.text('RJ01560714'), findsOneWidget);
     expect(find.text('章节'), findsOneWidget);
     expect(find.text('track01'), findsOneWidget);
@@ -304,6 +327,13 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Test Work'));
+    await tester.pumpAndSettle();
+
+    await tester.dragUntilVisible(
+      find.text('章节'),
+      find.byType(CustomScrollView),
+      const Offset(0, -200),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('章节'), findsOneWidget);
@@ -349,6 +379,13 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Test Work'));
+    await tester.pumpAndSettle();
+
+    await tester.dragUntilVisible(
+      find.text('目录'),
+      find.byType(CustomScrollView),
+      const Offset(0, -200),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('目录'), findsOneWidget);

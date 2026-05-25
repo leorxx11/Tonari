@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/db/database.dart';
+import 'work_cover.dart';
 
 class WorkCard extends StatelessWidget {
   const WorkCard({
@@ -36,15 +37,7 @@ class WorkCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Expanded(
-                    child: Container(
-                      color: theme.colorScheme.surfaceContainerHighest,
-                      alignment: Alignment.center,
-                      child: Icon(
-                        Icons.album_outlined,
-                        size: 36,
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
+                    child: WorkCover(work: work),
                   ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
