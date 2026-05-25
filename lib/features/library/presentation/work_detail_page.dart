@@ -78,8 +78,8 @@ class _WorkDetailViewState extends ConsumerState<_WorkDetailView> {
             SliverToBoxAdapter(child: _StatsSection(work: work)),
             SliverToBoxAdapter(child: _CreditsSection(work: work)),
             SliverToBoxAdapter(child: _GenresSection(work: work)),
-            SliverToBoxAdapter(child: _DescriptionSection(work: work)),
             SliverToBoxAdapter(child: _FileInfoLine(work: work)),
+            SliverToBoxAdapter(child: _DescriptionSection(work: work)),
             tracksAsync.when(
               loading: () => const SliverToBoxAdapter(
                 child: Padding(
@@ -550,14 +550,22 @@ class _GenresSection extends StatelessWidget {
   }
 }
 
-class _DescriptionSection extends StatelessWidget {
+class _DescriptionSection extends StatefulWidget {
   const _DescriptionSection({required this.work});
 
   final Work work;
 
   @override
+  State<_DescriptionSection> createState() => _DescriptionSectionState();
+}
+
+class _DescriptionSectionState extends State<_DescriptionSection> {
+  static const _collapsedHeight = 280.0;
+  bool _expanded = false;
+
+  @override
   Widget build(BuildContext context) {
-    final html = work.descriptionHtml;
+    final html = widget.work.descriptionHtml;
     if (html == null || html.isEmpty) return const SizedBox.shrink();
     final blocks = _parseDescriptionBlocks(html);
     if (blocks.isEmpty) return const SizedBox.shrink();
@@ -567,7 +575,7 @@ class _DescriptionSection extends StatelessWidget {
       for (final b in blocks)
         if (b is _DescImage) b.url,
     ];
-    final localPaths = work.descriptionImageLocalPaths;
+    final localPaths = widget.work.descriptionImageLocalPaths;
 
     Widget descImage(String url) {
       final idx = imgUrls.indexOf(url);
@@ -584,47 +592,108 @@ class _DescriptionSection extends StatelessWidget {
       return _networkDescImage(url, theme);
     }
 
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final block in blocks)
+          switch (block) {
+            _DescHeading(text: final t) => Padding(
+              padding: const EdgeInsets.only(top: 14, bottom: 8),
+              child: Text(
+                t,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  height: 1.4,
+                ),
+              ),
+            ),
+            _DescParagraph(text: final t) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Text(
+                t,
+                style: theme.textTheme.bodyMedium?.copyWith(height: 1.6),
+              ),
+            ),
+            _DescImage(url: final u) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: GestureDetector(
+                onTap: () => SampleGallery.open(
+                  context,
+                  samples: [
+                    for (final url in imgUrls) SampleSource(url: url),
+                  ],
+                  initialIndex: imgUrls.indexOf(u),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: descImage(u),
+                ),
+              ),
+            ),
+          },
+      ],
+    );
+
+    final paraLen = blocks
+        .whereType<_DescParagraph>()
+        .fold<int>(0, (sum, b) => sum + b.text.length);
+    final isLong = blocks.length > 4 ||
+        blocks.any((b) => b is _DescImage) ||
+        paraLen > 200;
+
+    if (!isLong) {
+      return _Section(title: '简介', child: content);
+    }
+
     return _Section(
       title: '简介',
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          for (final block in blocks)
-            switch (block) {
-              _DescHeading(text: final t) => Padding(
-                padding: const EdgeInsets.only(top: 14, bottom: 8),
-                child: Text(
-                  t,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    height: 1.4,
+          if (_expanded)
+            content
+          else
+            Stack(
+              children: [
+                SizedBox(
+                  height: _collapsedHeight,
+                  child: SingleChildScrollView(
+                    physics: const NeverScrollableScrollPhysics(),
+                    child: content,
                   ),
                 ),
-              ),
-              _DescParagraph(text: final t) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Text(
-                  t,
-                  style: theme.textTheme.bodyMedium?.copyWith(height: 1.6),
-                ),
-              ),
-              _DescImage(url: final u) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: GestureDetector(
-                  onTap: () => SampleGallery.open(
-                    context,
-                    samples: [
-                      for (final url in imgUrls) SampleSource(url: url),
-                    ],
-                    initialIndex: imgUrls.indexOf(u),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(6),
-                    child: descImage(u),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  height: 80,
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            theme.colorScheme.surface.withValues(alpha: 0),
+                            theme.colorScheme.surface,
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                 ),
+              ],
+            ),
+          Center(
+            child: TextButton.icon(
+              onPressed: () => setState(() => _expanded = !_expanded),
+              icon: Icon(
+                _expanded ? Icons.expand_less : Icons.expand_more,
+                size: 18,
               ),
-            },
+              label: Text(_expanded ? '收起' : '展开全部'),
+            ),
+          ),
         ],
       ),
     );
