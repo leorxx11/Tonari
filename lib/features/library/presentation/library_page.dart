@@ -259,12 +259,12 @@ class _WorksGrid extends StatelessWidget {
     return GridView.builder(
       physics: const AlwaysScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        childAspectRatio: 0.82,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
+        crossAxisCount: 2,
+        childAspectRatio: 0.6,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
       ),
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.fromLTRB(10, 10, 10, 16),
       itemCount: works.length,
       itemBuilder: (ctx, i) => WorkCard(
         work: works[i],
