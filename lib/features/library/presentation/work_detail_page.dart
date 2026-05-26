@@ -15,7 +15,6 @@ import '../data/metadata_enrichment.dart';
 import '../data/work_actions_provider.dart';
 import '../data/works_providers.dart';
 import 'widgets/sample_gallery.dart';
-import 'widgets/work_cover.dart';
 
 class WorkDetailPage extends ConsumerWidget {
   const WorkDetailPage({super.key, required this.work});
@@ -175,11 +174,7 @@ class _HeaderSection extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child: WorkCover(
-                    work: work,
-                    borderRadius: BorderRadius.circular(12),
-                    iconSize: 56,
-                  ),
+                  child: _HeaderCarousel(work: work),
                 ),
               ),
             ),
@@ -881,6 +876,7 @@ class _TrackDirectoryView extends ConsumerWidget {
           itemBuilder: (context, index) {
             return _TrackTile(
               track: selected.tracks[index],
+              workId: work.productId,
               onTap: () => _play(ref, index, selected.tracks),
             );
           },
@@ -966,23 +962,60 @@ class _FolderSelector extends StatelessWidget {
   }
 }
 
-class _TrackTile extends StatelessWidget {
-  const _TrackTile({required this.track, required this.onTap});
+class _TrackTile extends ConsumerWidget {
+  const _TrackTile({
+    required this.track,
+    required this.workId,
+    required this.onTap,
+  });
 
   final Track track;
+  final String workId;
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final alternates =
         (jsonDecode(track.alternateQualityPathsJson) as Map<String, dynamic>)
             .cast<String, String>();
     final theme = Theme.of(context);
 
+    final playback = ref.watch(playbackControllerProvider);
+    final isCurrent = playback.work?.productId == workId &&
+        playback.currentTrack?.id == track.id;
+    final progress = track.durationMs > 0
+        ? track.lastPositionMs / track.durationMs
+        : 0.0;
+    final isCompleted = progress >= 0.95;
+    final hasMidPosition =
+        !isCompleted && track.lastPositionMs > 0;
+
+    final mutedColor = theme.colorScheme.onSurfaceVariant;
+    final titleStyle = (isCompleted && !isCurrent)
+        ? theme.textTheme.bodyLarge?.copyWith(color: mutedColor)
+        : null;
+    final tileColor = isCurrent
+        ? theme.colorScheme.primaryContainer.withValues(alpha: 0.45)
+        : null;
+    final leadingIcon = isCurrent
+        ? Icon(Icons.graphic_eq, color: theme.colorScheme.primary)
+        : Icon(
+            isCompleted
+                ? Icons.check_circle_outline
+                : Icons.music_note_outlined,
+            color: isCompleted ? mutedColor : null,
+          );
+
     return ListTile(
       onTap: onTap,
-      leading: const Icon(Icons.music_note_outlined),
-      title: Text(track.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+      tileColor: tileColor,
+      leading: leadingIcon,
+      title: Text(
+        track.title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: titleStyle,
+      ),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -992,6 +1025,18 @@ class _TrackTile extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
+          if (isCurrent || hasMidPosition) ...[
+            const SizedBox(height: 4),
+            Text(
+              '上次到 ${_formatTrackPosition(Duration(milliseconds: track.lastPositionMs))}',
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: isCurrent
+                    ? theme.colorScheme.primary
+                    : mutedColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
           Wrap(
             spacing: 6,
@@ -1013,6 +1058,135 @@ class _TrackTile extends StatelessWidget {
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
+    );
+  }
+}
+
+String _formatTrackPosition(Duration d) {
+  final h = d.inHours;
+  final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+  final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+  return h == 0 ? '$m:$s' : '$h:$m:$s';
+}
+
+class _HeaderCarousel extends StatefulWidget {
+  const _HeaderCarousel({required this.work});
+
+  final Work work;
+
+  @override
+  State<_HeaderCarousel> createState() => _HeaderCarouselState();
+}
+
+class _HeaderCarouselState extends State<_HeaderCarousel> {
+  final _controller = PageController();
+  int _page = 0;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  List<SampleSource> _sources() {
+    final work = widget.work;
+    final samples = <SampleSource>[];
+    final mainLocal = LocalImagePath.resolve(work.mainImageLocalPath);
+    final hasMain = mainLocal != null ||
+        (work.mainImageUrl != null && work.mainImageUrl!.isNotEmpty);
+    if (hasMain) {
+      samples.add(SampleSource(localPath: mainLocal, url: work.mainImageUrl));
+    }
+    final localPaths = work.sampleImageLocalPaths;
+    for (var i = 0; i < work.sampleImageUrls.length; i++) {
+      final url = work.sampleImageUrls[i];
+      final local = i < localPaths.length
+          ? LocalImagePath.resolve(localPaths[i])
+          : null;
+      if (local == null && url.isEmpty) continue;
+      samples.add(SampleSource(localPath: local, url: url));
+    }
+    return samples;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final sources = _sources();
+    final radius = BorderRadius.circular(12);
+
+    if (sources.isEmpty) {
+      return ClipRRect(
+        borderRadius: radius,
+        child: Container(
+          color: theme.colorScheme.surfaceContainerHighest,
+          alignment: Alignment.center,
+          child: Icon(
+            Icons.album_outlined,
+            size: 56,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      );
+    }
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        ClipRRect(
+          borderRadius: radius,
+          child: PageView.builder(
+            controller: _controller,
+            itemCount: sources.length,
+            onPageChanged: (i) => setState(() => _page = i),
+            itemBuilder: (_, i) {
+              return GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => SampleGallery.open(
+                  context,
+                  samples: sources,
+                  initialIndex: i,
+                ),
+                child: SampleImage(sample: sources[i], fit: BoxFit.cover),
+              );
+            },
+          ),
+        ),
+        if (sources.length > 1)
+          Positioned(
+            bottom: 8,
+            left: 0,
+            right: 0,
+            child: _CarouselDots(count: sources.length, current: _page),
+          ),
+      ],
+    );
+  }
+}
+
+class _CarouselDots extends StatelessWidget {
+  const _CarouselDots({required this.count, required this.current});
+
+  final int count;
+  final int current;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        for (var i = 0; i < count; i++)
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            margin: const EdgeInsets.symmetric(horizontal: 3),
+            width: i == current ? 18 : 6,
+            height: 6,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: i == current ? 0.95 : 0.5),
+              borderRadius: BorderRadius.circular(3),
+            ),
+          ),
+      ],
     );
   }
 }
