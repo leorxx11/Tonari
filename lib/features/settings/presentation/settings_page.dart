@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/path_prefs.dart';
+import '../data/theme_prefs.dart';
 import 'removed_works_page.dart';
 
 class SettingsPage extends ConsumerWidget {
@@ -11,12 +12,41 @@ class SettingsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final prefs = ref.watch(pathPrefsProvider);
     final notifier = ref.read(pathPrefsProvider.notifier);
+    final themeMode = ref.watch(themePrefsProvider);
+    final themeNotifier = ref.read(themePrefsProvider.notifier);
     final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(title: const Text('设置')),
       body: ListView(
         children: [
+          _SectionHeader(theme: theme, label: '外观'),
+          RadioGroup<ThemeMode>(
+            groupValue: themeMode,
+            onChanged: (mode) {
+              if (mode != null) themeNotifier.setMode(mode);
+            },
+            child: const Column(
+              children: [
+                RadioListTile<ThemeMode>(
+                  value: ThemeMode.system,
+                  title: Text('跟随系统'),
+                  secondary: Icon(Icons.brightness_auto_outlined),
+                ),
+                RadioListTile<ThemeMode>(
+                  value: ThemeMode.light,
+                  title: Text('浅色'),
+                  secondary: Icon(Icons.light_mode_outlined),
+                ),
+                RadioListTile<ThemeMode>(
+                  value: ThemeMode.dark,
+                  title: Text('深色'),
+                  secondary: Icon(Icons.dark_mode_outlined),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 24),
           _SectionHeader(theme: theme, label: '资源页智能路径'),
           SwitchListTile(
             secondary: const Icon(Icons.alt_route),
