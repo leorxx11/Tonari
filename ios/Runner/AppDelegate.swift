@@ -139,6 +139,8 @@ private final class NowPlayingPlugin: NSObject, FlutterPlugin {
   private let commandCenter = MPRemoteCommandCenter.shared()
   private var channel: FlutterMethodChannel!
   private var commandsRegistered = false
+  private var artworkPath: String?
+  private var artworkCache: MPMediaItemArtwork?
 
   static func register(with registrar: FlutterPluginRegistrar) {
     let channel = FlutterMethodChannel(
@@ -170,6 +172,7 @@ private final class NowPlayingPlugin: NSObject, FlutterPlugin {
     let title = args["title"] as! String
     let album = args["album"] as! String
     let artist = args["artist"] as! String
+    let artworkPath = args["artworkPath"] as? String
     let positionMs = args["positionMs"] as! Int
     let durationMs = args["durationMs"] as! Int
     let playing = args["playing"] as! Bool
@@ -200,12 +203,35 @@ private final class NowPlayingPlugin: NSObject, FlutterPlugin {
     if #available(iOS 10.0, *) {
       info[MPNowPlayingInfoPropertyMediaType] = MPNowPlayingInfoMediaType.audio.rawValue
     }
+    if let artwork = resolveArtwork(path: artworkPath) {
+      info[MPMediaItemPropertyArtwork] = artwork
+    }
 
     center.nowPlayingInfo = info
     if #available(iOS 13.0, *) {
       center.playbackState = playing ? .playing : .paused
     }
     UIApplication.shared.beginReceivingRemoteControlEvents()
+  }
+
+  private func resolveArtwork(path: String?) -> MPMediaItemArtwork? {
+    guard let path = path, !path.isEmpty else {
+      artworkPath = nil
+      artworkCache = nil
+      return nil
+    }
+    if path == artworkPath, let cached = artworkCache {
+      return cached
+    }
+    guard let image = UIImage(contentsOfFile: path) else {
+      artworkPath = nil
+      artworkCache = nil
+      return nil
+    }
+    let artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+    artworkPath = path
+    artworkCache = artwork
+    return artwork
   }
 
   private func activateAudioSession() {
@@ -219,6 +245,8 @@ private final class NowPlayingPlugin: NSObject, FlutterPlugin {
     if #available(iOS 13.0, *) {
       center.playbackState = .stopped
     }
+    artworkPath = nil
+    artworkCache = nil
     commandCenter.playCommand.isEnabled = false
     commandCenter.pauseCommand.isEnabled = false
     commandCenter.togglePlayPauseCommand.isEnabled = false

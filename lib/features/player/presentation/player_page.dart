@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 
+import '../../library/presentation/widgets/work_cover.dart';
 import '../data/playback_controller.dart';
 
 class PlayerPage extends ConsumerStatefulWidget {
@@ -62,18 +63,13 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Container(
-                      width: 220,
-                      height: 220,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        color: theme.colorScheme.surfaceContainerHighest,
-                      ),
-                      alignment: Alignment.center,
-                      child: Icon(
-                        Icons.album_outlined,
-                        size: 72,
-                        color: theme.colorScheme.onSurfaceVariant,
+                    SizedBox(
+                      width: 260,
+                      height: 260,
+                      child: WorkCover(
+                        work: work,
+                        borderRadius: BorderRadius.circular(12),
+                        iconSize: 72,
                       ),
                     ),
                     const SizedBox(height: 28),
@@ -94,7 +90,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                   ],
                 ),
               ),
-              _ProgressBar(player: controller.player),
+              _ProgressBar(controller: controller),
               const SizedBox(height: 12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -153,39 +149,61 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
   }
 }
 
-class _ProgressBar extends StatelessWidget {
-  const _ProgressBar({required this.player});
+class _ProgressBar extends StatefulWidget {
+  const _ProgressBar({required this.controller});
 
-  final AudioPlayer player;
+  final PlaybackController controller;
+
+  @override
+  State<_ProgressBar> createState() => _ProgressBarState();
+}
+
+class _ProgressBarState extends State<_ProgressBar> {
+  double? _dragValue;
+
+  AudioPlayer get _player => widget.controller.player;
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<Duration?>(
-      stream: player.durationStream,
-      initialData: player.duration,
+      stream: _player.durationStream,
+      initialData: _player.duration,
       builder: (context, durationSnapshot) {
         final duration = durationSnapshot.data ?? Duration.zero;
         return StreamBuilder<Duration>(
-          stream: player.positionStream,
-          initialData: player.position,
+          stream: _player.positionStream,
+          initialData: _player.position,
           builder: (context, positionSnapshot) {
             final position = positionSnapshot.data ?? Duration.zero;
             final durationMs = duration.inMilliseconds;
-            final positionMs = position.inMilliseconds.clamp(0, durationMs);
+            final livePositionMs = position.inMilliseconds.clamp(0, durationMs);
+            final displayMs = _dragValue?.round() ?? livePositionMs;
             return Column(
               children: [
                 Slider(
-                  value: durationMs == 0 ? 0 : positionMs.toDouble(),
+                  value: durationMs == 0
+                      ? 0
+                      : displayMs.toDouble().clamp(0, durationMs.toDouble()),
                   max: durationMs == 0 ? 1 : durationMs.toDouble(),
+                  onChangeStart: durationMs == 0
+                      ? null
+                      : (value) => setState(() => _dragValue = value),
                   onChanged: durationMs == 0
                       ? null
-                      : (value) =>
-                          player.seek(Duration(milliseconds: value.round())),
+                      : (value) => setState(() => _dragValue = value),
+                  onChangeEnd: durationMs == 0
+                      ? null
+                      : (value) async {
+                          await widget.controller.seek(
+                            Duration(milliseconds: value.round()),
+                          );
+                          if (mounted) setState(() => _dragValue = null);
+                        },
                 ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(_formatDuration(Duration(milliseconds: positionMs))),
+                    Text(_formatDuration(Duration(milliseconds: displayMs))),
                     Text(_formatDuration(duration)),
                   ],
                 ),

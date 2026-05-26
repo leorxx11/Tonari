@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../library/presentation/widgets/work_cover.dart';
 import '../data/playback_controller.dart';
 import 'player_page.dart';
 
@@ -29,22 +30,17 @@ class MiniPlayer extends ConsumerWidget {
             ),
           ),
           child: SizedBox(
-            height: 56,
+            height: 72,
             child: Row(
               children: [
                 const SizedBox(width: 12),
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  alignment: Alignment.center,
-                  child: Icon(
-                    Icons.album_outlined,
-                    size: 20,
-                    color: theme.colorScheme.onSurfaceVariant,
+                SizedBox(
+                  width: 52,
+                  height: 52,
+                  child: WorkCover(
+                    work: work,
+                    borderRadius: BorderRadius.circular(8),
+                    iconSize: 24,
                   ),
                 ),
                 const SizedBox(width: 12),

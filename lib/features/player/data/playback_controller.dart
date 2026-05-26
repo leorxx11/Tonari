@@ -7,6 +7,7 @@ import 'package:just_audio/just_audio.dart';
 import '../../../core/db/database.dart';
 import '../../../core/db/providers.dart';
 import '../../../core/files/folder_bookmark.dart';
+import '../../../core/files/local_image_path.dart';
 import 'now_playing_bridge.dart';
 
 class PlaybackState {
@@ -179,6 +180,7 @@ class PlaybackController extends Notifier<PlaybackState> {
     if (resume && track.lastPositionMs > 0) {
       await player.seek(Duration(milliseconds: track.lastPositionMs));
     }
+    await _bumpLastPlayed(trackChanged: true);
     await player.play();
     await _publishNowPlaying();
   }
@@ -208,6 +210,24 @@ class PlaybackController extends Notifier<PlaybackState> {
     await (db.update(db.tracks)..where((t) => t.id.equals(track.id))).write(
       TracksCompanion(lastPositionMs: Value(ms)),
     );
+    await _bumpLastPlayed();
+  }
+
+  Future<void> _bumpLastPlayed({bool trackChanged = false}) async {
+    final work = state.work;
+    final track = state.currentTrack;
+    if (work == null || track == null) return;
+    final now = DateTime.now();
+    final db = ref.read(databaseProvider);
+    await (db.update(db.works)..where((w) => w.productId.equals(work.productId)))
+        .write(
+      WorksCompanion(
+        lastPlayedAt: Value(now),
+        lastPlayedTrackId:
+            trackChanged ? Value(track.id) : const Value.absent(),
+        updatedAt: Value(now),
+      ),
+    );
   }
 
   Future<void> _bumpPlayCount() async {
@@ -233,6 +253,7 @@ class PlaybackController extends Notifier<PlaybackState> {
         title: track.title,
         album: work.productId,
         artist: work.title,
+        artworkPath: LocalImagePath.resolve(work.mainImageLocalPath),
         position: player.position,
         duration: player.duration ?? Duration(milliseconds: track.durationMs),
         playing: player.playing,

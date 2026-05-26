@@ -7,6 +7,7 @@ class NowPlayingSnapshot {
     required this.title,
     required this.album,
     required this.artist,
+    required this.artworkPath,
     required this.position,
     required this.duration,
     required this.playing,
@@ -18,6 +19,7 @@ class NowPlayingSnapshot {
   final String title;
   final String album;
   final String artist;
+  final String? artworkPath;
   final Duration position;
   final Duration duration;
   final bool playing;
@@ -29,6 +31,7 @@ class NowPlayingSnapshot {
     'title': title,
     'album': album,
     'artist': artist,
+    'artworkPath': artworkPath,
     'positionMs': position.inMilliseconds,
     'durationMs': duration.inMilliseconds,
     'playing': playing,
