@@ -45,11 +45,13 @@ class WorkImageCache {
     List<String> sampleImageUrls = const [],
     List<String> descriptionImageUrls = const [],
   }) async {
+    final docs = await _documentsDir();
     final dir = await _ensureWorkDir(productId);
 
     final mainPath = await _downloadIfMissing(
       url: mainImageUrl,
       file: File(p.join(dir.path, 'main${_ext(mainImageUrl)}')),
+      docsPath: docs.path,
     );
 
     final samplePaths = <String>[];
@@ -58,6 +60,7 @@ class WorkImageCache {
       final path = await _downloadIfMissing(
         url: url,
         file: File(p.join(dir.path, 'smp${i + 1}${_ext(url)}')),
+        docsPath: docs.path,
       );
       if (path != null) samplePaths.add(path);
     }
@@ -68,6 +71,7 @@ class WorkImageCache {
       final path = await _downloadIfMissing(
         url: url,
         file: File(p.join(dir.path, 'desc${i + 1}${_ext(url)}')),
+        docsPath: docs.path,
       );
       // keep slot alignment with input URLs: empty string = download failed
       descPaths.add(path ?? '');
@@ -93,15 +97,21 @@ class WorkImageCache {
     return dir;
   }
 
-  Future<String?> _downloadIfMissing({required String url, required File file}) async {
-    if (file.existsSync() && file.lengthSync() > 0) return file.path;
+  Future<String?> _downloadIfMissing({
+    required String url,
+    required File file,
+    required String docsPath,
+  }) async {
+    if (file.existsSync() && file.lengthSync() > 0) {
+      return p.relative(file.path, from: docsPath);
+    }
     try {
       final ok = await _downloader(url, file);
       if (!ok) {
         if (file.existsSync()) file.deleteSync();
         return null;
       }
-      return file.path;
+      return p.relative(file.path, from: docsPath);
     } catch (_) {
       if (file.existsSync()) file.deleteSync();
       return null;

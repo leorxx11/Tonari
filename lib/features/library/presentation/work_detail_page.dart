@@ -8,6 +8,7 @@ import 'package:html/parser.dart' as html_parser;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/db/database.dart';
+import '../../../core/files/local_image_path.dart';
 import '../../player/data/playback_controller.dart';
 import '../../player/presentation/mini_player.dart';
 import '../data/metadata_enrichment.dart';
@@ -579,11 +580,12 @@ class _DescriptionSectionState extends State<_DescriptionSection> {
 
     Widget descImage(String url) {
       final idx = imgUrls.indexOf(url);
-      final localPath =
+      final stored =
           (idx >= 0 && idx < localPaths.length) ? localPaths[idx] : '';
-      if (localPath.isNotEmpty && File(localPath).existsSync()) {
+      final resolved = LocalImagePath.resolve(stored);
+      if (resolved != null) {
         return Image.file(
-          File(localPath),
+          File(resolved),
           fit: BoxFit.fitWidth,
           width: double.infinity,
           errorBuilder: (_, _, _) => _networkDescImage(url, theme),

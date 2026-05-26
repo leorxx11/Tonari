@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../../../core/db/database.dart';
+import '../../../../core/files/local_image_path.dart';
 
 class WorkCover extends StatelessWidget {
   const WorkCover({
@@ -31,10 +32,8 @@ class WorkCover extends StatelessWidget {
     );
 
     Widget image;
-    final localPath = work.mainImageLocalPath;
-    if (localPath != null &&
-        localPath.isNotEmpty &&
-        File(localPath).existsSync()) {
+    final localPath = LocalImagePath.resolve(work.mainImageLocalPath);
+    if (localPath != null) {
       image = Image.file(
         File(localPath),
         fit: BoxFit.cover,
