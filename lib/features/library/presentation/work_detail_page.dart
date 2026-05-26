@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:html/dom.dart' as dom;
@@ -9,12 +10,12 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/db/database.dart';
 import '../../../core/files/local_image_path.dart';
-import '../../player/data/playback_controller.dart';
 import '../../player/presentation/mini_player.dart';
 import '../data/metadata_enrichment.dart';
 import '../data/work_actions_provider.dart';
 import '../data/works_providers.dart';
 import 'widgets/sample_gallery.dart';
+import 'work_files_page.dart';
 
 class WorkDetailPage extends ConsumerWidget {
   const WorkDetailPage({super.key, required this.work});
@@ -37,7 +38,6 @@ class _WorkDetailView extends ConsumerStatefulWidget {
 }
 
 class _WorkDetailViewState extends ConsumerState<_WorkDetailView> {
-  String? _selectedFolderPath;
   bool _refreshing = false;
 
   @override
@@ -45,6 +45,7 @@ class _WorkDetailViewState extends ConsumerState<_WorkDetailView> {
     final liveWork = ref.watch(workByIdProvider(widget.work.productId)).value;
     final work = liveWork ?? widget.work;
     final tracksAsync = ref.watch(tracksByWorkProvider(work.productId));
+    final filesAsync = ref.watch(workFilesByWorkProvider(work.productId));
     return Scaffold(
       appBar: AppBar(
         title: Text(work.productId),
@@ -79,36 +80,14 @@ class _WorkDetailViewState extends ConsumerState<_WorkDetailView> {
             SliverToBoxAdapter(child: _CreditsSection(work: work)),
             SliverToBoxAdapter(child: _GenresSection(work: work)),
             SliverToBoxAdapter(child: _FileInfoLine(work: work)),
-            SliverToBoxAdapter(child: _DescriptionSection(work: work)),
-            tracksAsync.when(
-              loading: () => const SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Center(child: CircularProgressIndicator()),
-                ),
+            SliverToBoxAdapter(
+              child: _FilesEntry(
+                work: work,
+                tracksAsync: tracksAsync,
+                filesAsync: filesAsync,
               ),
-              error: (e, _) => SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Center(child: Text('加载失败：$e')),
-                ),
-              ),
-              data: (tracks) => tracks.isEmpty
-                  ? const SliverToBoxAdapter(
-                      child: Padding(
-                        padding: EdgeInsets.all(24),
-                        child: Center(child: Text('没有音轨')),
-                      ),
-                    )
-                  : _TrackDirectoryView(
-                      work: work,
-                      folders: _AudioFolder.fromTracks(work, tracks),
-                      selectedFolderPath: _selectedFolderPath,
-                      onFolderSelected: (path) {
-                        setState(() => _selectedFolderPath = path);
-                      },
-                    ),
             ),
+            SliverToBoxAdapter(child: _DescriptionSection(work: work)),
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
           ],
         ),
@@ -838,230 +817,104 @@ class _MetaBadge extends StatelessWidget {
   }
 }
 
-// ---------- Existing folder / track UI (unchanged from previous) ----------
+// ---------- Files entry: opens a drill-in WorkFilesPage ----------
 
-class _TrackDirectoryView extends ConsumerWidget {
-  const _TrackDirectoryView({
+class _FilesEntry extends StatelessWidget {
+  const _FilesEntry({
     required this.work,
-    required this.folders,
-    required this.selectedFolderPath,
-    required this.onFolderSelected,
+    required this.tracksAsync,
+    required this.filesAsync,
   });
 
   final Work work;
-  final List<_AudioFolder> folders;
-  final String? selectedFolderPath;
-  final ValueChanged<String> onFolderSelected;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final selected = _selectedFolder();
-    return SliverMainAxisGroup(
-      slivers: [
-        SliverToBoxAdapter(
-          child: _FolderSelector(
-            folders: folders,
-            selectedPath: selected.path,
-            onSelected: onFolderSelected,
-          ),
-        ),
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Text('章节', style: Theme.of(context).textTheme.titleMedium),
-          ),
-        ),
-        SliverList.builder(
-          itemCount: selected.tracks.length,
-          itemBuilder: (context, index) {
-            return _TrackTile(
-              track: selected.tracks[index],
-              workId: work.productId,
-              onTap: () => _play(ref, index, selected.tracks),
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  Future<void> _play(
-    WidgetRef ref,
-    int index,
-    List<Track> tracks,
-  ) async {
-    final bookmark = await ref.read(
-      bookmarkForWorkProvider(work.productId).future,
-    );
-    await ref.read(playbackControllerProvider.notifier).startWork(
-          work: work,
-          tracks: tracks,
-          initialIndex: index,
-          bookmarkBase64: bookmark,
-        );
-  }
-
-  _AudioFolder _selectedFolder() {
-    final target = selectedFolderPath;
-    if (target != null) {
-      for (final folder in folders) {
-        if (folder.path == target) return folder;
-      }
-    }
-    return _bestFolder(folders);
-  }
-}
-
-class _FolderSelector extends StatelessWidget {
-  const _FolderSelector({
-    required this.folders,
-    required this.selectedPath,
-    required this.onSelected,
-  });
-
-  final List<_AudioFolder> folders;
-  final String selectedPath;
-  final ValueChanged<String> onSelected;
+  final AsyncValue<List<Track>> tracksAsync;
+  final AsyncValue<List<WorkFile>> filesAsync;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final tracks = tracksAsync.value ?? const <Track>[];
+    final files = filesAsync.value ?? const <WorkFile>[];
+    final loading = tracksAsync.isLoading || filesAsync.isLoading;
+    final empty = !loading && tracks.isEmpty && files.isEmpty;
+
+    final summary = _summary(tracks, files);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 24, 0, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('目录', style: theme.textTheme.titleMedium),
-          const SizedBox(height: 10),
-          SizedBox(
-            height: 40,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: folders.length,
-              separatorBuilder: (_, _) => const SizedBox(width: 8),
-              itemBuilder: (context, index) {
-                final folder = folders[index];
-                return ChoiceChip(
-                  label: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 260),
-                    child: Text(
-                      folder.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: Material(
+        color: theme.colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(12),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: empty
+              ? null
+              : () => Navigator.of(context, rootNavigator: true).push(
+                    CupertinoSheetRoute<void>(
+                      scrollableBuilder: (_, _) => WorkFilesPage(work: work),
+                      showDragHandle: true,
                     ),
                   ),
-                  selected: folder.path == selectedPath,
-                  onSelected: (_) => onSelected(folder.path),
-                );
-              },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              children: [
+                const Icon(Icons.folder, color: Color(0xFFFFC857), size: 28),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '文件',
+                        style: theme.textTheme.titleSmall,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        loading ? '加载中…' : (empty ? '没有可显示的文件' : summary),
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (!empty)
+                  Icon(
+                    Icons.chevron_right,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
-}
 
-class _TrackTile extends ConsumerWidget {
-  const _TrackTile({
-    required this.track,
-    required this.workId,
-    required this.onTap,
-  });
-
-  final Track track;
-  final String workId;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-
-    final playback = ref.watch(playbackControllerProvider);
-    final isCurrent = playback.work?.productId == workId &&
-        playback.currentTrack?.id == track.id;
-    final progress = track.durationMs > 0
-        ? track.lastPositionMs / track.durationMs
-        : 0.0;
-    final isCompleted = progress >= 0.95;
-    final hasMidPosition =
-        !isCompleted && track.lastPositionMs > 0;
-
-    final mutedColor = theme.colorScheme.onSurfaceVariant;
-    final titleStyle = (isCompleted && !isCurrent)
-        ? theme.textTheme.bodyLarge?.copyWith(color: mutedColor)
-        : null;
-    final tileColor = isCurrent
-        ? theme.colorScheme.primaryContainer.withValues(alpha: 0.45)
-        : null;
-    final leadingIcon = isCurrent
-        ? Icon(Icons.graphic_eq, color: theme.colorScheme.primary)
-        : Icon(
-            isCompleted
-                ? Icons.check_circle_outline
-                : Icons.music_note_outlined,
-            color: isCompleted ? mutedColor : null,
-          );
-
-    return ListTile(
-      onTap: onTap,
-      tileColor: tileColor,
-      leading: leadingIcon,
-      title: Text(
-        track.title,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: titleStyle,
-      ),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 4),
-          Text(
-            '${track.parentDirName} / ${track.fileName}',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          if (isCurrent || hasMidPosition) ...[
-            const SizedBox(height: 4),
-            Text(
-              '上次到 ${_formatTrackPosition(Duration(milliseconds: track.lastPositionMs))}',
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: isCurrent
-                    ? theme.colorScheme.primary
-                    : mutedColor,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              _FormatChip(label: track.fileFormat.toUpperCase()),
-            ],
-          ),
-        ],
-      ),
-      isThreeLine: true,
-      trailing: track.categoryHint == null
-          ? null
-          : Text(
-              track.categoryHint!,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-    );
+  String _summary(List<Track> tracks, List<WorkFile> files) {
+    final totalItems = tracks.length + files.length;
+    final totalDuration = tracks.fold<int>(0, (a, t) => a + t.durationMs);
+    final parts = <String>[
+      '$totalItems 项',
+      if (totalDuration > 0) _formatTotalDuration(totalDuration),
+    ];
+    return parts.join(', ');
   }
 }
 
-String _formatTrackPosition(Duration d) {
-  final h = d.inHours;
-  final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
-  final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
-  return h == 0 ? '$m:$s' : '$h:$m:$s';
+String _formatTotalDuration(int ms) {
+  if (ms <= 0) return '0s';
+  final totalMinutes = ms ~/ 60000;
+  if (totalMinutes >= 60) {
+    final halfHours = (totalMinutes / 30).round();
+    final hours = halfHours / 2;
+    final text = hours == hours.truncate()
+        ? hours.toStringAsFixed(0)
+        : hours.toStringAsFixed(1);
+    return '${text}hr';
+  }
+  if (totalMinutes > 0) return '${totalMinutes}min';
+  return '${(ms / 1000).round()}s';
 }
 
 class _HeaderCarousel extends StatefulWidget {
@@ -1186,141 +1039,6 @@ class _CarouselDots extends StatelessWidget {
   }
 }
 
-class _AudioFolder {
-  const _AudioFolder({
-    required this.path,
-    required this.label,
-    required this.tracks,
-  });
-
-  final String path;
-  final String label;
-  final List<Track> tracks;
-
-  int get qualityRank {
-    var best = _formatRank(tracks.first.fileFormat);
-    for (final track in tracks.skip(1)) {
-      final rank = _formatRank(track.fileFormat);
-      if (rank < best) best = rank;
-    }
-    return best;
-  }
-
-  bool get hasEffectSound => _hasEffectSound(path);
-
-  static List<_AudioFolder> fromTracks(Work work, List<Track> tracks) {
-    final grouped = <String, List<Track>>{};
-    for (final track in tracks) {
-      final path = _relativeDirectory(work, track);
-      grouped.putIfAbsent(path, () => []).add(track);
-    }
-
-    final folders = [
-      for (final entry in grouped.entries)
-        _AudioFolder(
-          path: entry.key,
-          label: entry.key == '.' ? work.productId : entry.key,
-          tracks: entry.value,
-        ),
-    ];
-    folders.sort((a, b) => a.path.compareTo(b.path));
-    return folders;
-  }
-}
-
-_AudioFolder _bestFolder(List<_AudioFolder> folders) {
-  final sorted = [...folders]..sort(_folderSort);
-  return sorted.first;
-}
-
-int _folderSort(_AudioFolder a, _AudioFolder b) {
-  final effect = _boolScore(
-    b.hasEffectSound,
-  ).compareTo(_boolScore(a.hasEffectSound));
-  if (effect != 0) return effect;
-
-  final quality = a.qualityRank.compareTo(b.qualityRank);
-  if (quality != 0) return quality;
-
-  return a.path.compareTo(b.path);
-}
-
-int _boolScore(bool value) => value ? 1 : 0;
-
-String _relativeDirectory(Work work, Track track) {
-  final root = _trimTrailingSlash(work.localFolderPath);
-  final dir = track.filePath.substring(0, track.filePath.lastIndexOf('/'));
-  if (dir == root) return '.';
-  if (dir.startsWith('$root/')) return dir.substring(root.length + 1);
-  return track.parentDirName;
-}
-
-String _trimTrailingSlash(String value) {
-  return value.endsWith('/') ? value.substring(0, value.length - 1) : value;
-}
-
-int _formatRank(String format) {
-  return switch (format.toLowerCase()) {
-    'flac' => 0,
-    'wav' => 1,
-    'mp3' => 2,
-    'opus' => 3,
-    'aac' => 4,
-    'm4a' => 5,
-    'ogg' => 6,
-    _ => 7,
-  };
-}
-
-bool _hasEffectSound(String path) {
-  final text = path.toLowerCase();
-  if (text.contains('効果音なし') ||
-      text.contains('効果音無し') ||
-      text.contains('効果音無') ||
-      text.contains('効果音抜き') ||
-      text.contains('效果音なし') ||
-      text.contains('音效なし') ||
-      text.contains('seなし') ||
-      text.contains('se無し') ||
-      text.contains('se無') ||
-      text.contains('no se') ||
-      text.contains('without se') ||
-      text.contains('without effect')) {
-    return false;
-  }
-  return text.contains('効果音') ||
-      text.contains('效果音') ||
-      text.contains('音效') ||
-      text.contains('sound effect') ||
-      text.contains('sfx') ||
-      RegExp(r'(^|[/_\-\s])se($|[/_\-\s])').hasMatch(text);
-}
-
-class _FormatChip extends StatelessWidget {
-  const _FormatChip({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(6),
-        color: theme.colorScheme.secondaryContainer,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        child: Text(
-          label,
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: theme.colorScheme.onSecondaryContainer,
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 // ---------- Pure helpers ----------
 

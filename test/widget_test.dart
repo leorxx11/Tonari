@@ -1,24 +1,39 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tonari/app.dart';
 import 'package:tonari/core/db/database.dart';
 import 'package:tonari/core/files/folder_picker_service.dart';
+import 'package:tonari/core/prefs/shared_prefs_provider.dart';
 import 'package:tonari/features/library/data/import_flow.dart';
 import 'package:tonari/features/library/data/metadata_enrichment.dart';
+import 'package:tonari/features/library/data/rescan_service.dart';
 import 'package:tonari/features/library/data/work_actions_provider.dart';
 import 'package:tonari/features/library/data/works_providers.dart';
+import 'package:tonari/features/settings/data/path_prefs.dart';
+
+late SharedPreferences _testPrefs;
 
 Widget testApp({
   List<Work> works = const [],
   List<Track> tracks = const [],
+  List<WorkFile> workFiles = const [],
   List<ImportedFolder> folders = const [],
   RemoveWork? removeWork,
   RestoreWork? restoreWork,
   ToggleFavorite? toggleFavorite,
   ImportFlow? importFlow,
+  PathPrefs pathPrefs = const PathPrefs(
+    smartPath: false,
+    preferEffectSound: true,
+    typeOrderEnabled: true,
+    typeOrder: PathPrefs.defaultTypeOrder,
+  ),
 }) => ProviderScope(
   overrides: [
+    sharedPreferencesProvider.overrideWithValue(_testPrefs),
+    pathPrefsProvider.overrideWith(() => _FakePathPrefs(pathPrefs)),
     allWorksProvider.overrideWith(
       (ref) => Stream.value(works.where((work) => !work.isRemoved).toList()),
     ),
@@ -31,12 +46,18 @@ Widget testApp({
         tracks.where((track) => track.workId == workId).toList(),
       );
     }),
+    workFilesByWorkProvider.overrideWith((ref, workId) {
+      return Stream.value(
+        workFiles.where((f) => f.workId == workId).toList(),
+      );
+    }),
     if (removeWork != null) removeWorkProvider.overrideWithValue(removeWork),
     if (restoreWork != null) restoreWorkProvider.overrideWithValue(restoreWork),
     if (toggleFavorite != null)
       toggleFavoriteProvider.overrideWithValue(toggleFavorite),
     if (importFlow != null) importFlowProvider.overrideWithValue(importFlow),
     metadataEnrichmentProvider.overrideWith((ref) => _NoopEnrichment()),
+    rescanServiceProvider.overrideWith((ref) => _NoopRescan()),
   ],
   child: const TonariApp(),
 );
@@ -50,6 +71,48 @@ class _NoopEnrichment implements MetadataEnrichmentService {
 
   @override
   Future<void> enrichPending() async {}
+}
+
+class _NoopRescan implements RescanService {
+  @override
+  TonariDatabase get db => throw UnimplementedError();
+
+  @override
+  ImportFlow get flow => throw UnimplementedError();
+
+  @override
+  Future<void> runPending() async {}
+}
+
+class _FakePathPrefs extends PathPrefsNotifier {
+  _FakePathPrefs(this._initial);
+  final PathPrefs _initial;
+
+  @override
+  PathPrefs build() => _initial;
+
+  @override
+  Future<void> setSmartPath(bool value) async {
+    state = state.copyWith(smartPath: value);
+  }
+
+  @override
+  Future<void> setPreferEffectSound(bool value) async {
+    state = state.copyWith(preferEffectSound: value);
+  }
+
+  @override
+  Future<void> setTypeOrderEnabled(bool value) async {
+    state = state.copyWith(typeOrderEnabled: value);
+  }
+
+  @override
+  Future<void> reorderType(int oldIndex, int newIndex) async {
+    final list = [...state.typeOrder];
+    final item = list.removeAt(oldIndex);
+    list.insert(newIndex, item);
+    state = state.copyWith(typeOrder: list);
+  }
 }
 
 Work _work(
@@ -76,6 +139,7 @@ Work _work(
     localFolderPath: '/imported/$rj',
     isFavorite: isFavorite,
     isRemoved: isRemoved,
+    needsRescan: false,
     userTags: const [],
     createdAt: now,
     updatedAt: now,
@@ -113,6 +177,12 @@ Track _track({
 }
 
 void main() {
+  setUpAll(() async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    SharedPreferences.setMockInitialValues({});
+    _testPrefs = await SharedPreferences.getInstance();
+  });
+
   testWidgets('root renders 4 navigation tabs', (tester) async {
     await tester.pumpWidget(testApp());
     await tester.pumpAndSettle();
@@ -185,6 +255,12 @@ void main() {
 
     await tester.tap(find.text('设置'));
     await tester.pumpAndSettle();
+    await tester.dragUntilVisible(
+      find.text('已移除作品'),
+      find.byType(ListView),
+      const Offset(0, -200),
+    );
+    await tester.pumpAndSettle();
     await tester.tap(find.text('已移除作品'));
     await tester.pumpAndSettle();
 
@@ -197,7 +273,7 @@ void main() {
     expect(find.text('已恢复 Hidden Work'), findsOneWidget);
   });
 
-  testWidgets('tapping a work opens track detail', (tester) async {
+  testWidgets('tapping a work opens detail with a files entry', (tester) async {
     await tester.pumpWidget(
       testApp(
         works: [_work('RJ01560714', title: 'Test Work')],
@@ -218,16 +294,16 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.dragUntilVisible(
-      find.text('track01'),
+      find.text('文件'),
       find.byType(CustomScrollView),
       const Offset(0, -200),
     );
     await tester.pumpAndSettle();
 
     expect(find.text('RJ01560714'), findsOneWidget);
-    expect(find.text('章节'), findsOneWidget);
-    expect(find.text('track01'), findsOneWidget);
-    expect(find.text('WAV'), findsOneWidget);
+    expect(find.text('文件'), findsOneWidget);
+    // Track list lives on the WorkFilesPage now, not the detail page.
+    expect(find.text('track01.wav'), findsNothing);
   });
 
   testWidgets('detail page hides the tab bar (full-screen detail)', (
@@ -253,19 +329,19 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.dragUntilVisible(
-      find.text('章节'),
+      find.text('文件'),
       find.byType(CustomScrollView),
       const Offset(0, -200),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('章节'), findsOneWidget);
+    expect(find.text('文件'), findsOneWidget);
     for (final label in ['媒体库', '收藏', '历史', '设置']) {
       expect(find.text(label), findsNothing);
     }
   });
 
-  testWidgets('work detail opens the best original audio folder', (
+  testWidgets('files entry opens drill-in WorkFilesPage with folders', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -281,20 +357,12 @@ void main() {
             relativeDir: '01_FLAC',
           ),
           _track(
-            id: 'effect',
+            id: 'mp3',
             workId: 'RJ01560714',
-            title: 'effect-track',
-            fileName: 'effect-track.mp3',
+            title: 'mp3-track',
+            fileName: 'mp3-track.mp3',
             fileFormat: 'mp3',
-            relativeDir: '02_効果音あり_MP3',
-          ),
-          _track(
-            id: 'no-effect',
-            workId: 'RJ01560714',
-            title: 'no-effect-track',
-            fileName: 'no-effect-track.wav',
-            fileFormat: 'wav',
-            relativeDir: '03_効果音なし_WAV',
+            relativeDir: '02_MP3',
           ),
         ],
       ),
@@ -305,22 +373,90 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.dragUntilVisible(
-      find.text('目录'),
+      find.text('文件'),
       find.byType(CustomScrollView),
       const Offset(0, -200),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('目录'), findsOneWidget);
-    expect(find.text('effect-track'), findsOneWidget);
-    expect(find.text('flac-track'), findsNothing);
-    expect(find.text('no-effect-track'), findsNothing);
+    await tester.tap(find.text('文件'));
+    await tester.pumpAndSettle();
 
+    // Resource page is now in front; root level shows both folders.
+    expect(find.text('01_FLAC'), findsOneWidget);
+    expect(find.text('02_MP3'), findsOneWidget);
+    // RJ id is the breadcrumb root.
+    expect(find.text('RJ01560714'), findsWidgets);
+
+    // Drill into the FLAC folder.
     await tester.tap(find.text('01_FLAC'));
     await tester.pumpAndSettle();
 
-    expect(find.text('flac-track'), findsOneWidget);
-    expect(find.text('effect-track'), findsNothing);
+    expect(find.text('flac-track.flac'), findsOneWidget);
+    expect(find.text('mp3-track.mp3'), findsNothing);
+
+    // Tap RJ id in the breadcrumb → back to root listing. Use `hitTestable`
+    // to ignore the same RJ id rendered on the obscured detail page below.
+    await tester.tap(find.text('RJ01560714').hitTestable());
+    await tester.pumpAndSettle();
+
+    expect(find.text('01_FLAC'), findsOneWidget);
+    expect(find.text('02_MP3'), findsOneWidget);
+    expect(find.text('flac-track.flac'), findsNothing);
+  });
+
+  testWidgets('autoPath drills into the wav folder when smartPath is on', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      testApp(
+        pathPrefs: const PathPrefs(
+          smartPath: true,
+          preferEffectSound: true,
+          typeOrderEnabled: true,
+          typeOrder: PathPrefs.defaultTypeOrder,
+        ),
+        works: [_work('RJ01560714', title: 'Test Work')],
+        tracks: [
+          _track(
+            id: 'wav',
+            workId: 'RJ01560714',
+            title: 'wav-track',
+            fileName: 'wav-track.wav',
+            fileFormat: 'wav',
+            relativeDir: '01_WAV',
+          ),
+          _track(
+            id: 'mp3',
+            workId: 'RJ01560714',
+            title: 'mp3-track',
+            fileName: 'mp3-track.mp3',
+            fileFormat: 'mp3',
+            relativeDir: '02_MP3',
+          ),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Test Work'));
+    await tester.pumpAndSettle();
+
+    await tester.dragUntilVisible(
+      find.text('文件'),
+      find.byType(CustomScrollView),
+      const Offset(0, -200),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('文件'));
+    await tester.pumpAndSettle();
+
+    // typeOrder = wav > mp3, so we expect to land inside 01_WAV directly.
+    expect(find.text('wav-track.wav'), findsOneWidget);
+    expect(find.text('mp3-track.mp3'), findsNothing);
+    // Breadcrumb reflects the auto-applied path.
+    expect(find.text('01_WAV'), findsWidgets);
   });
 
   testWidgets('favorite work shows heart icon on card', (tester) async {

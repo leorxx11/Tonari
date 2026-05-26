@@ -504,6 +504,21 @@ class $WorksTable extends Works with TableInfo<$WorksTable, Work> {
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _needsRescanMeta = const VerificationMeta(
+    'needsRescan',
+  );
+  @override
+  late final GeneratedColumn<bool> needsRescan = GeneratedColumn<bool>(
+    'needs_rescan',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("needs_rescan" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _userRatingMeta = const VerificationMeta(
     'userRating',
   );
@@ -603,6 +618,7 @@ class $WorksTable extends Works with TableInfo<$WorksTable, Work> {
     lastPlayedTrackId,
     isFavorite,
     isRemoved,
+    needsRescan,
     userRating,
     userTags,
     notes,
@@ -899,6 +915,15 @@ class $WorksTable extends Works with TableInfo<$WorksTable, Work> {
         isRemoved.isAcceptableOrUnknown(data['is_removed']!, _isRemovedMeta),
       );
     }
+    if (data.containsKey('needs_rescan')) {
+      context.handle(
+        _needsRescanMeta,
+        needsRescan.isAcceptableOrUnknown(
+          data['needs_rescan']!,
+          _needsRescanMeta,
+        ),
+      );
+    }
     if (data.containsKey('user_rating')) {
       context.handle(
         _userRatingMeta,
@@ -1137,6 +1162,10 @@ class $WorksTable extends Works with TableInfo<$WorksTable, Work> {
         DriftSqlType.bool,
         data['${effectivePrefix}is_removed'],
       )!,
+      needsRescan: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}needs_rescan'],
+      )!,
       userRating: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}user_rating'],
@@ -1235,6 +1264,7 @@ class Work extends DataClass implements Insertable<Work> {
   final String? lastPlayedTrackId;
   final bool isFavorite;
   final bool isRemoved;
+  final bool needsRescan;
   final int? userRating;
   final List<String> userTags;
   final String? notes;
@@ -1286,6 +1316,7 @@ class Work extends DataClass implements Insertable<Work> {
     this.lastPlayedTrackId,
     required this.isFavorite,
     required this.isRemoved,
+    required this.needsRescan,
     this.userRating,
     required this.userTags,
     this.notes,
@@ -1438,6 +1469,7 @@ class Work extends DataClass implements Insertable<Work> {
     }
     map['is_favorite'] = Variable<bool>(isFavorite);
     map['is_removed'] = Variable<bool>(isRemoved);
+    map['needs_rescan'] = Variable<bool>(needsRescan);
     if (!nullToAbsent || userRating != null) {
       map['user_rating'] = Variable<int>(userRating);
     }
@@ -1559,6 +1591,7 @@ class Work extends DataClass implements Insertable<Work> {
           : Value(lastPlayedTrackId),
       isFavorite: Value(isFavorite),
       isRemoved: Value(isRemoved),
+      needsRescan: Value(needsRescan),
       userRating: userRating == null && nullToAbsent
           ? const Value.absent()
           : Value(userRating),
@@ -1636,6 +1669,7 @@ class Work extends DataClass implements Insertable<Work> {
       ),
       isFavorite: serializer.fromJson<bool>(json['isFavorite']),
       isRemoved: serializer.fromJson<bool>(json['isRemoved']),
+      needsRescan: serializer.fromJson<bool>(json['needsRescan']),
       userRating: serializer.fromJson<int?>(json['userRating']),
       userTags: serializer.fromJson<List<String>>(json['userTags']),
       notes: serializer.fromJson<String?>(json['notes']),
@@ -1696,6 +1730,7 @@ class Work extends DataClass implements Insertable<Work> {
       'lastPlayedTrackId': serializer.toJson<String?>(lastPlayedTrackId),
       'isFavorite': serializer.toJson<bool>(isFavorite),
       'isRemoved': serializer.toJson<bool>(isRemoved),
+      'needsRescan': serializer.toJson<bool>(needsRescan),
       'userRating': serializer.toJson<int?>(userRating),
       'userTags': serializer.toJson<List<String>>(userTags),
       'notes': serializer.toJson<String?>(notes),
@@ -1750,6 +1785,7 @@ class Work extends DataClass implements Insertable<Work> {
     Value<String?> lastPlayedTrackId = const Value.absent(),
     bool? isFavorite,
     bool? isRemoved,
+    bool? needsRescan,
     Value<int?> userRating = const Value.absent(),
     List<String>? userTags,
     Value<String?> notes = const Value.absent(),
@@ -1816,6 +1852,7 @@ class Work extends DataClass implements Insertable<Work> {
         : this.lastPlayedTrackId,
     isFavorite: isFavorite ?? this.isFavorite,
     isRemoved: isRemoved ?? this.isRemoved,
+    needsRescan: needsRescan ?? this.needsRescan,
     userRating: userRating.present ? userRating.value : this.userRating,
     userTags: userTags ?? this.userTags,
     notes: notes.present ? notes.value : this.notes,
@@ -1929,6 +1966,9 @@ class Work extends DataClass implements Insertable<Work> {
           ? data.isFavorite.value
           : this.isFavorite,
       isRemoved: data.isRemoved.present ? data.isRemoved.value : this.isRemoved,
+      needsRescan: data.needsRescan.present
+          ? data.needsRescan.value
+          : this.needsRescan,
       userRating: data.userRating.present
           ? data.userRating.value
           : this.userRating,
@@ -1987,6 +2027,7 @@ class Work extends DataClass implements Insertable<Work> {
           ..write('lastPlayedTrackId: $lastPlayedTrackId, ')
           ..write('isFavorite: $isFavorite, ')
           ..write('isRemoved: $isRemoved, ')
+          ..write('needsRescan: $needsRescan, ')
           ..write('userRating: $userRating, ')
           ..write('userTags: $userTags, ')
           ..write('notes: $notes, ')
@@ -2043,6 +2084,7 @@ class Work extends DataClass implements Insertable<Work> {
     lastPlayedTrackId,
     isFavorite,
     isRemoved,
+    needsRescan,
     userRating,
     userTags,
     notes,
@@ -2098,6 +2140,7 @@ class Work extends DataClass implements Insertable<Work> {
           other.lastPlayedTrackId == this.lastPlayedTrackId &&
           other.isFavorite == this.isFavorite &&
           other.isRemoved == this.isRemoved &&
+          other.needsRescan == this.needsRescan &&
           other.userRating == this.userRating &&
           other.userTags == this.userTags &&
           other.notes == this.notes &&
@@ -2151,6 +2194,7 @@ class WorksCompanion extends UpdateCompanion<Work> {
   final Value<String?> lastPlayedTrackId;
   final Value<bool> isFavorite;
   final Value<bool> isRemoved;
+  final Value<bool> needsRescan;
   final Value<int?> userRating;
   final Value<List<String>> userTags;
   final Value<String?> notes;
@@ -2203,6 +2247,7 @@ class WorksCompanion extends UpdateCompanion<Work> {
     this.lastPlayedTrackId = const Value.absent(),
     this.isFavorite = const Value.absent(),
     this.isRemoved = const Value.absent(),
+    this.needsRescan = const Value.absent(),
     this.userRating = const Value.absent(),
     this.userTags = const Value.absent(),
     this.notes = const Value.absent(),
@@ -2256,6 +2301,7 @@ class WorksCompanion extends UpdateCompanion<Work> {
     this.lastPlayedTrackId = const Value.absent(),
     this.isFavorite = const Value.absent(),
     this.isRemoved = const Value.absent(),
+    this.needsRescan = const Value.absent(),
     this.userRating = const Value.absent(),
     this.userTags = const Value.absent(),
     this.notes = const Value.absent(),
@@ -2314,6 +2360,7 @@ class WorksCompanion extends UpdateCompanion<Work> {
     Expression<String>? lastPlayedTrackId,
     Expression<bool>? isFavorite,
     Expression<bool>? isRemoved,
+    Expression<bool>? needsRescan,
     Expression<int>? userRating,
     Expression<String>? userTags,
     Expression<String>? notes,
@@ -2370,6 +2417,7 @@ class WorksCompanion extends UpdateCompanion<Work> {
       if (lastPlayedTrackId != null) 'last_played_track_id': lastPlayedTrackId,
       if (isFavorite != null) 'is_favorite': isFavorite,
       if (isRemoved != null) 'is_removed': isRemoved,
+      if (needsRescan != null) 'needs_rescan': needsRescan,
       if (userRating != null) 'user_rating': userRating,
       if (userTags != null) 'user_tags': userTags,
       if (notes != null) 'notes': notes,
@@ -2425,6 +2473,7 @@ class WorksCompanion extends UpdateCompanion<Work> {
     Value<String?>? lastPlayedTrackId,
     Value<bool>? isFavorite,
     Value<bool>? isRemoved,
+    Value<bool>? needsRescan,
     Value<int?>? userRating,
     Value<List<String>>? userTags,
     Value<String?>? notes,
@@ -2480,6 +2529,7 @@ class WorksCompanion extends UpdateCompanion<Work> {
       lastPlayedTrackId: lastPlayedTrackId ?? this.lastPlayedTrackId,
       isFavorite: isFavorite ?? this.isFavorite,
       isRemoved: isRemoved ?? this.isRemoved,
+      needsRescan: needsRescan ?? this.needsRescan,
       userRating: userRating ?? this.userRating,
       userTags: userTags ?? this.userTags,
       notes: notes ?? this.notes,
@@ -2651,6 +2701,9 @@ class WorksCompanion extends UpdateCompanion<Work> {
     if (isRemoved.present) {
       map['is_removed'] = Variable<bool>(isRemoved.value);
     }
+    if (needsRescan.present) {
+      map['needs_rescan'] = Variable<bool>(needsRescan.value);
+    }
     if (userRating.present) {
       map['user_rating'] = Variable<int>(userRating.value);
     }
@@ -2722,6 +2775,7 @@ class WorksCompanion extends UpdateCompanion<Work> {
           ..write('lastPlayedTrackId: $lastPlayedTrackId, ')
           ..write('isFavorite: $isFavorite, ')
           ..write('isRemoved: $isRemoved, ')
+          ..write('needsRescan: $needsRescan, ')
           ..write('userRating: $userRating, ')
           ..write('userTags: $userTags, ')
           ..write('notes: $notes, ')
@@ -3873,6 +3927,579 @@ class TracksCompanion extends UpdateCompanion<Track> {
   }
 }
 
+class $WorkFilesTable extends WorkFiles
+    with TableInfo<$WorkFilesTable, WorkFile> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $WorkFilesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _workIdMeta = const VerificationMeta('workId');
+  @override
+  late final GeneratedColumn<String> workId = GeneratedColumn<String>(
+    'work_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES works (product_id)',
+    ),
+  );
+  static const VerificationMeta _filePathMeta = const VerificationMeta(
+    'filePath',
+  );
+  @override
+  late final GeneratedColumn<String> filePath = GeneratedColumn<String>(
+    'file_path',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _relativePathMeta = const VerificationMeta(
+    'relativePath',
+  );
+  @override
+  late final GeneratedColumn<String> relativePath = GeneratedColumn<String>(
+    'relative_path',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _fileNameMeta = const VerificationMeta(
+    'fileName',
+  );
+  @override
+  late final GeneratedColumn<String> fileName = GeneratedColumn<String>(
+    'file_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _fileKindMeta = const VerificationMeta(
+    'fileKind',
+  );
+  @override
+  late final GeneratedColumn<String> fileKind = GeneratedColumn<String>(
+    'file_kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _fileSizeBytesMeta = const VerificationMeta(
+    'fileSizeBytes',
+  );
+  @override
+  late final GeneratedColumn<int> fileSizeBytes = GeneratedColumn<int>(
+    'file_size_bytes',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    workId,
+    filePath,
+    relativePath,
+    fileName,
+    fileKind,
+    fileSizeBytes,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'work_files';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<WorkFile> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('work_id')) {
+      context.handle(
+        _workIdMeta,
+        workId.isAcceptableOrUnknown(data['work_id']!, _workIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_workIdMeta);
+    }
+    if (data.containsKey('file_path')) {
+      context.handle(
+        _filePathMeta,
+        filePath.isAcceptableOrUnknown(data['file_path']!, _filePathMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_filePathMeta);
+    }
+    if (data.containsKey('relative_path')) {
+      context.handle(
+        _relativePathMeta,
+        relativePath.isAcceptableOrUnknown(
+          data['relative_path']!,
+          _relativePathMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_relativePathMeta);
+    }
+    if (data.containsKey('file_name')) {
+      context.handle(
+        _fileNameMeta,
+        fileName.isAcceptableOrUnknown(data['file_name']!, _fileNameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_fileNameMeta);
+    }
+    if (data.containsKey('file_kind')) {
+      context.handle(
+        _fileKindMeta,
+        fileKind.isAcceptableOrUnknown(data['file_kind']!, _fileKindMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_fileKindMeta);
+    }
+    if (data.containsKey('file_size_bytes')) {
+      context.handle(
+        _fileSizeBytesMeta,
+        fileSizeBytes.isAcceptableOrUnknown(
+          data['file_size_bytes']!,
+          _fileSizeBytesMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_fileSizeBytesMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  WorkFile map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return WorkFile(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      workId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}work_id'],
+      )!,
+      filePath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}file_path'],
+      )!,
+      relativePath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}relative_path'],
+      )!,
+      fileName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}file_name'],
+      )!,
+      fileKind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}file_kind'],
+      )!,
+      fileSizeBytes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}file_size_bytes'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $WorkFilesTable createAlias(String alias) {
+    return $WorkFilesTable(attachedDatabase, alias);
+  }
+}
+
+class WorkFile extends DataClass implements Insertable<WorkFile> {
+  final String id;
+  final String workId;
+  final String filePath;
+  final String relativePath;
+  final String fileName;
+
+  /// 'image' / 'subtitle' / 'text' / 'other'
+  final String fileKind;
+  final int fileSizeBytes;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const WorkFile({
+    required this.id,
+    required this.workId,
+    required this.filePath,
+    required this.relativePath,
+    required this.fileName,
+    required this.fileKind,
+    required this.fileSizeBytes,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['work_id'] = Variable<String>(workId);
+    map['file_path'] = Variable<String>(filePath);
+    map['relative_path'] = Variable<String>(relativePath);
+    map['file_name'] = Variable<String>(fileName);
+    map['file_kind'] = Variable<String>(fileKind);
+    map['file_size_bytes'] = Variable<int>(fileSizeBytes);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  WorkFilesCompanion toCompanion(bool nullToAbsent) {
+    return WorkFilesCompanion(
+      id: Value(id),
+      workId: Value(workId),
+      filePath: Value(filePath),
+      relativePath: Value(relativePath),
+      fileName: Value(fileName),
+      fileKind: Value(fileKind),
+      fileSizeBytes: Value(fileSizeBytes),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory WorkFile.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return WorkFile(
+      id: serializer.fromJson<String>(json['id']),
+      workId: serializer.fromJson<String>(json['workId']),
+      filePath: serializer.fromJson<String>(json['filePath']),
+      relativePath: serializer.fromJson<String>(json['relativePath']),
+      fileName: serializer.fromJson<String>(json['fileName']),
+      fileKind: serializer.fromJson<String>(json['fileKind']),
+      fileSizeBytes: serializer.fromJson<int>(json['fileSizeBytes']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'workId': serializer.toJson<String>(workId),
+      'filePath': serializer.toJson<String>(filePath),
+      'relativePath': serializer.toJson<String>(relativePath),
+      'fileName': serializer.toJson<String>(fileName),
+      'fileKind': serializer.toJson<String>(fileKind),
+      'fileSizeBytes': serializer.toJson<int>(fileSizeBytes),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  WorkFile copyWith({
+    String? id,
+    String? workId,
+    String? filePath,
+    String? relativePath,
+    String? fileName,
+    String? fileKind,
+    int? fileSizeBytes,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => WorkFile(
+    id: id ?? this.id,
+    workId: workId ?? this.workId,
+    filePath: filePath ?? this.filePath,
+    relativePath: relativePath ?? this.relativePath,
+    fileName: fileName ?? this.fileName,
+    fileKind: fileKind ?? this.fileKind,
+    fileSizeBytes: fileSizeBytes ?? this.fileSizeBytes,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  WorkFile copyWithCompanion(WorkFilesCompanion data) {
+    return WorkFile(
+      id: data.id.present ? data.id.value : this.id,
+      workId: data.workId.present ? data.workId.value : this.workId,
+      filePath: data.filePath.present ? data.filePath.value : this.filePath,
+      relativePath: data.relativePath.present
+          ? data.relativePath.value
+          : this.relativePath,
+      fileName: data.fileName.present ? data.fileName.value : this.fileName,
+      fileKind: data.fileKind.present ? data.fileKind.value : this.fileKind,
+      fileSizeBytes: data.fileSizeBytes.present
+          ? data.fileSizeBytes.value
+          : this.fileSizeBytes,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WorkFile(')
+          ..write('id: $id, ')
+          ..write('workId: $workId, ')
+          ..write('filePath: $filePath, ')
+          ..write('relativePath: $relativePath, ')
+          ..write('fileName: $fileName, ')
+          ..write('fileKind: $fileKind, ')
+          ..write('fileSizeBytes: $fileSizeBytes, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    workId,
+    filePath,
+    relativePath,
+    fileName,
+    fileKind,
+    fileSizeBytes,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is WorkFile &&
+          other.id == this.id &&
+          other.workId == this.workId &&
+          other.filePath == this.filePath &&
+          other.relativePath == this.relativePath &&
+          other.fileName == this.fileName &&
+          other.fileKind == this.fileKind &&
+          other.fileSizeBytes == this.fileSizeBytes &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class WorkFilesCompanion extends UpdateCompanion<WorkFile> {
+  final Value<String> id;
+  final Value<String> workId;
+  final Value<String> filePath;
+  final Value<String> relativePath;
+  final Value<String> fileName;
+  final Value<String> fileKind;
+  final Value<int> fileSizeBytes;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const WorkFilesCompanion({
+    this.id = const Value.absent(),
+    this.workId = const Value.absent(),
+    this.filePath = const Value.absent(),
+    this.relativePath = const Value.absent(),
+    this.fileName = const Value.absent(),
+    this.fileKind = const Value.absent(),
+    this.fileSizeBytes = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  WorkFilesCompanion.insert({
+    required String id,
+    required String workId,
+    required String filePath,
+    required String relativePath,
+    required String fileName,
+    required String fileKind,
+    required int fileSizeBytes,
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       workId = Value(workId),
+       filePath = Value(filePath),
+       relativePath = Value(relativePath),
+       fileName = Value(fileName),
+       fileKind = Value(fileKind),
+       fileSizeBytes = Value(fileSizeBytes),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<WorkFile> custom({
+    Expression<String>? id,
+    Expression<String>? workId,
+    Expression<String>? filePath,
+    Expression<String>? relativePath,
+    Expression<String>? fileName,
+    Expression<String>? fileKind,
+    Expression<int>? fileSizeBytes,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (workId != null) 'work_id': workId,
+      if (filePath != null) 'file_path': filePath,
+      if (relativePath != null) 'relative_path': relativePath,
+      if (fileName != null) 'file_name': fileName,
+      if (fileKind != null) 'file_kind': fileKind,
+      if (fileSizeBytes != null) 'file_size_bytes': fileSizeBytes,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  WorkFilesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? workId,
+    Value<String>? filePath,
+    Value<String>? relativePath,
+    Value<String>? fileName,
+    Value<String>? fileKind,
+    Value<int>? fileSizeBytes,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return WorkFilesCompanion(
+      id: id ?? this.id,
+      workId: workId ?? this.workId,
+      filePath: filePath ?? this.filePath,
+      relativePath: relativePath ?? this.relativePath,
+      fileName: fileName ?? this.fileName,
+      fileKind: fileKind ?? this.fileKind,
+      fileSizeBytes: fileSizeBytes ?? this.fileSizeBytes,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (workId.present) {
+      map['work_id'] = Variable<String>(workId.value);
+    }
+    if (filePath.present) {
+      map['file_path'] = Variable<String>(filePath.value);
+    }
+    if (relativePath.present) {
+      map['relative_path'] = Variable<String>(relativePath.value);
+    }
+    if (fileName.present) {
+      map['file_name'] = Variable<String>(fileName.value);
+    }
+    if (fileKind.present) {
+      map['file_kind'] = Variable<String>(fileKind.value);
+    }
+    if (fileSizeBytes.present) {
+      map['file_size_bytes'] = Variable<int>(fileSizeBytes.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WorkFilesCompanion(')
+          ..write('id: $id, ')
+          ..write('workId: $workId, ')
+          ..write('filePath: $filePath, ')
+          ..write('relativePath: $relativePath, ')
+          ..write('fileName: $fileName, ')
+          ..write('fileKind: $fileKind, ')
+          ..write('fileSizeBytes: $fileSizeBytes, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $SubtitlesTable extends Subtitles
     with TableInfo<$SubtitlesTable, Subtitle> {
   @override
@@ -4999,6 +5626,7 @@ abstract class _$TonariDatabase extends GeneratedDatabase {
   $TonariDatabaseManager get managers => $TonariDatabaseManager(this);
   late final $WorksTable works = $WorksTable(this);
   late final $TracksTable tracks = $TracksTable(this);
+  late final $WorkFilesTable workFiles = $WorkFilesTable(this);
   late final $SubtitlesTable subtitles = $SubtitlesTable(this);
   late final $ImportedFoldersTable importedFolders = $ImportedFoldersTable(
     this,
@@ -5010,6 +5638,7 @@ abstract class _$TonariDatabase extends GeneratedDatabase {
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     works,
     tracks,
+    workFiles,
     subtitles,
     importedFolders,
   ];
@@ -5062,6 +5691,7 @@ typedef $$WorksTableCreateCompanionBuilder =
       Value<String?> lastPlayedTrackId,
       Value<bool> isFavorite,
       Value<bool> isRemoved,
+      Value<bool> needsRescan,
       Value<int?> userRating,
       Value<List<String>> userTags,
       Value<String?> notes,
@@ -5116,6 +5746,7 @@ typedef $$WorksTableUpdateCompanionBuilder =
       Value<String?> lastPlayedTrackId,
       Value<bool> isFavorite,
       Value<bool> isRemoved,
+      Value<bool> needsRescan,
       Value<int?> userRating,
       Value<List<String>> userTags,
       Value<String?> notes,
@@ -5141,6 +5772,23 @@ final class $$WorksTableReferences
     );
 
     final cache = $_typedResult.readTableOrNull(_tracksRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$WorkFilesTable, List<WorkFile>>
+  _workFilesRefsTable(_$TonariDatabase db) => MultiTypedResultKey.fromTable(
+    db.workFiles,
+    aliasName: $_aliasNameGenerator(db.works.productId, db.workFiles.workId),
+  );
+
+  $$WorkFilesTableProcessedTableManager get workFilesRefs {
+    final manager = $$WorkFilesTableTableManager($_db, $_db.workFiles).filter(
+      (f) => f.workId.productId.sqlEquals($_itemColumn<String>('product_id')!),
+    );
+
+    final cache = $_typedResult.readTableOrNull(_workFilesRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -5390,6 +6038,11 @@ class $$WorksTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<bool> get needsRescan => $composableBuilder(
+    column: $table.needsRescan,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<int> get userRating => $composableBuilder(
     column: $table.userRating,
     builder: (column) => ColumnFilters(column),
@@ -5432,6 +6085,31 @@ class $$WorksTableFilterComposer
           }) => $$TracksTableFilterComposer(
             $db: $db,
             $table: $db.tracks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> workFilesRefs(
+    Expression<bool> Function($$WorkFilesTableFilterComposer f) f,
+  ) {
+    final $$WorkFilesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.productId,
+      referencedTable: $db.workFiles,
+      getReferencedColumn: (t) => t.workId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkFilesTableFilterComposer(
+            $db: $db,
+            $table: $db.workFiles,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -5676,6 +6354,11 @@ class $$WorksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get needsRescan => $composableBuilder(
+    column: $table.needsRescan,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get userRating => $composableBuilder(
     column: $table.userRating,
     builder: (column) => ColumnOrderings(column),
@@ -5914,6 +6597,11 @@ class $$WorksTableAnnotationComposer
   GeneratedColumn<bool> get isRemoved =>
       $composableBuilder(column: $table.isRemoved, builder: (column) => column);
 
+  GeneratedColumn<bool> get needsRescan => $composableBuilder(
+    column: $table.needsRescan,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<int> get userRating => $composableBuilder(
     column: $table.userRating,
     builder: (column) => column,
@@ -5955,6 +6643,31 @@ class $$WorksTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> workFilesRefs<T extends Object>(
+    Expression<T> Function($$WorkFilesTableAnnotationComposer a) f,
+  ) {
+    final $$WorkFilesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.productId,
+      referencedTable: $db.workFiles,
+      getReferencedColumn: (t) => t.workId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkFilesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.workFiles,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$WorksTableTableManager
@@ -5970,7 +6683,7 @@ class $$WorksTableTableManager
           $$WorksTableUpdateCompanionBuilder,
           (Work, $$WorksTableReferences),
           Work,
-          PrefetchHooks Function({bool tracksRefs})
+          PrefetchHooks Function({bool tracksRefs, bool workFilesRefs})
         > {
   $$WorksTableTableManager(_$TonariDatabase db, $WorksTable table)
     : super(
@@ -6032,6 +6745,7 @@ class $$WorksTableTableManager
                 Value<String?> lastPlayedTrackId = const Value.absent(),
                 Value<bool> isFavorite = const Value.absent(),
                 Value<bool> isRemoved = const Value.absent(),
+                Value<bool> needsRescan = const Value.absent(),
                 Value<int?> userRating = const Value.absent(),
                 Value<List<String>> userTags = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
@@ -6084,6 +6798,7 @@ class $$WorksTableTableManager
                 lastPlayedTrackId: lastPlayedTrackId,
                 isFavorite: isFavorite,
                 isRemoved: isRemoved,
+                needsRescan: needsRescan,
                 userRating: userRating,
                 userTags: userTags,
                 notes: notes,
@@ -6140,6 +6855,7 @@ class $$WorksTableTableManager
                 Value<String?> lastPlayedTrackId = const Value.absent(),
                 Value<bool> isFavorite = const Value.absent(),
                 Value<bool> isRemoved = const Value.absent(),
+                Value<bool> needsRescan = const Value.absent(),
                 Value<int?> userRating = const Value.absent(),
                 Value<List<String>> userTags = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
@@ -6192,6 +6908,7 @@ class $$WorksTableTableManager
                 lastPlayedTrackId: lastPlayedTrackId,
                 isFavorite: isFavorite,
                 isRemoved: isRemoved,
+                needsRescan: needsRescan,
                 userRating: userRating,
                 userTags: userTags,
                 notes: notes,
@@ -6205,10 +6922,13 @@ class $$WorksTableTableManager
                     (e.readTable(table), $$WorksTableReferences(db, table, e)),
               )
               .toList(),
-          prefetchHooksCallback: ({tracksRefs = false}) {
+          prefetchHooksCallback: ({tracksRefs = false, workFilesRefs = false}) {
             return PrefetchHooks(
               db: db,
-              explicitlyWatchedTables: [if (tracksRefs) db.tracks],
+              explicitlyWatchedTables: [
+                if (tracksRefs) db.tracks,
+                if (workFilesRefs) db.workFiles,
+              ],
               addJoins: null,
               getPrefetchedDataCallback: (items) async {
                 return [
@@ -6220,6 +6940,19 @@ class $$WorksTableTableManager
                       ),
                       managerFromTypedResult: (p0) =>
                           $$WorksTableReferences(db, table, p0).tracksRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where(
+                            (e) => e.workId == item.productId,
+                          ),
+                      typedResults: items,
+                    ),
+                  if (workFilesRefs)
+                    await $_getPrefetchedData<Work, $WorksTable, WorkFile>(
+                      currentTable: table,
+                      referencedTable: $$WorksTableReferences
+                          ._workFilesRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$WorksTableReferences(db, table, p0).workFilesRefs,
                       referencedItemsForCurrentItem: (item, referencedItems) =>
                           referencedItems.where(
                             (e) => e.workId == item.productId,
@@ -6246,7 +6979,7 @@ typedef $$WorksTableProcessedTableManager =
       $$WorksTableUpdateCompanionBuilder,
       (Work, $$WorksTableReferences),
       Work,
-      PrefetchHooks Function({bool tracksRefs})
+      PrefetchHooks Function({bool tracksRefs, bool workFilesRefs})
     >;
 typedef $$TracksTableCreateCompanionBuilder =
     TracksCompanion Function({
@@ -6951,6 +7684,404 @@ typedef $$TracksTableProcessedTableManager =
       Track,
       PrefetchHooks Function({bool workId, bool subtitlesRefs})
     >;
+typedef $$WorkFilesTableCreateCompanionBuilder =
+    WorkFilesCompanion Function({
+      required String id,
+      required String workId,
+      required String filePath,
+      required String relativePath,
+      required String fileName,
+      required String fileKind,
+      required int fileSizeBytes,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$WorkFilesTableUpdateCompanionBuilder =
+    WorkFilesCompanion Function({
+      Value<String> id,
+      Value<String> workId,
+      Value<String> filePath,
+      Value<String> relativePath,
+      Value<String> fileName,
+      Value<String> fileKind,
+      Value<int> fileSizeBytes,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+final class $$WorkFilesTableReferences
+    extends BaseReferences<_$TonariDatabase, $WorkFilesTable, WorkFile> {
+  $$WorkFilesTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $WorksTable _workIdTable(_$TonariDatabase db) => db.works.createAlias(
+    $_aliasNameGenerator(db.workFiles.workId, db.works.productId),
+  );
+
+  $$WorksTableProcessedTableManager get workId {
+    final $_column = $_itemColumn<String>('work_id')!;
+
+    final manager = $$WorksTableTableManager(
+      $_db,
+      $_db.works,
+    ).filter((f) => f.productId.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_workIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$WorkFilesTableFilterComposer
+    extends Composer<_$TonariDatabase, $WorkFilesTable> {
+  $$WorkFilesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get filePath => $composableBuilder(
+    column: $table.filePath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get relativePath => $composableBuilder(
+    column: $table.relativePath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get fileName => $composableBuilder(
+    column: $table.fileName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get fileKind => $composableBuilder(
+    column: $table.fileKind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get fileSizeBytes => $composableBuilder(
+    column: $table.fileSizeBytes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$WorksTableFilterComposer get workId {
+    final $$WorksTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workId,
+      referencedTable: $db.works,
+      getReferencedColumn: (t) => t.productId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorksTableFilterComposer(
+            $db: $db,
+            $table: $db.works,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$WorkFilesTableOrderingComposer
+    extends Composer<_$TonariDatabase, $WorkFilesTable> {
+  $$WorkFilesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get filePath => $composableBuilder(
+    column: $table.filePath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get relativePath => $composableBuilder(
+    column: $table.relativePath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get fileName => $composableBuilder(
+    column: $table.fileName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get fileKind => $composableBuilder(
+    column: $table.fileKind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get fileSizeBytes => $composableBuilder(
+    column: $table.fileSizeBytes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$WorksTableOrderingComposer get workId {
+    final $$WorksTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workId,
+      referencedTable: $db.works,
+      getReferencedColumn: (t) => t.productId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorksTableOrderingComposer(
+            $db: $db,
+            $table: $db.works,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$WorkFilesTableAnnotationComposer
+    extends Composer<_$TonariDatabase, $WorkFilesTable> {
+  $$WorkFilesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get filePath =>
+      $composableBuilder(column: $table.filePath, builder: (column) => column);
+
+  GeneratedColumn<String> get relativePath => $composableBuilder(
+    column: $table.relativePath,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get fileName =>
+      $composableBuilder(column: $table.fileName, builder: (column) => column);
+
+  GeneratedColumn<String> get fileKind =>
+      $composableBuilder(column: $table.fileKind, builder: (column) => column);
+
+  GeneratedColumn<int> get fileSizeBytes => $composableBuilder(
+    column: $table.fileSizeBytes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$WorksTableAnnotationComposer get workId {
+    final $$WorksTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workId,
+      referencedTable: $db.works,
+      getReferencedColumn: (t) => t.productId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorksTableAnnotationComposer(
+            $db: $db,
+            $table: $db.works,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$WorkFilesTableTableManager
+    extends
+        RootTableManager<
+          _$TonariDatabase,
+          $WorkFilesTable,
+          WorkFile,
+          $$WorkFilesTableFilterComposer,
+          $$WorkFilesTableOrderingComposer,
+          $$WorkFilesTableAnnotationComposer,
+          $$WorkFilesTableCreateCompanionBuilder,
+          $$WorkFilesTableUpdateCompanionBuilder,
+          (WorkFile, $$WorkFilesTableReferences),
+          WorkFile,
+          PrefetchHooks Function({bool workId})
+        > {
+  $$WorkFilesTableTableManager(_$TonariDatabase db, $WorkFilesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$WorkFilesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$WorkFilesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$WorkFilesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> workId = const Value.absent(),
+                Value<String> filePath = const Value.absent(),
+                Value<String> relativePath = const Value.absent(),
+                Value<String> fileName = const Value.absent(),
+                Value<String> fileKind = const Value.absent(),
+                Value<int> fileSizeBytes = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => WorkFilesCompanion(
+                id: id,
+                workId: workId,
+                filePath: filePath,
+                relativePath: relativePath,
+                fileName: fileName,
+                fileKind: fileKind,
+                fileSizeBytes: fileSizeBytes,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String workId,
+                required String filePath,
+                required String relativePath,
+                required String fileName,
+                required String fileKind,
+                required int fileSizeBytes,
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => WorkFilesCompanion.insert(
+                id: id,
+                workId: workId,
+                filePath: filePath,
+                relativePath: relativePath,
+                fileName: fileName,
+                fileKind: fileKind,
+                fileSizeBytes: fileSizeBytes,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$WorkFilesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({workId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (workId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.workId,
+                                referencedTable: $$WorkFilesTableReferences
+                                    ._workIdTable(db),
+                                referencedColumn: $$WorkFilesTableReferences
+                                    ._workIdTable(db)
+                                    .productId,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$WorkFilesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$TonariDatabase,
+      $WorkFilesTable,
+      WorkFile,
+      $$WorkFilesTableFilterComposer,
+      $$WorkFilesTableOrderingComposer,
+      $$WorkFilesTableAnnotationComposer,
+      $$WorkFilesTableCreateCompanionBuilder,
+      $$WorkFilesTableUpdateCompanionBuilder,
+      (WorkFile, $$WorkFilesTableReferences),
+      WorkFile,
+      PrefetchHooks Function({bool workId})
+    >;
 typedef $$SubtitlesTableCreateCompanionBuilder =
     SubtitlesCompanion Function({
       required String id,
@@ -7631,6 +8762,8 @@ class $TonariDatabaseManager {
       $$WorksTableTableManager(_db, _db.works);
   $$TracksTableTableManager get tracks =>
       $$TracksTableTableManager(_db, _db.tracks);
+  $$WorkFilesTableTableManager get workFiles =>
+      $$WorkFilesTableTableManager(_db, _db.workFiles);
   $$SubtitlesTableTableManager get subtitles =>
       $$SubtitlesTableTableManager(_db, _db.subtitles);
   $$ImportedFoldersTableTableManager get importedFolders =>

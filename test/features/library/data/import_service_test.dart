@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tonari/core/db/database.dart';
@@ -8,14 +9,19 @@ DetectedWork _work({
   required String rj,
   required String rootPath,
   List<DetectedAudio> audios = const [],
+  List<DetectedImage> images = const [],
+  List<DetectedSubtitle> subtitles = const [],
+  List<DetectedFile> textNotes = const [],
+  List<DetectedFile> others = const [],
 }) =>
     DetectedWork(
       productId: rj,
       rootPath: rootPath,
       audios: audios,
-      images: const [],
-      subtitles: const [],
-      textNotes: const [],
+      images: images,
+      subtitles: subtitles,
+      textNotes: textNotes,
+      others: others,
     );
 
 DetectedAudio _audio({
@@ -35,6 +41,32 @@ DetectedAudio _audio({
       sizeBytes: size,
       parentDirName: parentDir,
       categoryHint: categoryHint,
+    );
+
+DetectedImage _image({
+  required String path,
+  required String fileName,
+  required String relativePath,
+  int size = 50,
+}) =>
+    DetectedImage(
+      path: path,
+      relativePath: relativePath,
+      fileName: fileName,
+      sizeBytes: size,
+    );
+
+DetectedFile _file({
+  required String path,
+  required String fileName,
+  required String relativePath,
+  int size = 30,
+}) =>
+    DetectedFile(
+      path: path,
+      relativePath: relativePath,
+      fileName: fileName,
+      sizeBytes: size,
     );
 
 void main() {
@@ -240,5 +272,138 @@ void main() {
     ));
     expect(summary.worksInserted, 2);
     expect(summary.tracksTotal, 2);
+  });
+
+  test('non-audio files are persisted to work_files', () async {
+    await service.applyScanResult(ScanResult(
+      rootPath: '/scan',
+      filesScanned: 4,
+      unrecognizedDirs: const [],
+      works: [
+        _work(
+          rj: 'RJ_FILES',
+          rootPath: '/scan/RJ_FILES',
+          audios: [
+            _audio(
+              path: '/scan/RJ_FILES/音声/01.wav',
+              fileName: '01.wav',
+              format: 'wav',
+              relativePath: '音声/01.wav',
+            ),
+          ],
+          images: [
+            _image(
+              path: '/scan/RJ_FILES/特典/cover.jpg',
+              fileName: 'cover.jpg',
+              relativePath: '特典/cover.jpg',
+            ),
+          ],
+          textNotes: [
+            _file(
+              path: '/scan/RJ_FILES/readme.txt',
+              fileName: 'readme.txt',
+              relativePath: 'readme.txt',
+            ),
+          ],
+          others: [
+            _file(
+              path: '/scan/RJ_FILES/特典/bonus.zip',
+              fileName: 'bonus.zip',
+              relativePath: '特典/bonus.zip',
+            ),
+          ],
+        ),
+      ],
+    ));
+
+    final files = await db.select(db.workFiles).get();
+    expect(files, hasLength(3));
+    expect(
+      {for (final f in files) f.relativePath: f.fileKind},
+      {
+        '特典/cover.jpg': 'image',
+        'readme.txt': 'text',
+        '特典/bonus.zip': 'other',
+      },
+    );
+    final tracks = await db.select(db.tracks).get();
+    expect(tracks, hasLength(1));
+    expect(tracks.single.relativePath, '音声/01.wav');
+  });
+
+  test('re-scan prunes orphan work_files', () async {
+    final imageA = _image(
+      path: '/scan/RJ_PRUNE/a.jpg',
+      fileName: 'a.jpg',
+      relativePath: 'a.jpg',
+    );
+    final imageB = _image(
+      path: '/scan/RJ_PRUNE/b.jpg',
+      fileName: 'b.jpg',
+      relativePath: 'b.jpg',
+    );
+    await service.applyScanResult(ScanResult(
+      rootPath: '/scan',
+      filesScanned: 2,
+      unrecognizedDirs: const [],
+      works: [
+        _work(rj: 'RJ_PRUNE', rootPath: '/scan/RJ_PRUNE', images: [
+          imageA,
+          imageB,
+        ]),
+      ],
+    ));
+    expect(await db.select(db.workFiles).get(), hasLength(2));
+
+    await service.applyScanResult(ScanResult(
+      rootPath: '/scan',
+      filesScanned: 1,
+      unrecognizedDirs: const [],
+      works: [
+        _work(rj: 'RJ_PRUNE', rootPath: '/scan/RJ_PRUNE', images: [imageA]),
+      ],
+    ));
+    final remaining = await db.select(db.workFiles).get();
+    expect(remaining, hasLength(1));
+    expect(remaining.single.fileName, 'a.jpg');
+  });
+
+  test('applyScanResult clears needsRescan flag on updated works', () async {
+    final now = DateTime(2026, 1, 1);
+    await db.into(db.works).insert(WorksCompanion.insert(
+          productId: 'RJ_FLAG',
+          title: 'flag',
+          localFolderPath: '/old',
+          localImportedAt: now,
+          createdAt: now,
+          updatedAt: now,
+          needsRescan: const Value(true),
+        ));
+    expect(
+      (await (db.select(db.works)
+                ..where((w) => w.productId.equals('RJ_FLAG')))
+              .getSingle())
+          .needsRescan,
+      isTrue,
+    );
+
+    await service.applyScanResult(ScanResult(
+      rootPath: '/scan',
+      filesScanned: 1,
+      unrecognizedDirs: const [],
+      works: [
+        _work(rj: 'RJ_FLAG', rootPath: '/scan/RJ_FLAG', audios: [
+          _audio(
+              path: '/scan/RJ_FLAG/t.mp3',
+              fileName: 't.mp3',
+              format: 'mp3'),
+        ]),
+      ],
+    ));
+
+    final flagged = await (db.select(db.works)
+          ..where((w) => w.productId.equals('RJ_FLAG')))
+        .getSingle();
+    expect(flagged.needsRescan, isFalse);
   });
 }

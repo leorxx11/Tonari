@@ -72,6 +72,7 @@ class Works extends Table {
   TextColumn get lastPlayedTrackId => text().nullable()();
   BoolColumn get isFavorite => boolean().withDefault(const Constant(false))();
   BoolColumn get isRemoved => boolean().withDefault(const Constant(false))();
+  BoolColumn get needsRescan => boolean().withDefault(const Constant(false))();
   IntColumn get userRating => integer().nullable()();
   TextColumn get userTags => text()
       .map(const StringListConverter())

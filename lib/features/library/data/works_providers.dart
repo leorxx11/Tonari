@@ -110,6 +110,15 @@ final tracksByWorkProvider = StreamProvider.family<List<Track>, String>((
       .watch();
 });
 
+final workFilesByWorkProvider =
+    StreamProvider.family<List<WorkFile>, String>((ref, workId) {
+  final db = ref.watch(databaseProvider);
+  return (db.select(db.workFiles)
+        ..where((f) => f.workId.equals(workId))
+        ..orderBy([(f) => OrderingTerm.asc(f.relativePath)]))
+      .watch();
+});
+
 final workByIdProvider = StreamProvider.family<Work?, String>((ref, productId) {
   final db = ref.watch(databaseProvider);
   return (db.select(db.works)..where((w) => w.productId.equals(productId)))

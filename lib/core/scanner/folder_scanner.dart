@@ -43,6 +43,7 @@ class FolderScanner {
       final images = <DetectedImage>[];
       final subtitles = <DetectedSubtitle>[];
       final textNotes = <DetectedFile>[];
+      final others = <DetectedFile>[];
       final rootLen = workDir.path.endsWith('/')
           ? workDir.path.length
           : workDir.path.length + 1;
@@ -59,31 +60,48 @@ class FolderScanner {
           final name = _basename(e.path);
           final kind = FileClassifier.classify(name);
           final parentName = _basename(e.parent.path);
+          final size = e.lengthSync();
+          final rel = relOf(e.path);
 
           if (kind == FileKind.audio) {
             audios.add(DetectedAudio(
               path: e.path,
-              relativePath: relOf(e.path),
+              relativePath: rel,
               fileName: name,
               format: _audioFormat(name),
-              sizeBytes: e.lengthSync(),
+              sizeBytes: size,
               parentDirName: parentName,
               categoryHint: _inferCategory(parentName, name),
             ));
           } else if (kind == FileKind.image) {
             images.add(DetectedImage(
               path: e.path,
+              relativePath: rel,
               fileName: name,
-              sizeBytes: e.lengthSync(),
+              sizeBytes: size,
             ));
           } else if (kind == FileKind.subtitle) {
             subtitles.add(DetectedSubtitle(
               path: e.path,
+              relativePath: rel,
               fileName: name,
               format: FileClassifier.extOf(name).substring(1),
+              sizeBytes: size,
             ));
           } else if (kind == FileKind.text) {
-            textNotes.add(DetectedFile(path: e.path, fileName: name));
+            textNotes.add(DetectedFile(
+              path: e.path,
+              relativePath: rel,
+              fileName: name,
+              sizeBytes: size,
+            ));
+          } else {
+            others.add(DetectedFile(
+              path: e.path,
+              relativePath: rel,
+              fileName: name,
+              sizeBytes: size,
+            ));
           }
         }
       } catch (err) {
@@ -97,6 +115,7 @@ class FolderScanner {
         images: images,
         subtitles: subtitles,
         textNotes: textNotes,
+        others: others,
       );
     }
 

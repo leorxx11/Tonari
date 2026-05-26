@@ -26,6 +26,7 @@ class DetectedWork {
     required this.images,
     required this.subtitles,
     required this.textNotes,
+    this.others = const [],
   });
 
   final String productId;
@@ -34,6 +35,7 @@ class DetectedWork {
   final List<DetectedImage> images;
   final List<DetectedSubtitle> subtitles;
   final List<DetectedFile> textNotes;
+  final List<DetectedFile> others;
 }
 
 class DetectedAudio {
@@ -61,11 +63,13 @@ class DetectedAudio {
 class DetectedImage {
   const DetectedImage({
     required this.path,
+    required this.relativePath,
     required this.fileName,
     required this.sizeBytes,
   });
 
   final String path;
+  final String relativePath;
   final String fileName;
   final int sizeBytes;
 }
@@ -73,17 +77,29 @@ class DetectedImage {
 class DetectedSubtitle {
   const DetectedSubtitle({
     required this.path,
+    required this.relativePath,
     required this.fileName,
     required this.format,
+    required this.sizeBytes,
   });
 
   final String path;
+  final String relativePath;
   final String fileName;
   final String format;
+  final int sizeBytes;
 }
 
 class DetectedFile {
-  const DetectedFile({required this.path, required this.fileName});
+  const DetectedFile({
+    required this.path,
+    required this.relativePath,
+    required this.fileName,
+    required this.sizeBytes,
+  });
+
   final String path;
+  final String relativePath;
   final String fileName;
+  final int sizeBytes;
 }

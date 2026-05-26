@@ -5,18 +5,19 @@ import 'converters.dart';
 import 'tables/imported_folders.dart';
 import 'tables/subtitles.dart';
 import 'tables/tracks.dart';
+import 'tables/work_files.dart';
 import 'tables/works.dart';
 
 part 'database.g.dart';
 
-@DriftDatabase(tables: [Works, Tracks, Subtitles, ImportedFolders])
+@DriftDatabase(tables: [Works, Tracks, WorkFiles, Subtitles, ImportedFolders])
 class TonariDatabase extends _$TonariDatabase {
   TonariDatabase() : super(_openConnection());
 
   TonariDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -40,6 +41,13 @@ class TonariDatabase extends _$TonariDatabase {
       if (from < 6) {
         await m.addColumn(tracks, tracks.relativePath);
         await _backfillRelativePath();
+      }
+      if (from < 7) {
+        await m.createTable(workFiles);
+        await m.addColumn(works, works.needsRescan);
+        // Mark every existing work so the background rescan on next launch
+        // populates work_files (legacy imports never recorded non-audio).
+        await customStatement('UPDATE works SET needs_rescan = 1');
       }
     },
   );

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/favorites/presentation/favorites_page.dart';
 import '../../features/history/presentation/history_page.dart';
 import '../../features/library/data/metadata_enrichment.dart';
+import '../../features/library/data/rescan_service.dart';
 import '../../features/library/presentation/library_page.dart';
 import '../../features/player/presentation/mini_player.dart';
 import '../../features/settings/presentation/settings_page.dart';
@@ -23,6 +24,15 @@ class _RootTabViewState extends ConsumerState<RootTabView> {
   void initState() {
     super.initState();
     unawaited(ref.read(metadataEnrichmentProvider).enrichPending());
+    unawaited(_runPendingRescan());
+  }
+
+  Future<void> _runPendingRescan() async {
+    try {
+      await ref.read(rescanServiceProvider).runPending();
+    } catch (_) {
+      // Background best-effort: ignore (test env / db unavailable / etc).
+    }
   }
 
   @override

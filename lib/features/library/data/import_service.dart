@@ -85,6 +85,7 @@ class ImportService {
               localFolderPath: Value(w.rootPath),
               updatedAt: Value(now),
               importedFolderId: Value(sourceFolderId),
+              needsRescan: const Value(false),
             ),
           );
           worksUpdated++;
@@ -154,6 +155,101 @@ class ImportService {
               ))
               .go();
         }
+
+        // Non-audio files (image / subtitle / text / other) live in their own
+        // table so the on-disk tree can be rendered without intermixing them
+        // with playable tracks.
+        final fileIds = <String>{};
+        Future<void> upsertFile({
+          required String relativePath,
+          required String filePath,
+          required String fileName,
+          required String kind,
+          required int sizeBytes,
+        }) async {
+          final fid = workFileIdFor(w.productId, relativePath);
+          fileIds.add(fid);
+          final existingFile = await (_db.select(
+            _db.workFiles,
+          )..where((row) => row.id.equals(fid))).getSingleOrNull();
+          if (existingFile == null) {
+            await _db.into(_db.workFiles).insert(
+                  WorkFilesCompanion.insert(
+                    id: fid,
+                    workId: w.productId,
+                    filePath: filePath,
+                    relativePath: relativePath,
+                    fileName: fileName,
+                    fileKind: kind,
+                    fileSizeBytes: sizeBytes,
+                    createdAt: now,
+                    updatedAt: now,
+                  ),
+                );
+          } else {
+            await (_db.update(
+              _db.workFiles,
+            )..where((row) => row.id.equals(fid))).write(
+              WorkFilesCompanion(
+                filePath: Value(filePath),
+                fileName: Value(fileName),
+                fileKind: Value(kind),
+                fileSizeBytes: Value(sizeBytes),
+                updatedAt: Value(now),
+              ),
+            );
+          }
+        }
+
+        for (final f in w.images) {
+          await upsertFile(
+            relativePath: f.relativePath,
+            filePath: f.path,
+            fileName: f.fileName,
+            kind: 'image',
+            sizeBytes: f.sizeBytes,
+          );
+        }
+        for (final f in w.subtitles) {
+          await upsertFile(
+            relativePath: f.relativePath,
+            filePath: f.path,
+            fileName: f.fileName,
+            kind: 'subtitle',
+            sizeBytes: f.sizeBytes,
+          );
+        }
+        for (final f in w.textNotes) {
+          await upsertFile(
+            relativePath: f.relativePath,
+            filePath: f.path,
+            fileName: f.fileName,
+            kind: 'text',
+            sizeBytes: f.sizeBytes,
+          );
+        }
+        for (final f in w.others) {
+          await upsertFile(
+            relativePath: f.relativePath,
+            filePath: f.path,
+            fileName: f.fileName,
+            kind: 'other',
+            sizeBytes: f.sizeBytes,
+          );
+        }
+
+        if (fileIds.isEmpty) {
+          await (_db.delete(
+            _db.workFiles,
+          )..where((row) => row.workId.equals(w.productId))).go();
+        } else {
+          await (_db.delete(_db.workFiles)..where(
+                (row) =>
+                    row.workId.equals(w.productId) &
+                    row.id.isNotIn(fileIds.toList()),
+              ))
+              .go();
+        }
       }
     });
 
@@ -172,6 +268,11 @@ class ImportService {
 
   /// Stable across re-scans for the same logical track.
   static String trackIdFor(String workId, String relativePath) {
+    return '$workId|${relativePath.toLowerCase()}';
+  }
+
+  /// Stable across re-scans for the same logical non-audio file.
+  static String workFileIdFor(String workId, String relativePath) {
     return '$workId|${relativePath.toLowerCase()}';
   }
 
