@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:drift/drift.dart' show Value;
+import 'package:drift/drift.dart' show OrderingTerm, Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 
@@ -75,7 +75,69 @@ class PlaybackController extends Notifier<PlaybackState> {
       _releaseScope();
     });
 
+    Future.microtask(_restoreLastPlayed);
+
     return PlaybackState.empty;
+  }
+
+  /// On cold start, surface the most-recently-played work into the
+  /// MiniPlayer with its audio source preloaded and seeked to where the
+  /// user left off — but *not* playing. Tapping play picks up instantly.
+  Future<void> _restoreLastPlayed() async {
+    if (state.hasCurrent) return;
+    final db = ref.read(databaseProvider);
+    final work = await (db.select(db.works)
+          ..where((w) => w.lastPlayedAt.isNotNull())
+          ..where((w) => w.isRemoved.equals(false))
+          ..orderBy([(w) => OrderingTerm.desc(w.lastPlayedAt)])
+          ..limit(1))
+        .getSingleOrNull();
+    if (work == null || work.lastPlayedTrackId == null) return;
+
+    final tracks = await (db.select(db.tracks)
+          ..where((t) => t.workId.equals(work.productId))
+          ..orderBy([(t) => OrderingTerm.asc(t.filePath)]))
+        .get();
+    if (tracks.isEmpty) return;
+
+    final idx = tracks.indexWhere((t) => t.id == work.lastPlayedTrackId);
+    if (idx < 0) return;
+
+    String? bookmark;
+    final folderId = work.importedFolderId;
+    if (folderId != null) {
+      final folder = await (db.select(db.importedFolders)
+            ..where((f) => f.id.equals(folderId)))
+          .getSingleOrNull();
+      bookmark = folder?.bookmarkBase64;
+    }
+    if (bookmark != null) {
+      try {
+        final r = await FolderBookmark.resolve(bookmark);
+        _resolvedFolderUrl = r.url;
+      } catch (_) {
+        // simulator / sandboxed files don't need an active scope
+      }
+    }
+
+    state = PlaybackState(
+      work: work,
+      tracks: tracks,
+      currentIndex: idx,
+      bookmarkBase64: bookmark,
+    );
+
+    final track = tracks[idx];
+    try {
+      await player.setAudioSource(AudioSource.uri(Uri.file(track.filePath)));
+      if (track.lastPositionMs > 0) {
+        await player.seek(Duration(milliseconds: track.lastPositionMs));
+      }
+      await _publishNowPlaying();
+    } catch (_) {
+      // file moved / permission denied — keep the state so MiniPlayer
+      // is visible, but audio playback will surface its own error on tap
+    }
   }
 
   /// Begin playing [tracks] of [work] starting at [initialIndex]. Idempotent

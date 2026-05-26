@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -24,9 +25,9 @@ class MiniPlayer extends ConsumerWidget {
         color: theme.colorScheme.surfaceContainerHigh,
         child: InkWell(
           onTap: () => Navigator.of(context, rootNavigator: true).push(
-            MaterialPageRoute<void>(
-              builder: (_) => const PlayerPage(),
-              fullscreenDialog: true,
+            CupertinoSheetRoute<void>(
+              scrollableBuilder: (_, _) => const PlayerPage(),
+              showDragHandle: true,
             ),
           ),
           child: SizedBox(

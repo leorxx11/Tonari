@@ -52,7 +52,10 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: Text(work.title)),
+      appBar: AppBar(
+        title: Text(work.title),
+        automaticallyImplyLeading: false,
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
