@@ -39,6 +39,7 @@ class DetectedWork {
 class DetectedAudio {
   const DetectedAudio({
     required this.path,
+    required this.relativePath,
     required this.fileName,
     required this.format,
     required this.sizeBytes,
@@ -47,6 +48,7 @@ class DetectedAudio {
   });
 
   final String path;
+  final String relativePath;
   final String fileName;
   final String format;
   final int sizeBytes;
@@ -84,28 +86,4 @@ class DetectedFile {
   const DetectedFile({required this.path, required this.fileName});
   final String path;
   final String fileName;
-}
-
-class MergedTrack {
-  const MergedTrack({
-    required this.baseName,
-    required this.primaryPath,
-    required this.primaryFileName,
-    required this.primaryFormat,
-    required this.primarySizeBytes,
-    required this.parentDirName,
-    required this.alternateQualityPaths,
-    this.categoryHint,
-  });
-
-  final String baseName;
-  final String primaryPath;
-  final String primaryFileName;
-  final String primaryFormat;
-  final int primarySizeBytes;
-  final String parentDirName;
-
-  /// {format: path} for non-primary quality versions.
-  final Map<String, String> alternateQualityPaths;
-  final String? categoryHint;
 }

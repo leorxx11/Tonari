@@ -61,17 +61,16 @@ void main() {
     );
 
     expect(summary.worksInserted, 1);
-    expect(summary.tracksTotal, 1);
+    expect(summary.tracksTotal, 2);
 
     final work = await db.select(db.works).getSingle();
     expect(work.productId, 'RJ01560714');
 
-    final track = await db.select(db.tracks).getSingle();
-    expect(track.title, 'track01');
-    expect(track.fileFormat, 'wav');
+    final tracks = await db.select(db.tracks).get();
+    expect(tracks.map((t) => t.fileFormat).toSet(), {'wav', 'mp3'});
     expect(
-      track.alternateQualityPathsJson,
-      '{"mp3":"${tmp.path}/RJ01560714/本編/track01.mp3"}',
+      tracks.map((t) => t.relativePath).toSet(),
+      {'本編/track01.wav', '本編/track01.mp3'},
     );
   });
 

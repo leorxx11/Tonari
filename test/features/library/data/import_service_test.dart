@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tonari/core/db/database.dart';
@@ -27,9 +25,11 @@ DetectedAudio _audio({
   String parentDir = 'd',
   int size = 100,
   String? categoryHint,
+  String? relativePath,
 }) =>
     DetectedAudio(
       path: path,
+      relativePath: relativePath ?? '$parentDir/$fileName',
       fileName: fileName,
       format: format,
       sizeBytes: size,
@@ -47,7 +47,7 @@ void main() {
   });
   tearDown(() => db.close());
 
-  test('inserts works and tracks on first scan', () async {
+  test('each audio file becomes its own track (no quality merging)', () async {
     final summary = await service.applyScanResult(ScanResult(
       rootPath: '/scan',
       filesScanned: 2,
@@ -68,16 +68,16 @@ void main() {
 
     expect(summary.worksInserted, 1);
     expect(summary.worksUpdated, 0);
-    expect(summary.tracksTotal, 1);
+    expect(summary.tracksTotal, 2);
 
     final works = await db.select(db.works).get();
     expect(works.single.productId, 'RJ100001');
 
     final tracks = await db.select(db.tracks).get();
-    expect(tracks, hasLength(1));
-    expect(tracks.single.fileFormat, 'wav');
-    expect(jsonDecode(tracks.single.alternateQualityPathsJson),
-        {'mp3': '/scan/RJ100001/d/track01.mp3'});
+    expect(tracks, hasLength(2));
+    expect(tracks.map((t) => t.fileFormat).toSet(), {'wav', 'mp3'});
+    expect(tracks.map((t) => t.relativePath).toSet(),
+        {'d/track01.wav', 'd/track01.mp3'});
   });
 
   test('re-scan updates work and preserves track play state', () async {
@@ -97,7 +97,7 @@ void main() {
     await service.applyScanResult(scan);
 
     // Simulate playback progress on the existing track.
-    final trackId = ImportService.trackIdFor('RJ222222', 'd', 't');
+    final trackId = ImportService.trackIdFor('RJ222222', 'd/t.mp3');
     await db.customStatement(
       'UPDATE tracks SET last_position_ms = ?, play_count = ? WHERE id = ?',
       [5000, 3, trackId],

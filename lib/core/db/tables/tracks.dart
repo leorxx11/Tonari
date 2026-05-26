@@ -7,6 +7,7 @@ class Tracks extends Table {
   TextColumn get workId => text().references(Works, #productId)();
 
   TextColumn get filePath => text()();
+  TextColumn get relativePath => text().withDefault(const Constant(''))();
   TextColumn get fileName => text()();
   TextColumn get fileFormat => text()();
   IntColumn get fileSizeBytes => integer()();

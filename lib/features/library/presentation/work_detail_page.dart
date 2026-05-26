@@ -975,9 +975,6 @@ class _TrackTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final alternates =
-        (jsonDecode(track.alternateQualityPathsJson) as Map<String, dynamic>)
-            .cast<String, String>();
     final theme = Theme.of(context);
 
     final playback = ref.watch(playbackControllerProvider);
@@ -1042,9 +1039,7 @@ class _TrackTile extends ConsumerWidget {
             spacing: 6,
             runSpacing: 6,
             children: [
-              _FormatChip(label: '主音质 ${track.fileFormat.toUpperCase()}'),
-              for (final format in alternates.keys)
-                _FormatChip(label: '备用 ${format.toUpperCase()}'),
+              _FormatChip(label: track.fileFormat.toUpperCase()),
             ],
           ),
         ],

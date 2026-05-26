@@ -1,11 +1,8 @@
-import 'dart:convert';
-
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/db/database.dart';
 import '../../../core/db/providers.dart';
-import '../../../core/scanner/audio_merger.dart';
 import '../../../core/scanner/scan_models.dart';
 
 class ImportSummary {
@@ -93,11 +90,11 @@ class ImportService {
           worksUpdated++;
         }
 
-        final merged = AudioMerger.merge(w.audios);
         final scannedIds = <String>{};
 
-        for (final mt in merged) {
-          final tid = trackIdFor(w.productId, mt.parentDirName, mt.baseName);
+        for (final a in w.audios) {
+          final baseName = _stripExt(a.fileName);
+          final tid = trackIdFor(w.productId, a.relativePath);
           scannedIds.add(tid);
           trackIds.add(tid);
 
@@ -112,17 +109,15 @@ class ImportService {
                   TracksCompanion.insert(
                     id: tid,
                     workId: w.productId,
-                    filePath: mt.primaryPath,
-                    fileName: mt.primaryFileName,
-                    fileFormat: mt.primaryFormat,
-                    fileSizeBytes: mt.primarySizeBytes,
+                    filePath: a.path,
+                    relativePath: Value(a.relativePath),
+                    fileName: a.fileName,
+                    fileFormat: a.format,
+                    fileSizeBytes: a.sizeBytes,
                     durationMs: 0,
-                    parentDirName: mt.parentDirName,
-                    title: mt.baseName,
-                    alternateQualityPathsJson: Value(
-                      jsonEncode(mt.alternateQualityPaths),
-                    ),
-                    categoryHint: Value(mt.categoryHint),
+                    parentDirName: a.parentDirName,
+                    title: baseName,
+                    categoryHint: Value(a.categoryHint),
                     createdAt: now,
                     updatedAt: now,
                   ),
@@ -132,16 +127,14 @@ class ImportService {
               _db.tracks,
             )..where((row) => row.id.equals(tid))).write(
               TracksCompanion(
-                filePath: Value(mt.primaryPath),
-                fileName: Value(mt.primaryFileName),
-                fileFormat: Value(mt.primaryFormat),
-                fileSizeBytes: Value(mt.primarySizeBytes),
-                parentDirName: Value(mt.parentDirName),
-                title: Value(mt.baseName),
-                alternateQualityPathsJson: Value(
-                  jsonEncode(mt.alternateQualityPaths),
-                ),
-                categoryHint: Value(mt.categoryHint),
+                filePath: Value(a.path),
+                relativePath: Value(a.relativePath),
+                fileName: Value(a.fileName),
+                fileFormat: Value(a.format),
+                fileSizeBytes: Value(a.sizeBytes),
+                parentDirName: Value(a.parentDirName),
+                title: Value(baseName),
+                categoryHint: Value(a.categoryHint),
                 updatedAt: Value(now),
               ),
             );
@@ -178,8 +171,13 @@ class ImportService {
   }
 
   /// Stable across re-scans for the same logical track.
-  static String trackIdFor(String workId, String parentDir, String baseName) {
-    return '$workId|${parentDir.toLowerCase()}|${baseName.toLowerCase()}';
+  static String trackIdFor(String workId, String relativePath) {
+    return '$workId|${relativePath.toLowerCase()}';
+  }
+
+  static String _stripExt(String fileName) {
+    final i = fileName.lastIndexOf('.');
+    return i < 0 ? fileName : fileName.substring(0, i);
   }
 }
 

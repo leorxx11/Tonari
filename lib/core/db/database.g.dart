@@ -2770,6 +2770,18 @@ class $TracksTable extends Tracks with TableInfo<$TracksTable, Track> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _relativePathMeta = const VerificationMeta(
+    'relativePath',
+  );
+  @override
+  late final GeneratedColumn<String> relativePath = GeneratedColumn<String>(
+    'relative_path',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   static const VerificationMeta _fileNameMeta = const VerificationMeta(
     'fileName',
   );
@@ -2952,6 +2964,7 @@ class $TracksTable extends Tracks with TableInfo<$TracksTable, Track> {
     id,
     workId,
     filePath,
+    relativePath,
     fileName,
     fileFormat,
     fileSizeBytes,
@@ -3001,6 +3014,15 @@ class $TracksTable extends Tracks with TableInfo<$TracksTable, Track> {
       );
     } else if (isInserting) {
       context.missing(_filePathMeta);
+    }
+    if (data.containsKey('relative_path')) {
+      context.handle(
+        _relativePathMeta,
+        relativePath.isAcceptableOrUnknown(
+          data['relative_path']!,
+          _relativePathMeta,
+        ),
+      );
     }
     if (data.containsKey('file_name')) {
       context.handle(
@@ -3156,6 +3178,10 @@ class $TracksTable extends Tracks with TableInfo<$TracksTable, Track> {
         DriftSqlType.string,
         data['${effectivePrefix}file_path'],
       )!,
+      relativePath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}relative_path'],
+      )!,
       fileName: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}file_name'],
@@ -3233,6 +3259,7 @@ class Track extends DataClass implements Insertable<Track> {
   final String id;
   final String workId;
   final String filePath;
+  final String relativePath;
   final String fileName;
   final String fileFormat;
   final int fileSizeBytes;
@@ -3253,6 +3280,7 @@ class Track extends DataClass implements Insertable<Track> {
     required this.id,
     required this.workId,
     required this.filePath,
+    required this.relativePath,
     required this.fileName,
     required this.fileFormat,
     required this.fileSizeBytes,
@@ -3276,6 +3304,7 @@ class Track extends DataClass implements Insertable<Track> {
     map['id'] = Variable<String>(id);
     map['work_id'] = Variable<String>(workId);
     map['file_path'] = Variable<String>(filePath);
+    map['relative_path'] = Variable<String>(relativePath);
     map['file_name'] = Variable<String>(fileName);
     map['file_format'] = Variable<String>(fileFormat);
     map['file_size_bytes'] = Variable<int>(fileSizeBytes);
@@ -3312,6 +3341,7 @@ class Track extends DataClass implements Insertable<Track> {
       id: Value(id),
       workId: Value(workId),
       filePath: Value(filePath),
+      relativePath: Value(relativePath),
       fileName: Value(fileName),
       fileFormat: Value(fileFormat),
       fileSizeBytes: Value(fileSizeBytes),
@@ -3350,6 +3380,7 @@ class Track extends DataClass implements Insertable<Track> {
       id: serializer.fromJson<String>(json['id']),
       workId: serializer.fromJson<String>(json['workId']),
       filePath: serializer.fromJson<String>(json['filePath']),
+      relativePath: serializer.fromJson<String>(json['relativePath']),
       fileName: serializer.fromJson<String>(json['fileName']),
       fileFormat: serializer.fromJson<String>(json['fileFormat']),
       fileSizeBytes: serializer.fromJson<int>(json['fileSizeBytes']),
@@ -3377,6 +3408,7 @@ class Track extends DataClass implements Insertable<Track> {
       'id': serializer.toJson<String>(id),
       'workId': serializer.toJson<String>(workId),
       'filePath': serializer.toJson<String>(filePath),
+      'relativePath': serializer.toJson<String>(relativePath),
       'fileName': serializer.toJson<String>(fileName),
       'fileFormat': serializer.toJson<String>(fileFormat),
       'fileSizeBytes': serializer.toJson<int>(fileSizeBytes),
@@ -3402,6 +3434,7 @@ class Track extends DataClass implements Insertable<Track> {
     String? id,
     String? workId,
     String? filePath,
+    String? relativePath,
     String? fileName,
     String? fileFormat,
     int? fileSizeBytes,
@@ -3422,6 +3455,7 @@ class Track extends DataClass implements Insertable<Track> {
     id: id ?? this.id,
     workId: workId ?? this.workId,
     filePath: filePath ?? this.filePath,
+    relativePath: relativePath ?? this.relativePath,
     fileName: fileName ?? this.fileName,
     fileFormat: fileFormat ?? this.fileFormat,
     fileSizeBytes: fileSizeBytes ?? this.fileSizeBytes,
@@ -3445,6 +3479,9 @@ class Track extends DataClass implements Insertable<Track> {
       id: data.id.present ? data.id.value : this.id,
       workId: data.workId.present ? data.workId.value : this.workId,
       filePath: data.filePath.present ? data.filePath.value : this.filePath,
+      relativePath: data.relativePath.present
+          ? data.relativePath.value
+          : this.relativePath,
       fileName: data.fileName.present ? data.fileName.value : this.fileName,
       fileFormat: data.fileFormat.present
           ? data.fileFormat.value
@@ -3490,6 +3527,7 @@ class Track extends DataClass implements Insertable<Track> {
           ..write('id: $id, ')
           ..write('workId: $workId, ')
           ..write('filePath: $filePath, ')
+          ..write('relativePath: $relativePath, ')
           ..write('fileName: $fileName, ')
           ..write('fileFormat: $fileFormat, ')
           ..write('fileSizeBytes: $fileSizeBytes, ')
@@ -3515,6 +3553,7 @@ class Track extends DataClass implements Insertable<Track> {
     id,
     workId,
     filePath,
+    relativePath,
     fileName,
     fileFormat,
     fileSizeBytes,
@@ -3539,6 +3578,7 @@ class Track extends DataClass implements Insertable<Track> {
           other.id == this.id &&
           other.workId == this.workId &&
           other.filePath == this.filePath &&
+          other.relativePath == this.relativePath &&
           other.fileName == this.fileName &&
           other.fileFormat == this.fileFormat &&
           other.fileSizeBytes == this.fileSizeBytes &&
@@ -3561,6 +3601,7 @@ class TracksCompanion extends UpdateCompanion<Track> {
   final Value<String> id;
   final Value<String> workId;
   final Value<String> filePath;
+  final Value<String> relativePath;
   final Value<String> fileName;
   final Value<String> fileFormat;
   final Value<int> fileSizeBytes;
@@ -3582,6 +3623,7 @@ class TracksCompanion extends UpdateCompanion<Track> {
     this.id = const Value.absent(),
     this.workId = const Value.absent(),
     this.filePath = const Value.absent(),
+    this.relativePath = const Value.absent(),
     this.fileName = const Value.absent(),
     this.fileFormat = const Value.absent(),
     this.fileSizeBytes = const Value.absent(),
@@ -3604,6 +3646,7 @@ class TracksCompanion extends UpdateCompanion<Track> {
     required String id,
     required String workId,
     required String filePath,
+    this.relativePath = const Value.absent(),
     required String fileName,
     required String fileFormat,
     required int fileSizeBytes,
@@ -3636,6 +3679,7 @@ class TracksCompanion extends UpdateCompanion<Track> {
     Expression<String>? id,
     Expression<String>? workId,
     Expression<String>? filePath,
+    Expression<String>? relativePath,
     Expression<String>? fileName,
     Expression<String>? fileFormat,
     Expression<int>? fileSizeBytes,
@@ -3658,6 +3702,7 @@ class TracksCompanion extends UpdateCompanion<Track> {
       if (id != null) 'id': id,
       if (workId != null) 'work_id': workId,
       if (filePath != null) 'file_path': filePath,
+      if (relativePath != null) 'relative_path': relativePath,
       if (fileName != null) 'file_name': fileName,
       if (fileFormat != null) 'file_format': fileFormat,
       if (fileSizeBytes != null) 'file_size_bytes': fileSizeBytes,
@@ -3683,6 +3728,7 @@ class TracksCompanion extends UpdateCompanion<Track> {
     Value<String>? id,
     Value<String>? workId,
     Value<String>? filePath,
+    Value<String>? relativePath,
     Value<String>? fileName,
     Value<String>? fileFormat,
     Value<int>? fileSizeBytes,
@@ -3705,6 +3751,7 @@ class TracksCompanion extends UpdateCompanion<Track> {
       id: id ?? this.id,
       workId: workId ?? this.workId,
       filePath: filePath ?? this.filePath,
+      relativePath: relativePath ?? this.relativePath,
       fileName: fileName ?? this.fileName,
       fileFormat: fileFormat ?? this.fileFormat,
       fileSizeBytes: fileSizeBytes ?? this.fileSizeBytes,
@@ -3737,6 +3784,9 @@ class TracksCompanion extends UpdateCompanion<Track> {
     }
     if (filePath.present) {
       map['file_path'] = Variable<String>(filePath.value);
+    }
+    if (relativePath.present) {
+      map['relative_path'] = Variable<String>(relativePath.value);
     }
     if (fileName.present) {
       map['file_name'] = Variable<String>(fileName.value);
@@ -3800,6 +3850,7 @@ class TracksCompanion extends UpdateCompanion<Track> {
           ..write('id: $id, ')
           ..write('workId: $workId, ')
           ..write('filePath: $filePath, ')
+          ..write('relativePath: $relativePath, ')
           ..write('fileName: $fileName, ')
           ..write('fileFormat: $fileFormat, ')
           ..write('fileSizeBytes: $fileSizeBytes, ')
@@ -6202,6 +6253,7 @@ typedef $$TracksTableCreateCompanionBuilder =
       required String id,
       required String workId,
       required String filePath,
+      Value<String> relativePath,
       required String fileName,
       required String fileFormat,
       required int fileSizeBytes,
@@ -6225,6 +6277,7 @@ typedef $$TracksTableUpdateCompanionBuilder =
       Value<String> id,
       Value<String> workId,
       Value<String> filePath,
+      Value<String> relativePath,
       Value<String> fileName,
       Value<String> fileFormat,
       Value<int> fileSizeBytes,
@@ -6301,6 +6354,11 @@ class $$TracksTableFilterComposer
 
   ColumnFilters<String> get filePath => $composableBuilder(
     column: $table.filePath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get relativePath => $composableBuilder(
+    column: $table.relativePath,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6452,6 +6510,11 @@ class $$TracksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get relativePath => $composableBuilder(
+    column: $table.relativePath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get fileName => $composableBuilder(
     column: $table.fileName,
     builder: (column) => ColumnOrderings(column),
@@ -6570,6 +6633,11 @@ class $$TracksTableAnnotationComposer
 
   GeneratedColumn<String> get filePath =>
       $composableBuilder(column: $table.filePath, builder: (column) => column);
+
+  GeneratedColumn<String> get relativePath => $composableBuilder(
+    column: $table.relativePath,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get fileName =>
       $composableBuilder(column: $table.fileName, builder: (column) => column);
@@ -6719,6 +6787,7 @@ class $$TracksTableTableManager
                 Value<String> id = const Value.absent(),
                 Value<String> workId = const Value.absent(),
                 Value<String> filePath = const Value.absent(),
+                Value<String> relativePath = const Value.absent(),
                 Value<String> fileName = const Value.absent(),
                 Value<String> fileFormat = const Value.absent(),
                 Value<int> fileSizeBytes = const Value.absent(),
@@ -6740,6 +6809,7 @@ class $$TracksTableTableManager
                 id: id,
                 workId: workId,
                 filePath: filePath,
+                relativePath: relativePath,
                 fileName: fileName,
                 fileFormat: fileFormat,
                 fileSizeBytes: fileSizeBytes,
@@ -6763,6 +6833,7 @@ class $$TracksTableTableManager
                 required String id,
                 required String workId,
                 required String filePath,
+                Value<String> relativePath = const Value.absent(),
                 required String fileName,
                 required String fileFormat,
                 required int fileSizeBytes,
@@ -6784,6 +6855,7 @@ class $$TracksTableTableManager
                 id: id,
                 workId: workId,
                 filePath: filePath,
+                relativePath: relativePath,
                 fileName: fileName,
                 fileFormat: fileFormat,
                 fileSizeBytes: fileSizeBytes,

@@ -43,6 +43,14 @@ class FolderScanner {
       final images = <DetectedImage>[];
       final subtitles = <DetectedSubtitle>[];
       final textNotes = <DetectedFile>[];
+      final rootLen = workDir.path.endsWith('/')
+          ? workDir.path.length
+          : workDir.path.length + 1;
+
+      String relOf(String full) {
+        if (full.length <= rootLen) return _basename(full);
+        return full.substring(rootLen);
+      }
 
       try {
         for (final e in workDir.listSync(recursive: true, followLinks: false)) {
@@ -55,6 +63,7 @@ class FolderScanner {
           if (kind == FileKind.audio) {
             audios.add(DetectedAudio(
               path: e.path,
+              relativePath: relOf(e.path),
               fileName: name,
               format: _audioFormat(name),
               sizeBytes: e.lengthSync(),

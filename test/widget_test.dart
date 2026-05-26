@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -91,23 +89,22 @@ Track _track({
   required String fileName,
   required String fileFormat,
   String relativeDir = '本編',
-  Map<String, String> alternates = const {},
 }) {
   final now = DateTime(2026, 5, 24, 14, 30);
-  final filePath = relativeDir == '.'
-      ? '/imported/$workId/$fileName'
-      : '/imported/$workId/$relativeDir/$fileName';
+  final relPath = relativeDir == '.' ? fileName : '$relativeDir/$fileName';
+  final filePath = '/imported/$workId/$relPath';
   return Track(
     id: id,
     workId: workId,
     filePath: filePath,
+    relativePath: relPath,
     fileName: fileName,
     fileFormat: fileFormat,
     fileSizeBytes: 1024,
     durationMs: 0,
     parentDirName: relativeDir == '.' ? workId : relativeDir.split('/').last,
     title: title,
-    alternateQualityPathsJson: jsonEncode(alternates),
+    alternateQualityPathsJson: '{}',
     lastPositionMs: 0,
     playCount: 0,
     createdAt: now,
@@ -211,7 +208,6 @@ void main() {
             title: 'track01',
             fileName: 'track01.wav',
             fileFormat: 'wav',
-            alternates: {'mp3': '/imported/RJ01560714/track01.mp3'},
           ),
         ],
       ),
@@ -231,8 +227,7 @@ void main() {
     expect(find.text('RJ01560714'), findsOneWidget);
     expect(find.text('章节'), findsOneWidget);
     expect(find.text('track01'), findsOneWidget);
-    expect(find.text('主音质 WAV'), findsOneWidget);
-    expect(find.text('备用 MP3'), findsOneWidget);
+    expect(find.text('WAV'), findsOneWidget);
   });
 
   testWidgets('detail page hides the tab bar (full-screen detail)', (
