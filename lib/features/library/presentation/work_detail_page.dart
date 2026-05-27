@@ -161,8 +161,6 @@ class _HeaderSection extends StatelessWidget {
           const SizedBox(height: 20),
           Text(
             work.title,
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w600,
               height: 1.3,
