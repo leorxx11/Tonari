@@ -9,6 +9,9 @@ import '../data/track_duration_probe.dart';
 import '../data/work_tree.dart';
 import '../data/works_providers.dart';
 
+/// Teal highlight applied to the track row currently being played.
+const Color _kCurrentTrackBackground = Color(0xFF008B7D);
+
 class WorkFilesPage extends ConsumerStatefulWidget {
   const WorkFilesPage({super.key, required this.work});
 
@@ -393,8 +396,13 @@ class _NodeRow extends ConsumerWidget {
       final playback = ref.watch(playbackControllerProvider);
       final controller = ref.read(playbackControllerProvider.notifier);
       final isCurrent = playback.currentTrack?.id == t.id;
+      final titleColor = isCurrent ? Colors.white : iosLabel;
+      final subtitleColor = isCurrent
+          ? Colors.white.withValues(alpha: 0.78)
+          : iosSecondary;
       return ListTile(
         contentPadding: rowPadding,
+        tileColor: isCurrent ? _kCurrentTrackBackground : null,
         leading: _TrackLeading(
           isCurrent: isCurrent,
           playingStream: isCurrent ? controller.player.playingStream : null,
@@ -404,14 +412,14 @@ class _NodeRow extends ConsumerWidget {
           maxLines: 5,
           overflow: TextOverflow.ellipsis,
           style: theme.textTheme.bodyLarge?.copyWith(
-            color: iosLabel,
+            color: titleColor,
             fontWeight: FontWeight.w500,
           ),
         ),
         subtitle: t.durationMs > 0
             ? Text(
                 _formatTrackDuration(t.durationMs),
-                style: theme.textTheme.bodySmall?.copyWith(color: iosSecondary),
+                style: theme.textTheme.bodySmall?.copyWith(color: subtitleColor),
               )
             : null,
         onTap: () {

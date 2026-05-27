@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:drift/drift.dart' show OrderingTerm, Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +9,7 @@ import '../../../core/db/database.dart';
 import '../../../core/db/providers.dart';
 import '../../../core/files/folder_bookmark.dart';
 import '../../../core/files/local_image_path.dart';
+import '../../settings/data/player_prefs.dart';
 import 'now_playing_bridge.dart';
 
 class PlaybackState {
@@ -251,12 +253,35 @@ class PlaybackController extends Notifier<PlaybackState> {
   Future<void> _onProcessingState(ProcessingState s) async {
     if (s != ProcessingState.completed) return;
     await _bumpPlayCount();
-    if (state.hasNext) {
-      await next();
-    } else {
-      await player.pause();
-      await player.seek(Duration.zero);
-      await _publishNowPlaying();
+    final mode = ref.read(playerPrefsProvider).playbackMode;
+    switch (mode) {
+      case PlaybackMode.sequence:
+        if (state.hasNext) {
+          await next();
+        } else {
+          await player.pause();
+          await player.seek(Duration.zero);
+          await _publishNowPlaying();
+        }
+      case PlaybackMode.loopAll:
+        if (state.hasNext) {
+          await next();
+        } else if (state.tracks.isNotEmpty) {
+          await playAt(0);
+        }
+      case PlaybackMode.loopOne:
+        await playAt(state.currentIndex);
+      case PlaybackMode.shuffle:
+        if (state.tracks.length <= 1) {
+          await playAt(state.currentIndex);
+        } else {
+          final rng = math.Random();
+          var idx = rng.nextInt(state.tracks.length);
+          if (idx == state.currentIndex) {
+            idx = (idx + 1) % state.tracks.length;
+          }
+          await playAt(idx);
+        }
     }
   }
 
