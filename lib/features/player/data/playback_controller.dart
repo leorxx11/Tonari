@@ -178,7 +178,7 @@ class PlaybackController extends Notifier<PlaybackState> {
       currentIndex: initialIndex,
       bookmarkBase64: bookmarkBase64,
     );
-    await _loadAndPlay(resume: true);
+    await _loadAndPlay();
   }
 
   Future<void> playAt(int index) async {
@@ -186,7 +186,7 @@ class PlaybackController extends Notifier<PlaybackState> {
     if (index < 0 || index >= state.tracks.length) return;
     await _savePosition();
     state = state.copyWith(currentIndex: index);
-    await _loadAndPlay(resume: true);
+    await _loadAndPlay();
   }
 
   Future<void> next() async {
@@ -233,15 +233,16 @@ class PlaybackController extends Notifier<PlaybackState> {
     state = PlaybackState.empty;
   }
 
-  Future<void> _loadAndPlay({bool resume = false}) async {
+  /// Loads the current track from scratch and starts playing. Per-track
+  /// resume is deliberately not done here — the user wants every tap on a
+  /// track to start from the beginning. Cold-start MiniPlayer hydration in
+  /// [_restoreLastPlayed] is the only place that seeks to `lastPositionMs`.
+  Future<void> _loadAndPlay() async {
     final track = state.currentTrack;
     final work = state.work;
     if (track == null || work == null) return;
 
     await player.setAudioSource(AudioSource.uri(Uri.file(track.filePath)));
-    if (resume && track.lastPositionMs > 0) {
-      await player.seek(Duration(milliseconds: track.lastPositionMs));
-    }
     await _bumpLastPlayed(trackChanged: true);
     await player.play();
     await _publishNowPlaying();

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/db/database.dart';
 import '../../player/data/playback_controller.dart';
 import '../../settings/data/path_prefs.dart';
+import '../data/track_duration_probe.dart';
 import '../data/work_tree.dart';
 import '../data/works_providers.dart';
 
@@ -20,6 +21,7 @@ class WorkFilesPage extends ConsumerStatefulWidget {
 class _WorkFilesPageState extends ConsumerState<WorkFilesPage> {
   final List<String> _path = [];
   bool _autoApplied = false;
+  bool _probeStarted = false;
 
   @override
   Widget build(BuildContext context) {
@@ -50,8 +52,17 @@ class _WorkFilesPageState extends ConsumerState<WorkFilesPage> {
       }
     }
 
+    if (!_probeStarted && tracksAsync.hasValue) {
+      _probeStarted = true;
+      final toProbe = tracksAsync.value!;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(trackDurationProbeProvider).probe(toProbe);
+      });
+    }
+
     final currentChildren = _resolve(roots, _path);
     final theme = Theme.of(context);
+    final titleText = _path.isEmpty ? '资源' : _path.last;
 
     return PopScope(
       canPop: _path.isEmpty,
@@ -64,7 +75,15 @@ class _WorkFilesPageState extends ConsumerState<WorkFilesPage> {
       child: Scaffold(
         appBar: AppBar(
           leading: BackButton(onPressed: _onBack),
-          title: Text(_path.isEmpty ? '资源' : _path.last),
+          title: Text(
+            titleText,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          actions: [
+            if (prefs.smartPath && autoHint.isNotEmpty)
+              _AutoPathBadge(hint: autoHint),
+          ],
         ),
         body: Column(
           children: [
@@ -73,21 +92,30 @@ class _WorkFilesPageState extends ConsumerState<WorkFilesPage> {
               path: _path,
               onTapSegment: _onTapBreadcrumb,
             ),
-            _AutoPathHint(enabled: prefs.smartPath, hint: autoHint),
-            const Divider(height: 1),
+            Divider(
+              height: 0.5,
+              thickness: 0.5,
+              color: CupertinoColors.separator.resolveFrom(context),
+            ),
             Expanded(
               child: currentChildren.isEmpty
                   ? Center(
                       child: Text(
                         '此目录为空',
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
+                          color: CupertinoColors.secondaryLabel
+                              .resolveFrom(context),
                         ),
                       ),
                     )
                   : ListView.separated(
                       itemCount: currentChildren.length,
-                      separatorBuilder: (_, _) => const Divider(height: 1),
+                      separatorBuilder: (_, _) => Divider(
+                        height: 0.5,
+                        thickness: 0.5,
+                        indent: 72,
+                        color: CupertinoColors.separator.resolveFrom(context),
+                      ),
                       itemBuilder: (context, i) => _NodeRow(
                         node: currentChildren[i],
                         onTapFolder: (name) =>
@@ -96,6 +124,8 @@ class _WorkFilesPageState extends ConsumerState<WorkFilesPage> {
                       ),
                     ),
             ),
+            if (currentChildren.isNotEmpty)
+              _FooterStats(children: currentChildren),
           ],
         ),
       ),
@@ -166,105 +196,141 @@ class _Breadcrumbs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final iosBlue = CupertinoColors.systemBlue.resolveFrom(context);
+    final iosLabel = CupertinoColors.label.resolveFrom(context);
+    final iosTertiary = CupertinoColors.tertiaryLabel.resolveFrom(context);
+
+    Widget crumb({
+      required String label,
+      required bool current,
+      VoidCallback? onTap,
+    }) {
+      final color = current ? iosLabel : iosBlue;
+      return InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(6),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.folder_rounded, color: color, size: 22),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: color,
+                  fontWeight: current ? FontWeight.w600 : FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final sep = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Text(
+        '/',
+        style: theme.textTheme.titleSmall?.copyWith(color: iosTertiary),
+      ),
+    );
+
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       child: Row(
         children: [
-          _crumb(
-            theme,
+          crumb(
             label: workId,
-            onTap: path.isEmpty ? null : () => onTapSegment(-1),
             current: path.isEmpty,
+            onTap: path.isEmpty ? null : () => onTapSegment(-1),
           ),
           for (var i = 0; i < path.length; i++) ...[
-            _sep(theme),
-            _crumb(
-              theme,
+            sep,
+            crumb(
               label: path[i],
-              onTap: i == path.length - 1 ? null : () => onTapSegment(i),
               current: i == path.length - 1,
+              onTap: i == path.length - 1 ? null : () => onTapSegment(i),
             ),
           ],
         ],
       ),
     );
   }
+}
 
-  Widget _crumb(
-    ThemeData theme, {
-    required String label,
-    VoidCallback? onTap,
-    bool current = false,
-  }) {
-    final color = current
-        ? theme.colorScheme.onSurface
-        : theme.colorScheme.primary;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(4),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-        child: Row(
-          children: [
-            Icon(Icons.folder, size: 16, color: color),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: theme.textTheme.labelLarge?.copyWith(
-                color: color,
-                fontWeight: current ? FontWeight.w600 : FontWeight.w500,
-              ),
-            ),
-          ],
+class _FooterStats extends StatelessWidget {
+  const _FooterStats({required this.children});
+
+  final List<WorkTreeNode> children;
+
+  @override
+  Widget build(BuildContext context) {
+    var totalDurMs = 0;
+    var audioCount = 0;
+    for (final c in children) {
+      if (c is WorkTreeTrack) {
+        totalDurMs += c.track.durationMs;
+        audioCount += 1;
+      } else if (c is WorkTreeFolder) {
+        totalDurMs += c.totalDurationMs;
+        audioCount += c.audioCount;
+      }
+    }
+    final theme = Theme.of(context);
+    final iosSecondary = CupertinoColors.secondaryLabel.resolveFrom(context);
+    final parts = <String>[
+      '${children.length} 项',
+      if (audioCount > 0) '$audioCount 音频',
+      if (totalDurMs > 0) _formatTotalDuration(totalDurMs),
+    ];
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(
+            color: CupertinoColors.separator.resolveFrom(context),
+            width: 0.5,
+          ),
         ),
+      ),
+      child: Text(
+        parts.join(' · '),
+        style: theme.textTheme.bodySmall?.copyWith(color: iosSecondary),
       ),
     );
   }
-
-  Widget _sep(ThemeData theme) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        child: Text(
-          '/',
-          style: theme.textTheme.labelLarge?.copyWith(
-            color: theme.colorScheme.outline,
-          ),
-        ),
-      );
 }
 
-class _AutoPathHint extends StatelessWidget {
-  const _AutoPathHint({required this.enabled, required this.hint});
+class _AutoPathBadge extends StatelessWidget {
+  const _AutoPathBadge({required this.hint});
 
-  final bool enabled;
   final List<String> hint;
 
   @override
   Widget build(BuildContext context) {
-    if (!enabled) return const SizedBox.shrink();
-    final theme = Theme.of(context);
-    final label = hint.isEmpty ? '未命中' : hint.join(' / ');
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-      child: Row(
-        children: [
-          Icon(
-            Icons.alt_route,
-            size: 14,
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              '智能路径: $label',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+    final iosBlue = CupertinoColors.systemBlue.resolveFrom(context);
+    final tooltip = '智能路径: ${hint.join(' / ')}';
+    return Tooltip(
+      message: tooltip,
+      child: IconButton(
+        icon: Icon(CupertinoIcons.wand_stars, color: iosBlue, size: 20),
+        onPressed: () {
+          ScaffoldMessenger.of(context)
+            ..clearSnackBars()
+            ..showSnackBar(
+              SnackBar(
+                behavior: SnackBarBehavior.floating,
+                duration: const Duration(seconds: 3),
+                content: Text(tooltip),
               ),
-            ),
-          ),
-        ],
+            );
+        },
       ),
     );
   }
@@ -284,6 +350,10 @@ class _NodeRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final iosBlue = CupertinoColors.systemBlue.resolveFrom(context);
+    final iosLabel = CupertinoColors.label.resolveFrom(context);
+    final iosSecondary = CupertinoColors.secondaryLabel.resolveFrom(context);
+    const rowPadding = EdgeInsets.symmetric(horizontal: 14, vertical: 6);
     final n = node;
     if (n is WorkTreeFolder) {
       final parts = <String>[
@@ -291,68 +361,156 @@ class _NodeRow extends ConsumerWidget {
         if (n.audioCount > 0) _formatTotalDuration(n.totalDurationMs),
       ];
       return ListTile(
-        leading: const Icon(Icons.folder, color: Color(0xFFFFC857), size: 32),
+        contentPadding: rowPadding,
+        leading: Icon(
+          Icons.folder_rounded,
+          color: iosBlue,
+          size: 44,
+        ),
         title: Text(
           n.name,
-          maxLines: 1,
+          maxLines: 5,
           overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.bodyLarge?.copyWith(
+            color: iosLabel,
+            fontWeight: FontWeight.w500,
+          ),
         ),
-        subtitle: Text(parts.join(', ')),
-        trailing: const Icon(CupertinoIcons.chevron_right, size: 16),
+        subtitle: Text(
+          parts.join(', '),
+          style: theme.textTheme.bodySmall?.copyWith(color: iosSecondary),
+        ),
+        trailing: Icon(
+          CupertinoIcons.chevron_right,
+          size: 14,
+          color: iosSecondary,
+        ),
         onTap: () => onTapFolder(n.name),
       );
     }
     if (n is WorkTreeTrack) {
       final t = n.track;
       final playback = ref.watch(playbackControllerProvider);
+      final controller = ref.read(playbackControllerProvider.notifier);
       final isCurrent = playback.currentTrack?.id == t.id;
-      final completed = t.durationMs > 0 &&
-          t.lastPositionMs / t.durationMs >= 0.95;
-      final mutedColor = theme.colorScheme.onSurfaceVariant;
       return ListTile(
-        leading: Icon(
-          isCurrent
-              ? Icons.graphic_eq
-              : (completed ? Icons.check_circle : Icons.play_circle),
-          color: isCurrent
-              ? theme.colorScheme.primary
-              : (completed ? mutedColor : theme.colorScheme.primary),
-          size: 32,
+        contentPadding: rowPadding,
+        leading: _TrackLeading(
+          isCurrent: isCurrent,
+          playingStream: isCurrent ? controller.player.playingStream : null,
         ),
         title: Text(
           t.fileName,
-          maxLines: 1,
+          maxLines: 5,
           overflow: TextOverflow.ellipsis,
-          style: (completed && !isCurrent)
-              ? theme.textTheme.bodyLarge?.copyWith(color: mutedColor)
-              : null,
+          style: theme.textTheme.bodyLarge?.copyWith(
+            color: iosLabel,
+            fontWeight: FontWeight.w500,
+          ),
         ),
         subtitle: t.durationMs > 0
-            ? Text(_formatTrackDuration(t.durationMs))
+            ? Text(
+                _formatTrackDuration(t.durationMs),
+                style: theme.textTheme.bodySmall?.copyWith(color: iosSecondary),
+              )
             : null,
-        onTap: () => onPlayTrack(t),
+        onTap: () {
+          if (isCurrent) {
+            if (controller.player.playing) {
+              controller.pause();
+            } else {
+              controller.play();
+            }
+          } else {
+            onPlayTrack(t);
+          }
+        },
       );
     }
     final f = (n as WorkTreeFile).file;
-    final (icon, color) = _iconForKind(f.fileKind, theme);
+    final (icon, color) = _iconForKind(f.fileKind, context);
     return ListTile(
-      leading: Icon(icon, color: color, size: 32),
+      contentPadding: rowPadding,
+      leading: Icon(icon, color: color, size: 44),
       title: Text(
         f.fileName,
-        maxLines: 1,
+        maxLines: 5,
         overflow: TextOverflow.ellipsis,
+        style: theme.textTheme.bodyLarge?.copyWith(
+          color: iosLabel,
+          fontWeight: FontWeight.w500,
+        ),
       ),
-      subtitle: Text(_formatBytes(f.fileSizeBytes)),
+      subtitle: Text(
+        _formatBytes(f.fileSizeBytes),
+        style: theme.textTheme.bodySmall?.copyWith(color: iosSecondary),
+      ),
     );
   }
 }
 
-(IconData, Color) _iconForKind(String kind, ThemeData theme) {
+class _TrackLeading extends StatelessWidget {
+  const _TrackLeading({
+    required this.isCurrent,
+    this.playingStream,
+  });
+
+  final bool isCurrent;
+  final Stream<bool>? playingStream;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!isCurrent || playingStream == null) {
+      return const _PlayCircle(playing: false);
+    }
+    return StreamBuilder<bool>(
+      stream: playingStream,
+      initialData: false,
+      builder: (context, snapshot) =>
+          _PlayCircle(playing: snapshot.data ?? false),
+    );
+  }
+}
+
+class _PlayCircle extends StatelessWidget {
+  const _PlayCircle({required this.playing});
+
+  final bool playing;
+
+  @override
+  Widget build(BuildContext context) {
+    final iosBlue = CupertinoColors.systemBlue.resolveFrom(context);
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(color: iosBlue, shape: BoxShape.circle),
+      child: Icon(
+        playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+        color: Colors.white,
+        size: 30,
+      ),
+    );
+  }
+}
+
+(IconData, Color) _iconForKind(String kind, BuildContext context) {
   return switch (kind) {
-    'image' => (Icons.image_outlined, theme.colorScheme.tertiary),
-    'text' => (Icons.description, theme.colorScheme.primary),
-    'subtitle' => (Icons.subtitles_outlined, theme.colorScheme.secondary),
-    _ => (Icons.insert_drive_file_outlined, theme.colorScheme.onSurfaceVariant),
+    'image' => (
+        CupertinoIcons.photo_fill,
+        CupertinoColors.systemPurple.resolveFrom(context),
+      ),
+    'text' => (
+        CupertinoIcons.doc_text_fill,
+        CupertinoColors.systemGrey.resolveFrom(context),
+      ),
+    'subtitle' => (
+        CupertinoIcons.captions_bubble_fill,
+        CupertinoColors.systemOrange.resolveFrom(context),
+      ),
+    _ => (
+        CupertinoIcons.doc_fill,
+        CupertinoColors.systemGrey.resolveFrom(context),
+      ),
   };
 }
 
