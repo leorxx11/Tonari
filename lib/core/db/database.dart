@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'converters.dart';
 import 'tables/imported_folders.dart';
+import 'tables/llm_providers.dart';
 import 'tables/subtitles.dart';
 import 'tables/tracks.dart';
 import 'tables/work_files.dart';
@@ -13,14 +14,16 @@ import 'tables/works.dart';
 
 part 'database.g.dart';
 
-@DriftDatabase(tables: [Works, Tracks, WorkFiles, Subtitles, ImportedFolders])
+@DriftDatabase(
+  tables: [Works, Tracks, WorkFiles, Subtitles, ImportedFolders, LlmProviders],
+)
 class TonariDatabase extends _$TonariDatabase {
   TonariDatabase() : super(_openConnection());
 
   TonariDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -69,6 +72,11 @@ class TonariDatabase extends _$TonariDatabase {
         // downloads from scratch.
         await _evictAllImageCaches();
         await customStatement('UPDATE works SET scraped_at = NULL');
+      }
+      if (from < 10) {
+        await m.addColumn(works, works.titleZh);
+        await m.addColumn(works, works.descriptionHtmlZh);
+        await m.createTable(llmProviders);
       }
     },
   );

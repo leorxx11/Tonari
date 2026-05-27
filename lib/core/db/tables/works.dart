@@ -43,6 +43,8 @@ class Works extends Table {
   TextColumn get seriesId => text().nullable()();
   TextColumn get seriesName => text().nullable()();
   TextColumn get descriptionHtml => text().nullable()();
+  TextColumn get titleZh => text().nullable()();
+  TextColumn get descriptionHtmlZh => text().nullable()();
   TextColumn get mainImageUrl => text().nullable()();
   TextColumn get sampleImageUrls => text()
       .map(const StringListConverter())

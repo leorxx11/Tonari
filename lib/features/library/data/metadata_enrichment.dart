@@ -137,6 +137,10 @@ class MetadataEnrichmentService {
         seriesId: Value(work.seriesId),
         seriesName: Value(work.seriesName),
         descriptionHtml: Value(work.descriptionHtml),
+        titleZh: force ? const Value(null) : const Value.absent(),
+        descriptionHtmlZh: force
+            ? const Value(null)
+            : const Value.absent(),
         mainImageUrl: Value(work.mainImageUrl),
         sampleImageUrls: Value(work.sampleImageUrls),
         mainImageLocalPath: Value(images.mainImage),

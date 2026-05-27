@@ -11,6 +11,9 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/db/database.dart';
 import '../../../core/files/local_image_path.dart';
 import '../../player/presentation/mini_player.dart';
+import '../../settings/presentation/translation_settings_page.dart';
+import '../../translation/data/llm_provider_repository.dart';
+import '../../translation/data/translation_controller.dart';
 import '../data/metadata_enrichment.dart';
 import '../data/work_actions_provider.dart';
 import '../data/works_providers.dart';
@@ -51,11 +54,6 @@ class _WorkDetailViewState extends ConsumerState<_WorkDetailView> {
         title: Text(work.productId),
         actions: [
           IconButton(
-            tooltip: '在 DLsite 中打开',
-            icon: const Icon(Icons.open_in_new),
-            onPressed: () => _openOnDlsite(work.productId),
-          ),
-          IconButton(
             tooltip: work.isFavorite ? '取消收藏' : '添加收藏',
             icon: Icon(
               work.isFavorite ? Icons.favorite : Icons.favorite_outline,
@@ -68,6 +66,13 @@ class _WorkDetailViewState extends ConsumerState<_WorkDetailView> {
               await toggle(work.productId, !work.isFavorite);
             },
           ),
+          IconButton(
+            tooltip: '在 DLsite 中打开',
+            icon: const Icon(Icons.open_in_new),
+            onPressed: () => _openOnDlsite(work.productId),
+          ),
+          _TranslationButton(work: work),
+          _TranslationMenu(work: work),
         ],
       ),
       body: RefreshIndicator(
@@ -116,14 +121,18 @@ class _WorkDetailViewState extends ConsumerState<_WorkDetailView> {
 
 // ---------- Sections ----------
 
-class _HeaderSection extends StatelessWidget {
+class _HeaderSection extends ConsumerWidget {
   const _HeaderSection({required this.work});
 
   final Work work;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final viewRaw = ref.watch(translationViewModeProvider(work.productId));
+    final hasZh = (work.titleZh?.isNotEmpty ?? false);
+    final showZh = viewRaw ?? hasZh;
+    final displayTitle = showZh && hasZh ? work.titleZh! : work.title;
     final releaseDate = work.releaseDate;
     final dateText = releaseDate == null ? null : _formatDate(releaseDate);
     final subline = <String>[
@@ -160,7 +169,7 @@ class _HeaderSection extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           Text(
-            work.title,
+            displayTitle,
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w600,
               height: 1.3,
@@ -548,22 +557,19 @@ class _GenresSection extends StatelessWidget {
   }
 }
 
-class _DescriptionSection extends StatefulWidget {
+class _DescriptionSection extends ConsumerWidget {
   const _DescriptionSection({required this.work});
 
   final Work work;
 
   @override
-  State<_DescriptionSection> createState() => _DescriptionSectionState();
-}
-
-class _DescriptionSectionState extends State<_DescriptionSection> {
-  static const _collapsedHeight = 280.0;
-  bool _expanded = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final html = widget.work.descriptionHtml;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final viewRaw = ref.watch(translationViewModeProvider(work.productId));
+    final hasZh = (work.descriptionHtmlZh?.isNotEmpty ?? false);
+    final showZh = viewRaw ?? hasZh;
+    final html = showZh && hasZh
+        ? work.descriptionHtmlZh!
+        : work.descriptionHtml;
     if (html == null || html.isEmpty) return const SizedBox.shrink();
     final blocks = _parseDescriptionBlocks(html);
     if (blocks.isEmpty) return const SizedBox.shrink();
@@ -573,12 +579,13 @@ class _DescriptionSectionState extends State<_DescriptionSection> {
       for (final b in blocks)
         if (b is _DescImage) b.url,
     ];
-    final localPaths = widget.work.descriptionImageLocalPaths;
+    final localPaths = work.descriptionImageLocalPaths;
 
     Widget descImage(String url) {
       final idx = imgUrls.indexOf(url);
-      final stored =
-          (idx >= 0 && idx < localPaths.length) ? localPaths[idx] : '';
+      final stored = (idx >= 0 && idx < localPaths.length)
+          ? localPaths[idx]
+          : '';
       final resolved = LocalImagePath.resolve(stored);
       if (resolved != null) {
         return Image.file(
@@ -633,69 +640,7 @@ class _DescriptionSectionState extends State<_DescriptionSection> {
       ],
     );
 
-    final paraLen = blocks
-        .whereType<_DescParagraph>()
-        .fold<int>(0, (sum, b) => sum + b.text.length);
-    final isLong = blocks.length > 4 ||
-        blocks.any((b) => b is _DescImage) ||
-        paraLen > 200;
-
-    if (!isLong) {
-      return _Section(title: '简介', child: content);
-    }
-
-    return _Section(
-      title: '简介',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (_expanded)
-            content
-          else
-            Stack(
-              children: [
-                SizedBox(
-                  height: _collapsedHeight,
-                  child: SingleChildScrollView(
-                    physics: const NeverScrollableScrollPhysics(),
-                    child: content,
-                  ),
-                ),
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  height: 80,
-                  child: IgnorePointer(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            theme.colorScheme.surface.withValues(alpha: 0),
-                            theme.colorScheme.surface,
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          Center(
-            child: TextButton.icon(
-              onPressed: () => setState(() => _expanded = !_expanded),
-              icon: Icon(
-                _expanded ? Icons.expand_less : Icons.expand_more,
-                size: 18,
-              ),
-              label: Text(_expanded ? '收起' : '展开全部'),
-            ),
-          ),
-        ],
-      ),
-    );
+    return _Section(title: '简介', child: content);
   }
 }
 
@@ -1150,4 +1095,164 @@ Future<void> _openOnDlsite(String productId) async {
     'https://www.dlsite.com/maniax/work/=/product_id/$productId.html/?locale=zh_CN',
   );
   await launchUrl(uri, mode: LaunchMode.externalApplication);
+}
+
+class _TranslationButton extends ConsumerWidget {
+  const _TranslationButton({required this.work});
+
+  final Work work;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final defaultProvider = ref.watch(defaultLlmProviderProvider);
+    final stateAsync = ref.watch(
+      translationControllerProvider(work.productId),
+    );
+    final viewRaw = ref.watch(translationViewModeProvider(work.productId));
+    final hasZh = (work.titleZh?.isNotEmpty ?? false);
+    final showZh = viewRaw ?? hasZh;
+
+    ref.listen<AsyncValue<TranslationState>>(
+      translationControllerProvider(work.productId),
+      (prev, next) {
+        final s = next.value;
+        if (s is TranslationDone) {
+          ref
+              .read(translationViewModeProvider(work.productId).notifier)
+              .show(true);
+        } else if (s is TranslationFailed) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(s.message),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      },
+    );
+
+    final state = stateAsync.value ?? const TranslationIdle();
+    final loading = state is TranslationLoading;
+    final failed = state is TranslationFailed;
+
+    if (defaultProvider == null) {
+      return IconButton(
+        tooltip: '翻译（未配置 Provider）',
+        icon: Icon(
+          Icons.translate_outlined,
+          color: theme.disabledColor,
+        ),
+        onPressed: () => _promptConfigure(context),
+      );
+    }
+
+    if (loading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 14),
+        child: Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
+
+    if (failed) {
+      return IconButton(
+        tooltip: '翻译失败 · 点击重试',
+        icon: Icon(Icons.error_outline, color: theme.colorScheme.error),
+        onPressed: () {
+          ref
+              .read(translationControllerProvider(work.productId).notifier)
+              .clearFailure();
+          ref
+              .read(translationControllerProvider(work.productId).notifier)
+              .translate();
+        },
+      );
+    }
+
+    return IconButton(
+      tooltip: showZh ? '显示原文' : '翻译为中文',
+      icon: Icon(
+        showZh ? Icons.translate : Icons.translate_outlined,
+        color: showZh ? theme.colorScheme.primary : null,
+      ),
+      onPressed: () {
+        if (hasZh) {
+          ref
+              .read(translationViewModeProvider(work.productId).notifier)
+              .toggleFrom(showZh);
+        } else {
+          ref
+              .read(translationControllerProvider(work.productId).notifier)
+              .translate();
+        }
+      },
+    );
+  }
+
+  void _promptConfigure(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('请先在设置中配置翻译 Provider'),
+        duration: const Duration(seconds: 2),
+        action: SnackBarAction(
+          label: '去设置',
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const TranslationSettingsPage(),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _TranslationMenu extends ConsumerWidget {
+  const _TranslationMenu({required this.work});
+
+  final Work work;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final defaultProvider = ref.watch(defaultLlmProviderProvider);
+    final hasZh =
+        (work.titleZh?.isNotEmpty ?? false) ||
+        (work.descriptionHtmlZh?.isNotEmpty ?? false);
+    final stateAsync = ref.watch(
+      translationControllerProvider(work.productId),
+    );
+    final loading = stateAsync.value is TranslationLoading;
+    final enabled = defaultProvider != null && hasZh && !loading;
+
+    return PopupMenuButton<String>(
+      tooltip: '更多',
+      enabled: enabled,
+      onSelected: (v) {
+        if (v == 'retranslate') {
+          ref
+              .read(translationControllerProvider(work.productId).notifier)
+              .translate(force: true);
+        }
+      },
+      itemBuilder: (_) => [
+        const PopupMenuItem(
+          value: 'retranslate',
+          child: ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.refresh),
+            title: Text('重新翻译'),
+          ),
+        ),
+      ],
+    );
+  }
 }

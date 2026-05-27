@@ -5,6 +5,7 @@ import '../data/path_prefs.dart';
 import '../data/player_prefs.dart';
 import '../data/theme_prefs.dart';
 import 'removed_works_page.dart';
+import 'translation_settings_page.dart';
 
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
@@ -84,6 +85,19 @@ class SettingsPage extends ConsumerWidget {
             onChanged: playerNotifier.setSeekStep,
           ),
           const Divider(height: 24),
+          ListTile(
+            leading: const Icon(Icons.translate_outlined),
+            title: const Text('翻译'),
+            subtitle: const Text('配置 LLM Provider 用于详情页翻译'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const TranslationSettingsPage(),
+                ),
+              );
+            },
+          ),
           ListTile(
             leading: const Icon(Icons.restore_from_trash_outlined),
             title: const Text('已移除作品'),

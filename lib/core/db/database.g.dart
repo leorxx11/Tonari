@@ -234,6 +234,29 @@ class $WorksTable extends Works with TableInfo<$WorksTable, Work> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _titleZhMeta = const VerificationMeta(
+    'titleZh',
+  );
+  @override
+  late final GeneratedColumn<String> titleZh = GeneratedColumn<String>(
+    'title_zh',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _descriptionHtmlZhMeta = const VerificationMeta(
+    'descriptionHtmlZh',
+  );
+  @override
+  late final GeneratedColumn<String> descriptionHtmlZh =
+      GeneratedColumn<String>(
+        'description_html_zh',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _mainImageUrlMeta = const VerificationMeta(
     'mainImageUrl',
   );
@@ -606,6 +629,8 @@ class $WorksTable extends Works with TableInfo<$WorksTable, Work> {
     seriesId,
     seriesName,
     descriptionHtml,
+    titleZh,
+    descriptionHtmlZh,
     mainImageUrl,
     sampleImageUrls,
     mainImageLocalPath,
@@ -765,6 +790,21 @@ class $WorksTable extends Works with TableInfo<$WorksTable, Work> {
         descriptionHtml.isAcceptableOrUnknown(
           data['description_html']!,
           _descriptionHtmlMeta,
+        ),
+      );
+    }
+    if (data.containsKey('title_zh')) {
+      context.handle(
+        _titleZhMeta,
+        titleZh.isAcceptableOrUnknown(data['title_zh']!, _titleZhMeta),
+      );
+    }
+    if (data.containsKey('description_html_zh')) {
+      context.handle(
+        _descriptionHtmlZhMeta,
+        descriptionHtmlZh.isAcceptableOrUnknown(
+          data['description_html_zh']!,
+          _descriptionHtmlZhMeta,
         ),
       );
     }
@@ -1077,6 +1117,14 @@ class $WorksTable extends Works with TableInfo<$WorksTable, Work> {
         DriftSqlType.string,
         data['${effectivePrefix}description_html'],
       ),
+      titleZh: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title_zh'],
+      ),
+      descriptionHtmlZh: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}description_html_zh'],
+      ),
       mainImageUrl: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}main_image_url'],
@@ -1271,6 +1319,8 @@ class Work extends DataClass implements Insertable<Work> {
   final String? seriesId;
   final String? seriesName;
   final String? descriptionHtml;
+  final String? titleZh;
+  final String? descriptionHtmlZh;
   final String? mainImageUrl;
   final List<String> sampleImageUrls;
   final String? mainImageLocalPath;
@@ -1324,6 +1374,8 @@ class Work extends DataClass implements Insertable<Work> {
     this.seriesId,
     this.seriesName,
     this.descriptionHtml,
+    this.titleZh,
+    this.descriptionHtmlZh,
     this.mainImageUrl,
     required this.sampleImageUrls,
     this.mainImageLocalPath,
@@ -1425,6 +1477,12 @@ class Work extends DataClass implements Insertable<Work> {
     }
     if (!nullToAbsent || descriptionHtml != null) {
       map['description_html'] = Variable<String>(descriptionHtml);
+    }
+    if (!nullToAbsent || titleZh != null) {
+      map['title_zh'] = Variable<String>(titleZh);
+    }
+    if (!nullToAbsent || descriptionHtmlZh != null) {
+      map['description_html_zh'] = Variable<String>(descriptionHtmlZh);
     }
     if (!nullToAbsent || mainImageUrl != null) {
       map['main_image_url'] = Variable<String>(mainImageUrl);
@@ -1571,6 +1629,12 @@ class Work extends DataClass implements Insertable<Work> {
       descriptionHtml: descriptionHtml == null && nullToAbsent
           ? const Value.absent()
           : Value(descriptionHtml),
+      titleZh: titleZh == null && nullToAbsent
+          ? const Value.absent()
+          : Value(titleZh),
+      descriptionHtmlZh: descriptionHtmlZh == null && nullToAbsent
+          ? const Value.absent()
+          : Value(descriptionHtmlZh),
       mainImageUrl: mainImageUrl == null && nullToAbsent
           ? const Value.absent()
           : Value(mainImageUrl),
@@ -1674,6 +1738,10 @@ class Work extends DataClass implements Insertable<Work> {
       seriesId: serializer.fromJson<String?>(json['seriesId']),
       seriesName: serializer.fromJson<String?>(json['seriesName']),
       descriptionHtml: serializer.fromJson<String?>(json['descriptionHtml']),
+      titleZh: serializer.fromJson<String?>(json['titleZh']),
+      descriptionHtmlZh: serializer.fromJson<String?>(
+        json['descriptionHtmlZh'],
+      ),
       mainImageUrl: serializer.fromJson<String?>(json['mainImageUrl']),
       sampleImageUrls: serializer.fromJson<List<String>>(
         json['sampleImageUrls'],
@@ -1744,6 +1812,8 @@ class Work extends DataClass implements Insertable<Work> {
       'seriesId': serializer.toJson<String?>(seriesId),
       'seriesName': serializer.toJson<String?>(seriesName),
       'descriptionHtml': serializer.toJson<String?>(descriptionHtml),
+      'titleZh': serializer.toJson<String?>(titleZh),
+      'descriptionHtmlZh': serializer.toJson<String?>(descriptionHtmlZh),
       'mainImageUrl': serializer.toJson<String?>(mainImageUrl),
       'sampleImageUrls': serializer.toJson<List<String>>(sampleImageUrls),
       'mainImageLocalPath': serializer.toJson<String?>(mainImageLocalPath),
@@ -1804,6 +1874,8 @@ class Work extends DataClass implements Insertable<Work> {
     Value<String?> seriesId = const Value.absent(),
     Value<String?> seriesName = const Value.absent(),
     Value<String?> descriptionHtml = const Value.absent(),
+    Value<String?> titleZh = const Value.absent(),
+    Value<String?> descriptionHtmlZh = const Value.absent(),
     Value<String?> mainImageUrl = const Value.absent(),
     List<String>? sampleImageUrls,
     Value<String?> mainImageLocalPath = const Value.absent(),
@@ -1863,6 +1935,10 @@ class Work extends DataClass implements Insertable<Work> {
     descriptionHtml: descriptionHtml.present
         ? descriptionHtml.value
         : this.descriptionHtml,
+    titleZh: titleZh.present ? titleZh.value : this.titleZh,
+    descriptionHtmlZh: descriptionHtmlZh.present
+        ? descriptionHtmlZh.value
+        : this.descriptionHtmlZh,
     mainImageUrl: mainImageUrl.present ? mainImageUrl.value : this.mainImageUrl,
     sampleImageUrls: sampleImageUrls ?? this.sampleImageUrls,
     mainImageLocalPath: mainImageLocalPath.present
@@ -1955,6 +2031,10 @@ class Work extends DataClass implements Insertable<Work> {
       descriptionHtml: data.descriptionHtml.present
           ? data.descriptionHtml.value
           : this.descriptionHtml,
+      titleZh: data.titleZh.present ? data.titleZh.value : this.titleZh,
+      descriptionHtmlZh: data.descriptionHtmlZh.present
+          ? data.descriptionHtmlZh.value
+          : this.descriptionHtmlZh,
       mainImageUrl: data.mainImageUrl.present
           ? data.mainImageUrl.value
           : this.mainImageUrl,
@@ -2053,6 +2133,8 @@ class Work extends DataClass implements Insertable<Work> {
           ..write('seriesId: $seriesId, ')
           ..write('seriesName: $seriesName, ')
           ..write('descriptionHtml: $descriptionHtml, ')
+          ..write('titleZh: $titleZh, ')
+          ..write('descriptionHtmlZh: $descriptionHtmlZh, ')
           ..write('mainImageUrl: $mainImageUrl, ')
           ..write('sampleImageUrls: $sampleImageUrls, ')
           ..write('mainImageLocalPath: $mainImageLocalPath, ')
@@ -2111,6 +2193,8 @@ class Work extends DataClass implements Insertable<Work> {
     seriesId,
     seriesName,
     descriptionHtml,
+    titleZh,
+    descriptionHtmlZh,
     mainImageUrl,
     sampleImageUrls,
     mainImageLocalPath,
@@ -2168,6 +2252,8 @@ class Work extends DataClass implements Insertable<Work> {
           other.seriesId == this.seriesId &&
           other.seriesName == this.seriesName &&
           other.descriptionHtml == this.descriptionHtml &&
+          other.titleZh == this.titleZh &&
+          other.descriptionHtmlZh == this.descriptionHtmlZh &&
           other.mainImageUrl == this.mainImageUrl &&
           other.sampleImageUrls == this.sampleImageUrls &&
           other.mainImageLocalPath == this.mainImageLocalPath &&
@@ -2223,6 +2309,8 @@ class WorksCompanion extends UpdateCompanion<Work> {
   final Value<String?> seriesId;
   final Value<String?> seriesName;
   final Value<String?> descriptionHtml;
+  final Value<String?> titleZh;
+  final Value<String?> descriptionHtmlZh;
   final Value<String?> mainImageUrl;
   final Value<List<String>> sampleImageUrls;
   final Value<String?> mainImageLocalPath;
@@ -2277,6 +2365,8 @@ class WorksCompanion extends UpdateCompanion<Work> {
     this.seriesId = const Value.absent(),
     this.seriesName = const Value.absent(),
     this.descriptionHtml = const Value.absent(),
+    this.titleZh = const Value.absent(),
+    this.descriptionHtmlZh = const Value.absent(),
     this.mainImageUrl = const Value.absent(),
     this.sampleImageUrls = const Value.absent(),
     this.mainImageLocalPath = const Value.absent(),
@@ -2332,6 +2422,8 @@ class WorksCompanion extends UpdateCompanion<Work> {
     this.seriesId = const Value.absent(),
     this.seriesName = const Value.absent(),
     this.descriptionHtml = const Value.absent(),
+    this.titleZh = const Value.absent(),
+    this.descriptionHtmlZh = const Value.absent(),
     this.mainImageUrl = const Value.absent(),
     this.sampleImageUrls = const Value.absent(),
     this.mainImageLocalPath = const Value.absent(),
@@ -2392,6 +2484,8 @@ class WorksCompanion extends UpdateCompanion<Work> {
     Expression<String>? seriesId,
     Expression<String>? seriesName,
     Expression<String>? descriptionHtml,
+    Expression<String>? titleZh,
+    Expression<String>? descriptionHtmlZh,
     Expression<String>? mainImageUrl,
     Expression<String>? sampleImageUrls,
     Expression<String>? mainImageLocalPath,
@@ -2447,6 +2541,8 @@ class WorksCompanion extends UpdateCompanion<Work> {
       if (seriesId != null) 'series_id': seriesId,
       if (seriesName != null) 'series_name': seriesName,
       if (descriptionHtml != null) 'description_html': descriptionHtml,
+      if (titleZh != null) 'title_zh': titleZh,
+      if (descriptionHtmlZh != null) 'description_html_zh': descriptionHtmlZh,
       if (mainImageUrl != null) 'main_image_url': mainImageUrl,
       if (sampleImageUrls != null) 'sample_image_urls': sampleImageUrls,
       if (mainImageLocalPath != null)
@@ -2507,6 +2603,8 @@ class WorksCompanion extends UpdateCompanion<Work> {
     Value<String?>? seriesId,
     Value<String?>? seriesName,
     Value<String?>? descriptionHtml,
+    Value<String?>? titleZh,
+    Value<String?>? descriptionHtmlZh,
     Value<String?>? mainImageUrl,
     Value<List<String>>? sampleImageUrls,
     Value<String?>? mainImageLocalPath,
@@ -2562,6 +2660,8 @@ class WorksCompanion extends UpdateCompanion<Work> {
       seriesId: seriesId ?? this.seriesId,
       seriesName: seriesName ?? this.seriesName,
       descriptionHtml: descriptionHtml ?? this.descriptionHtml,
+      titleZh: titleZh ?? this.titleZh,
+      descriptionHtmlZh: descriptionHtmlZh ?? this.descriptionHtmlZh,
       mainImageUrl: mainImageUrl ?? this.mainImageUrl,
       sampleImageUrls: sampleImageUrls ?? this.sampleImageUrls,
       mainImageLocalPath: mainImageLocalPath ?? this.mainImageLocalPath,
@@ -2674,6 +2774,12 @@ class WorksCompanion extends UpdateCompanion<Work> {
     }
     if (descriptionHtml.present) {
       map['description_html'] = Variable<String>(descriptionHtml.value);
+    }
+    if (titleZh.present) {
+      map['title_zh'] = Variable<String>(titleZh.value);
+    }
+    if (descriptionHtmlZh.present) {
+      map['description_html_zh'] = Variable<String>(descriptionHtmlZh.value);
     }
     if (mainImageUrl.present) {
       map['main_image_url'] = Variable<String>(mainImageUrl.value);
@@ -2814,6 +2920,8 @@ class WorksCompanion extends UpdateCompanion<Work> {
           ..write('seriesId: $seriesId, ')
           ..write('seriesName: $seriesName, ')
           ..write('descriptionHtml: $descriptionHtml, ')
+          ..write('titleZh: $titleZh, ')
+          ..write('descriptionHtmlZh: $descriptionHtmlZh, ')
           ..write('mainImageUrl: $mainImageUrl, ')
           ..write('sampleImageUrls: $sampleImageUrls, ')
           ..write('mainImageLocalPath: $mainImageLocalPath, ')
@@ -5685,6 +5793,521 @@ class ImportedFoldersCompanion extends UpdateCompanion<ImportedFolder> {
   }
 }
 
+class $LlmProvidersTable extends LlmProviders
+    with TableInfo<$LlmProvidersTable, LlmProvider> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LlmProvidersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _baseUrlMeta = const VerificationMeta(
+    'baseUrl',
+  );
+  @override
+  late final GeneratedColumn<String> baseUrl = GeneratedColumn<String>(
+    'base_url',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _modelMeta = const VerificationMeta('model');
+  @override
+  late final GeneratedColumn<String> model = GeneratedColumn<String>(
+    'model',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _systemPromptMeta = const VerificationMeta(
+    'systemPrompt',
+  );
+  @override
+  late final GeneratedColumn<String> systemPrompt = GeneratedColumn<String>(
+    'system_prompt',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isDefaultMeta = const VerificationMeta(
+    'isDefault',
+  );
+  @override
+  late final GeneratedColumn<bool> isDefault = GeneratedColumn<bool>(
+    'is_default',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_default" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    baseUrl,
+    model,
+    systemPrompt,
+    isDefault,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'llm_providers';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<LlmProvider> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('base_url')) {
+      context.handle(
+        _baseUrlMeta,
+        baseUrl.isAcceptableOrUnknown(data['base_url']!, _baseUrlMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_baseUrlMeta);
+    }
+    if (data.containsKey('model')) {
+      context.handle(
+        _modelMeta,
+        model.isAcceptableOrUnknown(data['model']!, _modelMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_modelMeta);
+    }
+    if (data.containsKey('system_prompt')) {
+      context.handle(
+        _systemPromptMeta,
+        systemPrompt.isAcceptableOrUnknown(
+          data['system_prompt']!,
+          _systemPromptMeta,
+        ),
+      );
+    }
+    if (data.containsKey('is_default')) {
+      context.handle(
+        _isDefaultMeta,
+        isDefault.isAcceptableOrUnknown(data['is_default']!, _isDefaultMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  LlmProvider map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LlmProvider(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      baseUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}base_url'],
+      )!,
+      model: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}model'],
+      )!,
+      systemPrompt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}system_prompt'],
+      ),
+      isDefault: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_default'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $LlmProvidersTable createAlias(String alias) {
+    return $LlmProvidersTable(attachedDatabase, alias);
+  }
+}
+
+class LlmProvider extends DataClass implements Insertable<LlmProvider> {
+  final String id;
+  final String name;
+  final String baseUrl;
+  final String model;
+  final String? systemPrompt;
+  final bool isDefault;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const LlmProvider({
+    required this.id,
+    required this.name,
+    required this.baseUrl,
+    required this.model,
+    this.systemPrompt,
+    required this.isDefault,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['name'] = Variable<String>(name);
+    map['base_url'] = Variable<String>(baseUrl);
+    map['model'] = Variable<String>(model);
+    if (!nullToAbsent || systemPrompt != null) {
+      map['system_prompt'] = Variable<String>(systemPrompt);
+    }
+    map['is_default'] = Variable<bool>(isDefault);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  LlmProvidersCompanion toCompanion(bool nullToAbsent) {
+    return LlmProvidersCompanion(
+      id: Value(id),
+      name: Value(name),
+      baseUrl: Value(baseUrl),
+      model: Value(model),
+      systemPrompt: systemPrompt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(systemPrompt),
+      isDefault: Value(isDefault),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory LlmProvider.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LlmProvider(
+      id: serializer.fromJson<String>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      baseUrl: serializer.fromJson<String>(json['baseUrl']),
+      model: serializer.fromJson<String>(json['model']),
+      systemPrompt: serializer.fromJson<String?>(json['systemPrompt']),
+      isDefault: serializer.fromJson<bool>(json['isDefault']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'name': serializer.toJson<String>(name),
+      'baseUrl': serializer.toJson<String>(baseUrl),
+      'model': serializer.toJson<String>(model),
+      'systemPrompt': serializer.toJson<String?>(systemPrompt),
+      'isDefault': serializer.toJson<bool>(isDefault),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  LlmProvider copyWith({
+    String? id,
+    String? name,
+    String? baseUrl,
+    String? model,
+    Value<String?> systemPrompt = const Value.absent(),
+    bool? isDefault,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => LlmProvider(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    baseUrl: baseUrl ?? this.baseUrl,
+    model: model ?? this.model,
+    systemPrompt: systemPrompt.present ? systemPrompt.value : this.systemPrompt,
+    isDefault: isDefault ?? this.isDefault,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  LlmProvider copyWithCompanion(LlmProvidersCompanion data) {
+    return LlmProvider(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      baseUrl: data.baseUrl.present ? data.baseUrl.value : this.baseUrl,
+      model: data.model.present ? data.model.value : this.model,
+      systemPrompt: data.systemPrompt.present
+          ? data.systemPrompt.value
+          : this.systemPrompt,
+      isDefault: data.isDefault.present ? data.isDefault.value : this.isDefault,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LlmProvider(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('baseUrl: $baseUrl, ')
+          ..write('model: $model, ')
+          ..write('systemPrompt: $systemPrompt, ')
+          ..write('isDefault: $isDefault, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    name,
+    baseUrl,
+    model,
+    systemPrompt,
+    isDefault,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LlmProvider &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.baseUrl == this.baseUrl &&
+          other.model == this.model &&
+          other.systemPrompt == this.systemPrompt &&
+          other.isDefault == this.isDefault &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class LlmProvidersCompanion extends UpdateCompanion<LlmProvider> {
+  final Value<String> id;
+  final Value<String> name;
+  final Value<String> baseUrl;
+  final Value<String> model;
+  final Value<String?> systemPrompt;
+  final Value<bool> isDefault;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const LlmProvidersCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.baseUrl = const Value.absent(),
+    this.model = const Value.absent(),
+    this.systemPrompt = const Value.absent(),
+    this.isDefault = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  LlmProvidersCompanion.insert({
+    required String id,
+    required String name,
+    required String baseUrl,
+    required String model,
+    this.systemPrompt = const Value.absent(),
+    this.isDefault = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       name = Value(name),
+       baseUrl = Value(baseUrl),
+       model = Value(model),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<LlmProvider> custom({
+    Expression<String>? id,
+    Expression<String>? name,
+    Expression<String>? baseUrl,
+    Expression<String>? model,
+    Expression<String>? systemPrompt,
+    Expression<bool>? isDefault,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (baseUrl != null) 'base_url': baseUrl,
+      if (model != null) 'model': model,
+      if (systemPrompt != null) 'system_prompt': systemPrompt,
+      if (isDefault != null) 'is_default': isDefault,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  LlmProvidersCompanion copyWith({
+    Value<String>? id,
+    Value<String>? name,
+    Value<String>? baseUrl,
+    Value<String>? model,
+    Value<String?>? systemPrompt,
+    Value<bool>? isDefault,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return LlmProvidersCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      baseUrl: baseUrl ?? this.baseUrl,
+      model: model ?? this.model,
+      systemPrompt: systemPrompt ?? this.systemPrompt,
+      isDefault: isDefault ?? this.isDefault,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (baseUrl.present) {
+      map['base_url'] = Variable<String>(baseUrl.value);
+    }
+    if (model.present) {
+      map['model'] = Variable<String>(model.value);
+    }
+    if (systemPrompt.present) {
+      map['system_prompt'] = Variable<String>(systemPrompt.value);
+    }
+    if (isDefault.present) {
+      map['is_default'] = Variable<bool>(isDefault.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LlmProvidersCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('baseUrl: $baseUrl, ')
+          ..write('model: $model, ')
+          ..write('systemPrompt: $systemPrompt, ')
+          ..write('isDefault: $isDefault, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$TonariDatabase extends GeneratedDatabase {
   _$TonariDatabase(QueryExecutor e) : super(e);
   $TonariDatabaseManager get managers => $TonariDatabaseManager(this);
@@ -5695,6 +6318,7 @@ abstract class _$TonariDatabase extends GeneratedDatabase {
   late final $ImportedFoldersTable importedFolders = $ImportedFoldersTable(
     this,
   );
+  late final $LlmProvidersTable llmProviders = $LlmProvidersTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -5705,6 +6329,7 @@ abstract class _$TonariDatabase extends GeneratedDatabase {
     workFiles,
     subtitles,
     importedFolders,
+    llmProviders,
   ];
 }
 
@@ -5731,6 +6356,8 @@ typedef $$WorksTableCreateCompanionBuilder =
       Value<String?> seriesId,
       Value<String?> seriesName,
       Value<String?> descriptionHtml,
+      Value<String?> titleZh,
+      Value<String?> descriptionHtmlZh,
       Value<String?> mainImageUrl,
       Value<List<String>> sampleImageUrls,
       Value<String?> mainImageLocalPath,
@@ -5787,6 +6414,8 @@ typedef $$WorksTableUpdateCompanionBuilder =
       Value<String?> seriesId,
       Value<String?> seriesName,
       Value<String?> descriptionHtml,
+      Value<String?> titleZh,
+      Value<String?> descriptionHtmlZh,
       Value<String?> mainImageUrl,
       Value<List<String>> sampleImageUrls,
       Value<String?> mainImageLocalPath,
@@ -5977,6 +6606,16 @@ class $$WorksTableFilterComposer
 
   ColumnFilters<String> get descriptionHtml => $composableBuilder(
     column: $table.descriptionHtml,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get titleZh => $composableBuilder(
+    column: $table.titleZh,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get descriptionHtmlZh => $composableBuilder(
+    column: $table.descriptionHtmlZh,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6305,6 +6944,16 @@ class $$WorksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get titleZh => $composableBuilder(
+    column: $table.titleZh,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get descriptionHtmlZh => $composableBuilder(
+    column: $table.descriptionHtmlZh,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get mainImageUrl => $composableBuilder(
     column: $table.mainImageUrl,
     builder: (column) => ColumnOrderings(column),
@@ -6563,6 +7212,14 @@ class $$WorksTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get titleZh =>
+      $composableBuilder(column: $table.titleZh, builder: (column) => column);
+
+  GeneratedColumn<String> get descriptionHtmlZh => $composableBuilder(
+    column: $table.descriptionHtmlZh,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get mainImageUrl => $composableBuilder(
     column: $table.mainImageUrl,
     builder: (column) => column,
@@ -6800,6 +7457,8 @@ class $$WorksTableTableManager
                 Value<String?> seriesId = const Value.absent(),
                 Value<String?> seriesName = const Value.absent(),
                 Value<String?> descriptionHtml = const Value.absent(),
+                Value<String?> titleZh = const Value.absent(),
+                Value<String?> descriptionHtmlZh = const Value.absent(),
                 Value<String?> mainImageUrl = const Value.absent(),
                 Value<List<String>> sampleImageUrls = const Value.absent(),
                 Value<String?> mainImageLocalPath = const Value.absent(),
@@ -6856,6 +7515,8 @@ class $$WorksTableTableManager
                 seriesId: seriesId,
                 seriesName: seriesName,
                 descriptionHtml: descriptionHtml,
+                titleZh: titleZh,
+                descriptionHtmlZh: descriptionHtmlZh,
                 mainImageUrl: mainImageUrl,
                 sampleImageUrls: sampleImageUrls,
                 mainImageLocalPath: mainImageLocalPath,
@@ -6912,6 +7573,8 @@ class $$WorksTableTableManager
                 Value<String?> seriesId = const Value.absent(),
                 Value<String?> seriesName = const Value.absent(),
                 Value<String?> descriptionHtml = const Value.absent(),
+                Value<String?> titleZh = const Value.absent(),
+                Value<String?> descriptionHtmlZh = const Value.absent(),
                 Value<String?> mainImageUrl = const Value.absent(),
                 Value<List<String>> sampleImageUrls = const Value.absent(),
                 Value<String?> mainImageLocalPath = const Value.absent(),
@@ -6968,6 +7631,8 @@ class $$WorksTableTableManager
                 seriesId: seriesId,
                 seriesName: seriesName,
                 descriptionHtml: descriptionHtml,
+                titleZh: titleZh,
+                descriptionHtmlZh: descriptionHtmlZh,
                 mainImageUrl: mainImageUrl,
                 sampleImageUrls: sampleImageUrls,
                 mainImageLocalPath: mainImageLocalPath,
@@ -8839,6 +9504,265 @@ typedef $$ImportedFoldersTableProcessedTableManager =
       ImportedFolder,
       PrefetchHooks Function()
     >;
+typedef $$LlmProvidersTableCreateCompanionBuilder =
+    LlmProvidersCompanion Function({
+      required String id,
+      required String name,
+      required String baseUrl,
+      required String model,
+      Value<String?> systemPrompt,
+      Value<bool> isDefault,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$LlmProvidersTableUpdateCompanionBuilder =
+    LlmProvidersCompanion Function({
+      Value<String> id,
+      Value<String> name,
+      Value<String> baseUrl,
+      Value<String> model,
+      Value<String?> systemPrompt,
+      Value<bool> isDefault,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$LlmProvidersTableFilterComposer
+    extends Composer<_$TonariDatabase, $LlmProvidersTable> {
+  $$LlmProvidersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get baseUrl => $composableBuilder(
+    column: $table.baseUrl,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get model => $composableBuilder(
+    column: $table.model,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get systemPrompt => $composableBuilder(
+    column: $table.systemPrompt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isDefault => $composableBuilder(
+    column: $table.isDefault,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$LlmProvidersTableOrderingComposer
+    extends Composer<_$TonariDatabase, $LlmProvidersTable> {
+  $$LlmProvidersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get baseUrl => $composableBuilder(
+    column: $table.baseUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get model => $composableBuilder(
+    column: $table.model,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get systemPrompt => $composableBuilder(
+    column: $table.systemPrompt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isDefault => $composableBuilder(
+    column: $table.isDefault,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$LlmProvidersTableAnnotationComposer
+    extends Composer<_$TonariDatabase, $LlmProvidersTable> {
+  $$LlmProvidersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get baseUrl =>
+      $composableBuilder(column: $table.baseUrl, builder: (column) => column);
+
+  GeneratedColumn<String> get model =>
+      $composableBuilder(column: $table.model, builder: (column) => column);
+
+  GeneratedColumn<String> get systemPrompt => $composableBuilder(
+    column: $table.systemPrompt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isDefault =>
+      $composableBuilder(column: $table.isDefault, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$LlmProvidersTableTableManager
+    extends
+        RootTableManager<
+          _$TonariDatabase,
+          $LlmProvidersTable,
+          LlmProvider,
+          $$LlmProvidersTableFilterComposer,
+          $$LlmProvidersTableOrderingComposer,
+          $$LlmProvidersTableAnnotationComposer,
+          $$LlmProvidersTableCreateCompanionBuilder,
+          $$LlmProvidersTableUpdateCompanionBuilder,
+          (
+            LlmProvider,
+            BaseReferences<_$TonariDatabase, $LlmProvidersTable, LlmProvider>,
+          ),
+          LlmProvider,
+          PrefetchHooks Function()
+        > {
+  $$LlmProvidersTableTableManager(_$TonariDatabase db, $LlmProvidersTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LlmProvidersTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LlmProvidersTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$LlmProvidersTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> baseUrl = const Value.absent(),
+                Value<String> model = const Value.absent(),
+                Value<String?> systemPrompt = const Value.absent(),
+                Value<bool> isDefault = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LlmProvidersCompanion(
+                id: id,
+                name: name,
+                baseUrl: baseUrl,
+                model: model,
+                systemPrompt: systemPrompt,
+                isDefault: isDefault,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String name,
+                required String baseUrl,
+                required String model,
+                Value<String?> systemPrompt = const Value.absent(),
+                Value<bool> isDefault = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => LlmProvidersCompanion.insert(
+                id: id,
+                name: name,
+                baseUrl: baseUrl,
+                model: model,
+                systemPrompt: systemPrompt,
+                isDefault: isDefault,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$LlmProvidersTableProcessedTableManager =
+    ProcessedTableManager<
+      _$TonariDatabase,
+      $LlmProvidersTable,
+      LlmProvider,
+      $$LlmProvidersTableFilterComposer,
+      $$LlmProvidersTableOrderingComposer,
+      $$LlmProvidersTableAnnotationComposer,
+      $$LlmProvidersTableCreateCompanionBuilder,
+      $$LlmProvidersTableUpdateCompanionBuilder,
+      (
+        LlmProvider,
+        BaseReferences<_$TonariDatabase, $LlmProvidersTable, LlmProvider>,
+      ),
+      LlmProvider,
+      PrefetchHooks Function()
+    >;
 
 class $TonariDatabaseManager {
   final _$TonariDatabase _db;
@@ -8853,4 +9777,6 @@ class $TonariDatabaseManager {
       $$SubtitlesTableTableManager(_db, _db.subtitles);
   $$ImportedFoldersTableTableManager get importedFolders =>
       $$ImportedFoldersTableTableManager(_db, _db.importedFolders);
+  $$LlmProvidersTableTableManager get llmProviders =>
+      $$LlmProvidersTableTableManager(_db, _db.llmProviders);
 }
