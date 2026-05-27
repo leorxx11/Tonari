@@ -33,6 +33,7 @@ class DlsiteWorkData {
     required this.productId,
     required this.title,
     this.titleRomaji,
+    this.originalProductId,
     this.circleId,
     this.circleName,
     this.releaseDate,
@@ -58,6 +59,12 @@ class DlsiteWorkData {
   final String productId;
   final String title;
   final String? titleRomaji;
+
+  /// When [productId] is a DLsite translation edition, this is the original
+  /// Japanese release's RJ number (extracted from the page's og:image URL,
+  /// which always points to the original work's image bucket). Null when the
+  /// page represents the original work itself.
+  final String? originalProductId;
   final String? circleId;
   final String? circleName;
   final DateTime? releaseDate;
@@ -270,10 +277,18 @@ class DlsiteFetcher {
     final doc = html_parser.parse(html);
     final outline = _collectOutline(doc);
     final description = doc.querySelector('[itemprop="description"]');
+    final ogImage = _attr(doc, 'meta[property="og:image"]', 'content');
+    final imageRj = _extractImageProductId(ogImage);
+    final originalProductId =
+        (imageRj != null && imageRj != productId) ? imageRj : null;
+    final mainImageUrl = (ogImage != null && ogImage.isNotEmpty)
+        ? _normalizeUrl(ogImage)
+        : mainImageUrlFor(imageRj ?? productId);
     return DlsiteWorkData(
       productId: productId,
       title: _tryGet(() => _textOrNull(doc, '#work_name')) ?? productId,
       titleRomaji: _tryGet(() => _attr(doc, 'meta[itemprop="alternateName"]', 'content')),
+      originalProductId: originalProductId,
       circleId: _tryGet(() => _circleId(doc, productId)),
       circleName: _tryGet(() => _textOrNull(doc, '.maker_name')),
       releaseDate: _tryGet(() => _parseReleaseDate(outline['发售日'])),
@@ -291,10 +306,25 @@ class DlsiteFetcher {
       seriesId: _tryGet(() => _seriesId(outline['系列名'])),
       seriesName: _tryGet(() => _textOrNullElem(outline['系列名']?.querySelector('a'))),
       descriptionHtml: _tryGet(() => description?.innerHtml.trim()),
-      mainImageUrl: mainImageUrlFor(productId),
+      mainImageUrl: mainImageUrl,
       sampleImageUrls: _tryGet(() => _sampleImages(doc)) ?? const [],
       descriptionImageUrls: _tryGet(() => _descriptionImages(description)) ?? const [],
     );
+  }
+
+  /// Extracts the work-id segment from a DLsite image CDN URL. URLs look like
+  /// `//img.dlsite.jp/modpub/images2/work/doujin/RJ01479000/RJ01478826_img_main.jpg`
+  /// — the second RJ is the real underlying work, which differs from the
+  /// page's product_id for translation editions.
+  static String? _extractImageProductId(String? url) {
+    if (url == null || url.isEmpty) return null;
+    final m =
+        RegExp(r'/work/[^/]+/[A-Za-z]+\d+/([A-Za-z]+\d+)_img_').firstMatch(url);
+    return m?.group(1);
+  }
+
+  static String _normalizeUrl(String url) {
+    return url.startsWith('//') ? 'https:$url' : url;
   }
 
   static String mainImageUrlFor(String productId) {

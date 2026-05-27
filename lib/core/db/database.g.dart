@@ -50,6 +50,18 @@ class $WorksTable extends Works with TableInfo<$WorksTable, Work> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _originalProductIdMeta = const VerificationMeta(
+    'originalProductId',
+  );
+  @override
+  late final GeneratedColumn<String> originalProductId =
+      GeneratedColumn<String>(
+        'original_product_id',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _circleIdMeta = const VerificationMeta(
     'circleId',
   );
@@ -577,6 +589,7 @@ class $WorksTable extends Works with TableInfo<$WorksTable, Work> {
     title,
     titleRomaji,
     translatedTitle,
+    originalProductId,
     circleId,
     circleName,
     releaseDate,
@@ -668,6 +681,15 @@ class $WorksTable extends Works with TableInfo<$WorksTable, Work> {
         translatedTitle.isAcceptableOrUnknown(
           data['translated_title']!,
           _translatedTitleMeta,
+        ),
+      );
+    }
+    if (data.containsKey('original_product_id')) {
+      context.handle(
+        _originalProductIdMeta,
+        originalProductId.isAcceptableOrUnknown(
+          data['original_product_id']!,
+          _originalProductIdMeta,
         ),
       );
     }
@@ -977,6 +999,10 @@ class $WorksTable extends Works with TableInfo<$WorksTable, Work> {
         DriftSqlType.string,
         data['${effectivePrefix}translated_title'],
       ),
+      originalProductId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}original_product_id'],
+      ),
       circleId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}circle_id'],
@@ -1223,6 +1249,12 @@ class Work extends DataClass implements Insertable<Work> {
   final String title;
   final String? titleRomaji;
   final String? translatedTitle;
+
+  /// When this row is a DLsite translation edition (e.g. "大家一起来翻译"),
+  /// the original Japanese release's RJ number. Lets enrichment fall back to
+  /// the original work's image gallery / cast / runtime when the translated
+  /// page is sparse. Null for non-translated works.
+  final String? originalProductId;
   final String? circleId;
   final String? circleName;
   final DateTime? releaseDate;
@@ -1275,6 +1307,7 @@ class Work extends DataClass implements Insertable<Work> {
     required this.title,
     this.titleRomaji,
     this.translatedTitle,
+    this.originalProductId,
     this.circleId,
     this.circleName,
     this.releaseDate,
@@ -1333,6 +1366,9 @@ class Work extends DataClass implements Insertable<Work> {
     }
     if (!nullToAbsent || translatedTitle != null) {
       map['translated_title'] = Variable<String>(translatedTitle);
+    }
+    if (!nullToAbsent || originalProductId != null) {
+      map['original_product_id'] = Variable<String>(originalProductId);
     }
     if (!nullToAbsent || circleId != null) {
       map['circle_id'] = Variable<String>(circleId);
@@ -1496,6 +1532,9 @@ class Work extends DataClass implements Insertable<Work> {
       translatedTitle: translatedTitle == null && nullToAbsent
           ? const Value.absent()
           : Value(translatedTitle),
+      originalProductId: originalProductId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(originalProductId),
       circleId: circleId == null && nullToAbsent
           ? const Value.absent()
           : Value(circleId),
@@ -1614,6 +1653,9 @@ class Work extends DataClass implements Insertable<Work> {
       title: serializer.fromJson<String>(json['title']),
       titleRomaji: serializer.fromJson<String?>(json['titleRomaji']),
       translatedTitle: serializer.fromJson<String?>(json['translatedTitle']),
+      originalProductId: serializer.fromJson<String?>(
+        json['originalProductId'],
+      ),
       circleId: serializer.fromJson<String?>(json['circleId']),
       circleName: serializer.fromJson<String?>(json['circleName']),
       releaseDate: serializer.fromJson<DateTime?>(json['releaseDate']),
@@ -1685,6 +1727,7 @@ class Work extends DataClass implements Insertable<Work> {
       'title': serializer.toJson<String>(title),
       'titleRomaji': serializer.toJson<String?>(titleRomaji),
       'translatedTitle': serializer.toJson<String?>(translatedTitle),
+      'originalProductId': serializer.toJson<String?>(originalProductId),
       'circleId': serializer.toJson<String?>(circleId),
       'circleName': serializer.toJson<String?>(circleName),
       'releaseDate': serializer.toJson<DateTime?>(releaseDate),
@@ -1744,6 +1787,7 @@ class Work extends DataClass implements Insertable<Work> {
     String? title,
     Value<String?> titleRomaji = const Value.absent(),
     Value<String?> translatedTitle = const Value.absent(),
+    Value<String?> originalProductId = const Value.absent(),
     Value<String?> circleId = const Value.absent(),
     Value<String?> circleName = const Value.absent(),
     Value<DateTime?> releaseDate = const Value.absent(),
@@ -1798,6 +1842,9 @@ class Work extends DataClass implements Insertable<Work> {
     translatedTitle: translatedTitle.present
         ? translatedTitle.value
         : this.translatedTitle,
+    originalProductId: originalProductId.present
+        ? originalProductId.value
+        : this.originalProductId,
     circleId: circleId.present ? circleId.value : this.circleId,
     circleName: circleName.present ? circleName.value : this.circleName,
     releaseDate: releaseDate.present ? releaseDate.value : this.releaseDate,
@@ -1869,6 +1916,9 @@ class Work extends DataClass implements Insertable<Work> {
       translatedTitle: data.translatedTitle.present
           ? data.translatedTitle.value
           : this.translatedTitle,
+      originalProductId: data.originalProductId.present
+          ? data.originalProductId.value
+          : this.originalProductId,
       circleId: data.circleId.present ? data.circleId.value : this.circleId,
       circleName: data.circleName.present
           ? data.circleName.value
@@ -1986,6 +2036,7 @@ class Work extends DataClass implements Insertable<Work> {
           ..write('title: $title, ')
           ..write('titleRomaji: $titleRomaji, ')
           ..write('translatedTitle: $translatedTitle, ')
+          ..write('originalProductId: $originalProductId, ')
           ..write('circleId: $circleId, ')
           ..write('circleName: $circleName, ')
           ..write('releaseDate: $releaseDate, ')
@@ -2043,6 +2094,7 @@ class Work extends DataClass implements Insertable<Work> {
     title,
     titleRomaji,
     translatedTitle,
+    originalProductId,
     circleId,
     circleName,
     releaseDate,
@@ -2099,6 +2151,7 @@ class Work extends DataClass implements Insertable<Work> {
           other.title == this.title &&
           other.titleRomaji == this.titleRomaji &&
           other.translatedTitle == this.translatedTitle &&
+          other.originalProductId == this.originalProductId &&
           other.circleId == this.circleId &&
           other.circleName == this.circleName &&
           other.releaseDate == this.releaseDate &&
@@ -2153,6 +2206,7 @@ class WorksCompanion extends UpdateCompanion<Work> {
   final Value<String> title;
   final Value<String?> titleRomaji;
   final Value<String?> translatedTitle;
+  final Value<String?> originalProductId;
   final Value<String?> circleId;
   final Value<String?> circleName;
   final Value<DateTime?> releaseDate;
@@ -2206,6 +2260,7 @@ class WorksCompanion extends UpdateCompanion<Work> {
     this.title = const Value.absent(),
     this.titleRomaji = const Value.absent(),
     this.translatedTitle = const Value.absent(),
+    this.originalProductId = const Value.absent(),
     this.circleId = const Value.absent(),
     this.circleName = const Value.absent(),
     this.releaseDate = const Value.absent(),
@@ -2260,6 +2315,7 @@ class WorksCompanion extends UpdateCompanion<Work> {
     required String title,
     this.titleRomaji = const Value.absent(),
     this.translatedTitle = const Value.absent(),
+    this.originalProductId = const Value.absent(),
     this.circleId = const Value.absent(),
     this.circleName = const Value.absent(),
     this.releaseDate = const Value.absent(),
@@ -2319,6 +2375,7 @@ class WorksCompanion extends UpdateCompanion<Work> {
     Expression<String>? title,
     Expression<String>? titleRomaji,
     Expression<String>? translatedTitle,
+    Expression<String>? originalProductId,
     Expression<String>? circleId,
     Expression<String>? circleName,
     Expression<DateTime>? releaseDate,
@@ -2373,6 +2430,7 @@ class WorksCompanion extends UpdateCompanion<Work> {
       if (title != null) 'title': title,
       if (titleRomaji != null) 'title_romaji': titleRomaji,
       if (translatedTitle != null) 'translated_title': translatedTitle,
+      if (originalProductId != null) 'original_product_id': originalProductId,
       if (circleId != null) 'circle_id': circleId,
       if (circleName != null) 'circle_name': circleName,
       if (releaseDate != null) 'release_date': releaseDate,
@@ -2432,6 +2490,7 @@ class WorksCompanion extends UpdateCompanion<Work> {
     Value<String>? title,
     Value<String?>? titleRomaji,
     Value<String?>? translatedTitle,
+    Value<String?>? originalProductId,
     Value<String?>? circleId,
     Value<String?>? circleName,
     Value<DateTime?>? releaseDate,
@@ -2486,6 +2545,7 @@ class WorksCompanion extends UpdateCompanion<Work> {
       title: title ?? this.title,
       titleRomaji: titleRomaji ?? this.titleRomaji,
       translatedTitle: translatedTitle ?? this.translatedTitle,
+      originalProductId: originalProductId ?? this.originalProductId,
       circleId: circleId ?? this.circleId,
       circleName: circleName ?? this.circleName,
       releaseDate: releaseDate ?? this.releaseDate,
@@ -2553,6 +2613,9 @@ class WorksCompanion extends UpdateCompanion<Work> {
     }
     if (translatedTitle.present) {
       map['translated_title'] = Variable<String>(translatedTitle.value);
+    }
+    if (originalProductId.present) {
+      map['original_product_id'] = Variable<String>(originalProductId.value);
     }
     if (circleId.present) {
       map['circle_id'] = Variable<String>(circleId.value);
@@ -2734,6 +2797,7 @@ class WorksCompanion extends UpdateCompanion<Work> {
           ..write('title: $title, ')
           ..write('titleRomaji: $titleRomaji, ')
           ..write('translatedTitle: $translatedTitle, ')
+          ..write('originalProductId: $originalProductId, ')
           ..write('circleId: $circleId, ')
           ..write('circleName: $circleName, ')
           ..write('releaseDate: $releaseDate, ')
@@ -5650,6 +5714,7 @@ typedef $$WorksTableCreateCompanionBuilder =
       required String title,
       Value<String?> titleRomaji,
       Value<String?> translatedTitle,
+      Value<String?> originalProductId,
       Value<String?> circleId,
       Value<String?> circleName,
       Value<DateTime?> releaseDate,
@@ -5705,6 +5770,7 @@ typedef $$WorksTableUpdateCompanionBuilder =
       Value<String> title,
       Value<String?> titleRomaji,
       Value<String?> translatedTitle,
+      Value<String?> originalProductId,
       Value<String?> circleId,
       Value<String?> circleName,
       Value<DateTime?> releaseDate,
@@ -5821,6 +5887,11 @@ class $$WorksTableFilterComposer
 
   ColumnFilters<String> get translatedTitle => $composableBuilder(
     column: $table.translatedTitle,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get originalProductId => $composableBuilder(
+    column: $table.originalProductId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6149,6 +6220,11 @@ class $$WorksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get originalProductId => $composableBuilder(
+    column: $table.originalProductId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get circleId => $composableBuilder(
     column: $table.circleId,
     builder: (column) => ColumnOrderings(column),
@@ -6407,6 +6483,11 @@ class $$WorksTableAnnotationComposer
 
   GeneratedColumn<String> get translatedTitle => $composableBuilder(
     column: $table.translatedTitle,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get originalProductId => $composableBuilder(
+    column: $table.originalProductId,
     builder: (column) => column,
   );
 
@@ -6702,6 +6783,7 @@ class $$WorksTableTableManager
                 Value<String> title = const Value.absent(),
                 Value<String?> titleRomaji = const Value.absent(),
                 Value<String?> translatedTitle = const Value.absent(),
+                Value<String?> originalProductId = const Value.absent(),
                 Value<String?> circleId = const Value.absent(),
                 Value<String?> circleName = const Value.absent(),
                 Value<DateTime?> releaseDate = const Value.absent(),
@@ -6757,6 +6839,7 @@ class $$WorksTableTableManager
                 title: title,
                 titleRomaji: titleRomaji,
                 translatedTitle: translatedTitle,
+                originalProductId: originalProductId,
                 circleId: circleId,
                 circleName: circleName,
                 releaseDate: releaseDate,
@@ -6812,6 +6895,7 @@ class $$WorksTableTableManager
                 required String title,
                 Value<String?> titleRomaji = const Value.absent(),
                 Value<String?> translatedTitle = const Value.absent(),
+                Value<String?> originalProductId = const Value.absent(),
                 Value<String?> circleId = const Value.absent(),
                 Value<String?> circleName = const Value.absent(),
                 Value<DateTime?> releaseDate = const Value.absent(),
@@ -6867,6 +6951,7 @@ class $$WorksTableTableManager
                 title: title,
                 titleRomaji: titleRomaji,
                 translatedTitle: translatedTitle,
+                originalProductId: originalProductId,
                 circleId: circleId,
                 circleName: circleName,
                 releaseDate: releaseDate,

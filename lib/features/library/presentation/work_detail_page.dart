@@ -177,6 +177,31 @@ class _HeaderSection extends StatelessWidget {
               ),
             ),
           ],
+          if (work.originalProductId != null) ...[
+            const SizedBox(height: 4),
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => _openOnDlsite(work.originalProductId!),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.translate,
+                    size: 14,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '翻译自 ${work.originalProductId}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           if (_hasBadges) ...[
             const SizedBox(height: 10),
             Wrap(

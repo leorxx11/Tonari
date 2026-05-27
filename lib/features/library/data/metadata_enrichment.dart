@@ -61,8 +61,29 @@ class MetadataEnrichmentService {
       }
     }
 
-    final html = await _fetcher.fetchHtml(productId);
-    final work = _fetcher.parseHtml(html, productId);
+    final translated = _fetcher.parseHtml(
+      await _fetcher.fetchHtml(productId),
+      productId,
+    );
+
+    // DLsite translation editions (e.g. "大家一起来翻译") get their own
+    // RJ but the page is sparse: no product-slider sample gallery, and
+    // upstream credits/runtime fields can be missing. The og:image URL still
+    // points at the original work's image bucket, which is how we discover
+    // the original RJ. When present, fetch the original page and merge.
+    DlsiteWorkData? original;
+    if (translated.originalProductId != null) {
+      try {
+        original = _fetcher.parseHtml(
+          await _fetcher.fetchHtml(translated.originalProductId!),
+          translated.originalProductId!,
+        );
+      } catch (_) {
+        original = null;
+      }
+    }
+    final work = _merge(translated, original);
+
     DlsiteAjaxData? ajax;
     try {
       ajax = await _fetcher.fetchAjax(productId);
@@ -88,6 +109,7 @@ class MetadataEnrichmentService {
       WorksCompanion(
         title: Value(work.title),
         titleRomaji: Value(work.titleRomaji),
+        originalProductId: Value(work.originalProductId),
         circleId: Value(work.circleId),
         circleName: Value(work.circleName),
         releaseDate: Value(work.releaseDate),
@@ -124,6 +146,48 @@ class MetadataEnrichmentService {
         scrapedAt: Value(now),
         updatedAt: Value(now),
       ),
+    );
+  }
+
+  /// Combines a translation-edition page with its original Japanese page.
+  /// Translation page wins for user-facing localized fields (title, desc,
+  /// language list); the original wins for upstream catalog data that the
+  /// translation page tends to omit (sample gallery, cast, runtime, genres).
+  /// Stats and pricing come from neither — those are fetched per-edition via
+  /// the ajax endpoint by the caller.
+  DlsiteWorkData _merge(DlsiteWorkData t, DlsiteWorkData? o) {
+    if (o == null) return t;
+    return DlsiteWorkData(
+      productId: t.productId,
+      title: t.title,
+      titleRomaji: t.titleRomaji ?? o.titleRomaji,
+      originalProductId: t.originalProductId,
+      circleId: t.circleId ?? o.circleId,
+      circleName: t.circleName ?? o.circleName,
+      releaseDate: o.releaseDate ?? t.releaseDate,
+      voiceActors: o.voiceActors.isNotEmpty ? o.voiceActors : t.voiceActors,
+      illustrators: o.illustrators.isNotEmpty ? o.illustrators : t.illustrators,
+      scenarioWriters:
+          o.scenarioWriters.isNotEmpty ? o.scenarioWriters : t.scenarioWriters,
+      musicians: o.musicians.isNotEmpty ? o.musicians : t.musicians,
+      ageRating: t.ageRating ?? o.ageRating,
+      workType: t.workType ?? o.workType,
+      workTypeName: t.workTypeName ?? o.workTypeName,
+      fileFormats: t.fileFormats.isNotEmpty ? t.fileFormats : o.fileFormats,
+      supportedLanguages: t.supportedLanguages.isNotEmpty
+          ? t.supportedLanguages
+          : o.supportedLanguages,
+      genres: o.genres.isNotEmpty ? o.genres : t.genres,
+      fileSize: o.fileSize ?? t.fileSize,
+      seriesId: t.seriesId ?? o.seriesId,
+      seriesName: t.seriesName ?? o.seriesName,
+      descriptionHtml: t.descriptionHtml ?? o.descriptionHtml,
+      mainImageUrl: t.mainImageUrl,
+      sampleImageUrls:
+          o.sampleImageUrls.isNotEmpty ? o.sampleImageUrls : t.sampleImageUrls,
+      descriptionImageUrls: t.descriptionImageUrls.isNotEmpty
+          ? t.descriptionImageUrls
+          : o.descriptionImageUrls,
     );
   }
 }

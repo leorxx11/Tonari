@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
+import 'package:path_provider/path_provider.dart';
 
 import 'converters.dart';
 import 'tables/imported_folders.dart';
@@ -17,7 +20,7 @@ class TonariDatabase extends _$TonariDatabase {
   TonariDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -49,8 +52,38 @@ class TonariDatabase extends _$TonariDatabase {
         // populates work_files (legacy imports never recorded non-audio).
         await customStatement('UPDATE works SET needs_rescan = 1');
       }
+      if (from < 8) {
+        await m.addColumn(works, works.originalProductId);
+        // Clearing scraped_at causes enrichPending (run on app start) to
+        // re-fetch metadata for every existing work, picking up the new
+        // translation→original fallback and richer image galleries.
+        await customStatement('UPDATE works SET scraped_at = NULL');
+      }
+      if (from < 9) {
+        // v8 cleared scraped_at but left local image caches alone. Sample
+        // files are saved by position (smp1.jpg, smp2.jpg…), so any user
+        // already on v8 ended up with the translation-edition's sparse
+        // gallery occupying smp1..smpN while the newly-fetched original-work
+        // images filled smpN+1 onwards — visually mixed editions. Nuke the
+        // whole image dir and force one more enrichment pass so everything
+        // downloads from scratch.
+        await _evictAllImageCaches();
+        await customStatement('UPDATE works SET scraped_at = NULL');
+      }
     },
   );
+
+  static Future<void> _evictAllImageCaches() async {
+    try {
+      final docs = await getApplicationDocumentsDirectory();
+      final imagesDir = Directory('${docs.path}/images');
+      if (imagesDir.existsSync()) {
+        imagesDir.deleteSync(recursive: true);
+      }
+    } catch (_) {
+      // Best-effort: a stale cache is annoying but not fatal.
+    }
+  }
 
   /// Compute [tracks.relativePath] for rows imported before schema v6 and
   /// rewrite their ID to the new `workId|relativePath` scheme. Done in-place

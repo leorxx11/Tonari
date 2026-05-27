@@ -8,6 +8,12 @@ class Works extends Table {
   TextColumn get titleRomaji => text().nullable()();
   TextColumn get translatedTitle => text().nullable()();
 
+  /// When this row is a DLsite translation edition (e.g. "大家一起来翻译"),
+  /// the original Japanese release's RJ number. Lets enrichment fall back to
+  /// the original work's image gallery / cast / runtime when the translated
+  /// page is sparse. Null for non-translated works.
+  TextColumn get originalProductId => text().nullable()();
+
   TextColumn get circleId => text().nullable()();
   TextColumn get circleName => text().nullable()();
   DateTimeColumn get releaseDate => dateTime().nullable()();

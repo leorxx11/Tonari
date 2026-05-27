@@ -337,5 +337,26 @@ void main() {
       final tree = buildWorkTree(tracks);
       expect(autoPath(tree), ['本編A']);
     });
+
+    test('chinese 含音效/无音效 keywords recognised', () {
+      // Typical Chinese-translated DLsite folder layout (RJ01505616 etc).
+      final tracks = [
+        makeTrack('RJ', '■01_本篇『含音效WAV』/01.wav', 'wav'),
+        makeTrack('RJ', '■02_本篇『无音效WAV』/01.wav', 'wav'),
+        makeTrack('RJ', '■03_本篇『含音效MP3』/01.mp3', 'mp3'),
+        makeTrack('RJ', '■04_本篇『无音效MP3』/01.mp3', 'mp3'),
+      ];
+      final tree = buildWorkTree(tracks);
+      expect(autoPath(tree), ['■01_本篇『含音效WAV』']);
+    });
+
+    test('chinese 不含音效 (negative) drops alongside positive sibling', () {
+      final tracks = [
+        makeTrack('RJ', '本篇_有音效/01.wav', 'wav'),
+        makeTrack('RJ', '本篇_不含音效/01.wav', 'wav'),
+      ];
+      final tree = buildWorkTree(tracks);
+      expect(autoPath(tree), ['本篇_有音效']);
+    });
   });
 }

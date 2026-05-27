@@ -200,6 +200,7 @@ const _seNegativeKeywords = <String>[
   '効果音抜き', '効果音抜',
   'seなし', 'seナシ', 'se無し', 'se無', 'se抜き', 'se抜',
   '無効果音', '無se', '不含se', '不含効果音',
+  '不含音效', '不含音效版', '无音效', '無音效', '没音效', '無音效版',
   'nose', 'noeffect',
 ];
 
@@ -208,6 +209,7 @@ const _sePositiveKeywords = <String>[
   '効果音入り', '効果音入',
   'seあり', 'seアリ', 'se有り', 'se有', 'se入り', 'se入',
   '有効果音', '含se', '含効果音', 'withse',
+  '含音效', '含音效版', '有音效', '帶音效', '带音效',
 ];
 
 _SETag _seTagOf(String folderName) {
