@@ -7,6 +7,8 @@ import 'package:just_audio/just_audio.dart';
 
 import '../../library/presentation/widgets/work_cover.dart';
 import '../../settings/data/player_prefs.dart';
+import '../../subtitle/data/subtitle_overlay_prefs.dart';
+import '../../subtitle/data/subtitle_providers.dart';
 import '../data/playback_controller.dart';
 
 /// Sky-blue accent used for progress + volume sliders. Lighter and warmer
@@ -156,7 +158,8 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                 mode: ref.watch(playerPrefsProvider).playbackMode,
                 onQueue: () => _showQueue(context, state, controller),
                 onCycleMode: _cycleMode,
-                onCaptions: () => _placeholder(context, '字幕功能待开发'),
+                onPickSubtitle: () =>
+                    _placeholder(context, '从文件夹选择字幕 · 敬请期待'),
                 onMore: () => _showMore(context),
               ),
             ],
@@ -487,13 +490,13 @@ class _VolumeRowState extends State<_VolumeRow> {
   }
 }
 
-class _BottomActions extends StatelessWidget {
+class _BottomActions extends ConsumerWidget {
   const _BottomActions({
     required this.color,
     required this.mode,
     required this.onQueue,
     required this.onCycleMode,
-    required this.onCaptions,
+    required this.onPickSubtitle,
     required this.onMore,
   });
 
@@ -501,11 +504,15 @@ class _BottomActions extends StatelessWidget {
   final PlaybackMode mode;
   final VoidCallback onQueue;
   final VoidCallback onCycleMode;
-  final VoidCallback onCaptions;
+  final VoidCallback onPickSubtitle;
   final VoidCallback onMore;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final hasSubtitle = ref.watch(currentSubtitleProvider).value != null;
+    final subtitleMode =
+        ref.watch(subtitleOverlayPrefsProvider.select((p) => p.mode));
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
@@ -521,11 +528,19 @@ class _BottomActions extends StatelessWidget {
           icon: Icon(_modeIcon(mode), color: color),
           onPressed: onCycleMode,
         ),
+        if (hasSubtitle)
+          IconButton(
+            tooltip: '字幕模式：${subtitleMode.label} · 单击切换',
+            iconSize: 22,
+            icon: Icon(_subtitleModeIcon(subtitleMode), color: color),
+            onPressed: () =>
+                ref.read(subtitleOverlayPrefsProvider.notifier).cycle(),
+          ),
         IconButton(
-          tooltip: '字幕',
+          tooltip: '手动选择字幕文件',
           iconSize: 22,
-          icon: Icon(CupertinoIcons.captions_bubble, color: color),
-          onPressed: onCaptions,
+          icon: Icon(Icons.subtitles_outlined, color: color),
+          onPressed: onPickSubtitle,
         ),
         IconButton(
           tooltip: '更多',
@@ -542,6 +557,12 @@ class _BottomActions extends StatelessWidget {
         PlaybackMode.loopAll => Icons.repeat_rounded,
         PlaybackMode.loopOne => Icons.repeat_one_rounded,
         PlaybackMode.shuffle => Icons.shuffle_rounded,
+      };
+
+  IconData _subtitleModeIcon(SubtitleMode m) => switch (m) {
+        SubtitleMode.off => CupertinoIcons.captions_bubble,
+        SubtitleMode.appLevel => CupertinoIcons.captions_bubble_fill,
+        SubtitleMode.pip => Icons.picture_in_picture_alt_rounded,
       };
 }
 

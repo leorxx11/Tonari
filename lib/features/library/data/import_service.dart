@@ -1,9 +1,14 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:crypto/crypto.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/db/database.dart';
 import '../../../core/db/providers.dart';
 import '../../../core/scanner/scan_models.dart';
+import '../../../core/subtitle/subtitle_parser.dart';
 
 class ImportSummary {
   const ImportSummary({
@@ -54,6 +59,10 @@ class ImportService {
     final workIds = <String>{};
     final trackIds = <String>{};
     final now = DateTime.now();
+
+    // Read + parse subtitles outside the DB transaction — file I/O can be slow
+    // and we don't want to hold the SQLite write lock while doing it.
+    final parsedSubs = _readAndParseSubtitles(scan);
 
     await _db.transaction(() async {
       for (final w in scan.works) {
@@ -152,6 +161,61 @@ class ImportService {
                 (row) =>
                     row.workId.equals(w.productId) &
                     row.id.isNotIn(scannedIds.toList()),
+              ))
+              .go();
+        }
+
+        // Subtitles for tracks of this work — id == trackId (one-to-one). Upsert
+        // preserves timeOffsetMs and any prior translation cache on a rescan.
+        final subsForWork = parsedSubs.where((p) => p.workId == w.productId);
+        final subtitleIds = <String>{};
+        for (final p in subsForWork) {
+          final tid = trackIdFor(w.productId, p.audioRelativePath);
+          if (!scannedIds.contains(tid)) continue;
+          subtitleIds.add(tid);
+          final existing = await (_db.select(_db.subtitles)
+                ..where((row) => row.id.equals(tid)))
+              .getSingleOrNull();
+          if (existing == null) {
+            await _db.into(_db.subtitles).insert(
+                  SubtitlesCompanion.insert(
+                    id: tid,
+                    trackId: tid,
+                    filePath: p.path,
+                    fileFormat: p.format,
+                    fileHash: p.hash,
+                    originalLinesJson: p.cuesJson,
+                    createdAt: now,
+                    updatedAt: now,
+                  ),
+                );
+          } else {
+            await (_db.update(_db.subtitles)
+                  ..where((row) => row.id.equals(tid)))
+                .write(
+              SubtitlesCompanion(
+                filePath: Value(p.path),
+                fileFormat: Value(p.format),
+                fileHash: Value(p.hash),
+                originalLinesJson: Value(p.cuesJson),
+                updatedAt: Value(now),
+              ),
+            );
+          }
+        }
+        // Drop subtitle rows whose audio is gone or whose file disappeared.
+        if (subtitleIds.isEmpty) {
+          if (scannedIds.isNotEmpty) {
+            await (_db.delete(_db.subtitles)..where(
+                  (row) => row.trackId.isIn(scannedIds.toList()),
+                ))
+                .go();
+          }
+        } else {
+          await (_db.delete(_db.subtitles)..where(
+                (row) =>
+                    row.trackId.isIn(scannedIds.toList()) &
+                    row.id.isNotIn(subtitleIds.toList()),
               ))
               .go();
         }
@@ -280,6 +344,84 @@ class ImportService {
     final i = fileName.lastIndexOf('.');
     return i < 0 ? fileName : fileName.substring(0, i);
   }
+
+  /// Returns parsed-and-hashed subtitles for every work in [scan], matched
+  /// to their corresponding audio. Two naming conventions are accepted:
+  ///   - `track.wav.vtt` (DLsite style — subtitle name minus one ext == audio name)
+  ///   - `track.srt`     (generic style — both files share a stem)
+  /// First match wins. Unreadable or empty subtitles are silently skipped.
+  List<_ParsedSubtitle> _readAndParseSubtitles(ScanResult scan) {
+    final out = <_ParsedSubtitle>[];
+    for (final w in scan.works) {
+      if (w.subtitles.isEmpty || w.audios.isEmpty) continue;
+      for (final sub in w.subtitles) {
+        final stem = _stripExt(sub.fileName);
+        final match = w.audios.firstWhere(
+          (a) => a.fileName == stem || _stripExt(a.fileName) == stem,
+          orElse: () => _noAudio,
+        );
+        if (identical(match, _noAudio)) continue;
+
+        try {
+          final bytes = File(sub.path).readAsBytesSync();
+          if (bytes.isEmpty) continue;
+          final hash = sha256.convert(bytes).toString();
+          final content = utf8.decode(_stripBom(bytes), allowMalformed: true);
+          final cues = SubtitleParser.parse(content, sub.format);
+          if (cues.isEmpty) continue;
+          out.add(_ParsedSubtitle(
+            workId: w.productId,
+            audioRelativePath: match.relativePath,
+            path: sub.path,
+            format: sub.format,
+            hash: hash,
+            cuesJson:
+                jsonEncode([for (final c in cues) c.toJson()]),
+          ));
+        } catch (_) {
+          // unreadable / unparseable subtitle — skip, don't abort import
+        }
+      }
+    }
+    return out;
+  }
+
+  static List<int> _stripBom(List<int> bytes) {
+    if (bytes.length >= 3 &&
+        bytes[0] == 0xEF &&
+        bytes[1] == 0xBB &&
+        bytes[2] == 0xBF) {
+      return bytes.sublist(3);
+    }
+    return bytes;
+  }
+
+  static const _noAudio = DetectedAudio(
+    path: '',
+    relativePath: '',
+    fileName: '',
+    format: '',
+    sizeBytes: 0,
+    parentDirName: '',
+  );
+}
+
+class _ParsedSubtitle {
+  const _ParsedSubtitle({
+    required this.workId,
+    required this.audioRelativePath,
+    required this.path,
+    required this.format,
+    required this.hash,
+    required this.cuesJson,
+  });
+
+  final String workId;
+  final String audioRelativePath;
+  final String path;
+  final String format;
+  final String hash;
+  final String cuesJson;
 }
 
 final importServiceProvider = Provider<ImportService>((ref) {

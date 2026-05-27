@@ -1,5 +1,6 @@
-import Flutter
 import AVFoundation
+import AVKit
+import Flutter
 import MediaPlayer
 import UIKit
 
@@ -19,6 +20,9 @@ import UIKit
     )
     NowPlayingPlugin.register(
       with: engineBridge.pluginRegistry.registrar(forPlugin: "NowPlayingPlugin")!
+    )
+    PipPlugin.register(
+      with: engineBridge.pluginRegistry.registrar(forPlugin: "PipPlugin")!
     )
   }
 }
@@ -302,4 +306,318 @@ private final class NowPlayingPlugin: NSObject, FlutterPlugin {
     )
     return .success
   }
+}
+
+// MARK: - Picture-in-Picture subtitle window plugin
+
+/// Bridges Dart's `tonari/pip` method channel to a system-level PiP window
+/// that renders the current subtitle cue. Implementation strategy:
+///   - Create an `AVSampleBufferDisplayLayer` and attach it to a 1×1 invisible
+///     host view in the key window (PiP requires the layer to be on-screen).
+///   - Wrap it in `AVPictureInPictureController(contentSource:)` (iOS 15+).
+///   - Whenever Dart calls `update(text:)`, paint `text` onto a CVPixelBuffer,
+///     wrap it in a CMSampleBuffer, and enqueue it on the display layer.
+///   - `start()` / `stop()` toggle PiP itself. The user gesture comes from
+///     the captions-cycle button on the player page.
+private final class PipPlugin: NSObject, FlutterPlugin {
+  static func register(with registrar: FlutterPluginRegistrar) {
+    let channel = FlutterMethodChannel(
+      name: "tonari/pip",
+      binaryMessenger: registrar.messenger()
+    )
+    let instance = PipPlugin()
+    registrar.addMethodCallDelegate(instance, channel: channel)
+  }
+
+  private let controller = PipSubtitleController()
+
+  func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+    switch call.method {
+    case "isSupported":
+      result(AVPictureInPictureController.isPictureInPictureSupported())
+    case "start":
+      controller.start()
+      result(nil)
+    case "stop":
+      controller.stop()
+      result(nil)
+    case "update":
+      let args = call.arguments as? [String: Any]
+      let text = args?["text"] as? String ?? ""
+      controller.update(text: text)
+      result(nil)
+    default:
+      result(FlutterMethodNotImplemented)
+    }
+  }
+}
+
+private final class PipSubtitleController: NSObject {
+  private let displayLayer = AVSampleBufferDisplayLayer()
+  private var pipController: AVPictureInPictureController?
+  private var hostView: UIView?
+  private var lastRenderedText: String = ""
+  private var hasEnqueuedAtLeastOneFrame = false
+
+  // 7:1 wide-strip canvas — PiP scales the window to this aspect ratio.
+  // Long-and-thin so it sits on screen like a system caption bar.
+  private static let canvasWidth = 700
+  private static let canvasHeight = 100
+
+  override init() {
+    super.init()
+    DispatchQueue.main.async { [weak self] in
+      self?.setupHostAndPip()
+    }
+  }
+
+  private func setupHostAndPip() {
+    guard AVPictureInPictureController.isPictureInPictureSupported() else {
+      return
+    }
+    guard let window = Self.keyWindow() else {
+      // Window not ready yet — retry shortly. happens during cold start.
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+        self?.setupHostAndPip()
+      }
+      return
+    }
+
+    let host = UIView(frame: CGRect(x: 0, y: 0, width: 1, height: 1))
+    host.isUserInteractionEnabled = false
+    host.isHidden = false
+    host.alpha = 0.01
+    displayLayer.frame = host.bounds
+    displayLayer.videoGravity = .resizeAspect
+    host.layer.addSublayer(displayLayer)
+    window.addSubview(host)
+    hostView = host
+
+    if #available(iOS 15.0, *) {
+      let contentSource = AVPictureInPictureController.ContentSource(
+        sampleBufferDisplayLayer: displayLayer,
+        playbackDelegate: self
+      )
+      let pip = AVPictureInPictureController(contentSource: contentSource)
+      pip.delegate = self
+      pipController = pip
+    }
+  }
+
+  private static func keyWindow() -> UIWindow? {
+    return UIApplication.shared.connectedScenes
+      .compactMap { $0 as? UIWindowScene }
+      .flatMap { $0.windows }
+      .first { $0.isKeyWindow }
+  }
+
+  func start() {
+    DispatchQueue.main.async { [weak self] in
+      guard let self = self else { return }
+      // PiP refuses to start until at least one frame has been enqueued.
+      // Render a visible placeholder so a broken render pipeline shows up
+      // immediately (rather than a mysterious black window).
+      let bootstrap = self.lastRenderedText.isEmpty
+        ? "字幕加载中…"
+        : self.lastRenderedText
+      self.renderText(bootstrap)
+      // Tiny delay gives the display layer time to ingest the buffer
+      // before AVKit checks readiness.
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+        self?.pipController?.startPictureInPicture()
+      }
+    }
+  }
+
+  func stop() {
+    DispatchQueue.main.async { [weak self] in
+      self?.pipController?.stopPictureInPicture()
+    }
+  }
+
+  func update(text: String) {
+    let display = text.isEmpty ? "字幕加载中…" : text
+    if display == lastRenderedText && hasEnqueuedAtLeastOneFrame { return }
+    lastRenderedText = display
+    DispatchQueue.main.async { [weak self] in
+      self?.renderText(display)
+    }
+  }
+
+  /// Paints [text] (white, centered) on a black background and pushes the
+  /// pixel buffer to the display layer.
+  private func renderText(_ text: String) {
+    let width = Self.canvasWidth
+    let height = Self.canvasHeight
+
+    var pixelBuffer: CVPixelBuffer?
+    let attrs: [CFString: Any] = [
+      kCVPixelBufferCGImageCompatibilityKey: true,
+      kCVPixelBufferCGBitmapContextCompatibilityKey: true,
+      // Required by AVSampleBufferDisplayLayer when rendering through PiP —
+      // without it the layer silently drops frames at the IOSurface boundary.
+      kCVPixelBufferIOSurfacePropertiesKey: [:] as CFDictionary,
+    ]
+    CVPixelBufferCreate(
+      kCFAllocatorDefault,
+      width,
+      height,
+      kCVPixelFormatType_32BGRA,
+      attrs as CFDictionary,
+      &pixelBuffer
+    )
+    guard let buffer = pixelBuffer else { return }
+
+    CVPixelBufferLockBaseAddress(buffer, [])
+    defer { CVPixelBufferUnlockBaseAddress(buffer, []) }
+
+    let base = CVPixelBufferGetBaseAddress(buffer)
+    let bytesPerRow = CVPixelBufferGetBytesPerRow(buffer)
+    let colorSpace = CGColorSpaceCreateDeviceRGB()
+    // CVPixelBuffer 32BGRA stores BGRA in memory; the matching CGContext
+    // config is "byte order 32 little + alpha skip-first" (ARGB logical →
+    // BGRA on disk). premultipliedFirst was the wrong key — 32BGRA isn't
+    // premultiplied.
+    let bitmapInfo =
+      CGImageAlphaInfo.noneSkipFirst.rawValue
+      | CGBitmapInfo.byteOrder32Little.rawValue
+
+    guard
+      let context = CGContext(
+        data: base,
+        width: width,
+        height: height,
+        bitsPerComponent: 8,
+        bytesPerRow: bytesPerRow,
+        space: colorSpace,
+        bitmapInfo: bitmapInfo
+      )
+    else { return }
+
+    // Solid white background.
+    context.setFillColor(red: 1, green: 1, blue: 1, alpha: 1.0)
+    context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+
+    // Draw the text using UIKit's NSAttributedString in a flipped context
+    // (Core Graphics origin is bottom-left, UIKit text expects top-left).
+    UIGraphicsPushContext(context)
+    defer { UIGraphicsPopContext() }
+    context.saveGState()
+    defer { context.restoreGState() }
+    context.translateBy(x: 0, y: CGFloat(height))
+    context.scaleBy(x: 1, y: -1)
+
+    let paragraph = NSMutableParagraphStyle()
+    paragraph.alignment = .center
+    paragraph.lineBreakMode = .byTruncatingTail
+    let attrString = NSAttributedString(
+      string: text,
+      attributes: [
+        .font: UIFont.systemFont(ofSize: 32, weight: .semibold),
+        .foregroundColor: UIColor.black,
+        .paragraphStyle: paragraph,
+      ]
+    )
+
+    let inset: CGFloat = 16
+    let drawWidth = CGFloat(width) - inset * 2
+    let textBounds = attrString.boundingRect(
+      with: CGSize(width: drawWidth, height: CGFloat(height)),
+      options: [.usesLineFragmentOrigin],
+      context: nil
+    )
+    let drawRect = CGRect(
+      x: inset,
+      y: max(inset, (CGFloat(height) - textBounds.height) / 2),
+      width: drawWidth,
+      height: textBounds.height
+    )
+    attrString.draw(with: drawRect, options: [.usesLineFragmentOrigin], context: nil)
+
+    enqueuePixelBuffer(buffer)
+    hasEnqueuedAtLeastOneFrame = true
+  }
+
+  private func enqueuePixelBuffer(_ pixelBuffer: CVPixelBuffer) {
+    var formatDesc: CMFormatDescription?
+    CMVideoFormatDescriptionCreateForImageBuffer(
+      allocator: kCFAllocatorDefault,
+      imageBuffer: pixelBuffer,
+      formatDescriptionOut: &formatDesc
+    )
+    guard let format = formatDesc else { return }
+
+    let presentation = CMClockGetTime(CMClockGetHostTimeClock())
+    var timing = CMSampleTimingInfo(
+      duration: .invalid,
+      presentationTimeStamp: presentation,
+      decodeTimeStamp: .invalid
+    )
+
+    var sampleBuffer: CMSampleBuffer?
+    CMSampleBufferCreateReadyWithImageBuffer(
+      allocator: kCFAllocatorDefault,
+      imageBuffer: pixelBuffer,
+      formatDescription: format,
+      sampleTiming: &timing,
+      sampleBufferOut: &sampleBuffer
+    )
+    guard let sb = sampleBuffer else { return }
+    displayLayer.enqueue(sb)
+  }
+}
+
+// MARK: - PiP delegates
+
+@available(iOS 15.0, *)
+extension PipSubtitleController: AVPictureInPictureSampleBufferPlaybackDelegate {
+  func pictureInPictureController(
+    _ pip: AVPictureInPictureController,
+    setPlaying playing: Bool
+  ) {
+    // Playback is owned by just_audio on the Dart side; nothing to toggle
+    // here. The PiP overlay's play/pause control becomes a no-op.
+  }
+
+  func pictureInPictureControllerTimeRangeForPlayback(
+    _ pip: AVPictureInPictureController
+  ) -> CMTimeRange {
+    // Effectively-live content — there's nothing to scrub through.
+    return CMTimeRange(start: .negativeInfinity, duration: .positiveInfinity)
+  }
+
+  func pictureInPictureControllerIsPlaybackPaused(
+    _ pip: AVPictureInPictureController
+  ) -> Bool {
+    return false
+  }
+
+  func pictureInPictureController(
+    _ pip: AVPictureInPictureController,
+    didTransitionToRenderSize newRenderSize: CMVideoDimensions
+  ) {}
+
+  func pictureInPictureController(
+    _ pip: AVPictureInPictureController,
+    skipByInterval skipInterval: CMTime,
+    completion completionHandler: @escaping () -> Void
+  ) {
+    completionHandler()
+  }
+}
+
+@available(iOS 15.0, *)
+extension PipSubtitleController: AVPictureInPictureControllerDelegate {
+  func pictureInPictureControllerWillStartPictureInPicture(
+    _ pip: AVPictureInPictureController
+  ) {}
+  func pictureInPictureControllerDidStartPictureInPicture(
+    _ pip: AVPictureInPictureController
+  ) {}
+  func pictureInPictureControllerWillStopPictureInPicture(
+    _ pip: AVPictureInPictureController
+  ) {}
+  func pictureInPictureControllerDidStopPictureInPicture(
+    _ pip: AVPictureInPictureController
+  ) {}
 }
