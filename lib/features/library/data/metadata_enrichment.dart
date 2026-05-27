@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/db/database.dart';
 import '../../../core/db/providers.dart';
+import '../../../core/files/local_image_path.dart';
 import 'dlsite_fetcher.dart';
 import 'work_image_cache.dart';
 
@@ -16,10 +17,10 @@ class MetadataEnrichmentService {
     required DlsiteFetcher fetcher,
     required WorkImageCache imageCache,
     Duration delayBetween = const Duration(milliseconds: 200),
-  })  : _db = db,
-        _fetcher = fetcher,
-        _imageCache = imageCache,
-        _delay = delayBetween;
+  }) : _db = db,
+       _fetcher = fetcher,
+       _imageCache = imageCache,
+       _delay = delayBetween;
 
   final TonariDatabase _db;
   final DlsiteFetcher _fetcher;
@@ -40,25 +41,33 @@ class MetadataEnrichmentService {
   }
 
   Future<void> enrichPending() async {
-    final rows = await (_db.select(_db.works)
-          ..where((r) => r.scrapedAt.isNull() & r.isRemoved.equals(false)))
-        .get();
-    await enrichBatch(rows.map((r) => r.productId));
+    final rows = await (_db.select(
+      _db.works,
+    )..where((r) => r.isRemoved.equals(false))).get();
+    await enrichBatch(
+      rows
+          .where(
+            (r) =>
+                r.scrapedAt == null ||
+                LocalImagePath.resolve(r.mainImageLocalPath) == null,
+          )
+          .map((r) => r.productId),
+    );
   }
 
   Future<void> enrichOne(String productId, {bool force = false}) async {
-    final row = await (_db.select(_db.works)
-          ..where((r) => r.productId.equals(productId)))
-        .getSingleOrNull();
+    final row = await (_db.select(
+      _db.works,
+    )..where((r) => r.productId.equals(productId))).getSingleOrNull();
     if (row == null) return;
-    if (!force && row.scrapedAt != null) return;
+    if (!force &&
+        row.scrapedAt != null &&
+        LocalImagePath.resolve(row.mainImageLocalPath) != null) {
+      return;
+    }
 
     if (force) {
-      try {
-        await _imageCache.evict(productId);
-      } catch (_) {
-        // best-effort
-      }
+      await _imageCache.evict(productId);
     }
 
     final translated = _fetcher.parseHtml(
@@ -91,21 +100,20 @@ class MetadataEnrichmentService {
       ajax = null;
     }
 
-    WorkImagePaths images = const WorkImagePaths();
-    try {
-      images = await _imageCache.cache(
-        productId: productId,
-        mainImageUrl: work.mainImageUrl,
-        sampleImageUrls: work.sampleImageUrls,
-        descriptionImageUrls: work.descriptionImageUrls,
-      );
-    } catch (_) {
-      // keep URLs even if local caching failed
+    final images = await _imageCache.cache(
+      productId: productId,
+      mainImageUrl: work.mainImageUrl,
+      sampleImageUrls: work.sampleImageUrls,
+      descriptionImageUrls: work.descriptionImageUrls,
+    );
+    if (images.mainImage == null) {
+      throw DlsiteFetchException('Failed to cache main image for $productId');
     }
 
     final now = DateTime.now();
-    await (_db.update(_db.works)..where((r) => r.productId.equals(productId)))
-        .write(
+    await (_db.update(
+      _db.works,
+    )..where((r) => r.productId.equals(productId))).write(
       WorksCompanion(
         title: Value(work.title),
         titleRomaji: Value(work.titleRomaji),
@@ -122,7 +130,9 @@ class MetadataEnrichmentService {
         workTypeName: Value(work.workTypeName),
         fileFormats: Value(work.fileFormats),
         supportedLanguages: Value(work.supportedLanguages),
-        genresJson: Value(jsonEncode(work.genres.map((g) => g.toJson()).toList())),
+        genresJson: Value(
+          jsonEncode(work.genres.map((g) => g.toJson()).toList()),
+        ),
         fileSize: Value(work.fileSize),
         seriesId: Value(work.seriesId),
         seriesName: Value(work.seriesName),
@@ -167,8 +177,9 @@ class MetadataEnrichmentService {
       releaseDate: o.releaseDate ?? t.releaseDate,
       voiceActors: o.voiceActors.isNotEmpty ? o.voiceActors : t.voiceActors,
       illustrators: o.illustrators.isNotEmpty ? o.illustrators : t.illustrators,
-      scenarioWriters:
-          o.scenarioWriters.isNotEmpty ? o.scenarioWriters : t.scenarioWriters,
+      scenarioWriters: o.scenarioWriters.isNotEmpty
+          ? o.scenarioWriters
+          : t.scenarioWriters,
       musicians: o.musicians.isNotEmpty ? o.musicians : t.musicians,
       ageRating: t.ageRating ?? o.ageRating,
       workType: t.workType ?? o.workType,
@@ -182,9 +193,10 @@ class MetadataEnrichmentService {
       seriesId: t.seriesId ?? o.seriesId,
       seriesName: t.seriesName ?? o.seriesName,
       descriptionHtml: t.descriptionHtml ?? o.descriptionHtml,
-      mainImageUrl: t.mainImageUrl,
-      sampleImageUrls:
-          o.sampleImageUrls.isNotEmpty ? o.sampleImageUrls : t.sampleImageUrls,
+      mainImageUrl: o.mainImageUrl,
+      sampleImageUrls: o.sampleImageUrls.isNotEmpty
+          ? o.sampleImageUrls
+          : t.sampleImageUrls,
       descriptionImageUrls: t.descriptionImageUrls.isNotEmpty
           ? t.descriptionImageUrls
           : o.descriptionImageUrls,
