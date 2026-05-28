@@ -1,0 +1,21 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" width="1024" height="1024">
+  <defs>
+    <radialGradient id="bg" cx="0.5" cy="0.5" r="0.7">
+      <stop offset="0%" stop-color="#1d1d26"/>
+      <stop offset="100%" stop-color="#0a0a12"/>
+    </radialGradient>
+    <radialGradient id="disc" cx="0.4" cy="0.35" r="0.75">
+      <stop offset="0%" stop-color="#d83a36"/>
+      <stop offset="100%" stop-color="#a8231f"/>
+    </radialGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <circle cx="512" cy="512" r="400" fill="url(#disc)"/>
+  <circle cx="512" cy="512" r="372" fill="none" stroke="#8a201c" stroke-width="3" opacity="0.55"/>
+  <text x="512" y="725"
+        font-family="Hiragino Mincho ProN, Noto Serif CJK JP, Songti SC, serif"
+        font-size="500"
+        text-anchor="middle"
+        fill="#f5e8c4"
+        font-weight="700">隣</text>
+</svg>

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tonari 图标预览</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    background: #0a0a0f;
+    color: #f0f0f5;
+    font-family: -apple-system, "PingFang SC", sans-serif;
+    margin: 0;
+    padding: 48px 16px;
+    min-height: 100vh;
+  }
+  h1 { font-weight: 200; letter-spacing: 0.1em; text-align: center; margin: 0 0 12px; font-size: 26px; }
+  .sub { text-align: center; color: #777; font-size: 13px; margin-bottom: 56px; }
+  .row { display: flex; align-items: end; justify-content: center; gap: 48px; flex-wrap: wrap; margin-bottom: 64px; }
+  .item { text-align: center; }
+  .icon-mask {
+    overflow: hidden;
+    box-shadow: 0 10px 28px rgba(0,0,0,0.5), 0 3px 8px rgba(0,0,0,0.3);
+    display: inline-block;
+  }
+  .icon-mask img { display: block; }
+  .ios-corner-1024 { border-radius: 229px; width: 280px; height: 280px; }
+  .ios-corner-180 { border-radius: 40px; width: 180px; height: 180px; }
+  .ios-corner-120 { border-radius: 27px; width: 120px; height: 120px; }
+  .ios-corner-60 { border-radius: 13px; width: 60px; height: 60px; }
+  .icon-mask img { width: 100%; height: 100%; }
+  .label { margin-top: 14px; font-size: 12px; color: #888; letter-spacing: 0.06em; }
+  .label-size { color: #5e5e6c; font-size: 10px; margin-top: 4px; letter-spacing: 0.15em; text-transform: uppercase; }
+  
+  /* Home screen simulation */
+  .home-screen {
+    max-width: 380px;
+    margin: 0 auto;
+    background: linear-gradient(135deg, #2a3140 0%, #0f1218 100%);
+    border-radius: 44px;
+    padding: 36px 24px 24px;
+    border: 2px solid #1a1a22;
+  }
+  .home-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 24px 16px;
+    justify-items: center;
+  }
+  .home-item { text-align: center; }
+  .home-item .ios-corner-120 { width: 64px; height: 64px; border-radius: 14px; }
+  .home-item .name { color: #fff; font-size: 11px; margin-top: 6px; }
+  .placeholder { width: 64px; height: 64px; border-radius: 14px; background: rgba(255,255,255,0.08); }
+  .section-title { text-align: center; color: #888; font-size: 13px; letter-spacing: 0.1em; margin: 0 0 28px; }
+</style>
+</head>
+<body>
+
+<h1>Tonari · 实际效果预览</h1>
+<div class="sub">应用 iOS 圆角后的不同尺寸</div>
+
+<div class="row">
+  <div class="item">
+    <div class="icon-mask ios-corner-1024"><img src="tonari_icon_1024.png" alt=""></div>
+    <div class="label">App Store / 设置封面</div>
+    <div class="label-size">1024 × 1024</div>
+  </div>
+  <div class="item">
+    <div class="icon-mask ios-corner-180"><img src="tonari_icon_180.png" alt=""></div>
+    <div class="label">iPhone 主屏</div>
+    <div class="label-size">180 × 180</div>
+  </div>
+  <div class="item">
+    <div class="icon-mask ios-corner-120"><img src="tonari_icon_120.png" alt=""></div>
+    <div class="label">通知 / 文件夹内</div>
+    <div class="label-size">120 × 120</div>
+  </div>
+  <div class="item">
+    <div class="icon-mask ios-corner-60"><img src="tonari_icon_60.png" alt=""></div>
+    <div class="label">Spotlight</div>
+    <div class="label-size">60 × 60</div>
+  </div>
+</div>
+
+<div class="section-title">主屏摆放模拟</div>
+
+<div class="home-screen">
+  <div class="home-grid">
+    <div class="home-item"><div class="placeholder"></div><div class="name">微信</div></div>
+    <div class="home-item"><div class="placeholder"></div><div class="name">支付宝</div></div>
+    <div class="home-item"><div class="placeholder"></div><div class="name">音乐</div></div>
+    <div class="home-item"><div class="placeholder"></div><div class="name">相机</div></div>
+    <div class="home-item"><div class="placeholder"></div><div class="name">备忘录</div></div>
+    <div class="home-item"><div class="icon-mask ios-corner-120"><img src="tonari_icon_120.png" alt=""></div><div class="name">Tonari</div></div>
+    <div class="home-item"><div class="placeholder"></div><div class="name">设置</div></div>
+    <div class="home-item"><div class="placeholder"></div><div class="name">浏览器</div></div>
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,64 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" width="1024" height="1024">
+  <defs>
+    <radialGradient id="bg" cx="0.5" cy="0.5" r="0.7">
+      <stop offset="0%" stop-color="#1d1d26"/>
+      <stop offset="100%" stop-color="#0a0a12"/>
+    </radialGradient>
+    <radialGradient id="vinyl" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%" stop-color="#1a1a22"/>
+      <stop offset="60%" stop-color="#0d0d14"/>
+      <stop offset="100%" stop-color="#070710"/>
+    </radialGradient>
+    <radialGradient id="label" cx="0.4" cy="0.35" r="0.7">
+      <stop offset="0%" stop-color="#d83a36"/>
+      <stop offset="100%" stop-color="#a8231f"/>
+    </radialGradient>
+    <linearGradient id="shine" x1="0.1" y1="0.05" x2="0.9" y2="0.95">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.10"/>
+      <stop offset="45%" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.04"/>
+    </linearGradient>
+    <linearGradient id="arm" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#e8e0c8"/>
+      <stop offset="100%" stop-color="#bfb59a"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <!-- 黑胶本体 -->
+  <circle cx="512" cy="512" r="430" fill="url(#vinyl)"/>
+  <!-- 同心音轨纹路 -->
+  <g stroke="#2a2a32" stroke-width="1.2" fill="none" opacity="0.7">
+    <circle cx="512" cy="512" r="410"/>
+    <circle cx="512" cy="512" r="390"/>
+    <circle cx="512" cy="512" r="370"/>
+    <circle cx="512" cy="512" r="345"/>
+    <circle cx="512" cy="512" r="320"/>
+    <circle cx="512" cy="512" r="290"/>
+  </g>
+  <!-- 反光弧 -->
+  <circle cx="512" cy="512" r="430" fill="url(#shine)"/>
+  <!-- 红色中心标签 -->
+  <circle cx="512" cy="512" r="215" fill="url(#label)"/>
+  <circle cx="512" cy="512" r="201" fill="none" stroke="#8a201c" stroke-width="1.8" opacity="0.5"/>
+  <!-- 隣字 -->
+  <text x="512" y="606"
+        font-family="Hiragino Mincho ProN, Noto Serif CJK JP, Songti SC, serif"
+        font-size="270"
+        text-anchor="middle"
+        fill="#f5e8c4"
+        font-weight="700">隣</text>
+  <!-- 中心轴孔 -->
+  <circle cx="512" cy="512" r="5" fill="#1a0808" opacity="0.8"/>
+  <!-- 唱针组件（从右上方斜向唱片）-->
+  <g transform="rotate(-32 880 160)">
+    <!-- 唱臂支点（pivot）-->
+    <circle cx="880" cy="160" r="30" fill="#9a9080"/>
+    <circle cx="880" cy="160" r="18" fill="#5a5448"/>
+    <!-- 唱臂 -->
+    <rect x="610" y="146" width="270" height="28" fill="url(#arm)" rx="6"/>
+    <!-- 唱头 cartridge -->
+    <rect x="568" y="138" width="52" height="44" fill="#1a1a22" stroke="#8a8070" stroke-width="2" rx="4"/>
+    <!-- 唱针尖 -->
+    <polygon points="568,160 540,180 552,178" fill="#bfb59a"/>
+  </g>
+</svg>
