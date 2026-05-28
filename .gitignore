@@ -45,3 +45,9 @@ app.*.map.json
 /android/app/release
 
 asmr_one/
+
+# Signing materials — never commit certificates / provisions / passwords
+*.p12
+*.mobileprovision
+证书_*/
+certs/
