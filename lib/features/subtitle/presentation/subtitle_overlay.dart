@@ -20,31 +20,8 @@ class SubtitleOverlay extends ConsumerStatefulWidget {
 class _SubtitleOverlayState extends ConsumerState<SubtitleOverlay> {
   double? _dragDy;
 
-  /// Last trackId for which we auto-enabled the overlay. Prevents repeatedly
-  /// flipping `enabled` back on within the same track while the user might
-  /// be toggling it off intentionally.
-  String? _lastAutoEnabledTrackId;
-
   @override
   Widget build(BuildContext context) {
-    // Auto-open app-level overlay whenever playback moves to a track that
-    // has a subtitle loaded — but only when the user isn't already in PiP
-    // mode (we don't want to steal focus from a system-level window).
-    // Fires once per trackId so the captions button can still cycle off
-    // during that track.
-    ref.listen(currentSubtitleProvider, (_, next) {
-      final loaded = next.value;
-      if (loaded == null) return;
-      if (loaded.trackId == _lastAutoEnabledTrackId) return;
-      _lastAutoEnabledTrackId = loaded.trackId;
-      final mode = ref.read(subtitleOverlayPrefsProvider).mode;
-      if (mode == SubtitleMode.off) {
-        ref
-            .read(subtitleOverlayPrefsProvider.notifier)
-            .setMode(SubtitleMode.appLevel);
-      }
-    });
-
     final prefs = ref.watch(subtitleOverlayPrefsProvider);
     if (prefs.mode != SubtitleMode.appLevel) return const SizedBox.shrink();
 
