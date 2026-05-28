@@ -23,9 +23,13 @@ class WorkCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final hasMenu = onRemove != null || onToggleFavorite != null;
+    final displayTitle =
+        (work.titleZh != null && work.titleZh!.isNotEmpty)
+            ? work.titleZh!
+            : work.title;
     return Semantics(
       button: onTap != null,
-      label: work.title,
+      label: displayTitle,
       child: Card(
         clipBehavior: Clip.antiAlias,
         margin: EdgeInsets.zero,
@@ -54,7 +58,7 @@ class WorkCard extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              work.title,
+                              displayTitle,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: theme.textTheme.bodyMedium?.copyWith(
