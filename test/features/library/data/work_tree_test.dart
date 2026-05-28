@@ -123,6 +123,20 @@ void main() {
     ]);
   });
 
+  test('natural sort: 10_xxx comes after 2_xxx (digit run beats separator)',
+      () {
+    final tracks = [
+      makeTrack('RJN', '10_track.mp3', 'mp3'),
+      makeTrack('RJN', '1_track.mp3', 'mp3'),
+      makeTrack('RJN', '2_track.mp3', 'mp3'),
+    ];
+    final tree = buildWorkTree(tracks);
+    expect(
+      tree.whereType<WorkTreeTrack>().map((t) => t.track.fileName).toList(),
+      ['1_track.mp3', '2_track.mp3', '10_track.mp3'],
+    );
+  });
+
   test('non-audio files appear as WorkTreeFile next to tracks', () {
     final tracks = [makeTrack('RJ5', '音声/01.wav', 'wav')];
     final files = [
