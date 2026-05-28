@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -28,8 +29,9 @@ class TranslationException implements Exception {
 }
 
 class TranslationService {
-  TranslationService({Dio? dio}) : _dio = dio ?? Dio();
+  TranslationService({Dio? dio, this.batchSize = 15}) : _dio = dio ?? Dio();
   final Dio _dio;
+  final int batchSize;
 
   static const _titlePrompt =
       '你是 DLsite 作品标题翻译助手。请把日文作品标题翻译为简洁自然的中文。'
@@ -68,7 +70,25 @@ class TranslationService {
     final segs = HtmlSegmenter.segment(html);
     if (segs.texts.isEmpty) return html;
 
-    final raw = await _retryOnce(
+    // Translate in fixed-size batches. Long descriptions trip the LLM's
+    // ability to keep array length stable and may overflow the provider's
+    // default max_tokens, so we trade extra round trips for reliability.
+    final translated = <String>[];
+    for (var start = 0; start < segs.texts.length; start += batchSize) {
+      final end = math.min(start + batchSize, segs.texts.length);
+      final batch = segs.texts.sublist(start, end);
+      final part = await _translateBatch(provider, batch, cancelToken: cancelToken);
+      translated.addAll(part);
+    }
+    return HtmlSegmenter.fill(segs, translated);
+  }
+
+  Future<List<String>> _translateBatch(
+    LlmProviderConfig provider,
+    List<String> batch, {
+    CancelToken? cancelToken,
+  }) async {
+    final raw = await _retry(
       () => _chat(
         provider,
         [
@@ -76,19 +96,21 @@ class TranslationService {
             'role': 'system',
             'content': _composeSystemPrompt(_descPrompt, provider.systemPrompt),
           },
-          {'role': 'user', 'content': jsonEncode(segs.texts)},
+          {'role': 'user', 'content': jsonEncode(batch)},
         ],
         cancelToken: cancelToken,
       ),
+      validate: (text) {
+        final arr = _parseJsonArray(text);
+        if (arr.length != batch.length) {
+          throw TranslationException(
+            'translation count mismatch: ${arr.length} vs ${batch.length}',
+          );
+        }
+        return arr.map((e) => e.toString()).toList();
+      },
     );
-
-    final arr = _parseJsonArray(raw);
-    if (arr.length != segs.texts.length) {
-      throw TranslationException(
-        'translation count mismatch: ${arr.length} vs ${segs.texts.length}',
-      );
-    }
-    return HtmlSegmenter.fill(segs, arr.map((e) => e.toString()).toList());
+    return raw;
   }
 
   Future<void> testConnection(LlmProviderConfig provider) async {
@@ -125,6 +147,24 @@ class TranslationService {
       throw TranslationException('empty content');
     }
     return content.trim();
+  }
+
+  Future<T> _retry<T>(
+    Future<String> Function() action, {
+    required T Function(String text) validate,
+    int attempts = 3,
+  }) async {
+    Object? lastErr;
+    for (var i = 0; i < attempts; i++) {
+      try {
+        final raw = await action();
+        return validate(raw);
+      } catch (e) {
+        if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
+        lastErr = e;
+      }
+    }
+    throw lastErr ?? TranslationException('all retries failed');
   }
 
   Future<T> _retryOnce<T>(Future<T> Function() action) async {
