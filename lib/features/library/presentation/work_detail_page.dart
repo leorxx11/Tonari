@@ -72,49 +72,94 @@ class _WorkDetailViewState extends ConsumerState<_WorkDetailView> {
             onPressed: () => _openOnDlsite(work.productId),
           ),
           _TranslationButton(work: work),
-          _TranslationMenu(work: work),
+          _MoreMenu(work: work, state: this),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: () => _onPullToRefresh(work.productId),
-        child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          slivers: [
-            SliverToBoxAdapter(child: _HeaderSection(work: work)),
-            SliverToBoxAdapter(child: _StatsSection(work: work)),
-            SliverToBoxAdapter(child: _CreditsSection(work: work)),
-            SliverToBoxAdapter(child: _GenresSection(work: work)),
-            SliverToBoxAdapter(child: _FileInfoLine(work: work)),
-            SliverToBoxAdapter(
-              child: _FilesEntry(
-                work: work,
-                tracksAsync: tracksAsync,
-                filesAsync: filesAsync,
-              ),
+      body: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          SliverToBoxAdapter(child: _HeaderSection(work: work)),
+          SliverToBoxAdapter(child: _StatsSection(work: work)),
+          SliverToBoxAdapter(child: _CreditsSection(work: work)),
+          SliverToBoxAdapter(child: _GenresSection(work: work)),
+          SliverToBoxAdapter(child: _FileInfoLine(work: work)),
+          SliverToBoxAdapter(
+            child: _FilesEntry(
+              work: work,
+              tracksAsync: tracksAsync,
+              filesAsync: filesAsync,
             ),
-            SliverToBoxAdapter(child: _DescriptionSection(work: work)),
-            const SliverToBoxAdapter(child: SizedBox(height: 24)),
-          ],
-        ),
+          ),
+          SliverToBoxAdapter(child: _DescriptionSection(work: work)),
+          const SliverToBoxAdapter(child: SizedBox(height: 24)),
+        ],
       ),
       bottomNavigationBar: const MiniPlayer(),
     );
   }
 
-  Future<void> _onPullToRefresh(String productId) async {
+  Future<void> refreshMetadata(String productId) async {
     if (_refreshing) return;
-    _refreshing = true;
+    setState(() => _refreshing = true);
+    final before = ref.read(workByIdProvider(productId)).value;
     try {
       await ref
           .read(metadataEnrichmentProvider)
           .enrichOne(productId, force: true);
+      _evictWorkImages(before);
+      final after = ref.read(workByIdProvider(productId)).value;
+      if (after != null) _evictWorkImages(after);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('元数据已刷新')),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('刷新失败：$e')),
       );
     } finally {
-      _refreshing = false;
+      if (mounted) setState(() => _refreshing = false);
+    }
+  }
+
+  Future<void> refreshImages(String productId) async {
+    if (_refreshing) return;
+    setState(() => _refreshing = true);
+    final before = ref.read(workByIdProvider(productId)).value;
+    try {
+      await ref.read(metadataEnrichmentProvider).refreshImages(productId);
+      _evictWorkImages(before);
+      final after = ref.read(workByIdProvider(productId)).value;
+      if (after != null) _evictWorkImages(after);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('图片已刷新')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('刷新图片失败：$e')),
+      );
+    } finally {
+      if (mounted) setState(() => _refreshing = false);
+    }
+  }
+
+  bool get refreshing => _refreshing;
+
+  void _evictWorkImages(Work? work) {
+    if (work == null) return;
+    final cache = PaintingBinding.instance.imageCache;
+    final stored = <String>[
+      ?work.mainImageLocalPath,
+      ...work.sampleImageLocalPaths,
+      ...work.descriptionImageLocalPaths,
+    ];
+    for (final s in stored) {
+      final resolved = LocalImagePath.resolve(s);
+      if (resolved == null) continue;
+      cache.evict(FileImage(File(resolved)));
     }
   }
 }
@@ -1215,10 +1260,11 @@ class _TranslationButton extends ConsumerWidget {
   }
 }
 
-class _TranslationMenu extends ConsumerWidget {
-  const _TranslationMenu({required this.work});
+class _MoreMenu extends ConsumerWidget {
+  const _MoreMenu({required this.work, required this.state});
 
   final Work work;
+  final _WorkDetailViewState state;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1229,27 +1275,55 @@ class _TranslationMenu extends ConsumerWidget {
     final stateAsync = ref.watch(
       translationControllerProvider(work.productId),
     );
-    final loading = stateAsync.value is TranslationLoading;
-    final enabled = defaultProvider != null && hasZh && !loading;
+    final translating = stateAsync.value is TranslationLoading;
+    final refreshing = state.refreshing;
+    final canRetranslate = defaultProvider != null && hasZh && !translating;
+    final canRefresh = !refreshing && !translating;
 
     return PopupMenuButton<String>(
       tooltip: '更多',
-      enabled: enabled,
       onSelected: (v) {
-        if (v == 'retranslate') {
-          ref
-              .read(translationControllerProvider(work.productId).notifier)
-              .translate(force: true);
+        switch (v) {
+          case 'retranslate':
+            ref
+                .read(translationControllerProvider(work.productId).notifier)
+                .translate(force: true);
+          case 'refresh_metadata':
+            state.refreshMetadata(work.productId);
+          case 'refresh_images':
+            state.refreshImages(work.productId);
         }
       },
       itemBuilder: (_) => [
-        const PopupMenuItem(
+        PopupMenuItem(
           value: 'retranslate',
-          child: ListTile(
+          enabled: canRetranslate,
+          child: const ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.translate),
+            title: Text('重新翻译'),
+          ),
+        ),
+        PopupMenuItem(
+          value: 'refresh_metadata',
+          enabled: canRefresh,
+          child: const ListTile(
             dense: true,
             contentPadding: EdgeInsets.zero,
             leading: Icon(Icons.refresh),
-            title: Text('重新翻译'),
+            title: Text('刷新元数据'),
+            subtitle: Text('会清除已缓存的翻译'),
+          ),
+        ),
+        PopupMenuItem(
+          value: 'refresh_images',
+          enabled: canRefresh,
+          child: const ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.image_outlined),
+            title: Text('只刷新图片'),
           ),
         ),
       ],

@@ -71,6 +71,9 @@ class _NoopEnrichment implements MetadataEnrichmentService {
 
   @override
   Future<void> enrichPending() async {}
+
+  @override
+  Future<void> refreshImages(String productId) async {}
 }
 
 class _NoopRescan implements RescanService {

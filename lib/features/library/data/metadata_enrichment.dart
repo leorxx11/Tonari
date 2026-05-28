@@ -163,6 +163,61 @@ class MetadataEnrichmentService {
     );
   }
 
+  /// Re-downloads only the work's images, leaving every other column —
+  /// including the cached translation — untouched. Use when the user
+  /// wants to refresh artwork without paying the LLM cost again or losing
+  /// already-translated copy.
+  Future<void> refreshImages(String productId) async {
+    final row = await (_db.select(
+      _db.works,
+    )..where((r) => r.productId.equals(productId))).getSingleOrNull();
+    if (row == null) return;
+    final mainUrl = row.mainImageUrl;
+    if (mainUrl == null || mainUrl.isEmpty) {
+      throw DlsiteFetchException(
+        'Cannot refresh images: $productId has no mainImageUrl yet',
+      );
+    }
+    // Description image URLs aren't persisted as a separate column; we
+    // re-extract them from the cached descriptionHtml (always the original,
+    // not the LLM-translated copy in descriptionHtmlZh).
+    final descUrls = _extractDescriptionImageUrls(row.descriptionHtml);
+    await _imageCache.evict(productId);
+    final images = await _imageCache.cache(
+      productId: productId,
+      mainImageUrl: mainUrl,
+      sampleImageUrls: row.sampleImageUrls,
+      descriptionImageUrls: descUrls,
+    );
+    if (images.mainImage == null) {
+      throw DlsiteFetchException('Failed to cache main image for $productId');
+    }
+    await (_db.update(
+      _db.works,
+    )..where((r) => r.productId.equals(productId))).write(
+      WorksCompanion(
+        mainImageLocalPath: Value(images.mainImage),
+        sampleImageLocalPaths: Value(images.sampleImages),
+        descriptionImageLocalPaths: Value(images.descriptionImages),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
+  static List<String> _extractDescriptionImageUrls(String? html) {
+    if (html == null || html.isEmpty) return const [];
+    final out = <String>[];
+    for (final m in RegExp(
+      r'''<img\s[^>]*?(?:src|data-src)\s*=\s*["']([^"']+)["']''',
+      caseSensitive: false,
+    ).allMatches(html)) {
+      var src = m.group(1)!;
+      if (src.startsWith('//')) src = 'https:$src';
+      out.add(src);
+    }
+    return out;
+  }
+
   /// Combines a translation-edition page with its original Japanese page.
   /// Translation page wins for user-facing localized fields (title, desc,
   /// language list); the original wins for upstream catalog data that the
