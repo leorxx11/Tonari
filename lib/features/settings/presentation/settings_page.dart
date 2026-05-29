@@ -1,114 +1,49 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../data/path_prefs.dart';
-import '../data/player_prefs.dart';
-import '../data/theme_prefs.dart';
-import 'removed_works_page.dart';
+import 'appearance_settings_page.dart';
+import 'data_settings_page.dart';
+import 'playback_settings_page.dart';
+import 'scan_settings_page.dart';
 import 'translation_settings_page.dart';
 
-class SettingsPage extends ConsumerWidget {
+class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final prefs = ref.watch(pathPrefsProvider);
-    final notifier = ref.read(pathPrefsProvider.notifier);
-    final themeMode = ref.watch(themePrefsProvider);
-    final themeNotifier = ref.read(themePrefsProvider.notifier);
-    final playerPrefs = ref.watch(playerPrefsProvider);
-    final playerNotifier = ref.read(playerPrefsProvider.notifier);
-    final theme = Theme.of(context);
-
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('设置')),
       body: ListView(
-        children: [
-          _SectionHeader(theme: theme, label: '外观'),
-          RadioGroup<ThemeMode>(
-            groupValue: themeMode,
-            onChanged: (mode) {
-              if (mode != null) themeNotifier.setMode(mode);
-            },
-            child: const Column(
-              children: [
-                RadioListTile<ThemeMode>(
-                  value: ThemeMode.system,
-                  title: Text('跟随系统'),
-                  secondary: Icon(Icons.brightness_auto_outlined),
-                ),
-                RadioListTile<ThemeMode>(
-                  value: ThemeMode.light,
-                  title: Text('浅色'),
-                  secondary: Icon(Icons.light_mode_outlined),
-                ),
-                RadioListTile<ThemeMode>(
-                  value: ThemeMode.dark,
-                  title: Text('深色'),
-                  secondary: Icon(Icons.dark_mode_outlined),
-                ),
-              ],
-            ),
+        children: const [
+          _Entry(
+            icon: Icons.palette_outlined,
+            title: '外观',
+            subtitle: '主题模式',
+            page: AppearanceSettingsPage(),
           ),
-          const Divider(height: 24),
-          _SectionHeader(theme: theme, label: '资源页智能路径'),
-          SwitchListTile(
-            secondary: const Icon(Icons.alt_route),
-            title: const Text('启用智能路径'),
-            subtitle: const Text('打开资源页时自动定位到唯一的播放目录'),
-            value: prefs.smartPath,
-            onChanged: notifier.setSmartPath,
+          _Entry(
+            icon: Icons.play_circle_outline,
+            title: '播放',
+            subtitle: '跳秒步长',
+            page: PlaybackSettingsPage(),
           ),
-          SwitchListTile(
-            secondary: const Icon(Icons.graphic_eq),
-            title: const Text('优先有 SE'),
-            subtitle: const Text('在含 SE / 不含 SE 之间选择时倾向有 SE 的版本'),
-            value: prefs.preferEffectSound,
-            onChanged: prefs.smartPath ? notifier.setPreferEffectSound : null,
+          _Entry(
+            icon: Icons.folder_open_outlined,
+            title: '资源扫描',
+            subtitle: '智能路径与格式优先级',
+            page: ScanSettingsPage(),
           ),
-          SwitchListTile(
-            secondary: const Icon(Icons.audio_file_outlined),
-            title: const Text('按格式优先级筛选'),
-            subtitle: const Text('在多种音频格式之间按下方顺序选择'),
-            value: prefs.typeOrderEnabled,
-            onChanged: prefs.smartPath ? notifier.setTypeOrderEnabled : null,
+          _Entry(
+            icon: Icons.translate_outlined,
+            title: '翻译',
+            subtitle: 'LLM Provider 配置',
+            page: TranslationSettingsPage(),
           ),
-          _TypeOrderList(
-            order: prefs.typeOrder,
-            enabled: prefs.smartPath && prefs.typeOrderEnabled,
-            onReorder: notifier.reorderType,
-          ),
-          const Divider(height: 24),
-          _SectionHeader(theme: theme, label: '播放器'),
-          _SeekStepSelector(
-            current: playerPrefs.seekStepSeconds,
-            onChanged: playerNotifier.setSeekStep,
-          ),
-          const Divider(height: 24),
-          ListTile(
-            leading: const Icon(Icons.translate_outlined),
-            title: const Text('翻译'),
-            subtitle: const Text('配置 LLM Provider 用于详情页翻译'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const TranslationSettingsPage(),
-                ),
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.restore_from_trash_outlined),
-            title: const Text('已移除作品'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const RemovedWorksPage(),
-                ),
-              );
-            },
+          _Entry(
+            icon: Icons.storage_outlined,
+            title: '数据管理',
+            subtitle: '已移除作品',
+            page: DataSettingsPage(),
           ),
         ],
       ),
@@ -116,205 +51,31 @@ class SettingsPage extends ConsumerWidget {
   }
 }
 
-class _SeekStepSelector extends StatelessWidget {
-  const _SeekStepSelector({required this.current, required this.onChanged});
-
-  final int current;
-  final Future<void> Function(int seconds) onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isPreset = PlayerPrefs.presetSteps.contains(current);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.fast_forward_outlined,
-                  size: 20,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: 8),
-                Text('快进 / 快退步长', style: theme.textTheme.bodyLarge),
-                const Spacer(),
-                Text(
-                  '$current 秒',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: theme.colorScheme.primary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final s in PlayerPrefs.presetSteps)
-                ChoiceChip(
-                  label: Text('${s}s'),
-                  selected: s == current,
-                  onSelected: (sel) {
-                    if (sel) onChanged(s);
-                  },
-                ),
-              ActionChip(
-                avatar: const Icon(Icons.edit_outlined, size: 16),
-                label: const Text('自定义'),
-                onPressed: () => _promptCustom(context),
-              ),
-              if (!isPreset)
-                InputChip(
-                  label: Text('${current}s'),
-                  selected: true,
-                  onPressed: () => _promptCustom(context),
-                ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            '播放页 -X / +X 按钮按此值跳秒',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _promptCustom(BuildContext context) async {
-    final controller = TextEditingController(text: '$current');
-    final result = await showDialog<int>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('自定义步长'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            suffixText: '秒',
-            hintText: '1 - 600',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('取消'),
-          ),
-          TextButton(
-            onPressed: () {
-              final parsed = int.tryParse(controller.text.trim());
-              if (parsed != null && parsed > 0) {
-                Navigator.of(ctx).pop(parsed);
-              }
-            },
-            child: const Text('确定'),
-          ),
-        ],
-      ),
-    );
-    if (result != null) await onChanged(result);
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.theme, required this.label});
-  final ThemeData theme;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-      child: Text(
-        label,
-        style: theme.textTheme.labelLarge?.copyWith(
-          color: theme.colorScheme.primary,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-}
-
-class _TypeOrderList extends StatelessWidget {
-  const _TypeOrderList({
-    required this.order,
-    required this.enabled,
-    required this.onReorder,
+class _Entry extends StatelessWidget {
+  const _Entry({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.page,
   });
 
-  final List<String> order;
-  final bool enabled;
-  final Future<void> Function(int oldIndex, int newIndex) onReorder;
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Widget page;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final dimmedColor = theme.colorScheme.onSurface.withValues(alpha: 0.4);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '拖拽调整格式优先级（顶部最高）',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: enabled
-                  ? theme.colorScheme.onSurfaceVariant
-                  : dimmedColor,
-            ),
-          ),
-          const SizedBox(height: 8),
-          AbsorbPointer(
-            absorbing: !enabled,
-            child: Opacity(
-              opacity: enabled ? 1.0 : 0.5,
-              child: ReorderableListView(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                buildDefaultDragHandles: false,
-                onReorderItem: (oldIndex, newIndex) =>
-                    onReorder(oldIndex, newIndex),
-                children: [
-                  for (var i = 0; i < order.length; i++)
-                    Card(
-                      key: ValueKey(order[i]),
-                      margin: const EdgeInsets.symmetric(vertical: 2),
-                      child: ListTile(
-                        dense: true,
-                        leading: CircleAvatar(
-                          radius: 14,
-                          backgroundColor: theme.colorScheme.primaryContainer,
-                          child: Text(
-                            '${i + 1}',
-                            style: theme.textTheme.labelMedium?.copyWith(
-                              color: theme.colorScheme.onPrimaryContainer,
-                            ),
-                          ),
-                        ),
-                        title: Text(order[i].toUpperCase()),
-                        trailing: ReorderableDragStartListener(
-                          index: i,
-                          child: const Icon(Icons.drag_handle),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
+    return ListTile(
+      leading: Icon(icon),
+      title: Text(title),
+      subtitle: Text(subtitle),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => page),
+        );
+      },
     );
   }
 }

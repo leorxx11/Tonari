@@ -3,8 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../features/favorites/presentation/favorites_page.dart';
-import '../../features/history/presentation/history_page.dart';
 import '../../features/library/data/metadata_enrichment.dart';
 import '../../features/library/data/rescan_service.dart';
 import '../../features/library/presentation/library_page.dart';
@@ -46,8 +44,6 @@ class _RootTabViewState extends ConsumerState<RootTabView> {
               index: index,
               children: const [
                 LibraryPage(),
-                FavoritesPage(),
-                HistoryPage(),
                 SettingsPage(),
               ],
             ),
@@ -65,15 +61,6 @@ class _RootTabViewState extends ConsumerState<RootTabView> {
             icon: Icon(Icons.library_music_outlined),
             selectedIcon: Icon(Icons.library_music),
             label: '媒体库',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.favorite_outline),
-            selectedIcon: Icon(Icons.favorite),
-            label: '收藏',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.history),
-            label: '历史',
           ),
           NavigationDestination(
             icon: Icon(Icons.settings_outlined),

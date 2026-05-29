@@ -186,13 +186,11 @@ void main() {
     _testPrefs = await SharedPreferences.getInstance();
   });
 
-  testWidgets('root renders 4 navigation tabs', (tester) async {
+  testWidgets('root renders 2 navigation tabs', (tester) async {
     await tester.pumpWidget(testApp());
     await tester.pumpAndSettle();
 
     expect(find.text('媒体库'), findsWidgets);
-    expect(find.text('收藏'), findsWidgets);
-    expect(find.text('历史'), findsWidgets);
     expect(find.text('设置'), findsWidgets);
   });
 
@@ -258,11 +256,7 @@ void main() {
 
     await tester.tap(find.text('设置'));
     await tester.pumpAndSettle();
-    await tester.dragUntilVisible(
-      find.text('已移除作品'),
-      find.byType(ListView),
-      const Offset(0, -200),
-    );
+    await tester.tap(find.text('数据管理'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('已移除作品'));
     await tester.pumpAndSettle();
@@ -339,7 +333,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('文件'), findsOneWidget);
-    for (final label in ['媒体库', '收藏', '历史', '设置']) {
+    for (final label in ['媒体库', '设置']) {
       expect(find.text(label), findsNothing);
     }
   });
@@ -547,9 +541,9 @@ void main() {
     await tester.pumpWidget(testApp());
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('收藏'));
+    await tester.tap(find.text('设置'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Favorites (M2+)'), findsOneWidget);
+    expect(find.text('外观'), findsOneWidget);
   });
 }
