@@ -11,10 +11,9 @@ class FolderBookmark {
   }
 
   static Future<BookmarkResolution> resolve(String bookmark) async {
-    final raw = await _channel.invokeMethod<Map<Object?, Object?>>(
-      'resolve',
-      {'bookmark': bookmark},
-    );
+    final raw = await _channel.invokeMethod<Map<Object?, Object?>>('resolve', {
+      'bookmark': bookmark,
+    });
     final map = Map<String, Object?>.from(raw!);
     return BookmarkResolution(
       url: map['url'] as String,

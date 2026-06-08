@@ -79,11 +79,7 @@ class _WorkFilesPageState extends ConsumerState<WorkFilesPage> {
       child: Scaffold(
         appBar: AppBar(
           leading: BackButton(onPressed: _onBack),
-          title: Text(
-            titleText,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
+          title: Text(titleText, maxLines: 1, overflow: TextOverflow.ellipsis),
           actions: [
             if (prefs.smartPath && autoHint.isNotEmpty)
               _AutoPathBadge(hint: autoHint),
@@ -107,8 +103,9 @@ class _WorkFilesPageState extends ConsumerState<WorkFilesPage> {
                       child: Text(
                         '此目录为空',
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          color: CupertinoColors.secondaryLabel
-                              .resolveFrom(context),
+                          color: CupertinoColors.secondaryLabel.resolveFrom(
+                            context,
+                          ),
                         ),
                       ),
                     )
@@ -122,8 +119,7 @@ class _WorkFilesPageState extends ConsumerState<WorkFilesPage> {
                       ),
                       itemBuilder: (context, i) => _NodeRow(
                         node: currentChildren[i],
-                        onTapFolder: (name) =>
-                            setState(() => _path.add(name)),
+                        onTapFolder: (name) => setState(() => _path.add(name)),
                         onPlayTrack: (t) => _play(t, playQueue),
                       ),
                     ),
@@ -158,14 +154,15 @@ class _WorkFilesPageState extends ConsumerState<WorkFilesPage> {
   Future<void> _play(Track track, List<Track> playQueue) async {
     final index = playQueue.indexWhere((t) => t.id == track.id);
     if (index < 0) return;
-    final remoteConfig =
-        await ref.read(webdavWorkSourceProvider).configForWork(widget.work);
+    final remoteConfig = await ref
+        .read(webdavWorkSourceProvider)
+        .configForWork(widget.work);
     final bookmark = remoteConfig != null
         ? null
-        : await ref.read(
-            bookmarkForWorkProvider(widget.work.productId).future,
-          );
-    await ref.read(playbackControllerProvider.notifier).startWork(
+        : await ref.read(bookmarkForWorkProvider(widget.work.productId).future);
+    await ref
+        .read(playbackControllerProvider.notifier)
+        .startWork(
           work: widget.work,
           tracks: playQueue,
           initialIndex: index,
@@ -181,9 +178,9 @@ class _WorkFilesPageState extends ConsumerState<WorkFilesPage> {
     var cursor = roots;
     for (final seg in path) {
       final next = cursor.whereType<WorkTreeFolder>().firstWhere(
-            (f) => f.name == seg,
-            orElse: () => WorkTreeFolder(name: '', children: const []),
-          );
+        (f) => f.name == seg,
+        orElse: () => WorkTreeFolder(name: '', children: const []),
+      );
       if (next.name.isEmpty) return const [];
       cursor = next.children;
     }
@@ -371,11 +368,7 @@ class _NodeRow extends ConsumerWidget {
       ];
       return ListTile(
         contentPadding: rowPadding,
-        leading: Icon(
-          Icons.folder_rounded,
-          color: iosBlue,
-          size: 44,
-        ),
+        leading: Icon(Icons.folder_rounded, color: iosBlue, size: 44),
         title: Text(
           n.name,
           maxLines: 5,
@@ -425,7 +418,9 @@ class _NodeRow extends ConsumerWidget {
         subtitle: t.durationMs > 0
             ? Text(
                 _formatTrackDuration(t.durationMs),
-                style: theme.textTheme.bodySmall?.copyWith(color: subtitleColor),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: subtitleColor,
+                ),
               )
             : null,
         onTap: () {
@@ -464,10 +459,7 @@ class _NodeRow extends ConsumerWidget {
 }
 
 class _TrackLeading extends StatelessWidget {
-  const _TrackLeading({
-    required this.isCurrent,
-    this.playingStream,
-  });
+  const _TrackLeading({required this.isCurrent, this.playingStream});
 
   final bool isCurrent;
   final Stream<bool>? playingStream;
@@ -510,21 +502,21 @@ class _PlayCircle extends StatelessWidget {
 (IconData, Color) _iconForKind(String kind, BuildContext context) {
   return switch (kind) {
     'image' => (
-        CupertinoIcons.photo_fill,
-        CupertinoColors.systemPurple.resolveFrom(context),
-      ),
+      CupertinoIcons.photo_fill,
+      CupertinoColors.systemPurple.resolveFrom(context),
+    ),
     'text' => (
-        CupertinoIcons.doc_text_fill,
-        CupertinoColors.systemGrey.resolveFrom(context),
-      ),
+      CupertinoIcons.doc_text_fill,
+      CupertinoColors.systemGrey.resolveFrom(context),
+    ),
     'subtitle' => (
-        CupertinoIcons.captions_bubble_fill,
-        CupertinoColors.systemOrange.resolveFrom(context),
-      ),
+      CupertinoIcons.captions_bubble_fill,
+      CupertinoColors.systemOrange.resolveFrom(context),
+    ),
     _ => (
-        CupertinoIcons.doc_fill,
-        CupertinoColors.systemGrey.resolveFrom(context),
-      ),
+      CupertinoIcons.doc_fill,
+      CupertinoColors.systemGrey.resolveFrom(context),
+    ),
   };
 }
 

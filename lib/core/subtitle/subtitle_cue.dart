@@ -12,8 +12,8 @@ class SubtitleCue {
   Map<String, dynamic> toJson() => {'s': startMs, 'e': endMs, 't': text};
 
   factory SubtitleCue.fromJson(Map<String, dynamic> json) => SubtitleCue(
-        startMs: json['s'] as int,
-        endMs: json['e'] as int,
-        text: json['t'] as String,
-      );
+    startMs: json['s'] as int,
+    endMs: json['e'] as int,
+    text: json['t'] as String,
+  );
 }

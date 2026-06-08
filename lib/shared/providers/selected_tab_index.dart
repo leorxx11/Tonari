@@ -7,5 +7,6 @@ class SelectedTabIndex extends Notifier<int> {
   void set(int value) => state = value;
 }
 
-final selectedTabIndexProvider =
-    NotifierProvider<SelectedTabIndex, int>(SelectedTabIndex.new);
+final selectedTabIndexProvider = NotifierProvider<SelectedTabIndex, int>(
+  SelectedTabIndex.new,
+);

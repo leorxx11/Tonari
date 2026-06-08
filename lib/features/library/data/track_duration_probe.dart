@@ -31,12 +31,14 @@ class TrackDurationProbeService {
           await player.setFilePath(t.filePath);
           final ms = player.duration?.inMilliseconds ?? 0;
           if (ms > 0) {
-            await (_db.update(_db.tracks)
-                  ..where((row) => row.id.equals(t.id)))
-                .write(TracksCompanion(
-              durationMs: Value(ms),
-              updatedAt: Value(DateTime.now()),
-            ));
+            await (_db.update(
+              _db.tracks,
+            )..where((row) => row.id.equals(t.id))).write(
+              TracksCompanion(
+                durationMs: Value(ms),
+                updatedAt: Value(DateTime.now()),
+              ),
+            );
           }
         } catch (_) {
           // Skip on probe failure (corrupt file, unsupported codec, etc.).

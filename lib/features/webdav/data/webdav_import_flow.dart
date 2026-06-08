@@ -66,10 +66,9 @@ class WebdavImportFlow {
         folder.remotePath == null) {
       return null;
     }
-    final server =
-        await (db.select(db.webdavServers)
-              ..where((s) => s.id.equals(folder.serverId!)))
-            .getSingleOrNull();
+    final server = await (db.select(
+      db.webdavServers,
+    )..where((s) => s.id.equals(folder.serverId!))).getSingleOrNull();
     if (server == null) return null;
     final password = await passwordStore.read(server.id);
     final config = WebdavConfig(
@@ -122,11 +121,9 @@ class WebdavImportFlow {
             ))
             .getSingleOrNull();
     if (existing != null) {
-      await (db.update(
-        db.importedFolders,
-      )..where((f) => f.id.equals(existing.id))).write(
-        ImportedFoldersCompanion(updatedAt: Value(now)),
-      );
+      await (db.update(db.importedFolders)
+            ..where((f) => f.id.equals(existing.id)))
+          .write(ImportedFoldersCompanion(updatedAt: Value(now)));
       return existing.id;
     }
     final id = _uuid.v4();

@@ -70,9 +70,7 @@ class _TypeOrderList extends StatelessWidget {
           Text(
             '拖拽调整格式优先级（顶部最高）',
             style: theme.textTheme.bodySmall?.copyWith(
-              color: enabled
-                  ? theme.colorScheme.onSurfaceVariant
-                  : dimmedColor,
+              color: enabled ? theme.colorScheme.onSurfaceVariant : dimmedColor,
             ),
           ),
           const SizedBox(height: 8),

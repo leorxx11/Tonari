@@ -79,9 +79,9 @@ class _Entry extends StatelessWidget {
       subtitle: Text(subtitle),
       trailing: const Icon(Icons.chevron_right),
       onTap: () {
-        Navigator.of(context).push(
-          MaterialPageRoute<void>(builder: (_) => page),
-        );
+        Navigator.of(
+          context,
+        ).push(MaterialPageRoute<void>(builder: (_) => page));
       },
     );
   }

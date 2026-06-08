@@ -16,16 +16,16 @@ enum SubtitleMode {
   pip;
 
   SubtitleMode get next => switch (this) {
-        SubtitleMode.off => SubtitleMode.appLevel,
-        SubtitleMode.appLevel => SubtitleMode.pip,
-        SubtitleMode.pip => SubtitleMode.off,
-      };
+    SubtitleMode.off => SubtitleMode.appLevel,
+    SubtitleMode.appLevel => SubtitleMode.pip,
+    SubtitleMode.pip => SubtitleMode.off,
+  };
 
   String get label => switch (this) {
-        SubtitleMode.off => '字幕关闭',
-        SubtitleMode.appLevel => '应用级字幕',
-        SubtitleMode.pip => '系统级 PiP 字幕',
-      };
+    SubtitleMode.off => '字幕关闭',
+    SubtitleMode.appLevel => '应用级字幕',
+    SubtitleMode.pip => '系统级 PiP 字幕',
+  };
 }
 
 class SubtitleOverlayPrefs {
@@ -122,5 +122,5 @@ class SubtitleOverlayPrefsNotifier extends Notifier<SubtitleOverlayPrefs> {
 
 final subtitleOverlayPrefsProvider =
     NotifierProvider<SubtitleOverlayPrefsNotifier, SubtitleOverlayPrefs>(
-  SubtitleOverlayPrefsNotifier.new,
-);
+      SubtitleOverlayPrefsNotifier.new,
+    );

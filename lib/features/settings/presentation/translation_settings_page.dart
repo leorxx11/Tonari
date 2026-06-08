@@ -40,11 +40,9 @@ class TranslationSettingsPage extends ConsumerWidget {
   }
 
   void _openCreate(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => const ProviderEditPage(),
-      ),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const ProviderEditPage()));
   }
 }
 
@@ -66,10 +64,7 @@ class _Empty extends StatelessWidget {
               color: theme.colorScheme.outline,
             ),
             const SizedBox(height: 12),
-            Text(
-              '还没配置翻译 Provider',
-              style: theme.textTheme.titleMedium,
-            ),
+            Text('还没配置翻译 Provider', style: theme.textTheme.titleMedium),
             const SizedBox(height: 6),
             Text(
               '点右上 + 添加 DeepSeek、Gemini 或自定义 OpenAI 兼容服务',

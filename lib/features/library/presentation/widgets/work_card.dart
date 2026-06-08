@@ -25,10 +25,9 @@ class WorkCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final hasMenu = onRemove != null || onToggleFavorite != null;
-    final displayTitle =
-        (work.titleZh != null && work.titleZh!.isNotEmpty)
-            ? work.titleZh!
-            : work.title;
+    final displayTitle = (work.titleZh != null && work.titleZh!.isNotEmpty)
+        ? work.titleZh!
+        : work.title;
     return Semantics(
       button: onTap != null,
       label: displayTitle,
@@ -100,11 +99,7 @@ class WorkCard extends StatelessWidget {
             value: _WorkCardAction.toggleFavorite,
             child: Row(
               children: [
-                Icon(
-                  work.isFavorite
-                      ? Icons.favorite_outline
-                      : Icons.favorite,
-                ),
+                Icon(work.isFavorite ? Icons.favorite_outline : Icons.favorite),
                 const SizedBox(width: 12),
                 Text(work.isFavorite ? '取消收藏' : '添加收藏'),
               ],
@@ -182,9 +177,7 @@ class _CoverWithOverlays extends StatelessWidget {
             top: 4,
             right: 4,
             child: _CircleIconButton(
-              icon: work.isFavorite
-                  ? Icons.favorite
-                  : Icons.add,
+              icon: work.isFavorite ? Icons.favorite : Icons.add,
               filled: work.isFavorite,
               onTap: onToggleFavorite,
             ),
@@ -253,9 +246,7 @@ class _CircleIconButton extends StatelessWidget {
     final bg = filled
         ? theme.colorScheme.primary
         : Colors.black.withValues(alpha: 0.45);
-    final fg = filled
-        ? theme.colorScheme.onPrimary
-        : Colors.white;
+    final fg = filled ? theme.colorScheme.onPrimary : Colors.white;
     return Material(
       color: bg,
       shape: const CircleBorder(),
@@ -283,25 +274,31 @@ class _TagWrap extends StatelessWidget {
     final entries = <_TagEntry>[];
 
     if (work.seriesName != null && work.seriesName!.isNotEmpty) {
-      entries.add(_TagEntry(
-        label: work.seriesName!,
-        background: const Color(0xFFFFA726),
-        foreground: Colors.white,
-      ));
+      entries.add(
+        _TagEntry(
+          label: work.seriesName!,
+          background: const Color(0xFFFFA726),
+          foreground: Colors.white,
+        ),
+      );
     }
     for (final cv in work.voiceActors) {
-      entries.add(_TagEntry(
-        label: cv,
-        background: const Color(0xFF26A69A),
-        foreground: Colors.white,
-      ));
+      entries.add(
+        _TagEntry(
+          label: cv,
+          background: const Color(0xFF26A69A),
+          foreground: Colors.white,
+        ),
+      );
     }
     for (final g in _genreNames(work.genresJson)) {
-      entries.add(_TagEntry(
-        label: g,
-        background: theme.colorScheme.surfaceContainerHigh,
-        foreground: theme.colorScheme.onSurfaceVariant,
-      ));
+      entries.add(
+        _TagEntry(
+          label: g,
+          background: theme.colorScheme.surfaceContainerHigh,
+          foreground: theme.colorScheme.onSurfaceVariant,
+        ),
+      );
     }
 
     if (entries.isEmpty) return const SizedBox.shrink();
@@ -400,10 +397,7 @@ bool _chipsFitInBox(
     final tp = TextPainter(
       text: TextSpan(
         text: e.label,
-        style: TextStyle(
-          fontSize: d.fontSize,
-          fontWeight: FontWeight.w600,
-        ),
+        style: TextStyle(fontSize: d.fontSize, fontWeight: FontWeight.w600),
       ),
       textDirection: TextDirection.ltr,
       maxLines: 1,

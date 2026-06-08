@@ -64,44 +64,54 @@ class FolderScanner {
           final rel = relOf(e.path);
 
           if (kind == FileKind.audio) {
-            audios.add(DetectedAudio(
-              path: e.path,
-              relativePath: rel,
-              fileName: name,
-              format: _audioFormat(name),
-              sizeBytes: size,
-              parentDirName: parentName,
-              categoryHint: _inferCategory(parentName, name),
-            ));
+            audios.add(
+              DetectedAudio(
+                path: e.path,
+                relativePath: rel,
+                fileName: name,
+                format: _audioFormat(name),
+                sizeBytes: size,
+                parentDirName: parentName,
+                categoryHint: _inferCategory(parentName, name),
+              ),
+            );
           } else if (kind == FileKind.image) {
-            images.add(DetectedImage(
-              path: e.path,
-              relativePath: rel,
-              fileName: name,
-              sizeBytes: size,
-            ));
+            images.add(
+              DetectedImage(
+                path: e.path,
+                relativePath: rel,
+                fileName: name,
+                sizeBytes: size,
+              ),
+            );
           } else if (kind == FileKind.subtitle) {
-            subtitles.add(DetectedSubtitle(
-              path: e.path,
-              relativePath: rel,
-              fileName: name,
-              format: FileClassifier.extOf(name).substring(1),
-              sizeBytes: size,
-            ));
+            subtitles.add(
+              DetectedSubtitle(
+                path: e.path,
+                relativePath: rel,
+                fileName: name,
+                format: FileClassifier.extOf(name).substring(1),
+                sizeBytes: size,
+              ),
+            );
           } else if (kind == FileKind.text) {
-            textNotes.add(DetectedFile(
-              path: e.path,
-              relativePath: rel,
-              fileName: name,
-              sizeBytes: size,
-            ));
+            textNotes.add(
+              DetectedFile(
+                path: e.path,
+                relativePath: rel,
+                fileName: name,
+                sizeBytes: size,
+              ),
+            );
           } else {
-            others.add(DetectedFile(
-              path: e.path,
-              relativePath: rel,
-              fileName: name,
-              sizeBytes: size,
-            ));
+            others.add(
+              DetectedFile(
+                path: e.path,
+                relativePath: rel,
+                fileName: name,
+                sizeBytes: size,
+              ),
+            );
           }
         }
       } catch (err) {
@@ -162,7 +172,9 @@ class FolderScanner {
   }
 
   static String _basename(String path) {
-    final cleaned = path.endsWith('/') ? path.substring(0, path.length - 1) : path;
+    final cleaned = path.endsWith('/')
+        ? path.substring(0, path.length - 1)
+        : path;
     final i = cleaned.lastIndexOf('/');
     return i < 0 ? cleaned : cleaned.substring(i + 1);
   }
@@ -177,9 +189,7 @@ class FolderScanner {
       if (s.contains('本編') || s.contains('本编') || s.contains('main')) {
         return 'main';
       }
-      if (s.contains('フリートーク') ||
-          s.contains('free') ||
-          s.contains('talk')) {
+      if (s.contains('フリートーク') || s.contains('free') || s.contains('talk')) {
         return 'free';
       }
     }

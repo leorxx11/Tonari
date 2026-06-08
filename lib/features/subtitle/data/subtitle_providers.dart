@@ -11,17 +11,18 @@ import 'loaded_subtitle.dart';
 
 /// Subtitle for the currently-playing track (null when no track or no subtitle
 /// matched). Watches the DB row so [adjustOffset] re-emits automatically.
-final currentSubtitleProvider =
-    StreamProvider.autoDispose<LoadedSubtitle?>((ref) {
+final currentSubtitleProvider = StreamProvider.autoDispose<LoadedSubtitle?>((
+  ref,
+) {
   final trackId = ref.watch(
     playbackControllerProvider.select((s) => s.currentTrack?.id),
   );
   if (trackId == null) return Stream.value(null);
 
   final db = ref.watch(databaseProvider);
-  return (db.select(db.subtitles)..where((s) => s.id.equals(trackId)))
-      .watchSingleOrNull()
-      .map((row) {
+  return (db.select(
+    db.subtitles,
+  )..where((s) => s.id.equals(trackId))).watchSingleOrNull().map((row) {
     if (row == null) return null;
     final raw = jsonDecode(row.originalLinesJson) as List<dynamic>;
     final cues = <SubtitleCue>[
@@ -87,9 +88,9 @@ class SubtitleController {
     if (loaded == null) return;
     final db = _ref.read(databaseProvider);
     final newOffset = loaded.timeOffsetMs + deltaMs;
-    await (db.update(db.subtitles)
-          ..where((s) => s.id.equals(loaded.subtitleId)))
-        .write(
+    await (db.update(
+      db.subtitles,
+    )..where((s) => s.id.equals(loaded.subtitleId))).write(
       SubtitlesCompanion(
         timeOffsetMs: Value(newOffset),
         updatedAt: Value(DateTime.now()),
@@ -101,9 +102,9 @@ class SubtitleController {
     final loaded = _ref.read(currentSubtitleProvider).value;
     if (loaded == null) return;
     final db = _ref.read(databaseProvider);
-    await (db.update(db.subtitles)
-          ..where((s) => s.id.equals(loaded.subtitleId)))
-        .write(
+    await (db.update(
+      db.subtitles,
+    )..where((s) => s.id.equals(loaded.subtitleId))).write(
       SubtitlesCompanion(
         timeOffsetMs: const Value(0),
         updatedAt: Value(DateTime.now()),

@@ -23,9 +23,7 @@ class AppTheme {
         surfaceTintColor: Colors.transparent,
       ),
       pageTransitionsTheme: const PageTransitionsTheme(
-        builders: {
-          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-        },
+        builders: {TargetPlatform.iOS: CupertinoPageTransitionsBuilder()},
       ),
     );
   }

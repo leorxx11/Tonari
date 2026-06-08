@@ -21,7 +21,9 @@ class FolderPickerService {
     final now = DateTime.now();
     final id = _uuid.v4();
 
-    await _db.into(_db.importedFolders).insert(
+    await _db
+        .into(_db.importedFolders)
+        .insert(
           ImportedFoldersCompanion.insert(
             id: id,
             displayName: displayName,
@@ -31,14 +33,15 @@ class FolderPickerService {
           ),
         );
 
-    return (_db.select(_db.importedFolders)..where((f) => f.id.equals(id)))
-        .getSingle();
+    return (_db.select(
+      _db.importedFolders,
+    )..where((f) => f.id.equals(id))).getSingle();
   }
 
   Stream<List<ImportedFolder>> watchAll() {
-    return (_db.select(_db.importedFolders)
-          ..orderBy([(f) => OrderingTerm.desc(f.createdAt)]))
-        .watch();
+    return (_db.select(
+      _db.importedFolders,
+    )..orderBy([(f) => OrderingTerm.desc(f.createdAt)])).watch();
   }
 
   Future<void> remove(String id) async {
