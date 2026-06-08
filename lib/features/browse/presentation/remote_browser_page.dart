@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -42,7 +40,6 @@ class RemoteBrowserPage extends ConsumerStatefulWidget {
 class _RemoteBrowserPageState extends ConsumerState<RemoteBrowserPage> {
   late List<RemoteEntry> _stack;
   late Future<List<RemoteEntry>> _future;
-  bool _importing = false;
 
   @override
   void initState() {
@@ -86,12 +83,7 @@ class _RemoteBrowserPageState extends ConsumerState<RemoteBrowserPage> {
   Future<void> _importHere() async {
     final importFolder = widget.importFolder;
     if (importFolder == null) return;
-    setState(() => _importing = true);
-    try {
-      await importFolder(context, _current);
-    } finally {
-      if (mounted) setState(() => _importing = false);
-    }
+    await importFolder(context, _current);
   }
 
   Future<void> _playAudio(RemoteEntry entry, List<RemoteEntry> entries) async {
@@ -140,14 +132,8 @@ class _RemoteBrowserPageState extends ConsumerState<RemoteBrowserPage> {
           if (widget.importFolder != null)
             IconButton(
               tooltip: '导入此目录到媒体库',
-              icon: _importing
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.library_add_outlined),
-              onPressed: _importing ? null : _importHere,
+              icon: const Icon(Icons.library_add_outlined),
+              onPressed: _importHere,
             ),
           IconButton(
             tooltip: '刷新',

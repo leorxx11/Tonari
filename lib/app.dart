@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/theme/app_theme.dart';
+import 'core/ui/root_messenger.dart';
 import 'features/settings/data/theme_prefs.dart';
 import 'features/subtitle/presentation/pip_sync.dart';
 import 'features/subtitle/presentation/subtitle_overlay.dart';
@@ -15,6 +16,7 @@ class TonariApp extends ConsumerWidget {
     final themeMode = ref.watch(themePrefsProvider);
     return MaterialApp(
       title: 'Tonari',
+      scaffoldMessengerKey: rootScaffoldMessengerKey,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),

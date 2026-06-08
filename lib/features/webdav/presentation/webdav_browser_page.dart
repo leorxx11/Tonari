@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/db/database.dart';
 import '../../../core/scanner/file_classifier.dart';
+import '../../../core/ui/root_messenger.dart';
 import '../../browse/data/remote_models.dart';
 import '../../browse/presentation/remote_browser_page.dart';
 import '../data/webdav_client.dart';
@@ -73,7 +74,7 @@ class WebdavBrowserPage extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('导入到媒体库'),
-        content: Text('扫描「${folder.name}」下的所有 RJ 作品并导入媒体库？'),
+        content: Text('扫描「${folder.name}」下的所有 RJ 作品并导入媒体库？\n导入在后台进行，可以继续浏览。'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -86,62 +87,43 @@ class WebdavBrowserPage extends ConsumerWidget {
         ],
       ),
     );
-    if (!(confirm ?? false) || !context.mounted) return;
+    if (!(confirm ?? false)) return;
 
-    final progress = ValueNotifier<String>('准备扫描…');
-    unawaited(
-      showDialog<void>(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => AlertDialog(
-          content: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-              const SizedBox(width: 18),
-              Expanded(
-                child: ValueListenableBuilder<String>(
-                  valueListenable: progress,
-                  builder: (_, msg, _) => Text(msg),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+    // Capture the flow before the page can be disposed, then run unawaited so
+    // the user can keep browsing. Progress is reported via the app-wide
+    // messenger, which outlives this page.
+    final flow = ref.read(webdavImportFlowProvider);
+    rootScaffoldMessengerKey.currentState?.showSnackBar(
+      SnackBar(content: Text('已在后台导入「${folder.name}」…')),
     );
+    unawaited(_runImport(flow, folder));
+  }
+
+  Future<void> _runImport(WebdavImportFlow flow, RemoteEntry folder) async {
+    final messenger = rootScaffoldMessengerKey.currentState;
     try {
-      final summary = await ref
-          .read(webdavImportFlowProvider)
-          .importFolder(
-            server: server,
-            config: config,
-            remotePath: folder.path,
-            onProgress: (n, cur) => progress.value = '已扫描 $n 个作品\n$cur',
-          );
-      if (!context.mounted) return;
-      Navigator.of(context, rootNavigator: true).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
+      final summary = await flow.importFolder(
+        server: server,
+        config: config,
+        remotePath: folder.path,
+      );
+      messenger?.showSnackBar(
         SnackBar(
           content: Text(
-            '导入完成：${summary.worksInserted} 新增 / ${summary.worksUpdated} 更新，'
-            '共 ${summary.tracksTotal} 音轨。封面和元数据后台补全中。',
+            '「${folder.name}」导入完成：${summary.worksInserted} 新增 / '
+            '${summary.worksUpdated} 更新，共 ${summary.tracksTotal} 音轨。'
+            '封面和元数据后台补全中。',
           ),
           duration: const Duration(seconds: 5),
         ),
       );
     } catch (e) {
-      if (!context.mounted) return;
-      Navigator.of(context, rootNavigator: true).pop();
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('导入失败：$e')));
-    } finally {
-      progress.dispose();
+      messenger?.showSnackBar(
+        SnackBar(
+          content: Text('「${folder.name}」导入失败：$e'),
+          duration: const Duration(seconds: 6),
+        ),
+      );
     }
   }
 }
