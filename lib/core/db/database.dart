@@ -9,13 +9,22 @@ import 'tables/imported_folders.dart';
 import 'tables/llm_providers.dart';
 import 'tables/subtitles.dart';
 import 'tables/tracks.dart';
+import 'tables/webdav_servers.dart';
 import 'tables/work_files.dart';
 import 'tables/works.dart';
 
 part 'database.g.dart';
 
 @DriftDatabase(
-  tables: [Works, Tracks, WorkFiles, Subtitles, ImportedFolders, LlmProviders],
+  tables: [
+    Works,
+    Tracks,
+    WorkFiles,
+    Subtitles,
+    ImportedFolders,
+    LlmProviders,
+    WebdavServers,
+  ],
 )
 class TonariDatabase extends _$TonariDatabase {
   TonariDatabase() : super(_openConnection());
@@ -23,7 +32,7 @@ class TonariDatabase extends _$TonariDatabase {
   TonariDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -77,6 +86,14 @@ class TonariDatabase extends _$TonariDatabase {
         await m.addColumn(works, works.titleZh);
         await m.addColumn(works, works.descriptionHtmlZh);
         await m.createTable(llmProviders);
+      }
+      if (from < 11) {
+        await m.createTable(webdavServers);
+      }
+      if (from < 12) {
+        await m.addColumn(importedFolders, importedFolders.type);
+        await m.addColumn(importedFolders, importedFolders.serverId);
+        await m.addColumn(importedFolders, importedFolders.remotePath);
       }
     },
   );

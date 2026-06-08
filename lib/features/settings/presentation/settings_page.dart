@@ -5,6 +5,7 @@ import 'data_settings_page.dart';
 import 'playback_settings_page.dart';
 import 'scan_settings_page.dart';
 import 'translation_settings_page.dart';
+import '../../webdav/presentation/webdav_settings_page.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -38,6 +39,12 @@ class SettingsPage extends StatelessWidget {
             title: '翻译',
             subtitle: 'LLM Provider 配置',
             page: TranslationSettingsPage(),
+          ),
+          _Entry(
+            icon: Icons.cloud_outlined,
+            title: 'WebDAV',
+            subtitle: '远程存储服务器',
+            page: WebdavSettingsPage(),
           ),
           _Entry(
             icon: Icons.storage_outlined,

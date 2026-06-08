@@ -5457,6 +5457,38 @@ class $ImportedFoldersTable extends ImportedFolders
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+    'type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('local'),
+  );
+  static const VerificationMeta _serverIdMeta = const VerificationMeta(
+    'serverId',
+  );
+  @override
+  late final GeneratedColumn<String> serverId = GeneratedColumn<String>(
+    'server_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _remotePathMeta = const VerificationMeta(
+    'remotePath',
+  );
+  @override
+  late final GeneratedColumn<String> remotePath = GeneratedColumn<String>(
+    'remote_path',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -5484,6 +5516,9 @@ class $ImportedFoldersTable extends ImportedFolders
     id,
     displayName,
     bookmarkBase64,
+    type,
+    serverId,
+    remotePath,
     createdAt,
     updatedAt,
   ];
@@ -5526,6 +5561,24 @@ class $ImportedFoldersTable extends ImportedFolders
     } else if (isInserting) {
       context.missing(_bookmarkBase64Meta);
     }
+    if (data.containsKey('type')) {
+      context.handle(
+        _typeMeta,
+        type.isAcceptableOrUnknown(data['type']!, _typeMeta),
+      );
+    }
+    if (data.containsKey('server_id')) {
+      context.handle(
+        _serverIdMeta,
+        serverId.isAcceptableOrUnknown(data['server_id']!, _serverIdMeta),
+      );
+    }
+    if (data.containsKey('remote_path')) {
+      context.handle(
+        _remotePathMeta,
+        remotePath.isAcceptableOrUnknown(data['remote_path']!, _remotePathMeta),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -5563,6 +5616,18 @@ class $ImportedFoldersTable extends ImportedFolders
         DriftSqlType.string,
         data['${effectivePrefix}bookmark_base64'],
       )!,
+      type: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}type'],
+      )!,
+      serverId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}server_id'],
+      ),
+      remotePath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}remote_path'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -5584,12 +5649,18 @@ class ImportedFolder extends DataClass implements Insertable<ImportedFolder> {
   final String id;
   final String displayName;
   final String bookmarkBase64;
+  final String type;
+  final String? serverId;
+  final String? remotePath;
   final DateTime createdAt;
   final DateTime updatedAt;
   const ImportedFolder({
     required this.id,
     required this.displayName,
     required this.bookmarkBase64,
+    required this.type,
+    this.serverId,
+    this.remotePath,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -5599,6 +5670,13 @@ class ImportedFolder extends DataClass implements Insertable<ImportedFolder> {
     map['id'] = Variable<String>(id);
     map['display_name'] = Variable<String>(displayName);
     map['bookmark_base64'] = Variable<String>(bookmarkBase64);
+    map['type'] = Variable<String>(type);
+    if (!nullToAbsent || serverId != null) {
+      map['server_id'] = Variable<String>(serverId);
+    }
+    if (!nullToAbsent || remotePath != null) {
+      map['remote_path'] = Variable<String>(remotePath);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -5609,6 +5687,13 @@ class ImportedFolder extends DataClass implements Insertable<ImportedFolder> {
       id: Value(id),
       displayName: Value(displayName),
       bookmarkBase64: Value(bookmarkBase64),
+      type: Value(type),
+      serverId: serverId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverId),
+      remotePath: remotePath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remotePath),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -5623,6 +5708,9 @@ class ImportedFolder extends DataClass implements Insertable<ImportedFolder> {
       id: serializer.fromJson<String>(json['id']),
       displayName: serializer.fromJson<String>(json['displayName']),
       bookmarkBase64: serializer.fromJson<String>(json['bookmarkBase64']),
+      type: serializer.fromJson<String>(json['type']),
+      serverId: serializer.fromJson<String?>(json['serverId']),
+      remotePath: serializer.fromJson<String?>(json['remotePath']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -5634,6 +5722,9 @@ class ImportedFolder extends DataClass implements Insertable<ImportedFolder> {
       'id': serializer.toJson<String>(id),
       'displayName': serializer.toJson<String>(displayName),
       'bookmarkBase64': serializer.toJson<String>(bookmarkBase64),
+      'type': serializer.toJson<String>(type),
+      'serverId': serializer.toJson<String?>(serverId),
+      'remotePath': serializer.toJson<String?>(remotePath),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -5643,12 +5734,18 @@ class ImportedFolder extends DataClass implements Insertable<ImportedFolder> {
     String? id,
     String? displayName,
     String? bookmarkBase64,
+    String? type,
+    Value<String?> serverId = const Value.absent(),
+    Value<String?> remotePath = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
   }) => ImportedFolder(
     id: id ?? this.id,
     displayName: displayName ?? this.displayName,
     bookmarkBase64: bookmarkBase64 ?? this.bookmarkBase64,
+    type: type ?? this.type,
+    serverId: serverId.present ? serverId.value : this.serverId,
+    remotePath: remotePath.present ? remotePath.value : this.remotePath,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -5661,6 +5758,11 @@ class ImportedFolder extends DataClass implements Insertable<ImportedFolder> {
       bookmarkBase64: data.bookmarkBase64.present
           ? data.bookmarkBase64.value
           : this.bookmarkBase64,
+      type: data.type.present ? data.type.value : this.type,
+      serverId: data.serverId.present ? data.serverId.value : this.serverId,
+      remotePath: data.remotePath.present
+          ? data.remotePath.value
+          : this.remotePath,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -5672,6 +5774,9 @@ class ImportedFolder extends DataClass implements Insertable<ImportedFolder> {
           ..write('id: $id, ')
           ..write('displayName: $displayName, ')
           ..write('bookmarkBase64: $bookmarkBase64, ')
+          ..write('type: $type, ')
+          ..write('serverId: $serverId, ')
+          ..write('remotePath: $remotePath, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -5679,8 +5784,16 @@ class ImportedFolder extends DataClass implements Insertable<ImportedFolder> {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, displayName, bookmarkBase64, createdAt, updatedAt);
+  int get hashCode => Object.hash(
+    id,
+    displayName,
+    bookmarkBase64,
+    type,
+    serverId,
+    remotePath,
+    createdAt,
+    updatedAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -5688,6 +5801,9 @@ class ImportedFolder extends DataClass implements Insertable<ImportedFolder> {
           other.id == this.id &&
           other.displayName == this.displayName &&
           other.bookmarkBase64 == this.bookmarkBase64 &&
+          other.type == this.type &&
+          other.serverId == this.serverId &&
+          other.remotePath == this.remotePath &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -5696,6 +5812,9 @@ class ImportedFoldersCompanion extends UpdateCompanion<ImportedFolder> {
   final Value<String> id;
   final Value<String> displayName;
   final Value<String> bookmarkBase64;
+  final Value<String> type;
+  final Value<String?> serverId;
+  final Value<String?> remotePath;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
@@ -5703,6 +5822,9 @@ class ImportedFoldersCompanion extends UpdateCompanion<ImportedFolder> {
     this.id = const Value.absent(),
     this.displayName = const Value.absent(),
     this.bookmarkBase64 = const Value.absent(),
+    this.type = const Value.absent(),
+    this.serverId = const Value.absent(),
+    this.remotePath = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -5711,6 +5833,9 @@ class ImportedFoldersCompanion extends UpdateCompanion<ImportedFolder> {
     required String id,
     required String displayName,
     required String bookmarkBase64,
+    this.type = const Value.absent(),
+    this.serverId = const Value.absent(),
+    this.remotePath = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
     this.rowid = const Value.absent(),
@@ -5723,6 +5848,9 @@ class ImportedFoldersCompanion extends UpdateCompanion<ImportedFolder> {
     Expression<String>? id,
     Expression<String>? displayName,
     Expression<String>? bookmarkBase64,
+    Expression<String>? type,
+    Expression<String>? serverId,
+    Expression<String>? remotePath,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
@@ -5731,6 +5859,9 @@ class ImportedFoldersCompanion extends UpdateCompanion<ImportedFolder> {
       if (id != null) 'id': id,
       if (displayName != null) 'display_name': displayName,
       if (bookmarkBase64 != null) 'bookmark_base64': bookmarkBase64,
+      if (type != null) 'type': type,
+      if (serverId != null) 'server_id': serverId,
+      if (remotePath != null) 'remote_path': remotePath,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -5741,6 +5872,9 @@ class ImportedFoldersCompanion extends UpdateCompanion<ImportedFolder> {
     Value<String>? id,
     Value<String>? displayName,
     Value<String>? bookmarkBase64,
+    Value<String>? type,
+    Value<String?>? serverId,
+    Value<String?>? remotePath,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
     Value<int>? rowid,
@@ -5749,6 +5883,9 @@ class ImportedFoldersCompanion extends UpdateCompanion<ImportedFolder> {
       id: id ?? this.id,
       displayName: displayName ?? this.displayName,
       bookmarkBase64: bookmarkBase64 ?? this.bookmarkBase64,
+      type: type ?? this.type,
+      serverId: serverId ?? this.serverId,
+      remotePath: remotePath ?? this.remotePath,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -5766,6 +5903,15 @@ class ImportedFoldersCompanion extends UpdateCompanion<ImportedFolder> {
     }
     if (bookmarkBase64.present) {
       map['bookmark_base64'] = Variable<String>(bookmarkBase64.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
+    }
+    if (serverId.present) {
+      map['server_id'] = Variable<String>(serverId.value);
+    }
+    if (remotePath.present) {
+      map['remote_path'] = Variable<String>(remotePath.value);
     }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
@@ -5785,6 +5931,9 @@ class ImportedFoldersCompanion extends UpdateCompanion<ImportedFolder> {
           ..write('id: $id, ')
           ..write('displayName: $displayName, ')
           ..write('bookmarkBase64: $bookmarkBase64, ')
+          ..write('type: $type, ')
+          ..write('serverId: $serverId, ')
+          ..write('remotePath: $remotePath, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -6308,6 +6457,559 @@ class LlmProvidersCompanion extends UpdateCompanion<LlmProvider> {
   }
 }
 
+class $WebdavServersTable extends WebdavServers
+    with TableInfo<$WebdavServersTable, WebdavServer> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $WebdavServersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _schemeMeta = const VerificationMeta('scheme');
+  @override
+  late final GeneratedColumn<String> scheme = GeneratedColumn<String>(
+    'scheme',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _hostMeta = const VerificationMeta('host');
+  @override
+  late final GeneratedColumn<String> host = GeneratedColumn<String>(
+    'host',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _portMeta = const VerificationMeta('port');
+  @override
+  late final GeneratedColumn<int> port = GeneratedColumn<int>(
+    'port',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _basePathMeta = const VerificationMeta(
+    'basePath',
+  );
+  @override
+  late final GeneratedColumn<String> basePath = GeneratedColumn<String>(
+    'base_path',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _usernameMeta = const VerificationMeta(
+    'username',
+  );
+  @override
+  late final GeneratedColumn<String> username = GeneratedColumn<String>(
+    'username',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    scheme,
+    host,
+    port,
+    basePath,
+    username,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'webdav_servers';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<WebdavServer> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('scheme')) {
+      context.handle(
+        _schemeMeta,
+        scheme.isAcceptableOrUnknown(data['scheme']!, _schemeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_schemeMeta);
+    }
+    if (data.containsKey('host')) {
+      context.handle(
+        _hostMeta,
+        host.isAcceptableOrUnknown(data['host']!, _hostMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_hostMeta);
+    }
+    if (data.containsKey('port')) {
+      context.handle(
+        _portMeta,
+        port.isAcceptableOrUnknown(data['port']!, _portMeta),
+      );
+    }
+    if (data.containsKey('base_path')) {
+      context.handle(
+        _basePathMeta,
+        basePath.isAcceptableOrUnknown(data['base_path']!, _basePathMeta),
+      );
+    }
+    if (data.containsKey('username')) {
+      context.handle(
+        _usernameMeta,
+        username.isAcceptableOrUnknown(data['username']!, _usernameMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  WebdavServer map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return WebdavServer(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      scheme: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}scheme'],
+      )!,
+      host: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}host'],
+      )!,
+      port: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}port'],
+      ),
+      basePath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}base_path'],
+      ),
+      username: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}username'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $WebdavServersTable createAlias(String alias) {
+    return $WebdavServersTable(attachedDatabase, alias);
+  }
+}
+
+class WebdavServer extends DataClass implements Insertable<WebdavServer> {
+  final String id;
+  final String name;
+  final String scheme;
+  final String host;
+  final int? port;
+  final String? basePath;
+  final String? username;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const WebdavServer({
+    required this.id,
+    required this.name,
+    required this.scheme,
+    required this.host,
+    this.port,
+    this.basePath,
+    this.username,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['name'] = Variable<String>(name);
+    map['scheme'] = Variable<String>(scheme);
+    map['host'] = Variable<String>(host);
+    if (!nullToAbsent || port != null) {
+      map['port'] = Variable<int>(port);
+    }
+    if (!nullToAbsent || basePath != null) {
+      map['base_path'] = Variable<String>(basePath);
+    }
+    if (!nullToAbsent || username != null) {
+      map['username'] = Variable<String>(username);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  WebdavServersCompanion toCompanion(bool nullToAbsent) {
+    return WebdavServersCompanion(
+      id: Value(id),
+      name: Value(name),
+      scheme: Value(scheme),
+      host: Value(host),
+      port: port == null && nullToAbsent ? const Value.absent() : Value(port),
+      basePath: basePath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(basePath),
+      username: username == null && nullToAbsent
+          ? const Value.absent()
+          : Value(username),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory WebdavServer.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return WebdavServer(
+      id: serializer.fromJson<String>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      scheme: serializer.fromJson<String>(json['scheme']),
+      host: serializer.fromJson<String>(json['host']),
+      port: serializer.fromJson<int?>(json['port']),
+      basePath: serializer.fromJson<String?>(json['basePath']),
+      username: serializer.fromJson<String?>(json['username']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'name': serializer.toJson<String>(name),
+      'scheme': serializer.toJson<String>(scheme),
+      'host': serializer.toJson<String>(host),
+      'port': serializer.toJson<int?>(port),
+      'basePath': serializer.toJson<String?>(basePath),
+      'username': serializer.toJson<String?>(username),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  WebdavServer copyWith({
+    String? id,
+    String? name,
+    String? scheme,
+    String? host,
+    Value<int?> port = const Value.absent(),
+    Value<String?> basePath = const Value.absent(),
+    Value<String?> username = const Value.absent(),
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => WebdavServer(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    scheme: scheme ?? this.scheme,
+    host: host ?? this.host,
+    port: port.present ? port.value : this.port,
+    basePath: basePath.present ? basePath.value : this.basePath,
+    username: username.present ? username.value : this.username,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  WebdavServer copyWithCompanion(WebdavServersCompanion data) {
+    return WebdavServer(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      scheme: data.scheme.present ? data.scheme.value : this.scheme,
+      host: data.host.present ? data.host.value : this.host,
+      port: data.port.present ? data.port.value : this.port,
+      basePath: data.basePath.present ? data.basePath.value : this.basePath,
+      username: data.username.present ? data.username.value : this.username,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WebdavServer(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('scheme: $scheme, ')
+          ..write('host: $host, ')
+          ..write('port: $port, ')
+          ..write('basePath: $basePath, ')
+          ..write('username: $username, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    name,
+    scheme,
+    host,
+    port,
+    basePath,
+    username,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is WebdavServer &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.scheme == this.scheme &&
+          other.host == this.host &&
+          other.port == this.port &&
+          other.basePath == this.basePath &&
+          other.username == this.username &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class WebdavServersCompanion extends UpdateCompanion<WebdavServer> {
+  final Value<String> id;
+  final Value<String> name;
+  final Value<String> scheme;
+  final Value<String> host;
+  final Value<int?> port;
+  final Value<String?> basePath;
+  final Value<String?> username;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const WebdavServersCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.scheme = const Value.absent(),
+    this.host = const Value.absent(),
+    this.port = const Value.absent(),
+    this.basePath = const Value.absent(),
+    this.username = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  WebdavServersCompanion.insert({
+    required String id,
+    required String name,
+    required String scheme,
+    required String host,
+    this.port = const Value.absent(),
+    this.basePath = const Value.absent(),
+    this.username = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       name = Value(name),
+       scheme = Value(scheme),
+       host = Value(host),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<WebdavServer> custom({
+    Expression<String>? id,
+    Expression<String>? name,
+    Expression<String>? scheme,
+    Expression<String>? host,
+    Expression<int>? port,
+    Expression<String>? basePath,
+    Expression<String>? username,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (scheme != null) 'scheme': scheme,
+      if (host != null) 'host': host,
+      if (port != null) 'port': port,
+      if (basePath != null) 'base_path': basePath,
+      if (username != null) 'username': username,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  WebdavServersCompanion copyWith({
+    Value<String>? id,
+    Value<String>? name,
+    Value<String>? scheme,
+    Value<String>? host,
+    Value<int?>? port,
+    Value<String?>? basePath,
+    Value<String?>? username,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return WebdavServersCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      scheme: scheme ?? this.scheme,
+      host: host ?? this.host,
+      port: port ?? this.port,
+      basePath: basePath ?? this.basePath,
+      username: username ?? this.username,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (scheme.present) {
+      map['scheme'] = Variable<String>(scheme.value);
+    }
+    if (host.present) {
+      map['host'] = Variable<String>(host.value);
+    }
+    if (port.present) {
+      map['port'] = Variable<int>(port.value);
+    }
+    if (basePath.present) {
+      map['base_path'] = Variable<String>(basePath.value);
+    }
+    if (username.present) {
+      map['username'] = Variable<String>(username.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WebdavServersCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('scheme: $scheme, ')
+          ..write('host: $host, ')
+          ..write('port: $port, ')
+          ..write('basePath: $basePath, ')
+          ..write('username: $username, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$TonariDatabase extends GeneratedDatabase {
   _$TonariDatabase(QueryExecutor e) : super(e);
   $TonariDatabaseManager get managers => $TonariDatabaseManager(this);
@@ -6319,6 +7021,7 @@ abstract class _$TonariDatabase extends GeneratedDatabase {
     this,
   );
   late final $LlmProvidersTable llmProviders = $LlmProvidersTable(this);
+  late final $WebdavServersTable webdavServers = $WebdavServersTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -6330,6 +7033,7 @@ abstract class _$TonariDatabase extends GeneratedDatabase {
     subtitles,
     importedFolders,
     llmProviders,
+    webdavServers,
   ];
 }
 
@@ -9299,6 +10003,9 @@ typedef $$ImportedFoldersTableCreateCompanionBuilder =
       required String id,
       required String displayName,
       required String bookmarkBase64,
+      Value<String> type,
+      Value<String?> serverId,
+      Value<String?> remotePath,
       required DateTime createdAt,
       required DateTime updatedAt,
       Value<int> rowid,
@@ -9308,6 +10015,9 @@ typedef $$ImportedFoldersTableUpdateCompanionBuilder =
       Value<String> id,
       Value<String> displayName,
       Value<String> bookmarkBase64,
+      Value<String> type,
+      Value<String?> serverId,
+      Value<String?> remotePath,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<int> rowid,
@@ -9334,6 +10044,21 @@ class $$ImportedFoldersTableFilterComposer
 
   ColumnFilters<String> get bookmarkBase64 => $composableBuilder(
     column: $table.bookmarkBase64,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get remotePath => $composableBuilder(
+    column: $table.remotePath,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -9372,6 +10097,21 @@ class $$ImportedFoldersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get remotePath => $composableBuilder(
+    column: $table.remotePath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -9402,6 +10142,17 @@ class $$ImportedFoldersTableAnnotationComposer
 
   GeneratedColumn<String> get bookmarkBase64 => $composableBuilder(
     column: $table.bookmarkBase64,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<String> get serverId =>
+      $composableBuilder(column: $table.serverId, builder: (column) => column);
+
+  GeneratedColumn<String> get remotePath => $composableBuilder(
+    column: $table.remotePath,
     builder: (column) => column,
   );
 
@@ -9452,6 +10203,9 @@ class $$ImportedFoldersTableTableManager
                 Value<String> id = const Value.absent(),
                 Value<String> displayName = const Value.absent(),
                 Value<String> bookmarkBase64 = const Value.absent(),
+                Value<String> type = const Value.absent(),
+                Value<String?> serverId = const Value.absent(),
+                Value<String?> remotePath = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -9459,6 +10213,9 @@ class $$ImportedFoldersTableTableManager
                 id: id,
                 displayName: displayName,
                 bookmarkBase64: bookmarkBase64,
+                type: type,
+                serverId: serverId,
+                remotePath: remotePath,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,
@@ -9468,6 +10225,9 @@ class $$ImportedFoldersTableTableManager
                 required String id,
                 required String displayName,
                 required String bookmarkBase64,
+                Value<String> type = const Value.absent(),
+                Value<String?> serverId = const Value.absent(),
+                Value<String?> remotePath = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
                 Value<int> rowid = const Value.absent(),
@@ -9475,6 +10235,9 @@ class $$ImportedFoldersTableTableManager
                 id: id,
                 displayName: displayName,
                 bookmarkBase64: bookmarkBase64,
+                type: type,
+                serverId: serverId,
+                remotePath: remotePath,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,
@@ -9763,6 +10526,284 @@ typedef $$LlmProvidersTableProcessedTableManager =
       LlmProvider,
       PrefetchHooks Function()
     >;
+typedef $$WebdavServersTableCreateCompanionBuilder =
+    WebdavServersCompanion Function({
+      required String id,
+      required String name,
+      required String scheme,
+      required String host,
+      Value<int?> port,
+      Value<String?> basePath,
+      Value<String?> username,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$WebdavServersTableUpdateCompanionBuilder =
+    WebdavServersCompanion Function({
+      Value<String> id,
+      Value<String> name,
+      Value<String> scheme,
+      Value<String> host,
+      Value<int?> port,
+      Value<String?> basePath,
+      Value<String?> username,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$WebdavServersTableFilterComposer
+    extends Composer<_$TonariDatabase, $WebdavServersTable> {
+  $$WebdavServersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get scheme => $composableBuilder(
+    column: $table.scheme,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get host => $composableBuilder(
+    column: $table.host,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get port => $composableBuilder(
+    column: $table.port,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get basePath => $composableBuilder(
+    column: $table.basePath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get username => $composableBuilder(
+    column: $table.username,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$WebdavServersTableOrderingComposer
+    extends Composer<_$TonariDatabase, $WebdavServersTable> {
+  $$WebdavServersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get scheme => $composableBuilder(
+    column: $table.scheme,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get host => $composableBuilder(
+    column: $table.host,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get port => $composableBuilder(
+    column: $table.port,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get basePath => $composableBuilder(
+    column: $table.basePath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get username => $composableBuilder(
+    column: $table.username,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$WebdavServersTableAnnotationComposer
+    extends Composer<_$TonariDatabase, $WebdavServersTable> {
+  $$WebdavServersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get scheme =>
+      $composableBuilder(column: $table.scheme, builder: (column) => column);
+
+  GeneratedColumn<String> get host =>
+      $composableBuilder(column: $table.host, builder: (column) => column);
+
+  GeneratedColumn<int> get port =>
+      $composableBuilder(column: $table.port, builder: (column) => column);
+
+  GeneratedColumn<String> get basePath =>
+      $composableBuilder(column: $table.basePath, builder: (column) => column);
+
+  GeneratedColumn<String> get username =>
+      $composableBuilder(column: $table.username, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$WebdavServersTableTableManager
+    extends
+        RootTableManager<
+          _$TonariDatabase,
+          $WebdavServersTable,
+          WebdavServer,
+          $$WebdavServersTableFilterComposer,
+          $$WebdavServersTableOrderingComposer,
+          $$WebdavServersTableAnnotationComposer,
+          $$WebdavServersTableCreateCompanionBuilder,
+          $$WebdavServersTableUpdateCompanionBuilder,
+          (
+            WebdavServer,
+            BaseReferences<_$TonariDatabase, $WebdavServersTable, WebdavServer>,
+          ),
+          WebdavServer,
+          PrefetchHooks Function()
+        > {
+  $$WebdavServersTableTableManager(
+    _$TonariDatabase db,
+    $WebdavServersTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$WebdavServersTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$WebdavServersTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$WebdavServersTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> scheme = const Value.absent(),
+                Value<String> host = const Value.absent(),
+                Value<int?> port = const Value.absent(),
+                Value<String?> basePath = const Value.absent(),
+                Value<String?> username = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => WebdavServersCompanion(
+                id: id,
+                name: name,
+                scheme: scheme,
+                host: host,
+                port: port,
+                basePath: basePath,
+                username: username,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String name,
+                required String scheme,
+                required String host,
+                Value<int?> port = const Value.absent(),
+                Value<String?> basePath = const Value.absent(),
+                Value<String?> username = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => WebdavServersCompanion.insert(
+                id: id,
+                name: name,
+                scheme: scheme,
+                host: host,
+                port: port,
+                basePath: basePath,
+                username: username,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$WebdavServersTableProcessedTableManager =
+    ProcessedTableManager<
+      _$TonariDatabase,
+      $WebdavServersTable,
+      WebdavServer,
+      $$WebdavServersTableFilterComposer,
+      $$WebdavServersTableOrderingComposer,
+      $$WebdavServersTableAnnotationComposer,
+      $$WebdavServersTableCreateCompanionBuilder,
+      $$WebdavServersTableUpdateCompanionBuilder,
+      (
+        WebdavServer,
+        BaseReferences<_$TonariDatabase, $WebdavServersTable, WebdavServer>,
+      ),
+      WebdavServer,
+      PrefetchHooks Function()
+    >;
 
 class $TonariDatabaseManager {
   final _$TonariDatabase _db;
@@ -9779,4 +10820,6 @@ class $TonariDatabaseManager {
       $$ImportedFoldersTableTableManager(_db, _db.importedFolders);
   $$LlmProvidersTableTableManager get llmProviders =>
       $$LlmProvidersTableTableManager(_db, _db.llmProviders);
+  $$WebdavServersTableTableManager get webdavServers =>
+      $$WebdavServersTableTableManager(_db, _db.webdavServers);
 }

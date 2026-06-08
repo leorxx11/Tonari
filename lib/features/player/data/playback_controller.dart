@@ -10,6 +10,8 @@ import '../../../core/db/providers.dart';
 import '../../../core/files/folder_bookmark.dart';
 import '../../../core/files/local_image_path.dart';
 import '../../settings/data/player_prefs.dart';
+import '../../webdav/data/webdav_client.dart';
+import '../../webdav/data/webdav_work_source.dart';
 import 'now_playing_bridge.dart';
 
 class PlaybackState {
@@ -18,12 +20,17 @@ class PlaybackState {
     this.tracks = const [],
     this.currentIndex = -1,
     this.bookmarkBase64,
+    this.remoteConfig,
   });
 
   final Work? work;
   final List<Track> tracks;
   final int currentIndex;
   final String? bookmarkBase64;
+
+  /// Non-null when the current work streams from WebDAV; drives how each
+  /// track's AudioSource is built (remote URL + auth vs local file).
+  final WebdavConfig? remoteConfig;
 
   Track? get currentTrack {
     if (currentIndex < 0 || currentIndex >= tracks.length) return null;
@@ -39,11 +46,13 @@ class PlaybackState {
     List<Track>? tracks,
     int? currentIndex,
     String? bookmarkBase64,
+    WebdavConfig? remoteConfig,
   }) => PlaybackState(
     work: work ?? this.work,
     tracks: tracks ?? this.tracks,
     currentIndex: currentIndex ?? this.currentIndex,
     bookmarkBase64: bookmarkBase64 ?? this.bookmarkBase64,
+    remoteConfig: remoteConfig ?? this.remoteConfig,
   );
 
   static const empty = PlaybackState();
@@ -105,20 +114,25 @@ class PlaybackController extends Notifier<PlaybackState> {
     final idx = tracks.indexWhere((t) => t.id == work.lastPlayedTrackId);
     if (idx < 0) return;
 
+    final remoteConfig =
+        await ref.read(webdavWorkSourceProvider).configForWork(work);
+
     String? bookmark;
-    final folderId = work.importedFolderId;
-    if (folderId != null) {
-      final folder = await (db.select(db.importedFolders)
-            ..where((f) => f.id.equals(folderId)))
-          .getSingleOrNull();
-      bookmark = folder?.bookmarkBase64;
-    }
-    if (bookmark != null) {
-      try {
-        final r = await FolderBookmark.resolve(bookmark);
-        _resolvedFolderUrl = r.url;
-      } catch (_) {
-        // simulator / sandboxed files don't need an active scope
+    if (remoteConfig == null) {
+      final folderId = work.importedFolderId;
+      if (folderId != null) {
+        final folder = await (db.select(db.importedFolders)
+              ..where((f) => f.id.equals(folderId)))
+            .getSingleOrNull();
+        bookmark = folder?.bookmarkBase64;
+      }
+      if (bookmark != null && bookmark.isNotEmpty) {
+        try {
+          final r = await FolderBookmark.resolve(bookmark);
+          _resolvedFolderUrl = r.url;
+        } catch (_) {
+          // simulator / sandboxed files don't need an active scope
+        }
       }
     }
 
@@ -127,11 +141,12 @@ class PlaybackController extends Notifier<PlaybackState> {
       tracks: tracks,
       currentIndex: idx,
       bookmarkBase64: bookmark,
+      remoteConfig: remoteConfig,
     );
 
     final track = tracks[idx];
     try {
-      await player.setAudioSource(AudioSource.uri(Uri.file(track.filePath)));
+      await player.setAudioSource(_audioSourceFor(track));
       if (track.lastPositionMs > 0) {
         await player.seek(Duration(milliseconds: track.lastPositionMs));
       }
@@ -151,6 +166,7 @@ class PlaybackController extends Notifier<PlaybackState> {
     required List<Track> tracks,
     required int initialIndex,
     required String? bookmarkBase64,
+    WebdavConfig? remoteConfig,
   }) async {
     if (initialIndex < 0 || initialIndex >= tracks.length) return;
     final newTrack = tracks[initialIndex];
@@ -179,6 +195,7 @@ class PlaybackController extends Notifier<PlaybackState> {
       tracks: tracks,
       currentIndex: initialIndex,
       bookmarkBase64: bookmarkBase64,
+      remoteConfig: remoteConfig,
     );
     await _loadAndPlay();
   }
@@ -244,10 +261,22 @@ class PlaybackController extends Notifier<PlaybackState> {
     final work = state.work;
     if (track == null || work == null) return;
 
-    await player.setAudioSource(AudioSource.uri(Uri.file(track.filePath)));
+    await player.setAudioSource(_audioSourceFor(track));
     await _bumpLastPlayed(trackChanged: true);
     await player.play();
     await _publishNowPlaying();
+  }
+
+  AudioSource _audioSourceFor(Track track) {
+    final config = state.remoteConfig;
+    if (config != null) {
+      final auth = config.authHeader;
+      return AudioSource.uri(
+        Uri.parse(config.streamUrl(track.filePath)),
+        headers: auth == null ? null : {'Authorization': auth},
+      );
+    }
+    return AudioSource.uri(Uri.file(track.filePath));
   }
 
   Future<void> _onProcessingState(ProcessingState s) async {

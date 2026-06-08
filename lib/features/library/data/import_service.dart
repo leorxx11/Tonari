@@ -52,6 +52,7 @@ class ImportService {
   Future<ImportSummary> applyScanResult(
     ScanResult scan, {
     String? sourceFolderId,
+    Map<String, List<int>> remoteSubtitleBytes = const {},
   }) async {
     var worksInserted = 0;
     var worksUpdated = 0;
@@ -62,7 +63,7 @@ class ImportService {
 
     // Read + parse subtitles outside the DB transaction — file I/O can be slow
     // and we don't want to hold the SQLite write lock while doing it.
-    final parsedSubs = _readAndParseSubtitles(scan);
+    final parsedSubs = _readAndParseSubtitles(scan, remoteSubtitleBytes);
 
     await _db.transaction(() async {
       for (final w in scan.works) {
@@ -350,7 +351,10 @@ class ImportService {
   ///   - `track.wav.vtt` (DLsite style — subtitle name minus one ext == audio name)
   ///   - `track.srt`     (generic style — both files share a stem)
   /// First match wins. Unreadable or empty subtitles are silently skipped.
-  List<_ParsedSubtitle> _readAndParseSubtitles(ScanResult scan) {
+  List<_ParsedSubtitle> _readAndParseSubtitles(
+    ScanResult scan, [
+    Map<String, List<int>> remoteBytes = const {},
+  ]) {
     final out = <_ParsedSubtitle>[];
     for (final w in scan.works) {
       if (w.subtitles.isEmpty || w.audios.isEmpty) continue;
@@ -363,7 +367,7 @@ class ImportService {
         if (identical(match, _noAudio)) continue;
 
         try {
-          final bytes = File(sub.path).readAsBytesSync();
+          final bytes = remoteBytes[sub.path] ?? File(sub.path).readAsBytesSync();
           if (bytes.isEmpty) continue;
           final hash = sha256.convert(bytes).toString();
           final content = utf8.decode(_stripBom(bytes), allowMalformed: true);

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/db/database.dart';
 import '../../player/data/playback_controller.dart';
 import '../../settings/data/path_prefs.dart';
+import '../../webdav/data/webdav_work_source.dart';
 import '../data/track_duration_probe.dart';
 import '../data/work_tree.dart';
 import '../data/works_providers.dart';
@@ -157,14 +158,19 @@ class _WorkFilesPageState extends ConsumerState<WorkFilesPage> {
   Future<void> _play(Track track, List<Track> playQueue) async {
     final index = playQueue.indexWhere((t) => t.id == track.id);
     if (index < 0) return;
-    final bookmark = await ref.read(
-      bookmarkForWorkProvider(widget.work.productId).future,
-    );
+    final remoteConfig =
+        await ref.read(webdavWorkSourceProvider).configForWork(widget.work);
+    final bookmark = remoteConfig != null
+        ? null
+        : await ref.read(
+            bookmarkForWorkProvider(widget.work.productId).future,
+          );
     await ref.read(playbackControllerProvider.notifier).startWork(
           work: widget.work,
           tracks: playQueue,
           initialIndex: index,
           bookmarkBase64: bookmark,
+          remoteConfig: remoteConfig,
         );
   }
 

@@ -25,16 +25,28 @@ final workSortProvider = NotifierProvider<WorkSort, WorkSortMode>(
   WorkSort.new,
 );
 
+enum SourceFilter { all, local, remote }
+
 class WorkFilter {
-  const WorkFilter({this.favoritesOnly = false, this.searchQuery = ''});
+  const WorkFilter({
+    this.favoritesOnly = false,
+    this.searchQuery = '',
+    this.source = SourceFilter.all,
+  });
 
   final bool favoritesOnly;
   final String searchQuery;
+  final SourceFilter source;
 
-  WorkFilter copyWith({bool? favoritesOnly, String? searchQuery}) {
+  WorkFilter copyWith({
+    bool? favoritesOnly,
+    String? searchQuery,
+    SourceFilter? source,
+  }) {
     return WorkFilter(
       favoritesOnly: favoritesOnly ?? this.favoritesOnly,
       searchQuery: searchQuery ?? this.searchQuery,
+      source: source ?? this.source,
     );
   }
 }
@@ -49,6 +61,10 @@ class WorkFilterNotifier extends Notifier<WorkFilter> {
 
   void setSearchQuery(String query) {
     state = state.copyWith(searchQuery: query);
+  }
+
+  void setSource(SourceFilter source) {
+    state = state.copyWith(source: source);
   }
 }
 
@@ -72,10 +88,29 @@ final allWorksProvider = StreamProvider<List<Work>>((ref) {
             expr = expr &
                 (w.productId.lower().like(like) | w.title.lower().like(like));
           }
+          if (filter.source != SourceFilter.all) {
+            final webdavIds = db.selectOnly(db.importedFolders)
+              ..addColumns([db.importedFolders.id])
+              ..where(db.importedFolders.type.equals('webdav'));
+            if (filter.source == SourceFilter.remote) {
+              expr = expr & w.importedFolderId.isInQuery(webdavIds);
+            } else {
+              expr = expr &
+                  (w.importedFolderId.isNull() |
+                      w.importedFolderId.isInQuery(webdavIds).not());
+            }
+          }
           return expr;
         })
         ..orderBy([(w) => _orderingFor(sort, w)]))
       .watch();
+});
+
+final remoteFolderIdsProvider = StreamProvider<Set<String>>((ref) {
+  final db = ref.watch(databaseProvider);
+  return (db.select(db.importedFolders)..where((f) => f.type.equals('webdav')))
+      .watch()
+      .map((rows) => rows.map((f) => f.id).toSet());
 });
 
 OrderingTerm _orderingFor(WorkSortMode mode, $WorksTable w) {

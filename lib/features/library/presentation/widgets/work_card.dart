@@ -9,12 +9,14 @@ class WorkCard extends StatelessWidget {
   const WorkCard({
     super.key,
     required this.work,
+    this.isRemote = false,
     this.onTap,
     this.onRemove,
     this.onToggleFavorite,
   });
 
   final Work work;
+  final bool isRemote;
   final VoidCallback? onTap;
   final VoidCallback? onRemove;
   final VoidCallback? onToggleFavorite;
@@ -47,6 +49,7 @@ class WorkCard extends StatelessWidget {
                     aspectRatio: 1,
                     child: _CoverWithOverlays(
                       work: work,
+                      isRemote: isRemote,
                       onToggleFavorite: onToggleFavorite,
                     ),
                   ),
@@ -137,10 +140,12 @@ enum _WorkCardAction { remove, toggleFavorite }
 class _CoverWithOverlays extends StatelessWidget {
   const _CoverWithOverlays({
     required this.work,
+    required this.isRemote,
     required this.onToggleFavorite,
   });
 
   final Work work;
+  final bool isRemote;
   final VoidCallback? onToggleFavorite;
 
   @override
@@ -150,6 +155,19 @@ class _CoverWithOverlays extends StatelessWidget {
       fit: StackFit.expand,
       children: [
         WorkCover(work: work),
+        if (isRemote)
+          Positioned(
+            bottom: 6,
+            left: 6,
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.55),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.cloud, size: 12, color: Colors.white),
+            ),
+          ),
         Positioned(
           top: 6,
           left: 6,

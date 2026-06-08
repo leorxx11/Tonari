@@ -43,6 +43,7 @@ class RescanService {
           .get();
 
       for (final folder in folders) {
+        if (folder.type == 'webdav') continue; // remote rescan: 阶段3
         try {
           await flow.importFromFolder(folder);
         } catch (_) {
