@@ -43,9 +43,13 @@ class _P115LoginPageState extends ConsumerState<P115LoginPage> {
     } else if (status.confirmed) {
       _timer?.cancel();
       _setStatus('登录成功，正在保存 Cookie…');
-      await ref.read(p115AuthServiceProvider).finishQrLogin(token.uid);
-      ref.invalidate(p115CookieProvider);
-      if (mounted) Navigator.of(context).pop(true);
+      try {
+        await ref.read(p115AuthServiceProvider).finishQrLogin(token.uid);
+        ref.invalidate(p115CookieProvider);
+        if (mounted) Navigator.of(context).pop(true);
+      } catch (e) {
+        _setStatus('保存 Cookie 失败：$e');
+      }
     } else if (status.expired) {
       _timer?.cancel();
       _setStatus('二维码已过期，请刷新');

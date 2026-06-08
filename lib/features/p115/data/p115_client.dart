@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/net/media_proxy.dart';
 import '../../../core/scanner/file_classifier.dart';
 import '../../browse/data/remote_models.dart';
 import 'p115_cipher.dart';
@@ -71,24 +72,67 @@ class P115Client {
       'https://proapi.115.com/app/chrome/downurl',
       data: {'data': encrypted},
       options: Options(
+        contentType: Headers.formUrlEncodedContentType,
         headers: {'Cookie': cookie.header, 'User-Agent': _downloadUserAgent},
+        followRedirects: false,
         validateStatus: (s) => s != null && s < 500,
       ),
     );
     if (res.statusCode == 401 || res.statusCode == 403) {
       throw const P115AuthExpiredException();
     }
-    final json = _asJson(res.data);
+    final setCookies = <String>[];
+    final body = await _followDownurl(res, cookie, setCookies);
+    final json = _asJson(body);
     if (!_truthy(json['state'])) {
       if (_authExpired(json)) throw const P115AuthExpiredException();
       throw P115Exception('${json['error'] ?? json['message'] ?? '获取直链失败'}');
     }
     final data = jsonDecode(P115Cipher.decryptToString('${json['data']}'));
     final url = _extractDownloadUrl(data);
-    return ResolvedMediaUrl(
-      url: Uri.parse(url),
-      headers: const {'User-Agent': _downloadUserAgent},
-    );
+    // The CDN 403s "no cookie value" unless we send the session cookie PLUS the
+    // signed anti-leech cookies 115 sets during the download redirect (acw_tc +
+    // a dynamic one), with a 115 referer. fvp/FFmpeg also won't forward a Cookie
+    // header at all, so stream through the local proxy which injects them all.
+    final dlCookies = setCookies
+        .map((c) => c.split(';').first.trim())
+        .where((s) => s.isNotEmpty);
+    final proxied = await MediaProxy.instance.wrap(Uri.parse(url), {
+      'User-Agent': _downloadUserAgent,
+      'Cookie': [cookie.header, ...dlCookies].join('; '),
+      'Referer': 'https://115.com/',
+    });
+    return ResolvedMediaUrl(url: proxied);
+  }
+
+  /// 115 proapi 302-redirects the downurl POST to a `dl302` gateway that serves
+  /// the encrypted JSON. dart:io doesn't auto-follow a POST redirect, so chase
+  /// the `Location` chain manually (GET) and return the JSON-bearing body.
+  Future<dynamic> _followDownurl(
+    Response<dynamic> res,
+    P115Cookie cookie,
+    List<String> setCookies,
+  ) async {
+    var current = res;
+    setCookies.addAll(current.headers['set-cookie'] ?? const []);
+    for (var hop = 0; hop < 5; hop++) {
+      final location = current.headers.value('location');
+      if (location == null || location.isEmpty) return current.data;
+      current = await _dio.get<dynamic>(
+        location,
+        options: Options(
+          headers: {'Cookie': cookie.header, 'User-Agent': _downloadUserAgent},
+          followRedirects: false,
+          responseType: ResponseType.plain,
+          validateStatus: (s) => s != null && s < 500,
+        ),
+      );
+      setCookies.addAll(current.headers['set-cookie'] ?? const []);
+      if (current.statusCode == 401 || current.statusCode == 403) {
+        throw const P115AuthExpiredException();
+      }
+    }
+    return current.data;
   }
 
   static List<RemoteEntry> mapEntries(Map<String, dynamic> json) {

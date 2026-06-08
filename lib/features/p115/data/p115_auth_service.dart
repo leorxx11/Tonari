@@ -75,9 +75,10 @@ class P115AuthService {
 
   Future<P115Cookie> finishQrLogin(String uid) async {
     final res = await _dio.post<dynamic>(
-      'https://qrcodeapi.115.com/app/1.0/tv/1.0/login/qrcode/',
-      data: {'account': uid},
+      'https://passportapi.115.com/app/1.0/tv/1.0/login/qrcode/',
+      data: {'account': uid, 'app': 'tv'},
       options: Options(
+        contentType: Headers.formUrlEncodedContentType,
         headers: {'User-Agent': 'Mozilla/5.0 115Browser/30.4.0'},
       ),
     );
