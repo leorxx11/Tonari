@@ -42,8 +42,10 @@ void main() {
     final result = FolderScanner.scanSync(tmp.path);
     expect(result.works, hasLength(1));
     final w = result.works.first;
-    expect(w.audios.map((a) => a.fileName).toSet(),
-        {'track01.mp3', 'track01.flac'});
+    expect(w.audios.map((a) => a.fileName).toSet(), {
+      'track01.mp3',
+      'track01.flac',
+    });
     expect(w.images, hasLength(1));
     expect(w.subtitles, hasLength(1));
     expect(w.textNotes, hasLength(1));
@@ -72,14 +74,13 @@ void main() {
     touch('not_a_work/c.txt');
 
     final result = FolderScanner.scanSync(tmp.path);
-    expect(
-      result.works.map((w) => w.productId).toSet(),
-      {'RJ000001', 'RJ000002'},
-    );
-    expect(
-      result.unrecognizedDirs.map((p) => p.split('/').last),
-      ['not_a_work'],
-    );
+    expect(result.works.map((w) => w.productId).toSet(), {
+      'RJ000001',
+      'RJ000002',
+    });
+    expect(result.unrecognizedDirs.map((p) => p.split('/').last), [
+      'not_a_work',
+    ]);
   });
 
   test('finds RJ in grandchild directory (collection layout)', () {

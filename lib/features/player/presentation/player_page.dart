@@ -53,10 +53,11 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     final controller = ref.watch(playbackControllerProvider.notifier);
     final theme = Theme.of(context);
     final track = state.currentTrack;
+    final browseItem = state.currentBrowseItem;
     final work = state.work;
     final step = ref.watch(playerPrefsProvider).seekStepSeconds;
 
-    if (track == null || work == null) {
+    if (track == null && browseItem == null) {
       return Scaffold(
         appBar: AppBar(),
         body: const Center(child: Text('未在播放')),
@@ -67,6 +68,8 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     final iosSecondary = CupertinoColors.secondaryLabel.resolveFrom(context);
     final iosTertiary = CupertinoColors.tertiaryLabel.resolveFrom(context);
     const iosBlue = _kPlayerAccent;
+    final title = track?.fileName ?? browseItem!.fileName;
+    final subtitle = work?.title ?? browseItem!.sourceName;
 
     return Scaffold(
       appBar: AppBar(
@@ -93,17 +96,31 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                         return SizedBox(
                           width: s,
                           height: s,
-                          child: WorkCover(
-                            work: work,
-                            borderRadius: BorderRadius.circular(20),
-                            iconSize: 72,
-                          ),
+                          child: work == null
+                              ? DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    color: theme
+                                        .colorScheme
+                                        .surfaceContainerHighest,
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Icon(
+                                    Icons.cloud_queue_rounded,
+                                    size: 88,
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                )
+                              : WorkCover(
+                                  work: work,
+                                  borderRadius: BorderRadius.circular(20),
+                                  iconSize: 72,
+                                ),
                         );
                       },
                     ),
                     const SizedBox(height: 28),
                     Text(
-                      track.fileName,
+                      title,
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
@@ -115,9 +132,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      _speed == 1.0
-                          ? work.title
-                          : '${work.title} · ${_speed}x',
+                      _speed == 1.0 ? subtitle : '$subtitle · ${_speed}x',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
@@ -158,8 +173,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                 mode: ref.watch(playerPrefsProvider).playbackMode,
                 onQueue: () => _showQueue(context, state, controller),
                 onCycleMode: _cycleMode,
-                onPickSubtitle: () =>
-                    _placeholder(context, '从文件夹选择字幕 · 敬请期待'),
+                onPickSubtitle: () => _placeholder(context, '从文件夹选择字幕 · 敬请期待'),
                 onMore: () => _showMore(context),
               ),
             ],
@@ -172,11 +186,13 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
   void _placeholder(BuildContext context, String message) {
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
-      ..showSnackBar(SnackBar(
-        content: Text(message),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-      ));
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
   }
 
   Future<void> _cycleMode() async {
@@ -202,16 +218,18 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
                   child: Text(
-                    '播放队列 · ${state.tracks.length} 项',
+                    '播放队列 · ${state.queueLength} 项',
                     style: Theme.of(ctx).textTheme.titleMedium,
                   ),
                 ),
                 const Divider(height: 0.5, thickness: 0.5),
                 Expanded(
                   child: ListView.builder(
-                    itemCount: state.tracks.length,
+                    itemCount: state.queueLength,
                     itemBuilder: (c, i) {
-                      final t = state.tracks[i];
+                      final title = state.isBrowseMode
+                          ? state.browseItems[i].fileName
+                          : state.tracks[i].fileName;
                       final isCurrent = i == state.currentIndex;
                       return ListTile(
                         leading: Icon(
@@ -222,12 +240,13 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                           size: 22,
                         ),
                         title: Text(
-                          t.fileName,
+                          title,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontWeight:
-                                isCurrent ? FontWeight.w600 : FontWeight.w400,
+                            fontWeight: isCurrent
+                                ? FontWeight.w600
+                                : FontWeight.w400,
                           ),
                         ),
                         onTap: () {
@@ -348,9 +367,7 @@ class _MainControls extends StatelessWidget {
               constraints: const BoxConstraints(),
               tooltip: playing ? '暂停' : '播放',
               icon: Icon(
-                playing
-                    ? CupertinoIcons.pause_fill
-                    : CupertinoIcons.play_fill,
+                playing ? CupertinoIcons.pause_fill : CupertinoIcons.play_fill,
                 color: primary,
               ),
               onPressed: () => playing ? onPause() : onPlay(),
@@ -468,10 +485,8 @@ class _VolumeRowState extends State<_VolumeRow> {
           child: SliderTheme(
             data: SliderTheme.of(context).copyWith(
               trackHeight: 3,
-              thumbShape:
-                  const RoundSliderThumbShape(enabledThumbRadius: 7),
-              overlayShape:
-                  const RoundSliderOverlayShape(overlayRadius: 14),
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+              overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
               activeTrackColor: widget.accent,
               thumbColor: widget.accent,
             ),
@@ -510,8 +525,9 @@ class _BottomActions extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final hasSubtitle = ref.watch(currentSubtitleProvider).value != null;
-    final subtitleMode =
-        ref.watch(subtitleOverlayPrefsProvider.select((p) => p.mode));
+    final subtitleMode = ref.watch(
+      subtitleOverlayPrefsProvider.select((p) => p.mode),
+    );
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -553,17 +569,17 @@ class _BottomActions extends ConsumerWidget {
   }
 
   IconData _modeIcon(PlaybackMode m) => switch (m) {
-        PlaybackMode.sequence => Icons.playlist_play_rounded,
-        PlaybackMode.loopAll => Icons.repeat_rounded,
-        PlaybackMode.loopOne => Icons.repeat_one_rounded,
-        PlaybackMode.shuffle => Icons.shuffle_rounded,
-      };
+    PlaybackMode.sequence => Icons.playlist_play_rounded,
+    PlaybackMode.loopAll => Icons.repeat_rounded,
+    PlaybackMode.loopOne => Icons.repeat_one_rounded,
+    PlaybackMode.shuffle => Icons.shuffle_rounded,
+  };
 
   IconData _subtitleModeIcon(SubtitleMode m) => switch (m) {
-        SubtitleMode.off => CupertinoIcons.captions_bubble,
-        SubtitleMode.appLevel => CupertinoIcons.captions_bubble_fill,
-        SubtitleMode.pip => Icons.picture_in_picture_alt_rounded,
-      };
+    SubtitleMode.off => CupertinoIcons.captions_bubble,
+    SubtitleMode.appLevel => CupertinoIcons.captions_bubble_fill,
+    SubtitleMode.pip => Icons.picture_in_picture_alt_rounded,
+  };
 }
 
 class _ProgressBar extends StatefulWidget {
@@ -599,8 +615,7 @@ class _ProgressBarState extends State<_ProgressBar> {
           builder: (context, positionSnapshot) {
             final position = positionSnapshot.data ?? Duration.zero;
             final durationMs = duration.inMilliseconds;
-            final livePositionMs =
-                position.inMilliseconds.clamp(0, durationMs);
+            final livePositionMs = position.inMilliseconds.clamp(0, durationMs);
             final displayMs = _dragValue?.round() ?? livePositionMs;
             return Column(
               children: [
@@ -644,13 +659,11 @@ class _ProgressBarState extends State<_ProgressBar> {
                     children: [
                       Text(
                         _formatDuration(Duration(milliseconds: displayMs)),
-                        style: TextStyle(
-                            color: widget.timeColor, fontSize: 12),
+                        style: TextStyle(color: widget.timeColor, fontSize: 12),
                       ),
                       Text(
                         _formatDuration(duration),
-                        style: TextStyle(
-                            color: widget.timeColor, fontSize: 12),
+                        style: TextStyle(color: widget.timeColor, fontSize: 12),
                       ),
                     ],
                   ),

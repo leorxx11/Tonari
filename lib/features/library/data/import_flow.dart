@@ -21,7 +21,10 @@ class ImportFlow {
     try {
       final path = _urlToPath(resolution.url);
       final scan = await FolderScanner.scan(path);
-      final summary = await importer.applyScanResult(scan, sourceFolderId: folder.id);
+      final summary = await importer.applyScanResult(
+        scan,
+        sourceFolderId: folder.id,
+      );
       onImported?.call(summary);
       return summary;
     } finally {

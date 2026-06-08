@@ -33,8 +33,7 @@ spans two rows
     });
 
     test('handles CRLF line endings', () {
-      const src =
-          '1\r\n00:00:01,000 --> 00:00:02,000\r\nHello\r\n\r\n';
+      const src = '1\r\n00:00:01,000 --> 00:00:02,000\r\nHello\r\n\r\n';
       final cues = SubtitleParser.parse(src, 'srt');
       expect(cues.single.text, 'Hello');
     });

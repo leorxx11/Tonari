@@ -16,17 +16,15 @@ class WebdavWorkSource {
   Future<WebdavConfig?> configForWork(Work work) async {
     final folderId = work.importedFolderId;
     if (folderId == null) return null;
-    final folder =
-        await (_db.select(_db.importedFolders)
-              ..where((f) => f.id.equals(folderId)))
-            .getSingleOrNull();
+    final folder = await (_db.select(
+      _db.importedFolders,
+    )..where((f) => f.id.equals(folderId))).getSingleOrNull();
     if (folder == null || folder.type != 'webdav') return null;
     final serverId = folder.serverId;
     if (serverId == null) return null;
-    final server =
-        await (_db.select(_db.webdavServers)
-              ..where((s) => s.id.equals(serverId)))
-            .getSingleOrNull();
+    final server = await (_db.select(
+      _db.webdavServers,
+    )..where((s) => s.id.equals(serverId))).getSingleOrNull();
     if (server == null) return null;
     final password = await _passwordStore.read(server.id);
     return WebdavConfig(

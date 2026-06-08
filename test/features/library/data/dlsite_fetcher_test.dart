@@ -35,7 +35,9 @@ void main() {
     late DlsiteWorkData data;
 
     setUpAll(() {
-      final html = File('test/fixtures/dlsite/RJ01560714.html').readAsStringSync();
+      final html = File(
+        'test/fixtures/dlsite/RJ01560714.html',
+      ).readAsStringSync();
       data = DlsiteFetcher().parseHtml(html, 'RJ01560714');
     });
 
@@ -103,7 +105,9 @@ void main() {
       );
       expect(
         data.sampleImageUrls.first,
-        startsWith('https://img.dlsite.jp/modpub/images2/work/doujin/RJ01561000/RJ01560714_img_smp'),
+        startsWith(
+          'https://img.dlsite.jp/modpub/images2/work/doujin/RJ01561000/RJ01560714_img_smp',
+        ),
       );
     });
 
@@ -122,14 +126,19 @@ void main() {
     late DlsiteAjaxData ajax;
 
     setUpAll(() {
-      final json = File('test/fixtures/dlsite/RJ01560714_ajax.json').readAsStringSync();
+      final json = File(
+        'test/fixtures/dlsite/RJ01560714_ajax.json',
+      ).readAsStringSync();
       ajax = DlsiteFetcher().parseAjaxJson(json, 'RJ01560714');
     });
 
-    test('uses dl_count_total (cross-language sum), not locale-only dl_count', () {
-      expect(ajax.dlCount, 3991);
-      expect(ajax.wishlistCount, 5114);
-    });
+    test(
+      'uses dl_count_total (cross-language sum), not locale-only dl_count',
+      () {
+        expect(ajax.dlCount, 3991);
+        expect(ajax.wishlistCount, 5114);
+      },
+    );
 
     test('extracts rating average and count', () {
       expect(ajax.rateAverage, 4.85);
@@ -167,7 +176,8 @@ void main() {
     });
 
     test('discount rate is computed when price < official_price', () {
-      const body = '{"RJ01560714":{"price":1100,"official_price":2200,"is_discount":1,"on_sale":1}}';
+      const body =
+          '{"RJ01560714":{"price":1100,"official_price":2200,"is_discount":1,"on_sale":1}}';
       final ajax = DlsiteFetcher().parseAjaxJson(body, 'RJ01560714');
       expect(ajax.price, 1100);
       expect(ajax.officialPrice, 2200);

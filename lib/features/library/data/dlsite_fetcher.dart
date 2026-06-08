@@ -128,8 +128,9 @@ class DlsiteFetchException implements Exception {
   final Object? cause;
 
   @override
-  String toString() =>
-      cause == null ? 'DlsiteFetchException: $message' : 'DlsiteFetchException: $message ($cause)';
+  String toString() => cause == null
+      ? 'DlsiteFetchException: $message'
+      : 'DlsiteFetchException: $message ($cause)';
 }
 
 class DlsiteFetcher {
@@ -212,12 +213,19 @@ class DlsiteFetcher {
 
     final price = _tryGet(() => _asInt(node['price']));
     final officialPrice = _tryGet(() => _asInt(node['official_price']));
-    final ranks = _tryGet(() => _parseRanks(node['rank'])) ?? const <String, int>{};
+    final ranks =
+        _tryGet(() => _parseRanks(node['rank'])) ?? const <String, int>{};
     return DlsiteAjaxData(
       productId: productId,
-      dlCount: _tryGet(() => _asInt(node['dl_count_total']) ?? _asInt(node['dl_count'])),
+      dlCount: _tryGet(
+        () => _asInt(node['dl_count_total']) ?? _asInt(node['dl_count']),
+      ),
       wishlistCount: _tryGet(() => _asInt(node['wishlist_count'])),
-      rateAverage: _tryGet(() => _asDouble(node['rate_average_2dp']) ?? _asDouble(node['rate_average'])),
+      rateAverage: _tryGet(
+        () =>
+            _asDouble(node['rate_average_2dp']) ??
+            _asDouble(node['rate_average']),
+      ),
       rateCount: _tryGet(() => _asInt(node['rate_count'])),
       reviewCount: _tryGet(() => _asInt(node['review_count'])),
       price: price,
@@ -279,15 +287,18 @@ class DlsiteFetcher {
     final description = doc.querySelector('[itemprop="description"]');
     final ogImage = _attr(doc, 'meta[property="og:image"]', 'content');
     final imageRj = _extractImageProductId(ogImage);
-    final originalProductId =
-        (imageRj != null && imageRj != productId) ? imageRj : null;
+    final originalProductId = (imageRj != null && imageRj != productId)
+        ? imageRj
+        : null;
     final mainImageUrl = (ogImage != null && ogImage.isNotEmpty)
         ? _normalizeUrl(ogImage)
         : mainImageUrlFor(imageRj ?? productId);
     return DlsiteWorkData(
       productId: productId,
       title: _tryGet(() => _textOrNull(doc, '#work_name')) ?? productId,
-      titleRomaji: _tryGet(() => _attr(doc, 'meta[itemprop="alternateName"]', 'content')),
+      titleRomaji: _tryGet(
+        () => _attr(doc, 'meta[itemprop="alternateName"]', 'content'),
+      ),
       originalProductId: originalProductId,
       circleId: _tryGet(() => _circleId(doc, productId)),
       circleName: _tryGet(() => _textOrNull(doc, '.maker_name')),
@@ -300,15 +311,19 @@ class DlsiteFetcher {
       workType: _tryGet(() => _workType(doc, outline['作品形式'])),
       workTypeName: _tryGet(() => _workTypeName(outline['作品形式'])),
       fileFormats: _tryGet(() => _fileFormats(outline['文件形式'])) ?? const [],
-      supportedLanguages: _tryGet(() => _supportedLanguages(outline['支持的语言'])) ?? const [],
+      supportedLanguages:
+          _tryGet(() => _supportedLanguages(outline['支持的语言'])) ?? const [],
       genres: _tryGet(() => _genres(outline['分类'])) ?? const [],
       fileSize: _tryGet(() => _fileSize(outline['文件容量'])),
       seriesId: _tryGet(() => _seriesId(outline['系列名'])),
-      seriesName: _tryGet(() => _textOrNullElem(outline['系列名']?.querySelector('a'))),
+      seriesName: _tryGet(
+        () => _textOrNullElem(outline['系列名']?.querySelector('a')),
+      ),
       descriptionHtml: _tryGet(() => description?.innerHtml.trim()),
       mainImageUrl: mainImageUrl,
       sampleImageUrls: _tryGet(() => _sampleImages(doc)) ?? const [],
-      descriptionImageUrls: _tryGet(() => _descriptionImages(description)) ?? const [],
+      descriptionImageUrls:
+          _tryGet(() => _descriptionImages(description)) ?? const [],
     );
   }
 
@@ -318,8 +333,9 @@ class DlsiteFetcher {
   /// page's product_id for translation editions.
   static String? _extractImageProductId(String? url) {
     if (url == null || url.isEmpty) return null;
-    final m =
-        RegExp(r'/work/[^/]+/[A-Za-z]+\d+/([A-Za-z]+\d+)_img_').firstMatch(url);
+    final m = RegExp(
+      r'/work/[^/]+/[A-Za-z]+\d+/([A-Za-z]+\d+)_img_',
+    ).firstMatch(url);
     return m?.group(1);
   }
 
@@ -353,7 +369,8 @@ class DlsiteFetcher {
   }
 
   String? _circleId(dom.Document doc, String productId) {
-    final ga4 = doc.querySelector('.ga4_event_item_$productId') ??
+    final ga4 =
+        doc.querySelector('.ga4_event_item_$productId') ??
         doc.querySelector('[data-product_id][data-maker_id]');
     return ga4?.attributes['data-maker_id'];
   }
@@ -363,7 +380,11 @@ class DlsiteFetcher {
     final raw = td.querySelector('a')?.text.trim() ?? td.text.trim();
     final m = RegExp(r'(\d{4})年(\d{1,2})月(\d{1,2})日').firstMatch(raw);
     if (m == null) return null;
-    return DateTime(int.parse(m.group(1)!), int.parse(m.group(2)!), int.parse(m.group(3)!));
+    return DateTime(
+      int.parse(m.group(1)!),
+      int.parse(m.group(2)!),
+      int.parse(m.group(3)!),
+    );
   }
 
   List<String> _anchorTexts(dom.Element? td) {
@@ -461,7 +482,9 @@ class DlsiteFetcher {
 
   List<String> _sampleImages(dom.Document doc) {
     final out = <String>[];
-    for (final div in doc.querySelectorAll('.product-slider-data div[data-src]')) {
+    for (final div in doc.querySelectorAll(
+      '.product-slider-data div[data-src]',
+    )) {
       final src = div.attributes['data-src'];
       if (src == null || src.isEmpty) continue;
       if (src.contains('_img_main')) continue;

@@ -123,10 +123,12 @@ class _WebdavServerEditPageState extends ConsumerState<WebdavServerEditPage> {
     try {
       final repo = ref.read(webdavServerRepositoryProvider);
       final password = _password.text.isEmpty ? null : _password.text;
-      final basePath =
-          _basePath.text.trim().isEmpty ? null : _basePath.text.trim();
-      final username =
-          _username.text.trim().isEmpty ? null : _username.text.trim();
+      final basePath = _basePath.text.trim().isEmpty
+          ? null
+          : _basePath.text.trim();
+      final username = _username.text.trim().isEmpty
+          ? null
+          : _username.text.trim();
       if (_isEdit) {
         await repo.update(
           id: widget.server!.id,

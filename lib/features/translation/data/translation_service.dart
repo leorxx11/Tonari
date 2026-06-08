@@ -48,17 +48,13 @@ class TranslationService {
     CancelToken? cancelToken,
   }) {
     return _retryOnce(
-      () => _chat(
-        provider,
-        [
-          {
-            'role': 'system',
-            'content': _composeSystemPrompt(_titlePrompt, provider.systemPrompt),
-          },
-          {'role': 'user', 'content': title},
-        ],
-        cancelToken: cancelToken,
-      ),
+      () => _chat(provider, [
+        {
+          'role': 'system',
+          'content': _composeSystemPrompt(_titlePrompt, provider.systemPrompt),
+        },
+        {'role': 'user', 'content': title},
+      ], cancelToken: cancelToken),
     );
   }
 
@@ -77,7 +73,11 @@ class TranslationService {
     for (var start = 0; start < segs.texts.length; start += batchSize) {
       final end = math.min(start + batchSize, segs.texts.length);
       final batch = segs.texts.sublist(start, end);
-      final part = await _translateBatch(provider, batch, cancelToken: cancelToken);
+      final part = await _translateBatch(
+        provider,
+        batch,
+        cancelToken: cancelToken,
+      );
       translated.addAll(part);
     }
     return HtmlSegmenter.fill(segs, translated);
@@ -89,17 +89,13 @@ class TranslationService {
     CancelToken? cancelToken,
   }) async {
     final raw = await _retry(
-      () => _chat(
-        provider,
-        [
-          {
-            'role': 'system',
-            'content': _composeSystemPrompt(_descPrompt, provider.systemPrompt),
-          },
-          {'role': 'user', 'content': jsonEncode(batch)},
-        ],
-        cancelToken: cancelToken,
-      ),
+      () => _chat(provider, [
+        {
+          'role': 'system',
+          'content': _composeSystemPrompt(_descPrompt, provider.systemPrompt),
+        },
+        {'role': 'user', 'content': jsonEncode(batch)},
+      ], cancelToken: cancelToken),
       validate: (text) {
         final arr = _parseJsonArray(text);
         if (arr.length != batch.length) {

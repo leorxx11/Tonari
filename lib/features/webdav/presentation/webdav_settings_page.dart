@@ -113,8 +113,9 @@ class _ServerTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final repo = ref.read(webdavServerRepositoryProvider);
-    final authority =
-        server.port == null ? server.host : '${server.host}:${server.port}';
+    final authority = server.port == null
+        ? server.host
+        : '${server.host}:${server.port}';
     final url = '${server.scheme}://$authority${server.basePath ?? ''}';
 
     return ListTile(

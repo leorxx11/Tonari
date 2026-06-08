@@ -179,9 +179,7 @@ class _SubtitleBar extends StatelessWidget {
               fontWeight: FontWeight.w700,
               height: 1.35,
               decoration: TextDecoration.none,
-              shadows: [
-                Shadow(color: Color(0x99FFFFFF), blurRadius: 6),
-              ],
+              shadows: [Shadow(color: Color(0x99FFFFFF), blurRadius: 6)],
             ),
           ),
         ),

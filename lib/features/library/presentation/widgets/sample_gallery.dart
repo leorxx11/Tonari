@@ -75,10 +75,8 @@ class SampleGallery {
       PageRouteBuilder<void>(
         opaque: false,
         barrierColor: Colors.black87,
-        pageBuilder: (_, _, _) => _GalleryView(
-          samples: samples,
-          initialIndex: initialIndex,
-        ),
+        pageBuilder: (_, _, _) =>
+            _GalleryView(samples: samples, initialIndex: initialIndex),
         transitionsBuilder: (_, anim, _, child) =>
             FadeTransition(opacity: anim, child: child),
       ),
@@ -97,8 +95,9 @@ class _GalleryView extends StatefulWidget {
 }
 
 class _GalleryViewState extends State<_GalleryView> {
-  late final PageController _controller =
-      PageController(initialPage: widget.initialIndex);
+  late final PageController _controller = PageController(
+    initialPage: widget.initialIndex,
+  );
   late int _page = widget.initialIndex;
 
   @override
@@ -121,9 +120,7 @@ class _GalleryViewState extends State<_GalleryView> {
               return InteractiveViewer(
                 minScale: 1,
                 maxScale: 4,
-                child: Center(
-                  child: SampleImage(sample: widget.samples[i]),
-                ),
+                child: Center(child: SampleImage(sample: widget.samples[i])),
               );
             },
           ),

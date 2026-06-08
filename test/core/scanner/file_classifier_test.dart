@@ -23,6 +23,12 @@ void main() {
       }
     });
 
+    test('mp4/mkv/mov/m4v/webm/ts are video', () {
+      for (final f in ['a.mp4', 'a.mkv', 'a.mov', 'a.m4v', 'a.webm', 'a.ts']) {
+        expect(FileClassifier.classify(f), FileKind.video, reason: f);
+      }
+    });
+
     test('srt/lrc/vtt/ass are subtitle', () {
       for (final f in ['a.srt', 'a.lrc', 'a.vtt', 'a.ass']) {
         expect(FileClassifier.classify(f), FileKind.subtitle, reason: f);

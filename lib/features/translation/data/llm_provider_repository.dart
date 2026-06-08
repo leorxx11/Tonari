@@ -7,20 +7,17 @@ import '../../../core/db/providers.dart';
 import 'provider_key_store.dart';
 
 class LlmProviderRepository {
-  LlmProviderRepository({
-    required this.db,
-    required this.keyStore,
-    Uuid? uuid,
-  }) : _uuid = uuid ?? const Uuid();
+  LlmProviderRepository({required this.db, required this.keyStore, Uuid? uuid})
+    : _uuid = uuid ?? const Uuid();
 
   final TonariDatabase db;
   final ProviderKeyStore keyStore;
   final Uuid _uuid;
 
   Stream<List<LlmProvider>> watchAll() {
-    return (db.select(db.llmProviders)
-          ..orderBy([(p) => OrderingTerm(expression: p.createdAt)]))
-        .watch();
+    return (db.select(
+      db.llmProviders,
+    )..orderBy([(p) => OrderingTerm(expression: p.createdAt)])).watch();
   }
 
   Future<LlmProvider?> defaultProvider() {
@@ -91,10 +88,9 @@ class LlmProviderRepository {
 
   Future<void> delete(String id) async {
     await db.transaction(() async {
-      final row =
-          await (db.select(
-            db.llmProviders,
-          )..where((p) => p.id.equals(id))).getSingleOrNull();
+      final row = await (db.select(
+        db.llmProviders,
+      )..where((p) => p.id.equals(id))).getSingleOrNull();
       await (db.delete(db.llmProviders)..where((p) => p.id.equals(id))).go();
       if (row?.isDefault ?? false) {
         // promote the oldest remaining row to default to keep one always set
@@ -145,8 +141,5 @@ final llmProvidersStreamProvider = StreamProvider<List<LlmProvider>>((ref) {
 final defaultLlmProviderProvider = Provider<LlmProvider?>((ref) {
   final list = ref.watch(llmProvidersStreamProvider).value ?? const [];
   if (list.isEmpty) return null;
-  return list.firstWhere(
-    (p) => p.isDefault,
-    orElse: () => list.first,
-  );
+  return list.firstWhere((p) => p.isDefault, orElse: () => list.first);
 });
