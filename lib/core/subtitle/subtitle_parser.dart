@@ -43,12 +43,7 @@ class SubtitleParser {
         i++;
         continue;
       }
-      final startMs = _hmsToMs(
-        m.group(1),
-        m.group(2)!,
-        m.group(3)!,
-        m.group(4)!,
-      );
+      final startMs = _hmsToMs(m.group(1), m.group(2)!, m.group(3)!, m.group(4)!);
       final endMs = _hmsToMs(m.group(5), m.group(6)!, m.group(7)!, m.group(8)!);
 
       i++;
@@ -69,7 +64,9 @@ class SubtitleParser {
     final hh = h == null ? 0 : int.parse(h);
     final minutes = int.parse(mm);
     final seconds = int.parse(ss);
-    final padded = mmm.length >= 3 ? mmm.substring(0, 3) : mmm.padRight(3, '0');
+    final padded = mmm.length >= 3
+        ? mmm.substring(0, 3)
+        : mmm.padRight(3, '0');
     final ms = int.parse(padded);
     return ((hh * 60 + minutes) * 60 + seconds) * 1000 + ms;
   }
@@ -82,9 +79,8 @@ class SubtitleParser {
     return t.trim();
   }
 
-  static final _lrcTimeTag = RegExp(
-    r'\[(\d{1,2}):(\d{1,2})(?:[.:](\d{1,3}))?\]',
-  );
+  static final _lrcTimeTag =
+      RegExp(r'\[(\d{1,2}):(\d{1,2})(?:[.:](\d{1,3}))?\]');
   static final _lrcMetaTag = RegExp(
     r'^\[(ar|ti|al|au|by|length|offset|re|ve|hash)\s*:',
     caseSensitive: false,
@@ -106,11 +102,12 @@ class SubtitleParser {
         final ms = frac == null
             ? 0
             : frac.length == 2
-            ? int.parse(frac) * 10
-            : int.parse(frac.padRight(3, '0').substring(0, 3));
-        rows.add(
-          _LrcRow(startMs: (minutes * 60 + seconds) * 1000 + ms, text: text),
-        );
+                ? int.parse(frac) * 10
+                : int.parse(frac.padRight(3, '0').substring(0, 3));
+        rows.add(_LrcRow(
+          startMs: (minutes * 60 + seconds) * 1000 + ms,
+          text: text,
+        ));
       }
     }
     rows.sort((a, b) => a.startMs.compareTo(b.startMs));
@@ -119,13 +116,14 @@ class SubtitleParser {
     for (var i = 0; i < rows.length; i++) {
       final cur = rows[i];
       if (cur.text.isEmpty) continue;
-      final endMs = i + 1 < rows.length
-          ? rows[i + 1].startMs
-          : cur.startMs + 5000;
+      final endMs =
+          i + 1 < rows.length ? rows[i + 1].startMs : cur.startMs + 5000;
       if (endMs <= cur.startMs) continue;
-      result.add(
-        SubtitleCue(startMs: cur.startMs, endMs: endMs, text: cur.text),
-      );
+      result.add(SubtitleCue(
+        startMs: cur.startMs,
+        endMs: endMs,
+        text: cur.text,
+      ));
     }
     return result;
   }

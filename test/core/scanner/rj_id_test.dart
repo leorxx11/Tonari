@@ -12,7 +12,10 @@ void main() {
     });
 
     test('extracts id surrounded by other text', () {
-      expect(RjId.extract('[social-group] RJ789012 作品タイトル'), 'RJ789012');
+      expect(
+        RjId.extract('[social-group] RJ789012 作品タイトル'),
+        'RJ789012',
+      );
     });
 
     test('uppercases lowercase rj prefix', () {

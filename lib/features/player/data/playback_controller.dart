@@ -9,7 +9,6 @@ import '../../../core/db/database.dart';
 import '../../../core/db/providers.dart';
 import '../../../core/files/folder_bookmark.dart';
 import '../../../core/files/local_image_path.dart';
-import '../../browse/data/remote_models.dart';
 import '../../settings/data/player_prefs.dart';
 import '../../webdav/data/webdav_client.dart';
 import '../../webdav/data/webdav_work_source.dart';
@@ -19,7 +18,6 @@ class PlaybackState {
   const PlaybackState({
     this.work,
     this.tracks = const [],
-    this.browseItems = const [],
     this.currentIndex = -1,
     this.bookmarkBase64,
     this.remoteConfig,
@@ -27,7 +25,6 @@ class PlaybackState {
 
   final Work? work;
   final List<Track> tracks;
-  final List<PlayableItem> browseItems;
   final int currentIndex;
   final String? bookmarkBase64;
 
@@ -40,29 +37,19 @@ class PlaybackState {
     return tracks[currentIndex];
   }
 
-  PlayableItem? get currentBrowseItem {
-    if (currentIndex < 0 || currentIndex >= browseItems.length) return null;
-    return browseItems[currentIndex];
-  }
-
-  bool get isBrowseMode => browseItems.isNotEmpty;
-  int get queueLength => isBrowseMode ? browseItems.length : tracks.length;
-
-  bool get hasCurrent => currentTrack != null || currentBrowseItem != null;
+  bool get hasCurrent => currentTrack != null;
   bool get hasPrevious => currentIndex > 0;
-  bool get hasNext => currentIndex >= 0 && currentIndex + 1 < queueLength;
+  bool get hasNext => currentIndex >= 0 && currentIndex + 1 < tracks.length;
 
   PlaybackState copyWith({
     Work? work,
     List<Track>? tracks,
-    List<PlayableItem>? browseItems,
     int? currentIndex,
     String? bookmarkBase64,
     WebdavConfig? remoteConfig,
   }) => PlaybackState(
     work: work ?? this.work,
     tracks: tracks ?? this.tracks,
-    browseItems: browseItems ?? this.browseItems,
     currentIndex: currentIndex ?? this.currentIndex,
     bookmarkBase64: bookmarkBase64 ?? this.bookmarkBase64,
     remoteConfig: remoteConfig ?? this.remoteConfig,
@@ -110,36 +97,33 @@ class PlaybackController extends Notifier<PlaybackState> {
   Future<void> _restoreLastPlayed() async {
     if (state.hasCurrent) return;
     final db = ref.read(databaseProvider);
-    final work =
-        await (db.select(db.works)
-              ..where((w) => w.lastPlayedAt.isNotNull())
-              ..where((w) => w.isRemoved.equals(false))
-              ..orderBy([(w) => OrderingTerm.desc(w.lastPlayedAt)])
-              ..limit(1))
-            .getSingleOrNull();
+    final work = await (db.select(db.works)
+          ..where((w) => w.lastPlayedAt.isNotNull())
+          ..where((w) => w.isRemoved.equals(false))
+          ..orderBy([(w) => OrderingTerm.desc(w.lastPlayedAt)])
+          ..limit(1))
+        .getSingleOrNull();
     if (work == null || work.lastPlayedTrackId == null) return;
 
-    final tracks =
-        await (db.select(db.tracks)
-              ..where((t) => t.workId.equals(work.productId))
-              ..orderBy([(t) => OrderingTerm.asc(t.filePath)]))
-            .get();
+    final tracks = await (db.select(db.tracks)
+          ..where((t) => t.workId.equals(work.productId))
+          ..orderBy([(t) => OrderingTerm.asc(t.filePath)]))
+        .get();
     if (tracks.isEmpty) return;
 
     final idx = tracks.indexWhere((t) => t.id == work.lastPlayedTrackId);
     if (idx < 0) return;
 
-    final remoteConfig = await ref
-        .read(webdavWorkSourceProvider)
-        .configForWork(work);
+    final remoteConfig =
+        await ref.read(webdavWorkSourceProvider).configForWork(work);
 
     String? bookmark;
     if (remoteConfig == null) {
       final folderId = work.importedFolderId;
       if (folderId != null) {
-        final folder = await (db.select(
-          db.importedFolders,
-        )..where((f) => f.id.equals(folderId))).getSingleOrNull();
+        final folder = await (db.select(db.importedFolders)
+              ..where((f) => f.id.equals(folderId)))
+            .getSingleOrNull();
         bookmark = folder?.bookmarkBase64;
       }
       if (bookmark != null && bookmark.isNotEmpty) {
@@ -209,7 +193,6 @@ class PlaybackController extends Notifier<PlaybackState> {
     state = PlaybackState(
       work: work,
       tracks: tracks,
-      browseItems: const [],
       currentIndex: initialIndex,
       bookmarkBase64: bookmarkBase64,
       remoteConfig: remoteConfig,
@@ -217,32 +200,9 @@ class PlaybackController extends Notifier<PlaybackState> {
     await _loadAndPlay();
   }
 
-  Future<void> startBrowseQueue({
-    required List<PlayableItem> items,
-    required int initialIndex,
-  }) async {
-    if (initialIndex < 0 || initialIndex >= items.length) return;
-    final newItem = items[initialIndex];
-
-    if (state.currentBrowseItem?.id == newItem.id) {
-      if (!player.playing) await player.play();
-      return;
-    }
-
-    await _savePosition();
-    await _releaseScope();
-
-    state = PlaybackState(
-      tracks: const [],
-      browseItems: items,
-      currentIndex: initialIndex,
-    );
-    await _loadAndPlay();
-  }
-
   Future<void> playAt(int index) async {
-    if (state.queueLength == 0) return;
-    if (index < 0 || index >= state.queueLength) return;
+    if (state.tracks.isEmpty) return;
+    if (index < 0 || index >= state.tracks.length) return;
     await _savePosition();
     state = state.copyWith(currentIndex: index);
     await _loadAndPlay();
@@ -297,17 +257,6 @@ class PlaybackController extends Notifier<PlaybackState> {
   /// track to start from the beginning. Cold-start MiniPlayer hydration in
   /// [_restoreLastPlayed] is the only place that seeks to `lastPositionMs`.
   Future<void> _loadAndPlay() async {
-    final browseItem = state.currentBrowseItem;
-    if (browseItem != null) {
-      final resolved = await browseItem.resolve();
-      await player.setAudioSource(
-        AudioSource.uri(resolved.url, headers: resolved.headers),
-      );
-      await player.play();
-      await _publishNowPlaying();
-      return;
-    }
-
     final track = state.currentTrack;
     final work = state.work;
     if (track == null || work == null) return;
@@ -346,19 +295,19 @@ class PlaybackController extends Notifier<PlaybackState> {
       case PlaybackMode.loopAll:
         if (state.hasNext) {
           await next();
-        } else if (state.queueLength > 0) {
+        } else if (state.tracks.isNotEmpty) {
           await playAt(0);
         }
       case PlaybackMode.loopOne:
         await playAt(state.currentIndex);
       case PlaybackMode.shuffle:
-        if (state.queueLength <= 1) {
+        if (state.tracks.length <= 1) {
           await playAt(state.currentIndex);
         } else {
           final rng = math.Random();
-          var idx = rng.nextInt(state.queueLength);
+          var idx = rng.nextInt(state.tracks.length);
           if (idx == state.currentIndex) {
-            idx = (idx + 1) % state.queueLength;
+            idx = (idx + 1) % state.tracks.length;
           }
           await playAt(idx);
         }
@@ -387,14 +336,12 @@ class PlaybackController extends Notifier<PlaybackState> {
     if (work == null || track == null) return;
     final now = DateTime.now();
     final db = ref.read(databaseProvider);
-    await (db.update(
-      db.works,
-    )..where((w) => w.productId.equals(work.productId))).write(
+    await (db.update(db.works)..where((w) => w.productId.equals(work.productId)))
+        .write(
       WorksCompanion(
         lastPlayedAt: Value(now),
-        lastPlayedTrackId: trackChanged
-            ? Value(track.id)
-            : const Value.absent(),
+        lastPlayedTrackId:
+            trackChanged ? Value(track.id) : const Value.absent(),
         updatedAt: Value(now),
       ),
     );
@@ -411,25 +358,6 @@ class PlaybackController extends Notifier<PlaybackState> {
   }
 
   Future<void> _publishNowPlaying() async {
-    final browseItem = state.currentBrowseItem;
-    if (browseItem != null) {
-      await NowPlayingBridge.update(
-        NowPlayingSnapshot(
-          title: browseItem.title,
-          album: browseItem.sourceName,
-          artist: browseItem.sourceName,
-          artworkPath: null,
-          position: player.position,
-          duration: player.duration ?? Duration.zero,
-          playing: player.playing,
-          speed: player.speed,
-          hasPrevious: state.hasPrevious,
-          hasNext: state.hasNext,
-        ),
-      );
-      return;
-    }
-
     final track = state.currentTrack;
     final work = state.work;
     if (track == null || work == null) {

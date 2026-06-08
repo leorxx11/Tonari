@@ -21,7 +21,9 @@ class WorkSort extends Notifier<WorkSortMode> {
   void set(WorkSortMode mode) => state = mode;
 }
 
-final workSortProvider = NotifierProvider<WorkSort, WorkSortMode>(WorkSort.new);
+final workSortProvider = NotifierProvider<WorkSort, WorkSortMode>(
+  WorkSort.new,
+);
 
 enum SourceFilter { all, local, remote }
 
@@ -66,9 +68,8 @@ class WorkFilterNotifier extends Notifier<WorkFilter> {
   }
 }
 
-final workFilterProvider = NotifierProvider<WorkFilterNotifier, WorkFilter>(
-  WorkFilterNotifier.new,
-);
+final workFilterProvider =
+    NotifierProvider<WorkFilterNotifier, WorkFilter>(WorkFilterNotifier.new);
 
 final allWorksProvider = StreamProvider<List<Work>>((ref) {
   final db = ref.watch(databaseProvider);
@@ -84,8 +85,7 @@ final allWorksProvider = StreamProvider<List<Work>>((ref) {
           }
           if (query.isNotEmpty) {
             final like = '%$query%';
-            expr =
-                expr &
+            expr = expr &
                 (w.productId.lower().like(like) | w.title.lower().like(like));
           }
           if (filter.source != SourceFilter.all) {
@@ -95,8 +95,7 @@ final allWorksProvider = StreamProvider<List<Work>>((ref) {
             if (filter.source == SourceFilter.remote) {
               expr = expr & w.importedFolderId.isInQuery(webdavIds);
             } else {
-              expr =
-                  expr &
+              expr = expr &
                   (w.importedFolderId.isNull() |
                       w.importedFolderId.isInQuery(webdavIds).not());
             }
@@ -120,10 +119,10 @@ OrderingTerm _orderingFor(WorkSortMode mode, $WorksTable w) {
     WorkSortMode.importedAtAsc => OrderingTerm.asc(w.localImportedAt),
     WorkSortMode.productIdAsc => OrderingTerm.asc(w.productId),
     WorkSortMode.lastPlayedAtDesc => OrderingTerm(
-      expression: w.lastPlayedAt,
-      mode: OrderingMode.desc,
-      nulls: NullsOrder.last,
-    ),
+        expression: w.lastPlayedAt,
+        mode: OrderingMode.desc,
+        nulls: NullsOrder.last,
+      ),
   };
 }
 
@@ -146,10 +145,8 @@ final tracksByWorkProvider = StreamProvider.family<List<Track>, String>((
       .watch();
 });
 
-final workFilesByWorkProvider = StreamProvider.family<List<WorkFile>, String>((
-  ref,
-  workId,
-) {
+final workFilesByWorkProvider =
+    StreamProvider.family<List<WorkFile>, String>((ref, workId) {
   final db = ref.watch(databaseProvider);
   return (db.select(db.workFiles)
         ..where((f) => f.workId.equals(workId))
@@ -159,9 +156,8 @@ final workFilesByWorkProvider = StreamProvider.family<List<WorkFile>, String>((
 
 final workByIdProvider = StreamProvider.family<Work?, String>((ref, productId) {
   final db = ref.watch(databaseProvider);
-  return (db.select(
-    db.works,
-  )..where((w) => w.productId.equals(productId))).watchSingleOrNull();
+  return (db.select(db.works)..where((w) => w.productId.equals(productId)))
+      .watchSingleOrNull();
 });
 
 /// Resolves a Work to the bookmark stored on its source ImportedFolder.

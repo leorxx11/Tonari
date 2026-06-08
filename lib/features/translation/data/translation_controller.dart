@@ -60,9 +60,10 @@ class TranslationController extends AsyncNotifier<TranslationState> {
       return;
     }
 
-    final work = await (db.select(
-      db.works,
-    )..where((w) => w.productId.equals(productId))).getSingleOrNull();
+    final work =
+        await (db.select(
+          db.works,
+        )..where((w) => w.productId.equals(productId))).getSingleOrNull();
     if (work == null) {
       state = const AsyncData(TranslationFailed('作品不存在'));
       return;

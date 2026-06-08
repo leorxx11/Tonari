@@ -3,19 +3,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/prefs/shared_prefs_provider.dart';
 
 enum PlaybackMode {
-  sequence, // 顺序播放：到末尾停
-  loopAll, // 列表循环：到末尾回 0
-  loopOne, // 单曲循环：自动播完后重复本曲
-  shuffle, // 随机播放：自动播完后随机选一首
+  sequence,   // 顺序播放：到末尾停
+  loopAll,    // 列表循环：到末尾回 0
+  loopOne,    // 单曲循环：自动播完后重复本曲
+  shuffle,    // 随机播放：自动播完后随机选一首
 }
 
 extension PlaybackModeLabel on PlaybackMode {
   String get label => switch (this) {
-    PlaybackMode.sequence => '顺序播放',
-    PlaybackMode.loopAll => '列表循环',
-    PlaybackMode.loopOne => '单曲循环',
-    PlaybackMode.shuffle => '随机播放',
-  };
+        PlaybackMode.sequence => '顺序播放',
+        PlaybackMode.loopAll => '列表循环',
+        PlaybackMode.loopOne => '单曲循环',
+        PlaybackMode.shuffle => '随机播放',
+      };
 
   PlaybackMode get nextInCycle {
     const order = PlaybackMode.values;
@@ -32,7 +32,10 @@ class PlayerPrefs {
   final int seekStepSeconds;
   final PlaybackMode playbackMode;
 
-  PlayerPrefs copyWith({int? seekStepSeconds, PlaybackMode? playbackMode}) {
+  PlayerPrefs copyWith({
+    int? seekStepSeconds,
+    PlaybackMode? playbackMode,
+  }) {
     return PlayerPrefs(
       seekStepSeconds: seekStepSeconds ?? this.seekStepSeconds,
       playbackMode: playbackMode ?? this.playbackMode,

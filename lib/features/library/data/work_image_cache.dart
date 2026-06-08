@@ -26,8 +26,8 @@ class WorkImageCache {
     Dio? dio,
     Future<Directory> Function()? documentsDir,
     ImageDownloader? downloader,
-  }) : _documentsDir = documentsDir ?? getApplicationDocumentsDirectory,
-       _downloader = downloader ?? _defaultDownloader(dio ?? Dio());
+  })  : _documentsDir = documentsDir ?? getApplicationDocumentsDirectory,
+        _downloader = downloader ?? _defaultDownloader(dio ?? Dio());
 
   final Future<Directory> Function() _documentsDir;
   final ImageDownloader _downloader;
@@ -131,9 +131,6 @@ final workImageCacheProvider = Provider<WorkImageCache>((ref) {
   return WorkImageCache();
 });
 
-final mainImageUrlForProvider = Provider.family<String, String>((
-  ref,
-  productId,
-) {
+final mainImageUrlForProvider = Provider.family<String, String>((ref, productId) {
   return DlsiteFetcher.mainImageUrlFor(productId);
 });

@@ -116,16 +116,15 @@ class TonariDatabase extends _$TonariDatabase {
   Future<void> _backfillRelativePath() async {
     final rows = await select(tracks).get();
     for (final t in rows) {
-      final work = await (select(
-        works,
-      )..where((w) => w.productId.equals(t.workId))).getSingleOrNull();
+      final work = await (select(works)
+            ..where((w) => w.productId.equals(t.workId)))
+          .getSingleOrNull();
       if (work == null) continue;
       final rel = _relativize(work.localFolderPath, t.filePath);
       final newId = '${t.workId}|${rel.toLowerCase()}';
       if (newId == t.id) {
-        await (update(tracks)..where((row) => row.id.equals(t.id))).write(
-          TracksCompanion(relativePath: Value(rel)),
-        );
+        await (update(tracks)..where((row) => row.id.equals(t.id)))
+            .write(TracksCompanion(relativePath: Value(rel)));
         continue;
       }
       // Rename the row; ON CONFLICT IGNORE absorbs the rare case where a

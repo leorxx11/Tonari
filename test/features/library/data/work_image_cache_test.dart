@@ -24,13 +24,11 @@ void main() {
 
   test('writes main + sample images under images/<productId>/', () async {
     final downloaded = <String>[];
-    final cache = build(
-      downloader: (url, file) async {
-        downloaded.add(url);
-        file.writeAsBytesSync([1, 2, 3]);
-        return true;
-      },
-    );
+    final cache = build(downloader: (url, file) async {
+      downloaded.add(url);
+      file.writeAsBytesSync([1, 2, 3]);
+      return true;
+    });
 
     final paths = await cache.cache(
       productId: 'RJ01560714',
@@ -54,13 +52,11 @@ void main() {
 
   test('skips re-download when file already exists with content', () async {
     var calls = 0;
-    final cache = build(
-      downloader: (url, file) async {
-        calls++;
-        file.writeAsBytesSync([1]);
-        return true;
-      },
-    );
+    final cache = build(downloader: (url, file) async {
+      calls++;
+      file.writeAsBytesSync([1]);
+      return true;
+    });
 
     await cache.cache(
       productId: 'RJ123456',
@@ -75,12 +71,10 @@ void main() {
   });
 
   test('deletes partial file when download returns false', () async {
-    final cache = build(
-      downloader: (url, file) async {
-        file.writeAsBytesSync([0]);
-        return false;
-      },
-    );
+    final cache = build(downloader: (url, file) async {
+      file.writeAsBytesSync([0]);
+      return false;
+    });
 
     final paths = await cache.cache(
       productId: 'RJ222222',
@@ -93,13 +87,11 @@ void main() {
   });
 
   test('swallows downloader exceptions per-image', () async {
-    final cache = build(
-      downloader: (url, file) async {
-        if (url.contains('smp2')) throw const SocketException('boom');
-        file.writeAsBytesSync([1]);
-        return true;
-      },
-    );
+    final cache = build(downloader: (url, file) async {
+      if (url.contains('smp2')) throw const SocketException('boom');
+      file.writeAsBytesSync([1]);
+      return true;
+    });
 
     final paths = await cache.cache(
       productId: 'RJ333333',

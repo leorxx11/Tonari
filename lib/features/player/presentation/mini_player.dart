@@ -13,14 +13,11 @@ class MiniPlayer extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(playbackControllerProvider);
     final track = state.currentTrack;
-    final browseItem = state.currentBrowseItem;
     final work = state.work;
-    if (track == null && browseItem == null) return const SizedBox.shrink();
+    if (track == null || work == null) return const SizedBox.shrink();
 
     final controller = ref.read(playbackControllerProvider.notifier);
     final theme = Theme.of(context);
-    final title = track?.title ?? browseItem!.title;
-    final subtitle = work?.title ?? browseItem!.sourceName;
 
     return Hero(
       tag: 'tonari-mini-player',
@@ -43,23 +40,11 @@ class MiniPlayer extends ConsumerWidget {
                     SizedBox(
                       width: 52,
                       height: 52,
-                      child: work == null
-                          ? DecoratedBox(
-                              decoration: BoxDecoration(
-                                color:
-                                    theme.colorScheme.surfaceContainerHighest,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Icon(
-                                Icons.cloud_queue_rounded,
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                            )
-                          : WorkCover(
-                              work: work,
-                              borderRadius: BorderRadius.circular(8),
-                              iconSize: 24,
-                            ),
+                      child: WorkCover(
+                        work: work,
+                        borderRadius: BorderRadius.circular(8),
+                        iconSize: 24,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -68,13 +53,13 @@ class MiniPlayer extends ConsumerWidget {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
-                            title,
+                            track.title,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: theme.textTheme.bodyMedium,
                           ),
                           Text(
-                            subtitle,
+                            work.title,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: theme.textTheme.bodySmall?.copyWith(

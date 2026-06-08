@@ -11,9 +11,7 @@ import 'package:tonari/features/library/data/metadata_enrichment.dart';
 import 'package:tonari/features/library/data/rescan_service.dart';
 import 'package:tonari/features/library/data/work_actions_provider.dart';
 import 'package:tonari/features/library/data/works_providers.dart';
-import 'package:tonari/features/p115/data/p115_cookie_store.dart';
 import 'package:tonari/features/settings/data/path_prefs.dart';
-import 'package:tonari/features/webdav/data/webdav_server_repository.dart';
 
 late SharedPreferences _testPrefs;
 
@@ -49,10 +47,10 @@ Widget testApp({
       );
     }),
     workFilesByWorkProvider.overrideWith((ref, workId) {
-      return Stream.value(workFiles.where((f) => f.workId == workId).toList());
+      return Stream.value(
+        workFiles.where((f) => f.workId == workId).toList(),
+      );
     }),
-    p115CookieProvider.overrideWith((ref) => Future.value(null)),
-    webdavServersStreamProvider.overrideWith((ref) => Stream.value(const [])),
     if (removeWork != null) removeWorkProvider.overrideWithValue(removeWork),
     if (restoreWork != null) restoreWorkProvider.overrideWithValue(restoreWork),
     if (toggleFavorite != null)
@@ -188,12 +186,11 @@ void main() {
     _testPrefs = await SharedPreferences.getInstance();
   });
 
-  testWidgets('root renders 3 navigation tabs', (tester) async {
+  testWidgets('root renders 2 navigation tabs', (tester) async {
     await tester.pumpWidget(testApp());
     await tester.pumpAndSettle();
 
     expect(find.text('媒体库'), findsWidgets);
-    expect(find.text('浏览'), findsWidgets);
     expect(find.text('设置'), findsWidgets);
   });
 
@@ -468,9 +465,8 @@ void main() {
     expect(find.byIcon(Icons.favorite), findsWidgets);
   });
 
-  testWidgets('long press menu includes 添加收藏 and triggers toggle', (
-    tester,
-  ) async {
+  testWidgets('long press menu includes 添加收藏 and triggers toggle',
+      (tester) async {
     String? toggledId;
     bool? toggledValue;
     await tester.pumpWidget(
@@ -495,9 +491,8 @@ void main() {
     expect(toggledValue, true);
   });
 
-  testWidgets('search button reveals a text field and back closes it', (
-    tester,
-  ) async {
+  testWidgets('search button reveals a text field and back closes it',
+      (tester) async {
     await tester.pumpWidget(testApp());
     await tester.pumpAndSettle();
 

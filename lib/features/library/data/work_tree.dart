@@ -72,7 +72,10 @@ List<WorkTreeNode> buildWorkTree(
   void insert(List<String> parts, Object leaf) {
     Map<String, Object> cursor = root;
     for (var i = 0; i < parts.length - 1; i++) {
-      final next = cursor.putIfAbsent(parts[i], () => <String, Object>{});
+      final next = cursor.putIfAbsent(
+        parts[i],
+        () => <String, Object>{},
+      );
       cursor = next as Map<String, Object>;
     }
     cursor[parts.last] = leaf;
@@ -172,7 +175,6 @@ List<Track> flattenForPlayback(List<WorkTreeNode> nodes) {
       }
     }
   }
-
   for (final n in nodes) {
     visit(n);
   }
@@ -238,54 +240,20 @@ String _normalize(String s) {
 }
 
 const _seNegativeKeywords = <String>[
-  '効果音なし',
-  '効果音ナシ',
-  '効果音無し',
-  '効果音無',
-  '効果音抜き',
-  '効果音抜',
-  'seなし',
-  'seナシ',
-  'se無し',
-  'se無',
-  'se抜き',
-  'se抜',
-  '無効果音',
-  '無se',
-  '不含se',
-  '不含効果音',
-  '不含音效',
-  '不含音效版',
-  '无音效',
-  '無音效',
-  '没音效',
-  '無音效版',
-  'nose',
-  'noeffect',
+  '効果音なし', '効果音ナシ', '効果音無し', '効果音無',
+  '効果音抜き', '効果音抜',
+  'seなし', 'seナシ', 'se無し', 'se無', 'se抜き', 'se抜',
+  '無効果音', '無se', '不含se', '不含効果音',
+  '不含音效', '不含音效版', '无音效', '無音效', '没音效', '無音效版',
+  'nose', 'noeffect',
 ];
 
 const _sePositiveKeywords = <String>[
-  '効果音あり',
-  '効果音アリ',
-  '効果音有り',
-  '効果音有',
-  '効果音入り',
-  '効果音入',
-  'seあり',
-  'seアリ',
-  'se有り',
-  'se有',
-  'se入り',
-  'se入',
-  '有効果音',
-  '含se',
-  '含効果音',
-  'withse',
-  '含音效',
-  '含音效版',
-  '有音效',
-  '帶音效',
-  '带音效',
+  '効果音あり', '効果音アリ', '効果音有り', '効果音有',
+  '効果音入り', '効果音入',
+  'seあり', 'seアリ', 'se有り', 'se有', 'se入り', 'se入',
+  '有効果音', '含se', '含効果音', 'withse',
+  '含音效', '含音效版', '有音效', '帶音效', '带音效',
 ];
 
 _SETag _seTagOf(String folderName) {
@@ -358,12 +326,13 @@ List<WorkTreeFolder> _filterByContentFormat(
         }
       }
     }
-
     for (final c in f.children) {
       visit(c);
     }
     if (tallies.isEmpty) return null;
-    return tallies.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
+    return tallies.entries
+        .reduce((a, b) => a.value >= b.value ? a : b)
+        .key;
   }
 
   final formats = {for (final f in folders) f: primaryFormatOf(f)};

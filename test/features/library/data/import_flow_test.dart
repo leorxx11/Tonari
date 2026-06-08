@@ -69,10 +69,10 @@ void main() {
 
     final tracks = await db.select(db.tracks).get();
     expect(tracks.map((t) => t.fileFormat).toSet(), {'wav', 'mp3'});
-    expect(tracks.map((t) => t.relativePath).toSet(), {
-      '本編/track01.wav',
-      '本編/track01.mp3',
-    });
+    expect(
+      tracks.map((t) => t.relativePath).toSet(),
+      {'本編/track01.wav', '本編/track01.mp3'},
+    );
   });
 
   test('imports from resolved iOS file provider path with spaces', () async {

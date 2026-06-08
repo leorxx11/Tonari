@@ -19,9 +19,9 @@ class RescanService {
 
   Future<void> runPending() async {
     try {
-      final pendingWorks = await (db.select(
-        db.works,
-      )..where((w) => w.needsRescan.equals(true))).get();
+      final pendingWorks = await (db.select(db.works)
+            ..where((w) => w.needsRescan.equals(true)))
+          .get();
       if (pendingWorks.isEmpty) return;
 
       final folderIds = <String>{
@@ -31,16 +31,16 @@ class RescanService {
       if (folderIds.isEmpty) {
         // Legacy works with no bound folder: nothing we can do; clear the
         // flag so we stop retrying them every launch.
-        await (db.update(db.works)..where(
-              (w) => w.needsRescan.equals(true) & w.importedFolderId.isNull(),
-            ))
+        await (db.update(db.works)
+              ..where((w) =>
+                  w.needsRescan.equals(true) & w.importedFolderId.isNull()))
             .write(const WorksCompanion(needsRescan: Value(false)));
         return;
       }
 
-      final folders = await (db.select(
-        db.importedFolders,
-      )..where((f) => f.id.isIn(folderIds.toList()))).get();
+      final folders = await (db.select(db.importedFolders)
+            ..where((f) => f.id.isIn(folderIds.toList())))
+          .get();
 
       for (final folder in folders) {
         if (folder.type == 'webdav') continue; // remote rescan: 阶段3

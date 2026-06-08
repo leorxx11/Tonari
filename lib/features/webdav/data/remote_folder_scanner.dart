@@ -27,9 +27,7 @@ class RemoteFolderScanner {
       final subtitles = <DetectedSubtitle>[];
       final textNotes = <DetectedFile>[];
       final others = <DetectedFile>[];
-      final rootLen = workDir.endsWith('/')
-          ? workDir.length
-          : workDir.length + 1;
+      final rootLen = workDir.endsWith('/') ? workDir.length : workDir.length + 1;
 
       String relOf(String full) {
         if (full.length <= rootLen) return _basename(full);
@@ -56,55 +54,44 @@ class RemoteFolderScanner {
           final parentName = _basename(_parentOf(e.path));
           switch (FileClassifier.classify(name)) {
             case FileKind.audio:
-              audios.add(
-                DetectedAudio(
-                  path: e.path,
-                  relativePath: rel,
-                  fileName: name,
-                  format: _ext(name),
-                  sizeBytes: size,
-                  parentDirName: parentName,
-                  categoryHint: _inferCategory(parentName, name),
-                ),
-              );
+              audios.add(DetectedAudio(
+                path: e.path,
+                relativePath: rel,
+                fileName: name,
+                format: _ext(name),
+                sizeBytes: size,
+                parentDirName: parentName,
+                categoryHint: _inferCategory(parentName, name),
+              ));
             case FileKind.image:
-              images.add(
-                DetectedImage(
-                  path: e.path,
-                  relativePath: rel,
-                  fileName: name,
-                  sizeBytes: size,
-                ),
-              );
+              images.add(DetectedImage(
+                path: e.path,
+                relativePath: rel,
+                fileName: name,
+                sizeBytes: size,
+              ));
             case FileKind.subtitle:
-              subtitles.add(
-                DetectedSubtitle(
-                  path: e.path,
-                  relativePath: rel,
-                  fileName: name,
-                  format: FileClassifier.extOf(name).substring(1),
-                  sizeBytes: size,
-                ),
-              );
+              subtitles.add(DetectedSubtitle(
+                path: e.path,
+                relativePath: rel,
+                fileName: name,
+                format: FileClassifier.extOf(name).substring(1),
+                sizeBytes: size,
+              ));
             case FileKind.text:
-              textNotes.add(
-                DetectedFile(
-                  path: e.path,
-                  relativePath: rel,
-                  fileName: name,
-                  sizeBytes: size,
-                ),
-              );
-            case FileKind.video:
+              textNotes.add(DetectedFile(
+                path: e.path,
+                relativePath: rel,
+                fileName: name,
+                sizeBytes: size,
+              ));
             case FileKind.other:
-              others.add(
-                DetectedFile(
-                  path: e.path,
-                  relativePath: rel,
-                  fileName: name,
-                  sizeBytes: size,
-                ),
-              );
+              others.add(DetectedFile(
+                path: e.path,
+                relativePath: rel,
+                fileName: name,
+                sizeBytes: size,
+              ));
           }
         }
       }

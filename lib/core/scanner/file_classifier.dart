@@ -1,4 +1,4 @@
-enum FileKind { audio, video, image, subtitle, text, other }
+enum FileKind { audio, image, subtitle, text, other }
 
 class FileClassifier {
   FileClassifier._();
@@ -12,7 +12,6 @@ class FileClassifier {
     '.opus',
     '.aac',
   };
-  static const _videoExts = {'.mp4', '.mkv', '.mov', '.m4v', '.webm', '.ts'};
   static const _imageExts = {'.jpg', '.jpeg', '.png', '.webp', '.bmp', '.gif'};
   static const _subtitleExts = {'.srt', '.lrc', '.vtt', '.ass', '.ssa'};
   static const _textExts = {'.txt', '.md', '.html', '.htm'};
@@ -20,7 +19,6 @@ class FileClassifier {
   static FileKind classify(String fileName) {
     final ext = extOf(fileName);
     if (_audioExts.contains(ext)) return FileKind.audio;
-    if (_videoExts.contains(ext)) return FileKind.video;
     if (_imageExts.contains(ext)) return FileKind.image;
     if (_subtitleExts.contains(ext)) return FileKind.subtitle;
     if (_textExts.contains(ext)) return FileKind.text;

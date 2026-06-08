@@ -9,12 +9,8 @@ void main() {
   setUp(() => db = TonariDatabase.forTesting(NativeDatabase.memory()));
   tearDown(() => db.close());
 
-  Track makeTrack(
-    String workId,
-    String relativePath,
-    String format, {
-    int durationMs = 0,
-  }) {
+  Track makeTrack(String workId, String relativePath, String format,
+      {int durationMs = 0}) {
     final now = DateTime(2026, 5, 26);
     final fileName = relativePath.split('/').last;
     return Track(
@@ -64,14 +60,11 @@ void main() {
 
     final tree = buildWorkTree(tracks);
     expect(tree, hasLength(2));
-    expect(tree.whereType<WorkTreeFolder>().map((f) => f.name).toList(), [
-      '本編_MP3',
-      '本編_WAV',
-    ]);
+    expect(tree.whereType<WorkTreeFolder>().map((f) => f.name).toList(),
+        ['本編_MP3', '本編_WAV']);
 
-    final wavFolder = tree.whereType<WorkTreeFolder>().firstWhere(
-      (f) => f.name == '本編_WAV',
-    );
+    final wavFolder =
+        tree.whereType<WorkTreeFolder>().firstWhere((f) => f.name == '本編_WAV');
     expect(wavFolder.audioCount, 2);
     expect(
       wavFolder.children.whereType<WorkTreeTrack>().map((t) => t.name).toList(),
@@ -107,10 +100,8 @@ void main() {
 
     final tree = buildWorkTree(tracks);
     expect(tree, hasLength(2));
-    expect(
-      tree.whereType<WorkTreeTrack>().single.track.fileName,
-      'standalone.wav',
-    );
+    expect(tree.whereType<WorkTreeTrack>().single.track.fileName,
+        'standalone.wav');
     expect(tree.whereType<WorkTreeFolder>().single.name, '本編');
   });
 
@@ -132,21 +123,19 @@ void main() {
     ]);
   });
 
-  test(
-    'natural sort: 10_xxx comes after 2_xxx (digit run beats separator)',
-    () {
-      final tracks = [
-        makeTrack('RJN', '10_track.mp3', 'mp3'),
-        makeTrack('RJN', '1_track.mp3', 'mp3'),
-        makeTrack('RJN', '2_track.mp3', 'mp3'),
-      ];
-      final tree = buildWorkTree(tracks);
-      expect(
-        tree.whereType<WorkTreeTrack>().map((t) => t.track.fileName).toList(),
-        ['1_track.mp3', '2_track.mp3', '10_track.mp3'],
-      );
-    },
-  );
+  test('natural sort: 10_xxx comes after 2_xxx (digit run beats separator)',
+      () {
+    final tracks = [
+      makeTrack('RJN', '10_track.mp3', 'mp3'),
+      makeTrack('RJN', '1_track.mp3', 'mp3'),
+      makeTrack('RJN', '2_track.mp3', 'mp3'),
+    ];
+    final tree = buildWorkTree(tracks);
+    expect(
+      tree.whereType<WorkTreeTrack>().map((t) => t.track.fileName).toList(),
+      ['1_track.mp3', '2_track.mp3', '10_track.mp3'],
+    );
+  });
 
   test('non-audio files appear as WorkTreeFile next to tracks', () {
     final tracks = [makeTrack('RJ5', '音声/01.wav', 'wav')];
@@ -160,14 +149,12 @@ void main() {
     expect(tree, hasLength(3));
     expect(tree.whereType<WorkTreeFile>().single.file.fileName, 'readme.txt');
 
-    final tokuten = tree.whereType<WorkTreeFolder>().firstWhere(
-      (f) => f.name == '特典',
-    );
+    final tokuten =
+        tree.whereType<WorkTreeFolder>().firstWhere((f) => f.name == '特典');
     expect(tokuten.children.single, isA<WorkTreeFile>());
 
-    final onsei = tree.whereType<WorkTreeFolder>().firstWhere(
-      (f) => f.name == '音声',
-    );
+    final onsei =
+        tree.whereType<WorkTreeFolder>().firstWhere((f) => f.name == '音声');
     expect(onsei.children.single, isA<WorkTreeTrack>());
   });
 
@@ -186,9 +173,8 @@ void main() {
     // Recursive audio duration: 3min + 2min + 90s = 6.5 min = 390000 ms
     expect(onsei.totalDurationMs, 390000);
 
-    final a = onsei.children.whereType<WorkTreeFolder>().firstWhere(
-      (f) => f.name == 'A',
-    );
+    final a =
+        onsei.children.whereType<WorkTreeFolder>().firstWhere((f) => f.name == 'A');
     expect(a.itemCount, 2);
     expect(a.totalDurationMs, 5 * 60 * 1000);
   });

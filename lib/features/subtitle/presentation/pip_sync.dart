@@ -22,18 +22,18 @@ class _PipSyncState extends ConsumerState<PipSync> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen(subtitleOverlayPrefsProvider.select((p) => p.mode), (
-      prev,
-      next,
-    ) {
-      if (prev == next) return;
-      if (next == SubtitleMode.pip) {
-        PipBridge.start();
-      } else if (prev == SubtitleMode.pip) {
-        PipBridge.stop();
-        _lastPushedText = '';
-      }
-    });
+    ref.listen(
+      subtitleOverlayPrefsProvider.select((p) => p.mode),
+      (prev, next) {
+        if (prev == next) return;
+        if (next == SubtitleMode.pip) {
+          PipBridge.start();
+        } else if (prev == SubtitleMode.pip) {
+          PipBridge.stop();
+          _lastPushedText = '';
+        }
+      },
+    );
 
     final mode = ref.watch(subtitleOverlayPrefsProvider.select((p) => p.mode));
     if (mode == SubtitleMode.pip) {
@@ -41,8 +41,8 @@ class _PipSyncState extends ConsumerState<PipSync> {
       final lineIdx = ref.watch(currentSubtitleLineProvider).value ?? -1;
       final text =
           (loaded != null && lineIdx >= 0 && lineIdx < loaded.cues.length)
-          ? loaded.cues[lineIdx].text
-          : '';
+              ? loaded.cues[lineIdx].text
+              : '';
       if (text != _lastPushedText) {
         _lastPushedText = text;
         // Fire-and-forget on the next microtask so we don't trigger a

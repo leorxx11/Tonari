@@ -110,14 +110,14 @@ class _WorkDetailViewState extends ConsumerState<_WorkDetailView> {
       final after = ref.read(workByIdProvider(productId)).value;
       if (after != null) _evictWorkImages(after);
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('元数据已刷新')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('元数据已刷新')),
+      );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('刷新失败：$e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('刷新失败：$e')),
+      );
     } finally {
       if (mounted) setState(() => _refreshing = false);
     }
@@ -133,14 +133,14 @@ class _WorkDetailViewState extends ConsumerState<_WorkDetailView> {
       final after = ref.read(workByIdProvider(productId)).value;
       if (after != null) _evictWorkImages(after);
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('图片已刷新')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('图片已刷新')),
+      );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('刷新图片失败：$e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('刷新图片失败：$e')),
+      );
     } finally {
       if (mounted) setState(() => _refreshing = false);
     }
@@ -270,8 +270,7 @@ class _HeaderSection extends ConsumerWidget {
                   ),
                 if (work.workTypeName != null && work.workTypeName!.isNotEmpty)
                   _MetaBadge(label: work.workTypeName!),
-                for (final lang in work.supportedLanguages)
-                  _MetaBadge(label: lang),
+                for (final lang in work.supportedLanguages) _MetaBadge(label: lang),
                 if (work.seriesName != null && work.seriesName!.isNotEmpty)
                   _MetaBadge(label: '系列：${work.seriesName!}'),
               ],
@@ -316,9 +315,7 @@ class _StatsSection extends StatelessWidget {
     final hasRanks = rankDay != null || rankWeek != null || rankMonth != null;
     final hasRatingRow = rating != null || dlCount != null || wishlist != null;
     final hasPriceRow = price != null;
-    if (!hasRanks && !hasRatingRow && !hasPriceRow) {
-      return const SizedBox.shrink();
-    }
+    if (!hasRanks && !hasRatingRow && !hasPriceRow) return const SizedBox.shrink();
 
     final divider = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -673,7 +670,9 @@ class _DescriptionSection extends ConsumerWidget {
               child: GestureDetector(
                 onTap: () => SampleGallery.open(
                   context,
-                  samples: [for (final url in imgUrls) SampleSource(url: url)],
+                  samples: [
+                    for (final url in imgUrls) SampleSource(url: url),
+                  ],
                   initialIndex: imgUrls.indexOf(u),
                 ),
                 child: ClipRRect(
@@ -774,7 +773,10 @@ class _FileInfoLine extends StatelessWidget {
 // ---------- Layout helpers ----------
 
 class _Section extends StatelessWidget {
-  const _Section({required this.title, required this.child});
+  const _Section({
+    required this.title,
+    required this.child,
+  });
 
   final String title;
   final Widget child;
@@ -860,11 +862,11 @@ class _FilesEntry extends StatelessWidget {
           onTap: empty
               ? null
               : () => Navigator.of(context, rootNavigator: true).push(
-                  CupertinoSheetRoute<void>(
-                    scrollableBuilder: (_, _) => WorkFilesPage(work: work),
-                    showDragHandle: true,
+                    CupertinoSheetRoute<void>(
+                      scrollableBuilder: (_, _) => WorkFilesPage(work: work),
+                      showDragHandle: true,
+                    ),
                   ),
-                ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             child: Row(
@@ -875,7 +877,10 @@ class _FilesEntry extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('文件', style: theme.textTheme.titleSmall),
+                      Text(
+                        '文件',
+                        style: theme.textTheme.titleSmall,
+                      ),
                       const SizedBox(height: 2),
                       Text(
                         loading ? '加载中…' : (empty ? '没有可显示的文件' : summary),
@@ -948,8 +953,7 @@ class _HeaderCarouselState extends State<_HeaderCarousel> {
     final work = widget.work;
     final samples = <SampleSource>[];
     final mainLocal = LocalImagePath.resolve(work.mainImageLocalPath);
-    final hasMain =
-        mainLocal != null ||
+    final hasMain = mainLocal != null ||
         (work.mainImageUrl != null && work.mainImageUrl!.isNotEmpty);
     if (hasMain) {
       samples.add(SampleSource(localPath: mainLocal, url: work.mainImageUrl));
@@ -1047,6 +1051,7 @@ class _CarouselDots extends StatelessWidget {
     );
   }
 }
+
 
 // ---------- Pure helpers ----------
 
@@ -1146,7 +1151,9 @@ class _TranslationButton extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final defaultProvider = ref.watch(defaultLlmProviderProvider);
-    final stateAsync = ref.watch(translationControllerProvider(work.productId));
+    final stateAsync = ref.watch(
+      translationControllerProvider(work.productId),
+    );
     final viewRaw = ref.watch(translationViewModeProvider(work.productId));
     final hasZh = (work.titleZh?.isNotEmpty ?? false);
     final showZh = viewRaw ?? hasZh;
@@ -1177,7 +1184,10 @@ class _TranslationButton extends ConsumerWidget {
     if (defaultProvider == null) {
       return IconButton(
         tooltip: '翻译（未配置 Provider）',
-        icon: Icon(Icons.translate_outlined, color: theme.disabledColor),
+        icon: Icon(
+          Icons.translate_outlined,
+          color: theme.disabledColor,
+        ),
         onPressed: () => _promptConfigure(context),
       );
     }
@@ -1262,7 +1272,9 @@ class _MoreMenu extends ConsumerWidget {
     final hasZh =
         (work.titleZh?.isNotEmpty ?? false) ||
         (work.descriptionHtmlZh?.isNotEmpty ?? false);
-    final stateAsync = ref.watch(translationControllerProvider(work.productId));
+    final stateAsync = ref.watch(
+      translationControllerProvider(work.productId),
+    );
     final translating = stateAsync.value is TranslationLoading;
     final refreshing = state.refreshing;
     final canRetranslate = defaultProvider != null && hasZh && !translating;

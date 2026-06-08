@@ -174,13 +174,11 @@ class ImportService {
           final tid = trackIdFor(w.productId, p.audioRelativePath);
           if (!scannedIds.contains(tid)) continue;
           subtitleIds.add(tid);
-          final existing = await (_db.select(
-            _db.subtitles,
-          )..where((row) => row.id.equals(tid))).getSingleOrNull();
+          final existing = await (_db.select(_db.subtitles)
+                ..where((row) => row.id.equals(tid)))
+              .getSingleOrNull();
           if (existing == null) {
-            await _db
-                .into(_db.subtitles)
-                .insert(
+            await _db.into(_db.subtitles).insert(
                   SubtitlesCompanion.insert(
                     id: tid,
                     trackId: tid,
@@ -193,9 +191,9 @@ class ImportService {
                   ),
                 );
           } else {
-            await (_db.update(
-              _db.subtitles,
-            )..where((row) => row.id.equals(tid))).write(
+            await (_db.update(_db.subtitles)
+                  ..where((row) => row.id.equals(tid)))
+                .write(
               SubtitlesCompanion(
                 filePath: Value(p.path),
                 fileFormat: Value(p.format),
@@ -209,9 +207,10 @@ class ImportService {
         // Drop subtitle rows whose audio is gone or whose file disappeared.
         if (subtitleIds.isEmpty) {
           if (scannedIds.isNotEmpty) {
-            await (_db.delete(
-              _db.subtitles,
-            )..where((row) => row.trackId.isIn(scannedIds.toList()))).go();
+            await (_db.delete(_db.subtitles)..where(
+                  (row) => row.trackId.isIn(scannedIds.toList()),
+                ))
+                .go();
           }
         } else {
           await (_db.delete(_db.subtitles)..where(
@@ -239,9 +238,7 @@ class ImportService {
             _db.workFiles,
           )..where((row) => row.id.equals(fid))).getSingleOrNull();
           if (existingFile == null) {
-            await _db
-                .into(_db.workFiles)
-                .insert(
+            await _db.into(_db.workFiles).insert(
                   WorkFilesCompanion.insert(
                     id: fid,
                     workId: w.productId,
@@ -370,23 +367,21 @@ class ImportService {
         if (identical(match, _noAudio)) continue;
 
         try {
-          final bytes =
-              remoteBytes[sub.path] ?? File(sub.path).readAsBytesSync();
+          final bytes = remoteBytes[sub.path] ?? File(sub.path).readAsBytesSync();
           if (bytes.isEmpty) continue;
           final hash = sha256.convert(bytes).toString();
           final content = utf8.decode(_stripBom(bytes), allowMalformed: true);
           final cues = SubtitleParser.parse(content, sub.format);
           if (cues.isEmpty) continue;
-          out.add(
-            _ParsedSubtitle(
-              workId: w.productId,
-              audioRelativePath: match.relativePath,
-              path: sub.path,
-              format: sub.format,
-              hash: hash,
-              cuesJson: jsonEncode([for (final c in cues) c.toJson()]),
-            ),
-          );
+          out.add(_ParsedSubtitle(
+            workId: w.productId,
+            audioRelativePath: match.relativePath,
+            path: sub.path,
+            format: sub.format,
+            hash: hash,
+            cuesJson:
+                jsonEncode([for (final c in cues) c.toJson()]),
+          ));
         } catch (_) {
           // unreadable / unparseable subtitle — skip, don't abort import
         }
