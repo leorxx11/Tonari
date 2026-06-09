@@ -3,10 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/db/database.dart';
+import '../../browse/data/remote_models.dart';
+import '../../p115/data/p115_auth_service.dart';
+import '../../p115/data/p115_client.dart';
+import '../../p115/data/p115_cookie_store.dart';
 import '../../player/data/playback_controller.dart';
-import '../../settings/data/path_prefs.dart';
-import '../../webdav/data/webdav_work_source.dart';
+import '../../video/data/video_controller.dart';
 import '../data/track_duration_probe.dart';
+import '../data/work_media_source.dart';
 import '../data/work_tree.dart';
 import '../data/works_providers.dart';
 
@@ -24,7 +28,6 @@ class WorkFilesPage extends ConsumerStatefulWidget {
 
 class _WorkFilesPageState extends ConsumerState<WorkFilesPage> {
   final List<String> _path = [];
-  bool _autoApplied = false;
   bool _probeStarted = false;
 
   @override
@@ -37,24 +40,6 @@ class _WorkFilesPageState extends ConsumerState<WorkFilesPage> {
     final files = filesAsync.value ?? const <WorkFile>[];
     final roots = buildWorkTree(tracks, workFiles: files);
     final playQueue = flattenForPlayback(roots);
-    final prefs = ref.watch(pathPrefsProvider);
-    final autoHint = autoPath(
-      roots,
-      smartPath: prefs.smartPath,
-      preferEffectSound: prefs.preferEffectSound,
-      typeOrderEnabled: prefs.typeOrderEnabled,
-      typeOrder: prefs.typeOrder,
-    );
-
-    if (!_autoApplied && tracksAsync.hasValue && filesAsync.hasValue) {
-      _autoApplied = true;
-      if (autoHint.isNotEmpty) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted || _path.isNotEmpty) return;
-          setState(() => _path.addAll(autoHint));
-        });
-      }
-    }
 
     if (!_probeStarted && tracksAsync.hasValue) {
       _probeStarted = true;
@@ -80,10 +65,6 @@ class _WorkFilesPageState extends ConsumerState<WorkFilesPage> {
         appBar: AppBar(
           leading: BackButton(onPressed: _onBack),
           title: Text(titleText, maxLines: 1, overflow: TextOverflow.ellipsis),
-          actions: [
-            if (prefs.smartPath && autoHint.isNotEmpty)
-              _AutoPathBadge(hint: autoHint),
-          ],
         ),
         body: Column(
           children: [
@@ -121,6 +102,7 @@ class _WorkFilesPageState extends ConsumerState<WorkFilesPage> {
                         node: currentChildren[i],
                         onTapFolder: (name) => setState(() => _path.add(name)),
                         onPlayTrack: (t) => _play(t, playQueue),
+                        onPlayVideo: _playVideo,
                       ),
                     ),
             ),
@@ -154,12 +136,12 @@ class _WorkFilesPageState extends ConsumerState<WorkFilesPage> {
   Future<void> _play(Track track, List<Track> playQueue) async {
     final index = playQueue.indexWhere((t) => t.id == track.id);
     if (index < 0) return;
-    final remoteConfig = await ref
-        .read(webdavWorkSourceProvider)
-        .configForWork(widget.work);
-    final bookmark = remoteConfig != null
-        ? null
-        : await ref.read(bookmarkForWorkProvider(widget.work.productId).future);
+    final source = await ref
+        .read(workMediaSourceProvider)
+        .sourceForWork(widget.work);
+    final bookmark = source.kind == RemoteSourceKind.local
+        ? await ref.read(bookmarkForWorkProvider(widget.work.productId).future)
+        : null;
     await ref
         .read(playbackControllerProvider.notifier)
         .startWork(
@@ -167,7 +149,60 @@ class _WorkFilesPageState extends ConsumerState<WorkFilesPage> {
           tracks: playQueue,
           initialIndex: index,
           bookmarkBase64: bookmark,
-          remoteConfig: remoteConfig,
+          remoteKind: source.kind == RemoteSourceKind.local
+              ? null
+              : source.kind,
+          remoteConfig: source.webdavConfig,
+        );
+  }
+
+  Future<void> _playVideo(WorkFile file) async {
+    final source = await ref
+        .read(workMediaSourceProvider)
+        .sourceForWork(widget.work);
+    final PlayableResolver resolver;
+    switch (source.kind) {
+      case RemoteSourceKind.local:
+        resolver = () async => ResolvedMediaUrl(url: Uri.file(file.filePath));
+      case RemoteSourceKind.webdav:
+        final config = source.webdavConfig!;
+        resolver = () async {
+          final auth = config.authHeader;
+          return ResolvedMediaUrl(
+            url: Uri.parse(config.streamUrl(file.filePath)),
+            headers: auth == null ? null : {'Authorization': auth},
+          );
+        };
+      case RemoteSourceKind.p115:
+        resolver = () async {
+          try {
+            return await ref
+                .read(p115ClientProvider)
+                .resolveDownloadUrl(file.filePath);
+          } on P115AuthExpiredException {
+            await ref.read(p115AuthServiceProvider).clearCookie();
+            ref.invalidate(p115CookieProvider);
+            rethrow;
+          }
+        };
+    }
+    await ref
+        .read(videoControllerProvider.notifier)
+        .open(
+          PlayableItem(
+            id: file.id,
+            sourceKind: source.kind,
+            sourceId: source.sourceId,
+            sourceName: source.sourceName,
+            path: file.filePath,
+            fileName: file.fileName,
+            kind: RemoteEntryKind.video,
+            size: file.fileSizeBytes,
+            pickcode: source.kind == RemoteSourceKind.p115
+                ? file.filePath
+                : null,
+            resolve: resolver,
+          ),
         );
   }
 
@@ -313,45 +348,18 @@ class _FooterStats extends StatelessWidget {
   }
 }
 
-class _AutoPathBadge extends StatelessWidget {
-  const _AutoPathBadge({required this.hint});
-
-  final List<String> hint;
-
-  @override
-  Widget build(BuildContext context) {
-    final iosBlue = CupertinoColors.systemBlue.resolveFrom(context);
-    final tooltip = '智能路径: ${hint.join(' / ')}';
-    return Tooltip(
-      message: tooltip,
-      child: IconButton(
-        icon: Icon(CupertinoIcons.wand_stars, color: iosBlue, size: 20),
-        onPressed: () {
-          ScaffoldMessenger.of(context)
-            ..clearSnackBars()
-            ..showSnackBar(
-              SnackBar(
-                behavior: SnackBarBehavior.floating,
-                duration: const Duration(seconds: 3),
-                content: Text(tooltip),
-              ),
-            );
-        },
-      ),
-    );
-  }
-}
-
 class _NodeRow extends ConsumerWidget {
   const _NodeRow({
     required this.node,
     required this.onTapFolder,
     required this.onPlayTrack,
+    required this.onPlayVideo,
   });
 
   final WorkTreeNode node;
   final void Function(String name) onTapFolder;
   final void Function(Track track) onPlayTrack;
+  final void Function(WorkFile file) onPlayVideo;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -454,6 +462,7 @@ class _NodeRow extends ConsumerWidget {
         _formatBytes(f.fileSizeBytes),
         style: theme.textTheme.bodySmall?.copyWith(color: iosSecondary),
       ),
+      onTap: f.fileKind == 'video' ? () => onPlayVideo(f) : null,
     );
   }
 }
@@ -512,6 +521,10 @@ class _PlayCircle extends StatelessWidget {
     'subtitle' => (
       CupertinoIcons.captions_bubble_fill,
       CupertinoColors.systemOrange.resolveFrom(context),
+    ),
+    'video' => (
+      CupertinoIcons.videocam_fill,
+      CupertinoColors.systemBlue.resolveFrom(context),
     ),
     _ => (
       CupertinoIcons.doc_fill,

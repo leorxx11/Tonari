@@ -14,9 +14,11 @@ import '../../player/presentation/mini_player.dart';
 import '../../settings/presentation/translation_settings_page.dart';
 import '../../translation/data/llm_provider_repository.dart';
 import '../../translation/data/translation_controller.dart';
+import '../data/library_task_controller.dart';
 import '../data/metadata_enrichment.dart';
 import '../data/work_actions_provider.dart';
 import '../data/works_providers.dart';
+import 'widgets/library_task_status.dart';
 import 'widgets/sample_gallery.dart';
 import 'work_files_page.dart';
 
@@ -41,8 +43,6 @@ class _WorkDetailView extends ConsumerStatefulWidget {
 }
 
 class _WorkDetailViewState extends ConsumerState<_WorkDetailView> {
-  bool _refreshing = false;
-
   @override
   Widget build(BuildContext context) {
     final liveWork = ref.watch(workByIdProvider(widget.work.productId)).value;
@@ -72,6 +72,7 @@ class _WorkDetailViewState extends ConsumerState<_WorkDetailView> {
             onPressed: () => _openOnDlsite(work.productId),
           ),
           _TranslationButton(work: work),
+          WorkTaskStatusButton(productId: work.productId),
           _MoreMenu(work: work, state: this),
         ],
       ),
@@ -99,13 +100,31 @@ class _WorkDetailViewState extends ConsumerState<_WorkDetailView> {
   }
 
   Future<void> refreshMetadata(String productId) async {
-    if (_refreshing) return;
-    setState(() => _refreshing = true);
     final before = ref.read(workByIdProvider(productId)).value;
+    final taskController = ref.read(workTaskControllerProvider.notifier);
+    final enrichment = ref.read(metadataEnrichmentProvider);
     try {
-      await ref
-          .read(metadataEnrichmentProvider)
-          .enrichOne(productId, force: true);
+      await taskController.run<void>(
+        productId: productId,
+        kind: LibraryTaskKind.metadata,
+        title: '刷新元数据',
+        initialStage: '获取 DLsite 元数据',
+        action: (task) async {
+          task.update(stage: '获取 DLsite 元数据', message: productId);
+          await enrichment.enrichOne(
+            productId,
+            force: true,
+            onImageProgress: (completed, total, current) {
+              task.update(
+                stage: '下载图片',
+                message: current,
+                completed: completed,
+                total: total,
+              );
+            },
+          );
+        },
+      );
       _evictWorkImages(before);
       final after = ref.read(workByIdProvider(productId)).value;
       if (after != null) _evictWorkImages(after);
@@ -118,17 +137,34 @@ class _WorkDetailViewState extends ConsumerState<_WorkDetailView> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('刷新失败：$e')));
-    } finally {
-      if (mounted) setState(() => _refreshing = false);
     }
   }
 
   Future<void> refreshImages(String productId) async {
-    if (_refreshing) return;
-    setState(() => _refreshing = true);
     final before = ref.read(workByIdProvider(productId)).value;
+    final taskController = ref.read(workTaskControllerProvider.notifier);
+    final enrichment = ref.read(metadataEnrichmentProvider);
     try {
-      await ref.read(metadataEnrichmentProvider).refreshImages(productId);
+      await taskController.run<void>(
+        productId: productId,
+        kind: LibraryTaskKind.images,
+        title: '刷新图片',
+        initialStage: '下载图片',
+        action: (task) async {
+          task.update(stage: '下载图片', message: productId);
+          await enrichment.refreshImages(
+            productId,
+            onImageProgress: (completed, total, current) {
+              task.update(
+                stage: '下载图片',
+                message: current,
+                completed: completed,
+                total: total,
+              );
+            },
+          );
+        },
+      );
       _evictWorkImages(before);
       final after = ref.read(workByIdProvider(productId)).value;
       if (after != null) _evictWorkImages(after);
@@ -141,12 +177,8 @@ class _WorkDetailViewState extends ConsumerState<_WorkDetailView> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('刷新图片失败：$e')));
-    } finally {
-      if (mounted) setState(() => _refreshing = false);
     }
   }
-
-  bool get refreshing => _refreshing;
 
   void _evictWorkImages(Work? work) {
     if (work == null) return;
@@ -1264,9 +1296,13 @@ class _MoreMenu extends ConsumerWidget {
         (work.descriptionHtmlZh?.isNotEmpty ?? false);
     final stateAsync = ref.watch(translationControllerProvider(work.productId));
     final translating = stateAsync.value is TranslationLoading;
-    final refreshing = state.refreshing;
+    final taskActive = ref.watch(
+      workTaskControllerProvider.select(
+        (tasks) => tasks[work.productId]?.active ?? false,
+      ),
+    );
     final canRetranslate = defaultProvider != null && hasZh && !translating;
-    final canRefresh = !refreshing && !translating;
+    final canRefresh = !taskActive && !translating;
 
     return PopupMenuButton<String>(
       tooltip: '更多',

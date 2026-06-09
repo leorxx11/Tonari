@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'appearance_settings_page.dart';
 import 'data_settings_page.dart';
 import 'playback_settings_page.dart';
-import 'scan_settings_page.dart';
 import 'translation_settings_page.dart';
 import '../../webdav/presentation/webdav_settings_page.dart';
 
@@ -27,12 +26,6 @@ class SettingsPage extends StatelessWidget {
             title: '播放',
             subtitle: '跳秒步长',
             page: PlaybackSettingsPage(),
-          ),
-          _Entry(
-            icon: Icons.folder_open_outlined,
-            title: '资源扫描',
-            subtitle: '智能路径与格式优先级',
-            page: ScanSettingsPage(),
           ),
           _Entry(
             icon: Icons.translate_outlined,

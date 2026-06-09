@@ -42,6 +42,7 @@ class FolderScanner {
       final audios = <DetectedAudio>[];
       final images = <DetectedImage>[];
       final subtitles = <DetectedSubtitle>[];
+      final videos = <DetectedFile>[];
       final textNotes = <DetectedFile>[];
       final others = <DetectedFile>[];
       final rootLen = workDir.path.endsWith('/')
@@ -94,6 +95,15 @@ class FolderScanner {
                 sizeBytes: size,
               ),
             );
+          } else if (kind == FileKind.video) {
+            videos.add(
+              DetectedFile(
+                path: e.path,
+                relativePath: rel,
+                fileName: name,
+                sizeBytes: size,
+              ),
+            );
           } else if (kind == FileKind.text) {
             textNotes.add(
               DetectedFile(
@@ -124,6 +134,7 @@ class FolderScanner {
         audios: audios,
         images: images,
         subtitles: subtitles,
+        videos: videos,
         textNotes: textNotes,
         others: others,
       );

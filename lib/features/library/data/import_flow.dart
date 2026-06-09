@@ -16,7 +16,10 @@ class ImportFlow {
   /// Resolves the bookmark, scans the folder, and writes the scan results to
   /// the database. Always releases the security-scoped access at the end, even
   /// on error.
-  Future<ImportSummary> importFromFolder(ImportedFolder folder) async {
+  Future<ImportSummary> importFromFolder(
+    ImportedFolder folder, {
+    bool enrich = true,
+  }) async {
     final resolution = await FolderBookmark.resolve(folder.bookmarkBase64);
     try {
       final path = _urlToPath(resolution.url);
@@ -25,7 +28,7 @@ class ImportFlow {
         scan,
         sourceFolderId: folder.id,
       );
-      onImported?.call(summary);
+      if (enrich) onImported?.call(summary);
       return summary;
     } finally {
       await FolderBookmark.release(resolution.url);

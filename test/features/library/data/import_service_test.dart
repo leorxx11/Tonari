@@ -11,6 +11,7 @@ DetectedWork _work({
   List<DetectedAudio> audios = const [],
   List<DetectedImage> images = const [],
   List<DetectedSubtitle> subtitles = const [],
+  List<DetectedFile> videos = const [],
   List<DetectedFile> textNotes = const [],
   List<DetectedFile> others = const [],
 }) => DetectedWork(
@@ -19,6 +20,7 @@ DetectedWork _work({
   audios: audios,
   images: images,
   subtitles: subtitles,
+  videos: videos,
   textNotes: textNotes,
   others: others,
 );
@@ -339,7 +341,7 @@ void main() {
     await service.applyScanResult(
       ScanResult(
         rootPath: '/scan',
-        filesScanned: 4,
+        filesScanned: 5,
         unrecognizedDirs: const [],
         works: [
           _work(
@@ -367,6 +369,13 @@ void main() {
                 relativePath: 'readme.txt',
               ),
             ],
+            videos: [
+              _file(
+                path: '/scan/RJ_FILES/特典/movie.mp4',
+                fileName: 'movie.mp4',
+                relativePath: '特典/movie.mp4',
+              ),
+            ],
             others: [
               _file(
                 path: '/scan/RJ_FILES/特典/bonus.zip',
@@ -380,10 +389,15 @@ void main() {
     );
 
     final files = await db.select(db.workFiles).get();
-    expect(files, hasLength(3));
+    expect(files, hasLength(4));
     expect(
       {for (final f in files) f.relativePath: f.fileKind},
-      {'特典/cover.jpg': 'image', 'readme.txt': 'text', '特典/bonus.zip': 'other'},
+      {
+        '特典/cover.jpg': 'image',
+        'readme.txt': 'text',
+        '特典/movie.mp4': 'video',
+        '特典/bonus.zip': 'other',
+      },
     );
     final tracks = await db.select(db.tracks).get();
     expect(tracks, hasLength(1));

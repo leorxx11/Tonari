@@ -222,7 +222,7 @@ class ImportService {
               .go();
         }
 
-        // Non-audio files (image / subtitle / text / other) live in their own
+        // Non-audio files (image / subtitle / video / text / other) live in their own
         // table so the on-disk tree can be rendered without intermixing them
         // with playable tracks.
         final fileIds = <String>{};
@@ -284,6 +284,15 @@ class ImportService {
             filePath: f.path,
             fileName: f.fileName,
             kind: 'subtitle',
+            sizeBytes: f.sizeBytes,
+          );
+        }
+        for (final f in w.videos) {
+          await upsertFile(
+            relativePath: f.relativePath,
+            filePath: f.path,
+            fileName: f.fileName,
+            kind: 'video',
             sizeBytes: f.sizeBytes,
           );
         }

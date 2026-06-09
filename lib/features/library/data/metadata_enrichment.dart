@@ -11,6 +11,9 @@ import '../../../core/files/local_image_path.dart';
 import 'dlsite_fetcher.dart';
 import 'work_image_cache.dart';
 
+typedef MetadataProgress =
+    void Function(int completed, int total, String current);
+
 class MetadataEnrichmentService {
   MetadataEnrichmentService({
     required TonariDatabase db,
@@ -27,16 +30,21 @@ class MetadataEnrichmentService {
   final WorkImageCache _imageCache;
   final Duration _delay;
 
-  Future<void> enrichBatch(Iterable<String> productIds) async {
-    var first = true;
-    for (final id in productIds) {
-      if (!first) await Future<void>.delayed(_delay);
-      first = false;
+  Future<void> enrichBatch(
+    Iterable<String> productIds, {
+    MetadataProgress? onProgress,
+  }) async {
+    final ids = productIds.toList();
+    for (var i = 0; i < ids.length; i++) {
+      final id = ids[i];
+      onProgress?.call(i, ids.length, id);
+      if (i > 0) await Future<void>.delayed(_delay);
       try {
         await enrichOne(id);
       } catch (_) {
         // skip; one bad work shouldn't kill the batch
       }
+      onProgress?.call(i + 1, ids.length, id);
     }
   }
 
@@ -55,7 +63,11 @@ class MetadataEnrichmentService {
     );
   }
 
-  Future<void> enrichOne(String productId, {bool force = false}) async {
+  Future<void> enrichOne(
+    String productId, {
+    bool force = false,
+    ImageCacheProgress? onImageProgress,
+  }) async {
     final row = await (_db.select(
       _db.works,
     )..where((r) => r.productId.equals(productId))).getSingleOrNull();
@@ -105,6 +117,7 @@ class MetadataEnrichmentService {
       mainImageUrl: work.mainImageUrl,
       sampleImageUrls: work.sampleImageUrls,
       descriptionImageUrls: work.descriptionImageUrls,
+      onProgress: onImageProgress,
     );
     if (images.mainImage == null) {
       throw DlsiteFetchException('Failed to cache main image for $productId');
@@ -165,7 +178,10 @@ class MetadataEnrichmentService {
   /// including the cached translation — untouched. Use when the user
   /// wants to refresh artwork without paying the LLM cost again or losing
   /// already-translated copy.
-  Future<void> refreshImages(String productId) async {
+  Future<void> refreshImages(
+    String productId, {
+    ImageCacheProgress? onImageProgress,
+  }) async {
     final row = await (_db.select(
       _db.works,
     )..where((r) => r.productId.equals(productId))).getSingleOrNull();
@@ -186,6 +202,7 @@ class MetadataEnrichmentService {
       mainImageUrl: mainUrl,
       sampleImageUrls: row.sampleImageUrls,
       descriptionImageUrls: descUrls,
+      onProgress: onImageProgress,
     );
     if (images.mainImage == null) {
       throw DlsiteFetchException('Failed to cache main image for $productId');

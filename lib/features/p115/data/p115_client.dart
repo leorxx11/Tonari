@@ -102,6 +102,29 @@ class P115Client {
     return ResolvedMediaUrl(url: proxied.url, release: proxied.release);
   }
 
+  Future<List<int>> getBytesByPickcode(String pickcode) async {
+    final resolved = await resolveDownloadUrl(pickcode);
+    try {
+      final res = await _dio.get<List<int>>(
+        resolved.url.toString(),
+        options: Options(
+          responseType: ResponseType.bytes,
+          headers: resolved.headers,
+          validateStatus: (s) => s != null && s < 500,
+        ),
+      );
+      if (res.statusCode == 401 || res.statusCode == 403) {
+        throw const P115AuthExpiredException();
+      }
+      if (res.statusCode != 200) {
+        throw P115Exception('115 文件下载失败：${res.statusCode}');
+      }
+      return res.data!;
+    } finally {
+      await resolved.release?.call();
+    }
+  }
+
   /// 115 proapi 302-redirects the downurl POST to a `dl302` gateway that serves
   /// the encrypted JSON. dart:io doesn't auto-follow a POST redirect, so chase
   /// the `Location` chain manually (GET) and return the JSON-bearing body.

@@ -4,7 +4,7 @@ import '../../../core/scanner/file_classifier.dart';
 
 enum RemoteEntryKind { folder, audio, video, image, subtitle, text, other }
 
-enum RemoteSourceKind { webdav, p115 }
+enum RemoteSourceKind { local, webdav, p115 }
 
 class RemoteEntry {
   const RemoteEntry({

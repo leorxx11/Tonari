@@ -10,9 +10,9 @@ import 'package:tonari/features/library/data/import_flow.dart';
 import 'package:tonari/features/library/data/metadata_enrichment.dart';
 import 'package:tonari/features/library/data/rescan_service.dart';
 import 'package:tonari/features/library/data/work_actions_provider.dart';
+import 'package:tonari/features/library/data/work_image_cache.dart';
 import 'package:tonari/features/library/data/works_providers.dart';
 import 'package:tonari/features/p115/data/p115_cookie_store.dart';
-import 'package:tonari/features/settings/data/path_prefs.dart';
 import 'package:tonari/features/webdav/data/webdav_server_repository.dart';
 
 late SharedPreferences _testPrefs;
@@ -26,16 +26,9 @@ Widget testApp({
   RestoreWork? restoreWork,
   ToggleFavorite? toggleFavorite,
   ImportFlow? importFlow,
-  PathPrefs pathPrefs = const PathPrefs(
-    smartPath: false,
-    preferEffectSound: true,
-    typeOrderEnabled: true,
-    typeOrder: PathPrefs.defaultTypeOrder,
-  ),
 }) => ProviderScope(
   overrides: [
     sharedPreferencesProvider.overrideWithValue(_testPrefs),
-    pathPrefsProvider.overrideWith(() => _FakePathPrefs(pathPrefs)),
     allWorksProvider.overrideWith(
       (ref) => Stream.value(works.where((work) => !work.isRemoved).toList()),
     ),
@@ -66,16 +59,26 @@ Widget testApp({
 
 class _NoopEnrichment implements MetadataEnrichmentService {
   @override
-  Future<void> enrichBatch(Iterable<String> productIds) async {}
+  Future<void> enrichBatch(
+    Iterable<String> productIds, {
+    MetadataProgress? onProgress,
+  }) async {}
 
   @override
-  Future<void> enrichOne(String productId, {bool force = false}) async {}
+  Future<void> enrichOne(
+    String productId, {
+    bool force = false,
+    ImageCacheProgress? onImageProgress,
+  }) async {}
 
   @override
   Future<void> enrichPending() async {}
 
   @override
-  Future<void> refreshImages(String productId) async {}
+  Future<void> refreshImages(
+    String productId, {
+    ImageCacheProgress? onImageProgress,
+  }) async {}
 }
 
 class _NoopRescan implements RescanService {
@@ -87,37 +90,6 @@ class _NoopRescan implements RescanService {
 
   @override
   Future<void> runPending() async {}
-}
-
-class _FakePathPrefs extends PathPrefsNotifier {
-  _FakePathPrefs(this._initial);
-  final PathPrefs _initial;
-
-  @override
-  PathPrefs build() => _initial;
-
-  @override
-  Future<void> setSmartPath(bool value) async {
-    state = state.copyWith(smartPath: value);
-  }
-
-  @override
-  Future<void> setPreferEffectSound(bool value) async {
-    state = state.copyWith(preferEffectSound: value);
-  }
-
-  @override
-  Future<void> setTypeOrderEnabled(bool value) async {
-    state = state.copyWith(typeOrderEnabled: value);
-  }
-
-  @override
-  Future<void> reorderType(int oldIndex, int newIndex) async {
-    final list = [...state.typeOrder];
-    final item = list.removeAt(oldIndex);
-    list.insert(newIndex, item);
-    state = state.copyWith(typeOrder: list);
-  }
 }
 
 Work _work(
@@ -403,60 +375,6 @@ void main() {
     expect(find.text('01_FLAC'), findsOneWidget);
     expect(find.text('02_MP3'), findsOneWidget);
     expect(find.text('flac-track.flac'), findsNothing);
-  });
-
-  testWidgets('autoPath drills into the wav folder when smartPath is on', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      testApp(
-        pathPrefs: const PathPrefs(
-          smartPath: true,
-          preferEffectSound: true,
-          typeOrderEnabled: true,
-          typeOrder: PathPrefs.defaultTypeOrder,
-        ),
-        works: [_work('RJ01560714', title: 'Test Work')],
-        tracks: [
-          _track(
-            id: 'wav',
-            workId: 'RJ01560714',
-            title: 'wav-track',
-            fileName: 'wav-track.wav',
-            fileFormat: 'wav',
-            relativeDir: '01_WAV',
-          ),
-          _track(
-            id: 'mp3',
-            workId: 'RJ01560714',
-            title: 'mp3-track',
-            fileName: 'mp3-track.mp3',
-            fileFormat: 'mp3',
-            relativeDir: '02_MP3',
-          ),
-        ],
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Test Work'));
-    await tester.pumpAndSettle();
-
-    await tester.dragUntilVisible(
-      find.text('文件'),
-      find.byType(CustomScrollView),
-      const Offset(0, -200),
-    );
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('文件'));
-    await tester.pumpAndSettle();
-
-    // typeOrder = wav > mp3, so we expect to land inside 01_WAV directly.
-    expect(find.text('wav-track.wav'), findsOneWidget);
-    expect(find.text('mp3-track.mp3'), findsNothing);
-    // Breadcrumb reflects the auto-applied path.
-    expect(find.text('01_WAV'), findsWidgets);
   });
 
   testWidgets('favorite work shows heart icon on card', (tester) async {

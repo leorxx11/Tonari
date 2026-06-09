@@ -20,6 +20,8 @@ class WorkImagePaths {
 }
 
 typedef ImageDownloader = Future<bool> Function(String url, File target);
+typedef ImageCacheProgress =
+    void Function(int completed, int total, String current);
 
 class WorkImageCache {
   WorkImageCache({
@@ -44,30 +46,52 @@ class WorkImageCache {
     required String mainImageUrl,
     List<String> sampleImageUrls = const [],
     List<String> descriptionImageUrls = const [],
+    ImageCacheProgress? onProgress,
   }) async {
     final docs = await _documentsDir();
     final dir = await _ensureWorkDir(productId);
+    final total = 1 + sampleImageUrls.length + descriptionImageUrls.length;
+    var completed = 0;
 
+    onProgress?.call(completed, total, '主图');
     final mainPath = await _downloadIfMissing(
       url: mainImageUrl,
       file: File(p.join(dir.path, 'main${_ext(mainImageUrl)}')),
       docsPath: docs.path,
     );
+    completed++;
+    onProgress?.call(completed, total, '主图');
 
     final samplePaths = <String>[];
     for (var i = 0; i < sampleImageUrls.length; i++) {
       final url = sampleImageUrls[i];
+      onProgress?.call(
+        completed,
+        total,
+        '样本图 ${i + 1}/${sampleImageUrls.length}',
+      );
       final path = await _downloadIfMissing(
         url: url,
         file: File(p.join(dir.path, 'smp${i + 1}${_ext(url)}')),
         docsPath: docs.path,
       );
       if (path != null) samplePaths.add(path);
+      completed++;
+      onProgress?.call(
+        completed,
+        total,
+        '样本图 ${i + 1}/${sampleImageUrls.length}',
+      );
     }
 
     final descPaths = <String>[];
     for (var i = 0; i < descriptionImageUrls.length; i++) {
       final url = descriptionImageUrls[i];
+      onProgress?.call(
+        completed,
+        total,
+        '描述图 ${i + 1}/${descriptionImageUrls.length}',
+      );
       final path = await _downloadIfMissing(
         url: url,
         file: File(p.join(dir.path, 'desc${i + 1}${_ext(url)}')),
@@ -75,6 +99,12 @@ class WorkImageCache {
       );
       // keep slot alignment with input URLs: empty string = download failed
       descPaths.add(path ?? '');
+      completed++;
+      onProgress?.call(
+        completed,
+        total,
+        '描述图 ${i + 1}/${descriptionImageUrls.length}',
+      );
     }
 
     return WorkImagePaths(

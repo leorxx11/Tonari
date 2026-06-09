@@ -13,8 +13,11 @@ import '../../browse/data/remote_models.dart';
 import '../../settings/data/player_prefs.dart';
 import '../../video/data/video_controller.dart';
 import '../../video/data/video_resume_store.dart';
+import '../../p115/data/p115_auth_service.dart';
+import '../../p115/data/p115_client.dart';
+import '../../p115/data/p115_cookie_store.dart';
 import '../../webdav/data/webdav_client.dart';
-import '../../webdav/data/webdav_work_source.dart';
+import '../../library/data/work_media_source.dart';
 import 'now_playing_bridge.dart';
 
 class PlaybackState {
@@ -24,6 +27,7 @@ class PlaybackState {
     this.browseItems = const [],
     this.currentIndex = -1,
     this.bookmarkBase64,
+    this.remoteKind,
     this.remoteConfig,
   });
 
@@ -35,6 +39,7 @@ class PlaybackState {
 
   /// Non-null when the current work streams from WebDAV; drives how each
   /// track's AudioSource is built (remote URL + auth vs local file).
+  final RemoteSourceKind? remoteKind;
   final WebdavConfig? remoteConfig;
 
   Track? get currentTrack {
@@ -60,6 +65,7 @@ class PlaybackState {
     List<PlayableItem>? browseItems,
     int? currentIndex,
     String? bookmarkBase64,
+    RemoteSourceKind? remoteKind,
     WebdavConfig? remoteConfig,
   }) => PlaybackState(
     work: work ?? this.work,
@@ -67,6 +73,7 @@ class PlaybackState {
     browseItems: browseItems ?? this.browseItems,
     currentIndex: currentIndex ?? this.currentIndex,
     bookmarkBase64: bookmarkBase64 ?? this.bookmarkBase64,
+    remoteKind: remoteKind ?? this.remoteKind,
     remoteConfig: remoteConfig ?? this.remoteConfig,
   );
 
@@ -142,9 +149,13 @@ class PlaybackController extends Notifier<PlaybackState> {
     final idx = tracks.indexWhere((t) => t.id == work.lastPlayedTrackId);
     if (idx < 0) return;
 
-    final remoteConfig = await ref
-        .read(webdavWorkSourceProvider)
-        .configForWork(work);
+    final mediaSource = await ref
+        .read(workMediaSourceProvider)
+        .sourceForWork(work);
+    final remoteKind = mediaSource.kind == RemoteSourceKind.local
+        ? null
+        : mediaSource.kind;
+    final remoteConfig = mediaSource.webdavConfig;
 
     String? bookmark;
     if (remoteConfig == null) {
@@ -171,6 +182,7 @@ class PlaybackController extends Notifier<PlaybackState> {
       currentIndex: idx,
       bookmarkBase64: bookmark,
       remoteConfig: remoteConfig,
+      remoteKind: remoteKind,
     );
 
     final track = tracks[idx];
@@ -196,6 +208,7 @@ class PlaybackController extends Notifier<PlaybackState> {
     required int initialIndex,
     required String? bookmarkBase64,
     WebdavConfig? remoteConfig,
+    RemoteSourceKind? remoteKind,
   }) async {
     if (initialIndex < 0 || initialIndex >= tracks.length) return;
     final newTrack = tracks[initialIndex];
@@ -225,6 +238,7 @@ class PlaybackController extends Notifier<PlaybackState> {
       browseItems: const [],
       currentIndex: initialIndex,
       bookmarkBase64: bookmarkBase64,
+      remoteKind: remoteKind,
       remoteConfig: remoteConfig,
     );
     await _loadAndPlay();
@@ -346,6 +360,25 @@ class PlaybackController extends Notifier<PlaybackState> {
     final work = state.work;
     if (track == null || work == null) return;
 
+    if (state.remoteKind == RemoteSourceKind.p115) {
+      final resolved = await _resolveP115(track.filePath);
+      final previousRelease = _resolvedMediaRelease;
+      try {
+        await player.setAudioSource(
+          AudioSource.uri(resolved.url, headers: resolved.headers),
+        );
+      } catch (_) {
+        await resolved.release?.call();
+        rethrow;
+      }
+      _resolvedMediaRelease = resolved.release;
+      await previousRelease?.call();
+      await _bumpLastPlayed(trackChanged: true);
+      await player.play();
+      await _publishNowPlaying();
+      return;
+    }
+
     final previousRelease = _resolvedMediaRelease;
     await player.setAudioSource(_audioSourceFor(track));
     _resolvedMediaRelease = null;
@@ -361,9 +394,19 @@ class PlaybackController extends Notifier<PlaybackState> {
     await release?.call();
   }
 
+  Future<ResolvedMediaUrl> _resolveP115(String pickcode) async {
+    try {
+      return await ref.read(p115ClientProvider).resolveDownloadUrl(pickcode);
+    } on P115AuthExpiredException {
+      await ref.read(p115AuthServiceProvider).clearCookie();
+      ref.invalidate(p115CookieProvider);
+      rethrow;
+    }
+  }
+
   AudioSource _audioSourceFor(Track track) {
     final config = state.remoteConfig;
-    if (config != null) {
+    if (state.remoteKind == RemoteSourceKind.webdav && config != null) {
       final auth = config.authHeader;
       return AudioSource.uri(
         Uri.parse(config.streamUrl(track.filePath)),

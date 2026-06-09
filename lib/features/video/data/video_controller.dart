@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:drift/drift.dart' show OrderingTerm;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -68,13 +69,19 @@ class VideoController extends Notifier<VideoPlaybackState> {
     try {
       final resolved = await item.resolve();
       release = resolved.release;
-      controller = VideoPlayerController.networkUrl(
-        resolved.url,
-        httpHeaders: resolved.headers ?? const <String, String>{},
-        // Without this, video_player installs a lifecycle observer that pauses
-        // on backgrounding. We want audio to keep playing in the background.
-        videoPlayerOptions: VideoPlayerOptions(allowBackgroundPlayback: true),
-      );
+      final options = VideoPlayerOptions(allowBackgroundPlayback: true);
+      if (resolved.url.isScheme('file')) {
+        controller = VideoPlayerController.file(
+          File.fromUri(resolved.url),
+          videoPlayerOptions: options,
+        );
+      } else {
+        controller = VideoPlayerController.networkUrl(
+          resolved.url,
+          httpHeaders: resolved.headers ?? const <String, String>{},
+          videoPlayerOptions: options,
+        );
+      }
       await controller.initialize();
       _resumeFromSlot(controller, item);
       controller.addListener(_onValue);
@@ -262,6 +269,8 @@ class VideoController extends Notifier<VideoPlaybackState> {
         kind = RemoteSourceKind.p115;
       case 'webdav':
         kind = RemoteSourceKind.webdav;
+      case 'local':
+        kind = RemoteSourceKind.local;
       default:
         return null;
     }
@@ -279,6 +288,8 @@ class VideoController extends Notifier<VideoPlaybackState> {
             rethrow;
           }
         };
+      case RemoteSourceKind.local:
+        resolver = () async => ResolvedMediaUrl(url: Uri.file(slot.path));
       case RemoteSourceKind.webdav:
         resolver = () async {
           final config = await _webdavConfigForServer(slot.sourceId);

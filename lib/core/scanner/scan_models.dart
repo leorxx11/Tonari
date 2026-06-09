@@ -25,6 +25,7 @@ class DetectedWork {
     required this.audios,
     required this.images,
     required this.subtitles,
+    this.videos = const [],
     required this.textNotes,
     this.others = const [],
   });
@@ -34,6 +35,7 @@ class DetectedWork {
   final List<DetectedAudio> audios;
   final List<DetectedImage> images;
   final List<DetectedSubtitle> subtitles;
+  final List<DetectedFile> videos;
   final List<DetectedFile> textNotes;
   final List<DetectedFile> others;
 }

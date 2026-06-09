@@ -149,7 +149,9 @@ class _VideoMiniBar extends StatelessWidget {
         // Loading → ignore taps.
         onTap: isReady
             ? () => Navigator.of(context, rootNavigator: true).push(
-                MaterialPageRoute<void>(builder: (_) => const VideoPlayerPage()),
+                MaterialPageRoute<void>(
+                  builder: (_) => const VideoPlayerPage(),
+                ),
               )
             : isLoading
             ? null

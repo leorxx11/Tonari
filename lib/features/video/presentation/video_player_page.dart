@@ -164,12 +164,18 @@ class _Controls extends StatelessWidget {
                   children: [
                     Text(
                       _fmt(Duration(milliseconds: displayMs)),
-                      style: const TextStyle(color: Colors.white70, fontSize: 12),
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
                     ),
                     const Spacer(),
                     Text(
                       _fmt(value.duration),
-                      style: const TextStyle(color: Colors.white70, fontSize: 12),
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
                     ),
                   ],
                 ),

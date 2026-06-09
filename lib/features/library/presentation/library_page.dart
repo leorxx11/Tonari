@@ -6,13 +6,14 @@ import '../../../core/db/database.dart';
 import '../../../core/files/folder_picker_service.dart';
 import '../data/import_flow.dart';
 import '../data/import_service.dart';
+import '../data/library_task_controller.dart';
 import '../data/metadata_enrichment.dart';
 import '../data/work_actions_provider.dart';
 import '../data/works_providers.dart';
 import '../../webdav/data/webdav_client.dart';
-import '../../webdav/data/webdav_import_flow.dart';
 import '../../webdav/data/webdav_server_repository.dart';
 import '../../webdav/presentation/webdav_browser_page.dart';
+import 'widgets/library_task_status.dart';
 import 'work_detail_page.dart';
 import 'widgets/work_card.dart';
 
@@ -24,8 +25,6 @@ class LibraryPage extends ConsumerStatefulWidget {
 }
 
 class _LibraryPageState extends ConsumerState<LibraryPage> {
-  bool _importing = false;
-  bool _refreshing = false;
   bool _searching = false;
   late final TextEditingController _searchController;
 
@@ -44,10 +43,8 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
   @override
   Widget build(BuildContext context) {
     final worksAsync = ref.watch(allWorksProvider);
-    final folders = ref.watch(importedFoldersProvider).value ?? const [];
     final remoteIds =
         ref.watch(remoteFolderIdsProvider).value ?? const <String>{};
-    final busy = _importing || _refreshing;
     final sort = ref.watch(workSortProvider);
     final filter = ref.watch(workFilterProvider);
     return Scaffold(
@@ -109,16 +106,10 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                 ),
             ],
           ),
-          IconButton(
-            tooltip: '导入文件夹',
-            icon: _importing
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.create_new_folder_outlined),
-            onPressed: busy ? null : _onImportMenu,
+          LibraryTaskStatusButton(
+            idleTooltip: '导入文件夹',
+            idleIcon: const Icon(Icons.create_new_folder_outlined),
+            onIdlePressed: _onImportMenu,
           ),
         ],
       ),
@@ -134,17 +125,14 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                     ref.read(workFilterProvider.notifier).setSource(s),
               ),
             Expanded(
-              child: RefreshIndicator(
-                onRefresh: () => _onPullToRefresh(folders),
-                child: works.isEmpty
-                    ? _EmptyState(filter: filter)
-                    : _WorksGrid(
-                        works: works,
-                        remoteFolderIds: remoteIds,
-                        onRemove: _onRemoveWork,
-                        onToggleFavorite: _onToggleFavorite,
-                      ),
-              ),
+              child: works.isEmpty
+                  ? _EmptyState(filter: filter)
+                  : _WorksGrid(
+                      works: works,
+                      remoteFolderIds: remoteIds,
+                      onRemove: _onRemoveWork,
+                      onToggleFavorite: _onToggleFavorite,
+                    ),
             ),
           ],
         ),
@@ -212,61 +200,47 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     if (folder == null || !mounted) return;
 
     final messenger = ScaffoldMessenger.of(context);
-    messenger.clearSnackBars();
-    messenger.showSnackBar(
-      const SnackBar(
-        content: Row(
-          children: [
-            SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-            SizedBox(width: 12),
-            Text('扫描中…'),
-          ],
-        ),
-        duration: Duration(minutes: 5),
-      ),
-    );
-    setState(() => _importing = true);
-
+    final taskController = ref.read(libraryTaskControllerProvider.notifier);
+    final flow = ref.read(importFlowProvider);
+    final enrichment = ref.read(metadataEnrichmentProvider);
     try {
-      final summary = await ref
-          .read(importFlowProvider)
-          .importFromFolder(folder);
+      final summary = await taskController.run<ImportSummary>(
+        kind: LibraryTaskKind.import,
+        title: '导入本地文件夹',
+        initialStage: '扫描文件',
+        action: (task) async {
+          task.update(stage: '扫描文件', message: folder.displayName);
+          final summary = await flow.importFromFolder(folder, enrich: false);
+          task.update(stage: '写入媒体库', message: '${summary.workIds.length} 个作品');
+          await _enrichImportedWorks(enrichment, summary, task);
+          return summary;
+        },
+      );
       if (!mounted) return;
-      messenger.clearSnackBars();
       await _showImportDebugDialog(summary);
     } catch (e) {
       if (!mounted) return;
-      messenger.clearSnackBars();
       messenger.showSnackBar(SnackBar(content: Text('导入失败：$e')));
-    } finally {
-      if (mounted) setState(() => _importing = false);
     }
   }
 
-  Future<void> _onPullToRefresh(List<ImportedFolder> folders) async {
-    if (_importing || _refreshing) return;
-    setState(() => _refreshing = true);
-    try {
-      for (final folder in folders) {
-        if (folder.type == 'webdav') {
-          await ref.read(webdavImportFlowProvider).rescanFolder(folder);
-        } else {
-          await ref.read(importFlowProvider).importFromFolder(folder);
-        }
-      }
-      await ref.read(metadataEnrichmentProvider).enrichPending();
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('刷新失败：$e')));
-    } finally {
-      if (mounted) setState(() => _refreshing = false);
-    }
+  Future<void> _enrichImportedWorks(
+    MetadataEnrichmentService enrichment,
+    ImportSummary summary,
+    LibraryTaskReporter task,
+  ) async {
+    if (summary.workIds.isEmpty) return;
+    await enrichment.enrichBatch(
+      summary.workIds,
+      onProgress: (completed, total, current) {
+        task.update(
+          stage: '补全元数据',
+          message: current,
+          completed: completed,
+          total: total,
+        );
+      },
+    );
   }
 
   Future<void> _onRemoveWork(Work work) async {

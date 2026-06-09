@@ -89,16 +89,16 @@ final allWorksProvider = StreamProvider<List<Work>>((ref) {
                 (w.productId.lower().like(like) | w.title.lower().like(like));
           }
           if (filter.source != SourceFilter.all) {
-            final webdavIds = db.selectOnly(db.importedFolders)
+            final remoteIds = db.selectOnly(db.importedFolders)
               ..addColumns([db.importedFolders.id])
-              ..where(db.importedFolders.type.equals('webdav'));
+              ..where(db.importedFolders.type.equals('local').not());
             if (filter.source == SourceFilter.remote) {
-              expr = expr & w.importedFolderId.isInQuery(webdavIds);
+              expr = expr & w.importedFolderId.isInQuery(remoteIds);
             } else {
               expr =
                   expr &
                   (w.importedFolderId.isNull() |
-                      w.importedFolderId.isInQuery(webdavIds).not());
+                      w.importedFolderId.isInQuery(remoteIds).not());
             }
           }
           return expr;
@@ -109,7 +109,8 @@ final allWorksProvider = StreamProvider<List<Work>>((ref) {
 
 final remoteFolderIdsProvider = StreamProvider<Set<String>>((ref) {
   final db = ref.watch(databaseProvider);
-  return (db.select(db.importedFolders)..where((f) => f.type.equals('webdav')))
+  return (db.select(db.importedFolders)
+        ..where((f) => f.type.equals('local').not()))
       .watch()
       .map((rows) => rows.map((f) => f.id).toSet());
 });

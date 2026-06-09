@@ -30,10 +30,11 @@ void main() {
     expect(result.works.first.images, hasLength(1));
   });
 
-  test('classifies audio/image/subtitle/text correctly', () {
+  test('classifies audio/video/image/subtitle/text correctly', () {
     Directory('${tmp.path}/RJ123456').createSync();
     touch('RJ123456/track01.mp3', 'a');
     touch('RJ123456/track01.flac', 'a');
+    touch('RJ123456/movie.mp4', 'v');
     touch('RJ123456/cover.jpg', 'i');
     touch('RJ123456/sub.srt', 's');
     touch('RJ123456/notes.txt', 't');
@@ -47,10 +48,11 @@ void main() {
       'track01.flac',
     });
     expect(w.images, hasLength(1));
+    expect(w.videos, hasLength(1));
     expect(w.subtitles, hasLength(1));
     expect(w.textNotes, hasLength(1));
-    // archive.zip should be silently ignored
-    expect(result.filesScanned, 6);
+    expect(w.others, hasLength(1));
+    expect(result.filesScanned, 7);
   });
 
   test('infers categoryHint from parent dir keywords', () {

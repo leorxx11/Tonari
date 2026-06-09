@@ -41,6 +41,7 @@ class WebdavImportFlow {
     required WebdavConfig config,
     required String remotePath,
     ImportProgress? onProgress,
+    bool enrich = true,
   }) async {
     final folderId = await _ensureFolder(server, remotePath);
     final scan = await RemoteFolderScanner(
@@ -52,8 +53,10 @@ class WebdavImportFlow {
       sourceFolderId: folderId,
       remoteSubtitleBytes: subtitleBytes,
     );
-    // Metadata + cover art run in the background, same as local import.
-    unawaited(enrichment.enrichBatch(summary.workIds));
+    if (enrich) {
+      // Metadata + cover art run in the background, same as local import.
+      unawaited(enrichment.enrichBatch(summary.workIds));
+    }
     return summary;
   }
 

@@ -6,8 +6,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/prefs/shared_prefs_provider.dart';
 
 /// The single "last played video" slot — enough to rebuild the [PlayableItem]'s
-/// resolver lazily (on play) plus where the user left off. Non-library only;
-/// library audio keeps its own per-track resume in the DB.
+/// resolver lazily (on play) plus where the user left off. Library audio keeps
+/// its own per-track resume in the DB.
 class VideoResumeSlot {
   const VideoResumeSlot({
     required this.id,
@@ -23,7 +23,7 @@ class VideoResumeSlot {
   });
 
   final String id;
-  final String sourceKind; // RemoteSourceKind.name: 'webdav' | 'p115'
+  final String sourceKind; // RemoteSourceKind.name: local | webdav | p115
   final String sourceId;
   final String sourceName;
   final String path;
