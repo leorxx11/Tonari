@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../player/data/playback_controller.dart';
 import '../../video/data/video_controller.dart';
+import '../data/browse_location_store.dart';
 import '../data/remote_models.dart';
 
 typedef RemoteFolderLoader =
@@ -40,12 +41,25 @@ class RemoteBrowserPage extends ConsumerStatefulWidget {
 class _RemoteBrowserPageState extends ConsumerState<RemoteBrowserPage> {
   late List<RemoteEntry> _stack;
   late Future<List<RemoteEntry>> _future;
+  BrowseLocationStore? _locationStore;
 
   @override
   void initState() {
     super.initState();
-    _stack = [widget.root];
+    // Restore the last folder stack for this source (best effort — degrade to
+    // the root if prefs are unavailable, e.g. in tests).
+    try {
+      _locationStore = ref.read(browseLocationStoreProvider);
+    } catch (_) {
+      _locationStore = null;
+    }
+    final saved = _locationStore?.read(widget.sourceId);
+    _stack = (saved != null && saved.isNotEmpty) ? saved : [widget.root];
     _future = _list();
+  }
+
+  void _saveLocation() {
+    _locationStore?.write(widget.sourceId, _stack);
   }
 
   RemoteEntry get _current => _stack.last;
@@ -59,6 +73,7 @@ class _RemoteBrowserPageState extends ConsumerState<RemoteBrowserPage> {
       _stack.add(folder);
       _future = _list();
     });
+    _saveLocation();
   }
 
   void _jumpTo(int index) {
@@ -67,6 +82,7 @@ class _RemoteBrowserPageState extends ConsumerState<RemoteBrowserPage> {
       _stack = _stack.sublist(0, index + 1);
       _future = _list();
     });
+    _saveLocation();
   }
 
   void _onBack() {
@@ -75,6 +91,7 @@ class _RemoteBrowserPageState extends ConsumerState<RemoteBrowserPage> {
         _stack.removeLast();
         _future = _list();
       });
+      _saveLocation();
     } else {
       Navigator.of(context).maybePop();
     }
