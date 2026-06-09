@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tonari/features/browse/data/remote_models.dart';
 import 'package:tonari/features/browse/presentation/remote_browser_page.dart';
 import 'package:tonari/features/player/data/playback_controller.dart';
+import 'package:tonari/features/video/data/video_controller.dart';
 import 'package:tonari/features/video/presentation/video_player_page.dart';
 
 class _FakePlaybackController extends PlaybackController {
@@ -21,6 +22,18 @@ class _FakePlaybackController extends PlaybackController {
   }) async {
     startedItems = items;
     startedIndex = initialIndex;
+  }
+}
+
+class _FakeVideoController extends VideoController {
+  PlayableItem? opened;
+
+  @override
+  VideoPlaybackState build() => const VideoPlaybackState();
+
+  @override
+  Future<void> open(PlayableItem item) async {
+    opened = item;
   }
 }
 
@@ -112,8 +125,10 @@ void main() {
   });
 
   testWidgets('tapping video opens video player page', (tester) async {
+    final fakeVideo = _FakeVideoController();
     await tester.pumpWidget(
       ProviderScope(
+        overrides: [videoControllerProvider.overrideWith(() => fakeVideo)],
         child: MaterialApp(
           home: RemoteBrowserPage(
             sourceKind: RemoteSourceKind.p115,
@@ -130,8 +145,10 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('movie.mp4'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
 
     expect(find.byType(VideoPlayerPage), findsOneWidget);
+    expect(fakeVideo.opened?.fileName, 'movie.mp4');
   });
 }

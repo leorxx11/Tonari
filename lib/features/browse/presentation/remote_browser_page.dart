@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../player/data/playback_controller.dart';
+import '../../video/data/video_controller.dart';
 import '../../video/presentation/video_player_page.dart';
 import '../data/remote_models.dart';
 
@@ -96,10 +97,9 @@ class _RemoteBrowserPageState extends ConsumerState<RemoteBrowserPage> {
   }
 
   void _openVideo(RemoteEntry entry) {
+    ref.read(videoControllerProvider.notifier).open(_toPlayable(entry));
     Navigator.of(context, rootNavigator: true).push(
-      MaterialPageRoute<void>(
-        builder: (_) => VideoPlayerPage(item: _toPlayable(entry)),
-      ),
+      MaterialPageRoute<void>(builder: (_) => const VideoPlayerPage()),
     );
   }
 

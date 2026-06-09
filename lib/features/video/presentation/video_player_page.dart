@@ -1,69 +1,28 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
 
-import '../../browse/data/remote_models.dart';
+import '../data/video_controller.dart';
 
-class VideoPlayerPage extends StatefulWidget {
-  const VideoPlayerPage({super.key, required this.item});
-
-  final PlayableItem item;
+class VideoPlayerPage extends ConsumerStatefulWidget {
+  const VideoPlayerPage({super.key});
 
   @override
-  State<VideoPlayerPage> createState() => _VideoPlayerPageState();
+  ConsumerState<VideoPlayerPage> createState() => _VideoPlayerPageState();
 }
 
-class _VideoPlayerPageState extends State<VideoPlayerPage> {
-  late Future<void> _future;
-  VideoPlayerController? _controller;
-  double _speed = 1;
-  double? _dragValue;
+class _VideoPlayerPageState extends ConsumerState<VideoPlayerPage> {
   bool _landscape = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _future = _load();
-  }
-
-  Future<void> _load() async {
-    final resolved = await widget.item.resolve();
-    final controller = VideoPlayerController.networkUrl(
-      resolved.url,
-      httpHeaders: resolved.headers ?? const <String, String>{},
-    );
-    await controller.initialize();
-    await controller.play();
-    _controller = controller;
-    controller.addListener(_onTick);
-  }
-
-  void _onTick() {
-    if (mounted) setState(() {});
-  }
+  double? _dragValue;
 
   @override
   void dispose() {
-    final controller = _controller;
-    controller?.removeListener(_onTick);
-    controller?.dispose();
     if (_landscape) {
       SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     }
     super.dispose();
-  }
-
-  Future<void> _togglePlay() async {
-    final controller = _controller!;
-    controller.value.isPlaying
-        ? await controller.pause()
-        : await controller.play();
-  }
-
-  Future<void> _setSpeed(double speed) async {
-    setState(() => _speed = speed);
-    await _controller!.setPlaybackSpeed(speed);
   }
 
   Future<void> _toggleOrientation() async {
@@ -78,72 +37,70 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
 
   @override
   Widget build(BuildContext context) {
+    final state = ref.watch(videoControllerProvider);
+    final controller = ref.read(videoControllerProvider.notifier);
+    final vpc = state.controller;
     final theme = Theme.of(context);
+
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
         leading: IconButton(
-          icon: const Icon(CupertinoIcons.chevron_down),
+          tooltip: '收起',
+          icon: const Icon(CupertinoIcons.chevron_back),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
         title: Text(
-          widget.item.fileName,
+          state.item?.fileName ?? '',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
       ),
-      body: FutureBuilder<void>(
-        future: _future,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(
-                  '${snapshot.error}',
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            );
-          }
-          final controller = _controller!;
-          final value = controller.value;
-          return SafeArea(
-            child: Column(
-              children: [
-                Expanded(
-                  child: Center(
-                    child: AspectRatio(
-                      aspectRatio: value.aspectRatio,
-                      child: VideoPlayer(controller),
+      body: SafeArea(
+        child: state.error != null
+            ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    '${state.error}',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: Colors.white,
                     ),
                   ),
                 ),
-                _Controls(
-                  controller: controller,
-                  speed: _speed,
-                  dragValue: _dragValue,
-                  onDragChanged: (v) => setState(() => _dragValue = v),
-                  onDragEnd: (v) async {
-                    await controller.seekTo(Duration(milliseconds: v.round()));
-                    if (mounted) setState(() => _dragValue = null);
-                  },
-                  onTogglePlay: _togglePlay,
-                  onSpeed: _setSpeed,
-                  onOrientation: _toggleOrientation,
-                ),
-              ],
-            ),
-          );
-        },
+              )
+            : vpc == null || !vpc.value.isInitialized
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
+                children: [
+                  Expanded(
+                    child: Center(
+                      child: AspectRatio(
+                        aspectRatio: vpc.value.aspectRatio,
+                        child: VideoPlayer(vpc),
+                      ),
+                    ),
+                  ),
+                  _Controls(
+                    controller: vpc,
+                    landscape: _landscape,
+                    dragValue: _dragValue,
+                    onDragChanged: (v) => setState(() => _dragValue = v),
+                    onDragEnd: (v) async {
+                      await controller.seek(Duration(milliseconds: v.round()));
+                      if (mounted) setState(() => _dragValue = null);
+                    },
+                    onTogglePlay: () => vpc.value.isPlaying
+                        ? controller.pause()
+                        : controller.play(),
+                    onSpeed: controller.setSpeed,
+                    onOrientation: _toggleOrientation,
+                  ),
+                ],
+              ),
       ),
     );
   }
@@ -152,7 +109,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
 class _Controls extends StatelessWidget {
   const _Controls({
     required this.controller,
-    required this.speed,
+    required this.landscape,
     required this.dragValue,
     required this.onDragChanged,
     required this.onDragEnd,
@@ -162,7 +119,7 @@ class _Controls extends StatelessWidget {
   });
 
   final VideoPlayerController controller;
-  final double speed;
+  final bool landscape;
   final double? dragValue;
   final ValueChanged<double> onDragChanged;
   final ValueChanged<double> onDragEnd;
@@ -172,95 +129,99 @@ class _Controls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final value = controller.value;
-    final durationMs = value.duration.inMilliseconds;
-    final positionMs = value.position.inMilliseconds
-        .clamp(0, durationMs)
-        .toInt();
-    final displayMs = dragValue?.round() ?? positionMs;
-    return Material(
-      color: Colors.black,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SliderTheme(
-              data: SliderTheme.of(context).copyWith(
-                trackHeight: 3,
-                activeTrackColor: Colors.white,
-                inactiveTrackColor: Colors.white24,
-                thumbColor: Colors.white,
-              ),
-              child: Slider(
-                value: durationMs == 0
-                    ? 0
-                    : displayMs.toDouble().clamp(0, durationMs.toDouble()),
-                max: durationMs == 0 ? 1 : durationMs.toDouble(),
-                onChanged: durationMs == 0 ? null : onDragChanged,
-                onChangeEnd: durationMs == 0 ? null : onDragEnd,
-              ),
-            ),
-            Row(
+    return ValueListenableBuilder<VideoPlayerValue>(
+      valueListenable: controller,
+      builder: (context, value, _) {
+        final durationMs = value.duration.inMilliseconds;
+        final positionMs = value.position.inMilliseconds
+            .clamp(0, durationMs)
+            .toInt();
+        final displayMs = dragValue?.round() ?? positionMs;
+        return Material(
+          color: Colors.black,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  _fmt(Duration(milliseconds: displayMs)),
-                  style: const TextStyle(color: Colors.white70, fontSize: 12),
-                ),
-                const Spacer(),
-                Text(
-                  _fmt(value.duration),
-                  style: const TextStyle(color: Colors.white70, fontSize: 12),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                IconButton(
-                  tooltip: value.isPlaying ? '暂停' : '播放',
-                  iconSize: 34,
-                  color: Colors.white,
-                  icon: Icon(
-                    value.isPlaying
-                        ? CupertinoIcons.pause_fill
-                        : CupertinoIcons.play_fill,
+                SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    trackHeight: 3,
+                    activeTrackColor: Colors.white,
+                    inactiveTrackColor: Colors.white24,
+                    thumbColor: Colors.white,
                   ),
-                  onPressed: onTogglePlay,
+                  child: Slider(
+                    value: durationMs == 0
+                        ? 0
+                        : displayMs.toDouble().clamp(0, durationMs.toDouble()),
+                    max: durationMs == 0 ? 1 : durationMs.toDouble(),
+                    onChanged: durationMs == 0 ? null : onDragChanged,
+                    onChangeEnd: durationMs == 0 ? null : onDragEnd,
+                  ),
                 ),
-                PopupMenuButton<double>(
-                  tooltip: '倍速',
-                  initialValue: speed,
-                  color: Colors.white,
-                  onSelected: onSpeed,
-                  itemBuilder: (_) => [
-                    for (final s in const [1.0, 1.25, 1.5, 2.0])
-                      PopupMenuItem(value: s, child: Text('${s}x')),
+                Row(
+                  children: [
+                    Text(
+                      _fmt(Duration(milliseconds: displayMs)),
+                      style: const TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                    const Spacer(),
+                    Text(
+                      _fmt(value.duration),
+                      style: const TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
                   ],
-                  child: SizedBox(
-                    width: 48,
-                    height: 48,
-                    child: Center(
-                      child: Text(
-                        '${speed}x',
-                        style: const TextStyle(color: Colors.white),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    IconButton(
+                      tooltip: value.isPlaying ? '暂停' : '播放',
+                      iconSize: 34,
+                      color: Colors.white,
+                      icon: Icon(
+                        value.isPlaying
+                            ? CupertinoIcons.pause_fill
+                            : CupertinoIcons.play_fill,
+                      ),
+                      onPressed: onTogglePlay,
+                    ),
+                    PopupMenuButton<double>(
+                      tooltip: '倍速',
+                      initialValue: value.playbackSpeed,
+                      color: Colors.white,
+                      onSelected: onSpeed,
+                      itemBuilder: (_) => [
+                        for (final s in const [1.0, 1.25, 1.5, 2.0])
+                          PopupMenuItem(value: s, child: Text('${s}x')),
+                      ],
+                      child: SizedBox(
+                        width: 48,
+                        height: 48,
+                        child: Center(
+                          child: Text(
+                            '${value.playbackSpeed}x',
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-                IconButton(
-                  tooltip: '横屏',
-                  iconSize: 28,
-                  color: Colors.white,
-                  icon: const Icon(Icons.screen_rotation_alt_outlined),
-                  onPressed: onOrientation,
+                    IconButton(
+                      tooltip: landscape ? '竖屏' : '横屏',
+                      iconSize: 28,
+                      color: Colors.white,
+                      icon: const Icon(Icons.screen_rotation_alt_outlined),
+                      onPressed: onOrientation,
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

@@ -11,6 +11,7 @@ import '../../../core/files/folder_bookmark.dart';
 import '../../../core/files/local_image_path.dart';
 import '../../browse/data/remote_models.dart';
 import '../../settings/data/player_prefs.dart';
+import '../../video/data/video_controller.dart';
 import '../../webdav/data/webdav_client.dart';
 import '../../webdav/data/webdav_work_source.dart';
 import 'now_playing_bridge.dart';
@@ -297,6 +298,18 @@ class PlaybackController extends Notifier<PlaybackState> {
   /// track to start from the beginning. Cold-start MiniPlayer hydration in
   /// [_restoreLastPlayed] is the only place that seeks to `lastPositionMs`.
   Future<void> _loadAndPlay() async {
+    // Only one source plays at a time: stop any video and reclaim the lock
+    // screen / Control Center commands for audio.
+    final hadVideo = ref.read(videoControllerProvider).hasVideo;
+    await ref.read(videoControllerProvider.notifier).stop();
+    NowPlayingBridge.setCommandHandler(_handleNowPlayingCommand);
+    // fvp releases the iOS audio session asynchronously when it tears down;
+    // coming straight from video, give it a beat so just_audio can re-acquire
+    // the session — otherwise the source occasionally never finishes loading.
+    if (hadVideo) {
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    }
+
     final browseItem = state.currentBrowseItem;
     if (browseItem != null) {
       final resolved = await browseItem.resolve();
@@ -366,6 +379,9 @@ class PlaybackController extends Notifier<PlaybackState> {
   }
 
   Future<void> _syncPlaybackTick() async {
+    // Don't touch the now-playing center when audio is idle — otherwise this
+    // timer clears it every 5s and fights whatever is actually playing (video).
+    if (!state.hasCurrent) return;
     await _savePosition();
     await _publishNowPlaying();
   }
