@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import '../../../core/scanner/file_classifier.dart';
 
 enum RemoteEntryKind { folder, audio, video, image, subtitle, text, other }
@@ -29,10 +31,11 @@ class RemoteEntry {
 }
 
 class ResolvedMediaUrl {
-  const ResolvedMediaUrl({required this.url, this.headers});
+  const ResolvedMediaUrl({required this.url, this.headers, this.release});
 
   final Uri url;
   final Map<String, String>? headers;
+  final FutureOr<void> Function()? release;
 }
 
 typedef PlayableResolver = Future<ResolvedMediaUrl> Function();

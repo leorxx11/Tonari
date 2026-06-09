@@ -94,15 +94,12 @@ class P115Client {
     // signed anti-leech cookies 115 sets during the download redirect (acw_tc +
     // a dynamic one), with a 115 referer. fvp/FFmpeg also won't forward a Cookie
     // header at all, so stream through the local proxy which injects them all.
-    final dlCookies = setCookies
-        .map((c) => c.split(';').first.trim())
-        .where((s) => s.isNotEmpty);
     final proxied = await MediaProxy.instance.wrap(Uri.parse(url), {
       'User-Agent': _downloadUserAgent,
-      'Cookie': [cookie.header, ...dlCookies].join('; '),
+      'Cookie': _mergeCookieHeader(cookie.header, setCookies),
       'Referer': 'https://115.com/',
     });
-    return ResolvedMediaUrl(url: proxied);
+    return ResolvedMediaUrl(url: proxied.url, release: proxied.release);
   }
 
   /// 115 proapi 302-redirects the downurl POST to a `dl302` gateway that serves
@@ -121,7 +118,10 @@ class P115Client {
       current = await _dio.get<dynamic>(
         location,
         options: Options(
-          headers: {'Cookie': cookie.header, 'User-Agent': _downloadUserAgent},
+          headers: {
+            'Cookie': _mergeCookieHeader(cookie.header, setCookies),
+            'User-Agent': _downloadUserAgent,
+          },
           followRedirects: false,
           responseType: ResponseType.plain,
           validateStatus: (s) => s != null && s < 500,
@@ -210,6 +210,28 @@ class P115Client {
   static bool _authExpired(Map<String, dynamic> json) {
     final code = '${json['errno'] ?? json['errNo'] ?? json['code'] ?? ''}';
     return code == '401' || code == '403' || code == '911';
+  }
+
+  static String _mergeCookieHeader(
+    String baseHeader,
+    Iterable<String> setCookies,
+  ) {
+    final values = <String, String>{};
+
+    void putPair(String pair) {
+      final trimmed = pair.trim();
+      final i = trimmed.indexOf('=');
+      if (i < 0) return;
+      values[trimmed.substring(0, i)] = trimmed.substring(i + 1);
+    }
+
+    for (final pair in baseHeader.split(';')) {
+      putPair(pair);
+    }
+    for (final header in setCookies) {
+      putPair(header.split(';').first);
+    }
+    return values.entries.map((e) => '${e.key}=${e.value}').join('; ');
   }
 
   static String _extractDownloadUrl(Object? data) {

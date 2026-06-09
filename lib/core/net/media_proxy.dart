@@ -18,12 +18,18 @@ class MediaProxy {
 
   /// Registers [url] + [headers] and returns a loopback URL the player can open
   /// without any headers of its own.
-  Future<Uri> wrap(Uri url, Map<String, String> headers) async {
+  Future<MediaProxyRegistration> wrap(
+    Uri url,
+    Map<String, String> headers,
+  ) async {
     await _ensureStarted();
     final id = '${_seq++}';
     _entries[id] = _Upstream(url, headers);
     final name = url.pathSegments.isNotEmpty ? url.pathSegments.last : 'media';
-    return Uri.parse('http://127.0.0.1:${_server!.port}/$id/$name');
+    return MediaProxyRegistration._(
+      Uri.parse('http://127.0.0.1:${_server!.port}/$id/$name'),
+      () => _entries.remove(id),
+    );
   }
 
   Future<void> _ensureStarted() async {
@@ -62,6 +68,13 @@ class MediaProxy {
       } catch (_) {}
     }
   }
+}
+
+class MediaProxyRegistration {
+  MediaProxyRegistration._(this.url, this.release);
+
+  final Uri url;
+  final void Function() release;
 }
 
 class _Upstream {

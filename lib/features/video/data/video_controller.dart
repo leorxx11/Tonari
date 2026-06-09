@@ -6,7 +6,9 @@ import 'package:video_player/video_player.dart';
 
 import '../../../core/db/providers.dart';
 import '../../browse/data/remote_models.dart';
+import '../../p115/data/p115_auth_service.dart';
 import '../../p115/data/p115_client.dart';
+import '../../p115/data/p115_cookie_store.dart';
 import '../../player/data/now_playing_bridge.dart';
 import '../../player/data/playback_controller.dart';
 import '../../webdav/data/webdav_client.dart';
@@ -40,16 +42,14 @@ class VideoPlaybackState {
 class VideoController extends Notifier<VideoPlaybackState> {
   Timer? _publishTimer;
   VideoPlayerController? _controller;
+  FutureOr<void> Function()? _resolvedRelease;
   bool _lastPlaying = false;
 
   @override
   VideoPlaybackState build() {
     ref.onDispose(() {
       _publishTimer?.cancel();
-      // Don't read `state` inside onDispose (Riverpod forbids it); use the
-      // private handle instead.
-      _controller?.removeListener(_onValue);
-      _controller?.dispose();
+      unawaited(_teardown());
     });
     Future.microtask(_maybeRestoreDormant);
     return const VideoPlaybackState();
@@ -59,11 +59,16 @@ class VideoController extends Notifier<VideoPlaybackState> {
   /// resuming from the saved position if this is the remembered video.
   Future<void> open(PlayableItem item) async {
     await ref.read(playbackControllerProvider.notifier).stop();
+    _publishTimer?.cancel();
+    _publishTimer = null;
     await _teardown();
     state = VideoPlaybackState(item: item);
+    VideoPlayerController? controller;
+    FutureOr<void> Function()? release;
     try {
       final resolved = await item.resolve();
-      final controller = VideoPlayerController.networkUrl(
+      release = resolved.release;
+      controller = VideoPlayerController.networkUrl(
         resolved.url,
         httpHeaders: resolved.headers ?? const <String, String>{},
         // Without this, video_player installs a lifecycle observer that pauses
@@ -75,6 +80,7 @@ class VideoController extends Notifier<VideoPlaybackState> {
       controller.addListener(_onValue);
       await controller.play();
       _controller = controller;
+      _resolvedRelease = release;
       state = VideoPlaybackState(item: item, controller: controller);
       NowPlayingBridge.setCommandHandler(_handleCommand);
       _publish();
@@ -84,6 +90,8 @@ class VideoController extends Notifier<VideoPlaybackState> {
         _saveSlot();
       });
     } catch (e) {
+      await controller?.dispose();
+      await release?.call();
       state = VideoPlaybackState(item: item, error: e);
     }
   }
@@ -147,11 +155,17 @@ class VideoController extends Notifier<VideoPlaybackState> {
 
   Future<void> _teardown() async {
     final c = _controller;
-    if (c == null) return;
+    final release = _resolvedRelease;
+    _resolvedRelease = null;
+    if (c == null) {
+      await release?.call();
+      return;
+    }
     _controller = null;
     c.removeListener(_onValue);
     await c.pause();
     await c.dispose();
+    await release?.call();
   }
 
   void _saveSlot() {
@@ -256,7 +270,15 @@ class VideoController extends Notifier<VideoPlaybackState> {
       case RemoteSourceKind.p115:
         final pc = slot.pickcode;
         if (pc == null) return null;
-        resolver = () => ref.read(p115ClientProvider).resolveDownloadUrl(pc);
+        resolver = () async {
+          try {
+            return await ref.read(p115ClientProvider).resolveDownloadUrl(pc);
+          } on P115AuthExpiredException {
+            await ref.read(p115AuthServiceProvider).clearCookie();
+            ref.invalidate(p115CookieProvider);
+            rethrow;
+          }
+        };
       case RemoteSourceKind.webdav:
         resolver = () async {
           final config = await _webdavConfigForServer(slot.sourceId);
@@ -288,7 +310,9 @@ class VideoController extends Notifier<VideoPlaybackState> {
       db.webdavServers,
     )..where((s) => s.id.equals(serverId))).getSingleOrNull();
     if (server == null) return null;
-    final password = await ref.read(webdavPasswordStoreProvider).read(server.id);
+    final password = await ref
+        .read(webdavPasswordStoreProvider)
+        .read(server.id);
     return WebdavConfig(
       scheme: server.scheme,
       host: server.host,

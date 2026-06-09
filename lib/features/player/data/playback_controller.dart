@@ -81,6 +81,7 @@ class PlaybackController extends Notifier<PlaybackState> {
   StreamSubscription<ProcessingState>? _processingSub;
   Timer? _positionTimer;
   String? _resolvedFolderUrl;
+  FutureOr<void> Function()? _resolvedMediaRelease;
 
   @override
   PlaybackState build() {
@@ -98,6 +99,7 @@ class PlaybackController extends Notifier<PlaybackState> {
       NowPlayingBridge.clearCommandHandler();
       NowPlayingBridge.clear();
       player.dispose();
+      unawaited(_releaseResolvedMedia());
       _releaseScope();
     });
 
@@ -298,6 +300,7 @@ class PlaybackController extends Notifier<PlaybackState> {
   Future<void> stop() async {
     await _savePosition();
     await player.stop();
+    await _releaseResolvedMedia();
     await NowPlayingBridge.clear();
     await _releaseScope();
     state = PlaybackState.empty;
@@ -323,9 +326,17 @@ class PlaybackController extends Notifier<PlaybackState> {
     final browseItem = state.currentBrowseItem;
     if (browseItem != null) {
       final resolved = await browseItem.resolve();
-      await player.setAudioSource(
-        AudioSource.uri(resolved.url, headers: resolved.headers),
-      );
+      final previousRelease = _resolvedMediaRelease;
+      try {
+        await player.setAudioSource(
+          AudioSource.uri(resolved.url, headers: resolved.headers),
+        );
+      } catch (_) {
+        await resolved.release?.call();
+        rethrow;
+      }
+      _resolvedMediaRelease = resolved.release;
+      await previousRelease?.call();
       await player.play();
       await _publishNowPlaying();
       return;
@@ -335,10 +346,19 @@ class PlaybackController extends Notifier<PlaybackState> {
     final work = state.work;
     if (track == null || work == null) return;
 
+    final previousRelease = _resolvedMediaRelease;
     await player.setAudioSource(_audioSourceFor(track));
+    _resolvedMediaRelease = null;
+    await previousRelease?.call();
     await _bumpLastPlayed(trackChanged: true);
     await player.play();
     await _publishNowPlaying();
+  }
+
+  Future<void> _releaseResolvedMedia() async {
+    final release = _resolvedMediaRelease;
+    _resolvedMediaRelease = null;
+    await release?.call();
   }
 
   AudioSource _audioSourceFor(Track track) {
