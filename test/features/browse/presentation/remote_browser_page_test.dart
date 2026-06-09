@@ -124,7 +124,9 @@ void main() {
     expect(fake.startedIndex, 0);
   });
 
-  testWidgets('tapping video opens video player page', (tester) async {
+  testWidgets('tapping video starts playback without opening full screen', (
+    tester,
+  ) async {
     final fakeVideo = _FakeVideoController();
     await tester.pumpWidget(
       ProviderScope(
@@ -146,9 +148,8 @@ void main() {
 
     await tester.tap(find.text('movie.mp4'));
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 400));
 
-    expect(find.byType(VideoPlayerPage), findsOneWidget);
     expect(fakeVideo.opened?.fileName, 'movie.mp4');
+    expect(find.byType(VideoPlayerPage), findsNothing);
   });
 }

@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../player/data/playback_controller.dart';
 import '../../video/data/video_controller.dart';
-import '../../video/presentation/video_player_page.dart';
 import '../data/remote_models.dart';
 
 typedef RemoteFolderLoader =
@@ -97,10 +96,9 @@ class _RemoteBrowserPageState extends ConsumerState<RemoteBrowserPage> {
   }
 
   void _openVideo(RemoteEntry entry) {
+    // Start playback in the mini player (like audio); tap the mini bar to open
+    // the full-screen view. No auto-push.
     ref.read(videoControllerProvider.notifier).open(_toPlayable(entry));
-    Navigator.of(context, rootNavigator: true).push(
-      MaterialPageRoute<void>(builder: (_) => const VideoPlayerPage()),
-    );
   }
 
   PlayableItem _toPlayable(RemoteEntry entry) {
