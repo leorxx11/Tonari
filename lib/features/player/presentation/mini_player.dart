@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
 
-import '../../browse/data/remote_models.dart';
 import '../../library/presentation/widgets/work_cover.dart';
 import '../../video/data/video_controller.dart';
 import '../../video/presentation/video_player_page.dart';
@@ -18,8 +17,7 @@ class MiniPlayer extends ConsumerWidget {
     final video = ref.watch(videoControllerProvider);
     if (video.hasVideo) {
       return _VideoMiniBar(
-        item: video.item!,
-        controller: video.controller,
+        state: video,
         notifier: ref.read(videoControllerProvider.notifier),
       );
     }
@@ -132,26 +130,30 @@ class MiniPlayer extends ConsumerWidget {
 }
 
 class _VideoMiniBar extends StatelessWidget {
-  const _VideoMiniBar({
-    required this.item,
-    required this.controller,
-    required this.notifier,
-  });
+  const _VideoMiniBar({required this.state, required this.notifier});
 
-  final PlayableItem item;
-  final VideoPlayerController? controller;
+  final VideoPlaybackState state;
   final VideoController notifier;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final vpc = controller;
+    final item = state.item!;
+    final vpc = state.controller;
+    final isReady = vpc != null;
+    final isLoading = vpc == null && !state.dormant && state.error == null;
     return Material(
       color: theme.colorScheme.surfaceContainerHigh,
       child: InkWell(
-        onTap: () => Navigator.of(context, rootNavigator: true).push(
-          MaterialPageRoute<void>(builder: (_) => const VideoPlayerPage()),
-        ),
+        // Ready → expand to full screen. Dormant/error → tap loads + resumes.
+        // Loading → ignore taps.
+        onTap: isReady
+            ? () => Navigator.of(context, rootNavigator: true).push(
+                MaterialPageRoute<void>(builder: (_) => const VideoPlayerPage()),
+              )
+            : isLoading
+            ? null
+            : notifier.resume,
         child: SizedBox(
           height: 72,
           child: Stack(
@@ -196,7 +198,19 @@ class _VideoMiniBar extends StatelessWidget {
                       ],
                     ),
                   ),
-                  if (vpc == null)
+                  if (isReady)
+                    ValueListenableBuilder<VideoPlayerValue>(
+                      valueListenable: vpc,
+                      builder: (context, value, _) => IconButton(
+                        icon: Icon(
+                          value.isPlaying ? Icons.pause : Icons.play_arrow,
+                        ),
+                        onPressed: () => value.isPlaying
+                            ? notifier.pause()
+                            : notifier.play(),
+                      ),
+                    )
+                  else if (isLoading)
                     const SizedBox(
                       width: 48,
                       height: 48,
@@ -209,21 +223,14 @@ class _VideoMiniBar extends StatelessWidget {
                       ),
                     )
                   else
-                    ValueListenableBuilder<VideoPlayerValue>(
-                      valueListenable: vpc,
-                      builder: (context, value, _) => IconButton(
-                        icon: Icon(
-                          value.isPlaying ? Icons.pause : Icons.play_arrow,
-                        ),
-                        onPressed: () => value.isPlaying
-                            ? notifier.pause()
-                            : notifier.play(),
-                      ),
+                    IconButton(
+                      icon: const Icon(Icons.play_arrow),
+                      onPressed: notifier.resume,
                     ),
                   const SizedBox(width: 4),
                 ],
               ),
-              if (vpc != null)
+              if (isReady)
                 Positioned(
                   left: 0,
                   right: 0,

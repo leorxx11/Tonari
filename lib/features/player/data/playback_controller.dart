@@ -12,6 +12,7 @@ import '../../../core/files/local_image_path.dart';
 import '../../browse/data/remote_models.dart';
 import '../../settings/data/player_prefs.dart';
 import '../../video/data/video_controller.dart';
+import '../../video/data/video_resume_store.dart';
 import '../../webdav/data/webdav_client.dart';
 import '../../webdav/data/webdav_work_source.dart';
 import 'now_playing_bridge.dart';
@@ -119,6 +120,15 @@ class PlaybackController extends Notifier<PlaybackState> {
               ..limit(1))
             .getSingleOrNull();
     if (work == null || work.lastPlayedTrackId == null) return;
+
+    // If a video was played more recently, let the video mini player restore it
+    // instead of showing this audio.
+    final videoSlot = ref.read(videoResumeStoreProvider).read();
+    if (videoSlot != null &&
+        work.lastPlayedAt != null &&
+        videoSlot.lastPlayedAt.isAfter(work.lastPlayedAt!)) {
+      return;
+    }
 
     final tracks =
         await (db.select(db.tracks)
