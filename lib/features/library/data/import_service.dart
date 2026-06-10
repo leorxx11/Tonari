@@ -80,10 +80,13 @@ class ImportService {
           incompleteWorks.add(w.productId);
           continue;
         }
-        workIds.add(w.productId);
         final existing = await (_db.select(
           _db.works,
         )..where((row) => row.productId.equals(w.productId))).getSingleOrNull();
+        // Tombstone: the user removed this work. A folder re-import must not
+        // resurrect it (reimport-to-restore clears isRemoved first).
+        if (existing != null && existing.isRemoved) continue;
+        workIds.add(w.productId);
 
         if (existing == null) {
           await _db

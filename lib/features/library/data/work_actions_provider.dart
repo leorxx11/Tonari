@@ -29,14 +29,35 @@ final restoreWorkProvider = Provider<RestoreWork>((ref) {
 
 RemoveWork removeWorkWithDatabase(TonariDatabase db) {
   return (productId) async {
-    await (db.update(
-      db.works,
-    )..where((w) => w.productId.equals(productId))).write(
-      WorksCompanion(
-        isRemoved: const Value(true),
-        updatedAt: Value(DateTime.now()),
-      ),
-    );
+    // Remove = drop the snapshot (tracks/files/subtitles) but keep a tombstone
+    // works row flagged isRemoved, so a folder re-import won't resurrect it.
+    await db.transaction(() async {
+      final trackIds =
+          await (db.selectOnly(db.tracks)
+                ..addColumns([db.tracks.id])
+                ..where(db.tracks.workId.equals(productId)))
+              .map((row) => row.read(db.tracks.id)!)
+              .get();
+      if (trackIds.isNotEmpty) {
+        await (db.delete(
+          db.subtitles,
+        )..where((s) => s.trackId.isIn(trackIds))).go();
+      }
+      await (db.delete(
+        db.tracks,
+      )..where((t) => t.workId.equals(productId))).go();
+      await (db.delete(
+        db.workFiles,
+      )..where((f) => f.workId.equals(productId))).go();
+      await (db.update(
+        db.works,
+      )..where((w) => w.productId.equals(productId))).write(
+        WorksCompanion(
+          isRemoved: const Value(true),
+          updatedAt: Value(DateTime.now()),
+        ),
+      );
+    });
   };
 }
 

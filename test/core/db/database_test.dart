@@ -127,7 +127,7 @@ void main() {
     expect(tracks.first.workId, 'RJ_fk');
   });
 
-  test('removeWork hides work and keeps tracks and subtitles', () async {
+  test('removeWork purges tracks and subtitles, keeps a tombstone', () async {
     final now = DateTime.now();
     await db
         .into(db.works)
@@ -178,8 +178,8 @@ void main() {
 
     final work = await db.select(db.works).getSingle();
     expect(work.isRemoved, true);
-    expect(await db.select(db.tracks).get(), hasLength(1));
-    expect(await db.select(db.subtitles).get(), hasLength(1));
+    expect(await db.select(db.tracks).get(), isEmpty);
+    expect(await db.select(db.subtitles).get(), isEmpty);
   });
 
   test('ImportedFolders insert + watch streams newest first', () async {

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../library/data/work_actions_provider.dart';
 import '../../library/data/works_providers.dart';
 
 class RemovedWorksPage extends ConsumerWidget {
@@ -25,16 +24,10 @@ class RemovedWorksPage extends ConsumerWidget {
               return ListTile(
                 leading: const Icon(Icons.album_outlined),
                 title: Text(work.title),
-                subtitle: Text(work.productId),
-                trailing: TextButton(
-                  onPressed: () async {
-                    await ref.read(restoreWorkProvider).call(work.productId);
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('已恢复 ${work.title}')),
-                    );
-                  },
-                  child: const Text('恢复'),
+                subtitle: Text('${work.productId} · 快照已清除'),
+                trailing: const TextButton(
+                  onPressed: null,
+                  child: Text('重新导入'),
                 ),
               );
             },

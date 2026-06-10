@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/db/database.dart';
 import '../../../core/files/local_image_path.dart';
+import '../../../core/ui/root_messenger.dart';
 import '../../player/presentation/mini_player.dart';
 import '../../settings/presentation/translation_settings_page.dart';
 import '../../translation/data/llm_provider_repository.dart';
@@ -193,6 +194,33 @@ class _WorkDetailViewState extends ConsumerState<_WorkDetailView> {
       if (resolved == null) continue;
       cache.evict(FileImage(File(resolved)));
     }
+  }
+
+  Future<void> removeWork(String productId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('从媒体库移除'),
+        content: const Text('将清除该作品在 App 内的快照（音轨、文件、字幕），云盘/本地的原文件不受影响。重新导入可找回。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('移除'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    await ref.read(removeWorkProvider)(productId);
+    if (!mounted) return;
+    Navigator.of(context).maybePop();
+    rootScaffoldMessengerKey.currentState?.showSnackBar(
+      const SnackBar(content: Text('已从媒体库移除')),
+    );
   }
 }
 
@@ -1316,6 +1344,8 @@ class _MoreMenu extends ConsumerWidget {
             state.refreshMetadata(work.productId);
           case 'refresh_images':
             state.refreshImages(work.productId);
+          case 'remove':
+            state.removeWork(work.productId);
         }
       },
       itemBuilder: (_) => [
@@ -1348,6 +1378,22 @@ class _MoreMenu extends ConsumerWidget {
             contentPadding: EdgeInsets.zero,
             leading: Icon(Icons.image_outlined),
             title: Text('只刷新图片'),
+          ),
+        ),
+        const PopupMenuDivider(),
+        PopupMenuItem(
+          value: 'remove',
+          child: ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(
+              Icons.delete_outline,
+              color: Theme.of(context).colorScheme.error,
+            ),
+            title: Text(
+              '从媒体库移除',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
           ),
         ),
       ],

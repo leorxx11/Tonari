@@ -216,15 +216,12 @@ void main() {
     expect(find.text('已移除 Test Work'), findsOneWidget);
   });
 
-  testWidgets('settings restores a removed work', (tester) async {
-    String? restoredProductId;
-
+  testWidgets('settings lists a removed work with re-import disabled', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       testApp(
         works: [_work('RJ01560714', title: 'Hidden Work', isRemoved: true)],
-        restoreWork: (productId) async {
-          restoredProductId = productId;
-        },
       ),
     );
     await tester.pumpAndSettle();
@@ -237,12 +234,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Hidden Work'), findsOneWidget);
-
-    await tester.tap(find.text('恢复'));
-    await tester.pumpAndSettle();
-
-    expect(restoredProductId, 'RJ01560714');
-    expect(find.text('已恢复 Hidden Work'), findsOneWidget);
+    // Re-import (restore) is disabled until M-B2 lands single-work reimport.
+    final reimport = tester.widget<TextButton>(
+      find.widgetWithText(TextButton, '重新导入'),
+    );
+    expect(reimport.onPressed, isNull);
   });
 
   testWidgets('tapping a work opens detail with a files entry', (tester) async {
