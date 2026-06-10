@@ -17,6 +17,7 @@ class ImportSummary {
     required this.tracksTotal,
     this.workIds = const {},
     this.trackIds = const {},
+    this.incompleteWorks = const [],
     this.scannedRootPath = '',
     this.filesScanned = 0,
     this.unrecognizedDirs = const [],
@@ -28,6 +29,11 @@ class ImportSummary {
   final int tracksTotal;
   final Set<String> workIds;
   final Set<String> trackIds;
+
+  /// Works whose scan was incomplete (a directory listing failed mid-way, e.g.
+  /// 115 rate-limited). They were skipped — existing snapshots left untouched,
+  /// no empty shells created — so the caller can tell the user to retry.
+  final List<String> incompleteWorks;
 
   // Debug fields — surfaced in the import-complete dialog so we can see
   // why a scan returned zero works on device.
@@ -59,6 +65,7 @@ class ImportService {
     var tracksTotal = 0;
     final workIds = <String>{};
     final trackIds = <String>{};
+    final incompleteWorks = <String>[];
     final now = DateTime.now();
 
     // Read + parse subtitles outside the DB transaction — file I/O can be slow
@@ -67,6 +74,12 @@ class ImportService {
 
     await _db.transaction(() async {
       for (final w in scan.works) {
+        // A partial scan can't be trusted: don't overwrite a good snapshot or
+        // mint an empty shell. Leave whatever is already there and report it.
+        if (w.incomplete) {
+          incompleteWorks.add(w.productId);
+          continue;
+        }
         workIds.add(w.productId);
         final existing = await (_db.select(
           _db.works,
@@ -336,6 +349,7 @@ class ImportService {
       tracksTotal: tracksTotal,
       workIds: workIds,
       trackIds: trackIds,
+      incompleteWorks: incompleteWorks,
       scannedRootPath: scan.rootPath,
       filesScanned: scan.filesScanned,
       unrecognizedDirs: scan.unrecognizedDirs,

@@ -45,6 +45,7 @@ class FolderScanner {
       final videos = <DetectedFile>[];
       final textNotes = <DetectedFile>[];
       final others = <DetectedFile>[];
+      var incomplete = false;
       final rootLen = workDir.path.endsWith('/')
           ? workDir.path.length
           : workDir.path.length + 1;
@@ -126,6 +127,7 @@ class FolderScanner {
         }
       } catch (err) {
         errors.add('${workDir.path}: $err');
+        incomplete = true;
       }
 
       return DetectedWork(
@@ -137,6 +139,7 @@ class FolderScanner {
         videos: videos,
         textNotes: textNotes,
         others: others,
+        incomplete: incomplete,
       );
     }
 

@@ -293,6 +293,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
             '总扫描文件: ${s.filesScanned}\n'
             '识别作品: ${s.workIds.length}（新增 ${s.worksInserted} / 更新 ${s.worksUpdated}）\n'
             '识别音轨: ${s.tracksTotal}\n'
+            '扫描失败跳过: ${s.incompleteWorks.length}\n'
             '\n'
             '未识别的子目录 (${s.unrecognizedDirs.length}):\n'
             '${s.unrecognizedDirs.take(20).join("\n")}\n'

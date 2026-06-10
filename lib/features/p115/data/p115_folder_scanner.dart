@@ -28,6 +28,7 @@ class P115FolderScanner {
       final videos = <DetectedFile>[];
       final textNotes = <DetectedFile>[];
       final others = <DetectedFile>[];
+      var incomplete = false;
 
       Future<void> walk(RemoteEntry dir, String prefix) async {
         final List<RemoteEntry> entries;
@@ -35,6 +36,7 @@ class P115FolderScanner {
           entries = await _client.list(dir.path);
         } catch (e) {
           errors.add('${dir.path}: $e');
+          incomplete = true;
           return;
         }
         for (final entry in entries) {
@@ -137,6 +139,7 @@ class P115FolderScanner {
         videos: videos,
         textNotes: textNotes,
         others: others,
+        incomplete: incomplete,
       );
     }
 

@@ -28,6 +28,7 @@ class DetectedWork {
     this.videos = const [],
     required this.textNotes,
     this.others = const [],
+    this.incomplete = false,
   });
 
   final String productId;
@@ -38,6 +39,11 @@ class DetectedWork {
   final List<DetectedFile> videos;
   final List<DetectedFile> textNotes;
   final List<DetectedFile> others;
+
+  /// A directory listing failed midway through scanning this work, so its
+  /// file set is untrustworthy (e.g. 115 rate-limited a sub-folder). Import
+  /// must not overwrite an existing snapshot or create an empty shell from it.
+  final bool incomplete;
 }
 
 class DetectedAudio {
