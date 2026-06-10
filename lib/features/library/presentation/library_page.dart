@@ -10,6 +10,9 @@ import '../data/library_task_controller.dart';
 import '../data/metadata_enrichment.dart';
 import '../data/work_actions_provider.dart';
 import '../data/works_providers.dart';
+import '../../p115/data/p115_cookie_store.dart';
+import '../../p115/presentation/p115_browser_page.dart';
+import '../../p115/presentation/p115_login_page.dart';
 import '../../webdav/data/webdav_client.dart';
 import '../../webdav/data/webdav_server_repository.dart';
 import '../../webdav/presentation/webdav_browser_page.dart';
@@ -142,6 +145,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
 
   Future<void> _onImportMenu() async {
     final servers = await ref.read(webdavServerRepositoryProvider).listAll();
+    final p115Cookie = await ref.read(p115CookieProvider.future);
     if (!mounted) return;
     showModalBottomSheet<void>(
       context: context,
@@ -157,6 +161,21 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                 _onImportLocal();
               },
             ),
+            ListTile(
+              leading: const Icon(Icons.cloud_queue_outlined),
+              title: const Text('115 网盘'),
+              subtitle: Text(p115Cookie == null ? '未登录，先登录' : '已登录'),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _openP115ImportBrowser(loginRequired: p115Cookie == null);
+              },
+            ),
+            if (servers.isEmpty)
+              const ListTile(
+                enabled: false,
+                leading: Icon(Icons.cloud_off_outlined),
+                title: Text('未配置 WebDAV'),
+              ),
             for (final s in servers)
               ListTile(
                 leading: const Icon(Icons.cloud_outlined),
@@ -169,6 +188,22 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
               ),
           ],
         ),
+      ),
+    );
+  }
+
+  Future<void> _openP115ImportBrowser({required bool loginRequired}) async {
+    if (loginRequired) {
+      final loggedIn = await Navigator.of(
+        context,
+      ).push<bool>(MaterialPageRoute(builder: (_) => const P115LoginPage()));
+      if (loggedIn != true || !mounted) return;
+    }
+    if (!mounted) return;
+    Navigator.of(context, rootNavigator: true).push(
+      CupertinoSheetRoute<void>(
+        scrollableBuilder: (_, _) => const P115BrowserPage(enableImport: true),
+        showDragHandle: true,
       ),
     );
   }
@@ -188,8 +223,11 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     if (!mounted) return;
     Navigator.of(context, rootNavigator: true).push(
       CupertinoSheetRoute<void>(
-        scrollableBuilder: (_, _) =>
-            WebdavBrowserPage(server: server, config: config),
+        scrollableBuilder: (_, _) => WebdavBrowserPage(
+          server: server,
+          config: config,
+          enableImport: true,
+        ),
         showDragHandle: true,
       ),
     );

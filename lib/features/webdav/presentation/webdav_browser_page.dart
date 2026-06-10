@@ -19,10 +19,12 @@ class WebdavBrowserPage extends ConsumerWidget {
     super.key,
     required this.server,
     required this.config,
+    this.enableImport = false,
   });
 
   final WebdavServer server;
   final WebdavConfig config;
+  final bool enableImport;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -64,7 +66,9 @@ class WebdavBrowserPage extends ConsumerWidget {
           headers: auth == null ? null : {'Authorization': auth},
         );
       },
-      importFolder: (ctx, folder) => _importFolder(ctx, ref, folder),
+      importFolder: enableImport
+          ? (ctx, folder) => _importFolder(ctx, ref, folder)
+          : null,
     );
   }
 

@@ -1,11 +1,8 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/db/database.dart';
-import '../data/webdav_client.dart';
 import '../data/webdav_server_repository.dart';
-import 'webdav_browser_page.dart';
 import 'webdav_server_edit_page.dart';
 
 class WebdavSettingsPage extends ConsumerWidget {
@@ -88,24 +85,10 @@ class _ServerTile extends ConsumerWidget {
 
   final WebdavServer server;
 
-  Future<void> _openBrowser(BuildContext context, WidgetRef ref) async {
-    final password = await ref
-        .read(webdavServerRepositoryProvider)
-        .readPassword(server.id);
-    final config = WebdavConfig(
-      scheme: server.scheme,
-      host: server.host,
-      port: server.port,
-      basePath: server.basePath,
-      username: server.username,
-      password: password,
-    );
-    if (!context.mounted) return;
-    Navigator.of(context, rootNavigator: true).push(
-      CupertinoSheetRoute<void>(
-        scrollableBuilder: (_, _) =>
-            WebdavBrowserPage(server: server, config: config),
-        showDragHandle: true,
+  void _openEdit(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => WebdavServerEditPage(server: server),
       ),
     );
   }
@@ -122,15 +105,11 @@ class _ServerTile extends ConsumerWidget {
       leading: const Icon(Icons.cloud_outlined),
       title: Text(server.name),
       subtitle: Text(url, maxLines: 1, overflow: TextOverflow.ellipsis),
-      onTap: () => _openBrowser(context, ref),
+      onTap: () => _openEdit(context),
       trailing: PopupMenuButton<String>(
         onSelected: (v) async {
           if (v == 'edit') {
-            Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => WebdavServerEditPage(server: server),
-              ),
-            );
+            _openEdit(context);
           } else if (v == 'delete') {
             final confirm = await showDialog<bool>(
               context: context,

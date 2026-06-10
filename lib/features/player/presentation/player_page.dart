@@ -73,10 +73,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
 
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(CupertinoIcons.chevron_down),
-          onPressed: () => Navigator.of(context).maybePop(),
-        ),
+        automaticallyImplyLeading: false,
         title: const SizedBox.shrink(),
         toolbarHeight: 44,
       ),

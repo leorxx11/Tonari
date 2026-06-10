@@ -15,7 +15,9 @@ import '../data/p115_cookie_store.dart';
 import '../data/p115_import_flow.dart';
 
 class P115BrowserPage extends ConsumerWidget {
-  const P115BrowserPage({super.key});
+  const P115BrowserPage({super.key, this.enableImport = false});
+
+  final bool enableImport;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -53,7 +55,9 @@ class P115BrowserPage extends ConsumerWidget {
           rethrow;
         }
       },
-      importFolder: (ctx, folder) => _importFolder(ctx, ref, folder),
+      importFolder: enableImport
+          ? (ctx, folder) => _importFolder(ctx, ref, folder)
+          : null,
     );
   }
 

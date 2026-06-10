@@ -1,7 +1,9 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tonari/core/prefs/shared_prefs_provider.dart';
 import 'package:tonari/features/browse/data/remote_models.dart';
 import 'package:tonari/features/browse/presentation/remote_browser_page.dart';
 import 'package:tonari/features/player/data/playback_controller.dart';
@@ -68,6 +70,13 @@ void main() {
     sourceId: 'p115',
     pickcode: 'v',
   );
+
+  late SharedPreferences prefs;
+
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    prefs = await SharedPreferences.getInstance();
+  });
 
   testWidgets('file browser enters folders and shows media icons', (
     tester,
@@ -152,4 +161,49 @@ void main() {
     expect(fakeVideo.opened?.fileName, 'movie.mp4');
     expect(find.byType(VideoPlayerPage), findsNothing);
   });
+
+  testWidgets('remote browser hides import action in browse mode', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_app(prefs: prefs));
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('导入此目录到媒体库'), findsNothing);
+  });
+
+  testWidgets('remote browser shows import action in import mode', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_app(prefs: prefs, importFolder: (_, _) async {}));
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('导入此目录到媒体库'), findsOneWidget);
+  });
+}
+
+Widget _app({
+  required SharedPreferences prefs,
+  RemoteFolderAction? importFolder,
+}) {
+  const root = RemoteEntry(
+    id: 'root',
+    path: '/',
+    name: 'Remote',
+    kind: RemoteEntryKind.folder,
+    sourceId: 'remote',
+  );
+  return ProviderScope(
+    overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+    child: MaterialApp(
+      home: RemoteBrowserPage(
+        sourceKind: RemoteSourceKind.webdav,
+        sourceId: 'remote',
+        sourceName: 'Remote',
+        root: root,
+        loadFolder: (_) async => const [],
+        resolveFile: (_) async => ResolvedMediaUrl(url: Uri.parse('https://x')),
+        importFolder: importFolder,
+      ),
+    ),
+  );
 }
