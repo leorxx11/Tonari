@@ -4,6 +4,7 @@ import 'appearance_settings_page.dart';
 import 'data_settings_page.dart';
 import 'playback_settings_page.dart';
 import 'translation_settings_page.dart';
+import '../../p115/presentation/p115_settings_page.dart';
 import '../../webdav/presentation/webdav_settings_page.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -38,6 +39,12 @@ class SettingsPage extends StatelessWidget {
             title: 'WebDAV',
             subtitle: '远程存储服务器',
             page: WebdavSettingsPage(),
+          ),
+          _Entry(
+            icon: Icons.cloud_queue_outlined,
+            title: '115 网盘',
+            subtitle: '登录与清理',
+            page: P115SettingsPage(),
           ),
           _Entry(
             icon: Icons.storage_outlined,
