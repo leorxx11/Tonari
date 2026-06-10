@@ -70,7 +70,11 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                 onChanged: (q) =>
                     ref.read(workFilterProvider.notifier).setSearchQuery(q),
               )
-            : const Text('媒体库'),
+            : _SourceFilterMenu(
+                current: filter.source,
+                onChanged: (s) =>
+                    ref.read(workFilterProvider.notifier).setSource(s),
+              ),
         actions: [
           if (!_searching) ...[
             IconButton(
@@ -119,26 +123,14 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
       body: worksAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('加载失败：$e')),
-        data: (works) => Column(
-          children: [
-            if (remoteIds.isNotEmpty)
-              _SourceFilterBar(
-                current: filter.source,
-                onChanged: (s) =>
-                    ref.read(workFilterProvider.notifier).setSource(s),
+        data: (works) => works.isEmpty
+            ? _EmptyState(filter: filter)
+            : _WorksGrid(
+                works: works,
+                remoteFolderIds: remoteIds,
+                onRemove: _onRemoveWork,
+                onToggleFavorite: _onToggleFavorite,
               ),
-            Expanded(
-              child: works.isEmpty
-                  ? _EmptyState(filter: filter)
-                  : _WorksGrid(
-                      works: works,
-                      remoteFolderIds: remoteIds,
-                      onRemove: _onRemoveWork,
-                      onToggleFavorite: _onToggleFavorite,
-                    ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -379,36 +371,60 @@ class _WorksGrid extends StatelessWidget {
   }
 }
 
-class _SourceFilterBar extends StatelessWidget {
-  const _SourceFilterBar({required this.current, required this.onChanged});
+class _SourceFilterMenu extends StatelessWidget {
+  const _SourceFilterMenu({required this.current, required this.onChanged});
 
   final SourceFilter current;
   final ValueChanged<SourceFilter> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    Widget chip(String label, SourceFilter value) => Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: ChoiceChip(
-        label: Text(label),
-        selected: current == value,
-        onSelected: (_) => onChanged(value),
+    final theme = Theme.of(context);
+    return PopupMenuButton<SourceFilter>(
+      tooltip: '来源筛选',
+      initialValue: current,
+      onSelected: onChanged,
+      itemBuilder: (context) => [
+        for (final source in SourceFilter.values)
+          PopupMenuItem(
+            value: source,
+            child: Row(
+              children: [
+                if (source == current)
+                  const Icon(Icons.check, size: 18)
+                else
+                  const SizedBox(width: 18),
+                const SizedBox(width: 12),
+                Text(source.label),
+              ],
+            ),
+          ),
+      ],
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            current.label,
+            style: theme.textTheme.headlineSmall?.copyWith(
+              color: theme.colorScheme.onSurface,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Icon(Icons.expand_more, color: theme.colorScheme.onSurfaceVariant),
+        ],
       ),
     );
-    return SizedBox(
-      width: double.infinity,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(10, 8, 10, 2),
-        child: Row(
-          children: [
-            chip('全部', SourceFilter.all),
-            chip('本地', SourceFilter.local),
-            chip('远程', SourceFilter.remote),
-          ],
-        ),
-      ),
-    );
+  }
+}
+
+extension on SourceFilter {
+  String get label {
+    return switch (this) {
+      SourceFilter.all => '全部',
+      SourceFilter.local => '本地',
+      SourceFilter.remote => '远程',
+    };
   }
 }
 
@@ -421,7 +437,9 @@ class _EmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isFiltered =
-        filter.favoritesOnly || filter.searchQuery.trim().isNotEmpty;
+        filter.favoritesOnly ||
+        filter.searchQuery.trim().isNotEmpty ||
+        filter.source != SourceFilter.all;
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       children: [
