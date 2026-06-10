@@ -20,6 +20,14 @@ class P115AuthExpiredException extends P115Exception {
   const P115AuthExpiredException() : super('115 登录已失效');
 }
 
+/// 115 returned an HTML page (verification / rate-limit / WAF) instead of JSON.
+/// Distinct from auth expiry: the cookie is still valid, so callers must NOT
+/// clear it — surface a retry hint instead.
+class P115BlockedException extends P115Exception {
+  const P115BlockedException()
+    : super('115 暂时限制了访问，可能是短时间请求过多或需在网页端验证，请稍后重试或切换网络。');
+}
+
 class P115Client {
   P115Client({required this.cookieStore, Dio? dio})
     : _dio =
@@ -33,6 +41,9 @@ class P115Client {
 
   final P115CookieStore cookieStore;
   final Dio _dio;
+
+  DateTime? _lastListAt;
+  static const _listMinInterval = Duration(milliseconds: 350);
 
   static const sourceId = 'p115';
   static const sourceName = '115 网盘';
@@ -196,6 +207,7 @@ class P115Client {
     String url, {
     required Map<String, dynamic> query,
   }) async {
+    await _throttleList();
     final cookie = await _cookie();
     final res = await _dio.get<dynamic>(
       url,
@@ -222,10 +234,26 @@ class P115Client {
     return cookie;
   }
 
+  // 115 throttles bursts of /files calls by serving an HTML verification page.
+  // The recursive folder scan fans out one request per directory plus paging,
+  // so space list requests apart to stay under that threshold.
+  Future<void> _throttleList() async {
+    final last = _lastListAt;
+    if (last != null) {
+      final wait = _listMinInterval - DateTime.now().difference(last);
+      if (wait > Duration.zero) await Future<void>.delayed(wait);
+    }
+    _lastListAt = DateTime.now();
+  }
+
   Map<String, dynamic> _asJson(dynamic data) {
     if (data is Map<String, dynamic>) return data;
     if (data is Map) return Map<String, dynamic>.from(data);
-    return Map<String, dynamic>.from(jsonDecode('$data') as Map);
+    try {
+      return Map<String, dynamic>.from(jsonDecode('$data') as Map);
+    } on FormatException {
+      throw const P115BlockedException();
+    }
   }
 
   static bool _truthy(Object? value) => value == true || value == 1;

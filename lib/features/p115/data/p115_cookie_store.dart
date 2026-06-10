@@ -66,8 +66,20 @@ class P115SecureCookieBackend implements P115CookieBackend {
   Future<void> write(String key, String value) =>
       _storage.write(key: key, value: value);
 
+  // A Keychain item's accessibility is fixed at write time, and delete only
+  // matches items written under the same accessibility. Earlier builds may have
+  // stored the cookie under a different one (plugin default), leaving an item
+  // that reads back but resists a plain delete — and iOS keeps Keychain items
+  // across app uninstalls. Delete under every accessibility to clear residue.
   @override
-  Future<void> delete(String key) => _storage.delete(key: key);
+  Future<void> delete(String key) async {
+    for (final accessibility in KeychainAccessibility.values) {
+      await _storage.delete(
+        key: key,
+        iOptions: IOSOptions(accessibility: accessibility),
+      );
+    }
+  }
 }
 
 class P115CookieStore {
