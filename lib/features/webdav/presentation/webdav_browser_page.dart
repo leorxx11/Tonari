@@ -127,6 +127,7 @@ class WebdavBrowserPage extends ConsumerWidget {
             config: config,
             remotePath: folder.path,
             enrich: false,
+            skipExisting: true,
             onProgress: (_, current) {
               final stage = current.startsWith('下载字幕') ? '下载字幕' : '扫描文件';
               task.update(stage: stage, message: current);

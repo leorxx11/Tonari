@@ -42,16 +42,28 @@ class WebdavImportFlow {
     required String remotePath,
     ImportProgress? onProgress,
     bool enrich = true,
+    bool skipExisting = false,
   }) async {
     final folderId = await _ensureFolder(server, remotePath);
     final scan = await RemoteFolderScanner(
       client,
     ).scan(config, remotePath, onProgress: onProgress);
-    final subtitleBytes = await _downloadSubtitles(config, scan, onProgress);
+    final skip = skipExisting
+        ? await importer.existingActiveWorkIds(
+            scan.works.map((w) => w.productId),
+          )
+        : const <String>{};
+    final subtitleBytes = await _downloadSubtitles(
+      config,
+      scan,
+      onProgress,
+      skip: skip,
+    );
     final summary = await importer.applyScanResult(
       scan,
       sourceFolderId: folderId,
       remoteSubtitleBytes: subtitleBytes,
+      skipExisting: skipExisting,
     );
     if (enrich) {
       // Metadata + cover art run in the background, same as local import.
@@ -63,7 +75,10 @@ class WebdavImportFlow {
   /// Re-scans an existing webdav folder, rebuilding the server config from the
   /// stored serverId. Returns null if the folder isn't a resolvable webdav
   /// source (e.g. its server was deleted).
-  Future<ImportSummary?> rescanFolder(ImportedFolder folder) async {
+  Future<ImportSummary?> rescanFolder(
+    ImportedFolder folder, {
+    bool skipExisting = false,
+  }) async {
     if (folder.type != 'webdav' ||
         folder.serverId == null ||
         folder.remotePath == null) {
@@ -86,6 +101,7 @@ class WebdavImportFlow {
       server: server,
       config: config,
       remotePath: folder.remotePath!,
+      skipExisting: skipExisting,
     );
   }
 
@@ -126,16 +142,17 @@ class WebdavImportFlow {
   Future<Map<String, List<int>>> _downloadSubtitles(
     WebdavConfig config,
     ScanResult scan,
-    ImportProgress? onProgress,
-  ) async {
+    ImportProgress? onProgress, {
+    Set<String> skip = const {},
+  }) async {
     final out = <String, List<int>>{};
     final total = scan.works
-        .where((w) => !w.incomplete)
+        .where((w) => !w.incomplete && !skip.contains(w.productId))
         .fold<int>(0, (a, w) => a + w.subtitles.length);
     if (total == 0) return out;
     var done = 0;
     for (final w in scan.works) {
-      if (w.incomplete) continue;
+      if (w.incomplete || skip.contains(w.productId)) continue;
       for (final sub in w.subtitles) {
         try {
           out[sub.path] = await client.getBytes(config, sub.path);

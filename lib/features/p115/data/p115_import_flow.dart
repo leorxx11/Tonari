@@ -34,22 +34,32 @@ class P115ImportFlow {
     required RemoteEntry folder,
     P115ImportProgress? onProgress,
     bool enrich = true,
+    bool skipExisting = false,
   }) async {
     final folderId = await _ensureFolder(folder);
     final scan = await P115FolderScanner(
       client,
     ).scan(folder, onProgress: onProgress);
-    final subtitleBytes = await _downloadSubtitles(scan, onProgress);
+    final skip = skipExisting
+        ? await importer.existingActiveWorkIds(
+            scan.works.map((w) => w.productId),
+          )
+        : const <String>{};
+    final subtitleBytes = await _downloadSubtitles(scan, onProgress, skip: skip);
     final summary = await importer.applyScanResult(
       scan,
       sourceFolderId: folderId,
       remoteSubtitleBytes: subtitleBytes,
+      skipExisting: skipExisting,
     );
     if (enrich) unawaited(enrichment.enrichBatch(summary.workIds));
     return summary;
   }
 
-  Future<ImportSummary?> rescanFolder(ImportedFolder folder) async {
+  Future<ImportSummary?> rescanFolder(
+    ImportedFolder folder, {
+    bool skipExisting = false,
+  }) async {
     if (folder.type != 'p115' || folder.remotePath == null) return null;
     return importFolder(
       folder: RemoteEntry(
@@ -59,6 +69,7 @@ class P115ImportFlow {
         kind: RemoteEntryKind.folder,
         sourceId: P115Client.sourceId,
       ),
+      skipExisting: skipExisting,
     );
   }
 
@@ -87,16 +98,17 @@ class P115ImportFlow {
 
   Future<Map<String, List<int>>> _downloadSubtitles(
     ScanResult scan,
-    P115ImportProgress? onProgress,
-  ) async {
+    P115ImportProgress? onProgress, {
+    Set<String> skip = const {},
+  }) async {
     final out = <String, List<int>>{};
     final total = scan.works
-        .where((w) => !w.incomplete)
+        .where((w) => !w.incomplete && !skip.contains(w.productId))
         .fold<int>(0, (a, w) => a + w.subtitles.length);
     if (total == 0) return out;
     var done = 0;
     for (final work in scan.works) {
-      if (work.incomplete) continue;
+      if (work.incomplete || skip.contains(work.productId)) continue;
       for (final sub in work.subtitles) {
         try {
           out[sub.path] = await client.getBytesByPickcode(sub.path);

@@ -20,6 +20,7 @@ class ImportFlow {
   Future<ImportSummary> importFromFolder(
     ImportedFolder folder, {
     bool enrich = true,
+    bool skipExisting = false,
   }) async {
     final resolution = await FolderBookmark.resolve(folder.bookmarkBase64);
     try {
@@ -28,6 +29,7 @@ class ImportFlow {
       final summary = await importer.applyScanResult(
         scan,
         sourceFolderId: folder.id,
+        skipExisting: skipExisting,
       );
       if (enrich) onImported?.call(summary);
       return summary;

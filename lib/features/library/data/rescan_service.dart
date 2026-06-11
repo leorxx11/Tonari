@@ -43,7 +43,10 @@ class RescanService {
       )..where((f) => f.id.isIn(folderIds.toList()))).get();
 
       for (final folder in folders) {
-        if (folder.type == 'webdav') continue; // remote rescan: 阶段3
+        // Only local folders auto-rescan on launch. Remote (webdav/p115) is
+        // user-triggered via 手动文件夹重扫 / 单作品重扫 — auto-rescanning 115 on
+        // every cold start would risk rate-limiting and slow startup.
+        if (folder.type != 'local') continue;
         try {
           await flow.importFromFolder(folder);
         } catch (_) {

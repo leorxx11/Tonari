@@ -240,7 +240,11 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
         initialStage: '扫描文件',
         action: (task) async {
           task.update(stage: '扫描文件', message: folder.displayName);
-          final summary = await flow.importFromFolder(folder, enrich: false);
+          final summary = await flow.importFromFolder(
+            folder,
+            enrich: false,
+            skipExisting: true,
+          );
           task.update(stage: '写入媒体库', message: '${summary.workIds.length} 个作品');
           await _enrichImportedWorks(enrichment, summary, task);
           return summary;

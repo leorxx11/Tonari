@@ -203,4 +203,52 @@ void main() {
       expect(track.relativePath, 'track01.wav');
     },
   );
+
+  test('skipExisting skips already-imported works and adds only new ones', () async {
+    touch('RJ01560714/track01.wav');
+
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      if (call.method == 'resolve') {
+        return {'url': Uri.file(tmp.path).toString(), 'isStale': false};
+      }
+      if (call.method == 'release') return null;
+      throw StateError('Unexpected method ${call.method}');
+    });
+
+    final now = DateTime(2026, 5, 24, 14, 30);
+    final folder = ImportedFolder(
+      id: 'folder-1',
+      displayName: 'ASMR',
+      bookmarkBase64: 'bookmark',
+      type: 'local',
+      createdAt: now,
+      updatedAt: now,
+    );
+
+    final first = await flow.importFromFolder(folder);
+    expect(first.worksInserted, 1);
+
+    // Add a track to the existing work and introduce a brand-new work.
+    touch('RJ01560714/track02.wav');
+    touch('RJ01560715/track01.wav');
+
+    final second = await flow.importFromFolder(folder, skipExisting: true);
+
+    // Only the new work is imported; the existing one is skipped entirely.
+    expect(second.worksInserted, 1);
+    expect(second.workIds, {'RJ01560715'});
+
+    // The skipped work keeps its old snapshot — the added track02 is ignored.
+    final aTracks =
+        await (db.select(
+          db.tracks,
+        )..where((t) => t.workId.equals('RJ01560714'))).get();
+    expect(aTracks.map((t) => t.relativePath).toSet(), {'track01.wav'});
+
+    final works = await db.select(db.works).get();
+    expect(works.map((w) => w.productId).toSet(), {
+      'RJ01560714',
+      'RJ01560715',
+    });
+  });
 }

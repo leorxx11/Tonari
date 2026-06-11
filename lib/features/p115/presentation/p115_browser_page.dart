@@ -113,6 +113,7 @@ class P115BrowserPage extends ConsumerWidget {
           final summary = await flow.importFolder(
             folder: folder,
             enrich: false,
+            skipExisting: true,
             onProgress: (_, current) {
               final stage = current.startsWith('下载字幕') ? '下载字幕' : '扫描文件';
               task.update(stage: stage, message: current);

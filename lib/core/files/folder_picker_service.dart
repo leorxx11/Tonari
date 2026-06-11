@@ -1,4 +1,4 @@
-import 'package:drift/drift.dart' show OrderingTerm;
+import 'package:drift/drift.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
@@ -19,19 +19,40 @@ class FolderPickerService {
     final bookmark = await FolderBookmark.create(url);
     final displayName = _lastPathComponent(url);
     final now = DateTime.now();
-    final id = _uuid.v4();
 
-    await _db
-        .into(_db.importedFolders)
-        .insert(
-          ImportedFoldersCompanion.insert(
-            id: id,
-            displayName: displayName,
-            bookmarkBase64: bookmark,
-            createdAt: now,
-            updatedAt: now,
-          ),
-        );
+    // Dedupe by path: re-picking an already-imported local folder refreshes its
+    // (possibly stale) bookmark instead of stacking a duplicate record.
+    final existing =
+        await (_db.select(_db.importedFolders)..where(
+              (f) => f.type.equals('local') & f.remotePath.equals(url),
+            ))
+            .getSingleOrNull();
+    final id = existing?.id ?? _uuid.v4();
+
+    if (existing == null) {
+      await _db
+          .into(_db.importedFolders)
+          .insert(
+            ImportedFoldersCompanion.insert(
+              id: id,
+              displayName: displayName,
+              bookmarkBase64: bookmark,
+              remotePath: Value(url),
+              createdAt: now,
+              updatedAt: now,
+            ),
+          );
+    } else {
+      await (_db.update(
+        _db.importedFolders,
+      )..where((f) => f.id.equals(id))).write(
+        ImportedFoldersCompanion(
+          displayName: Value(displayName),
+          bookmarkBase64: Value(bookmark),
+          updatedAt: Value(now),
+        ),
+      );
+    }
 
     return (_db.select(
       _db.importedFolders,

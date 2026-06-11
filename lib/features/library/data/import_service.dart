@@ -60,6 +60,7 @@ class ImportService {
     String? sourceFolderId,
     Map<String, List<int>> remoteSubtitleBytes = const {},
     bool reviveTombstoned = false,
+    bool skipExisting = false,
   }) async {
     var worksInserted = 0;
     var worksUpdated = 0;
@@ -69,9 +70,15 @@ class ImportService {
     final incompleteWorks = <String>[];
     final now = DateTime.now();
 
+    // Already-imported (present, not tombstoned) works to leave untouched when
+    // skipExisting — a folder re-import only picks up new works.
+    final skip = skipExisting
+        ? await existingActiveWorkIds(scan.works.map((w) => w.productId))
+        : const <String>{};
+
     // Read + parse subtitles outside the DB transaction — file I/O can be slow
     // and we don't want to hold the SQLite write lock while doing it.
-    final parsedSubs = _readAndParseSubtitles(scan, remoteSubtitleBytes);
+    final parsedSubs = _readAndParseSubtitles(scan, remoteSubtitleBytes, skip);
 
     await _db.transaction(() async {
       for (final w in scan.works) {
@@ -81,6 +88,7 @@ class ImportService {
           incompleteWorks.add(w.productId);
           continue;
         }
+        if (skip.contains(w.productId)) continue;
         final existing = await (_db.select(
           _db.works,
         )..where((row) => row.productId.equals(w.productId))).getSingleOrNull();
@@ -366,6 +374,23 @@ class ImportService {
     );
   }
 
+  /// Product IDs already present in the library and not tombstoned. Lets a
+  /// folder re-import skip works the user already has (skipExisting).
+  Future<Set<String>> existingActiveWorkIds(Iterable<String> productIds) async {
+    final ids = productIds.toList();
+    if (ids.isEmpty) return {};
+    final rows =
+        await (_db.selectOnly(_db.works)
+              ..addColumns([_db.works.productId])
+              ..where(
+                _db.works.productId.isIn(ids) &
+                    _db.works.isRemoved.equals(false),
+              ))
+            .map((row) => row.read(_db.works.productId)!)
+            .get();
+    return rows.toSet();
+  }
+
   /// Stable across re-scans for the same logical track.
   static String trackIdFor(String workId, String relativePath) {
     return '$workId|${relativePath.toLowerCase()}';
@@ -389,9 +414,11 @@ class ImportService {
   List<_ParsedSubtitle> _readAndParseSubtitles(
     ScanResult scan, [
     Map<String, List<int>> remoteBytes = const {},
+    Set<String> skip = const {},
   ]) {
     final out = <_ParsedSubtitle>[];
     for (final w in scan.works) {
+      if (skip.contains(w.productId)) continue;
       if (w.subtitles.isEmpty || w.audios.isEmpty) continue;
       for (final sub in w.subtitles) {
         final stem = _stripExt(sub.fileName);
