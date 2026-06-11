@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../p115/presentation/p115_settings_page.dart';
 import '../../webdav/presentation/webdav_settings_page.dart';
-import 'imported_folders_page.dart';
+import 'media_sources_page.dart';
 import 'removed_works_page.dart';
 
 class DataSettingsPage extends StatelessWidget {
@@ -16,10 +16,10 @@ class DataSettingsPage extends StatelessWidget {
         children: [
           ListTile(
             leading: const Icon(Icons.folder_copy_outlined),
-            title: const Text('已导入文件夹'),
-            subtitle: const Text('重新扫描以补充新作品'),
+            title: const Text('媒体来源'),
+            subtitle: const Text('导入、刷新、删除来源'),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () => _push(context, const ImportedFoldersPage()),
+            onTap: () => _push(context, const MediaSourcesPage()),
           ),
           ListTile(
             leading: const Icon(Icons.restore_from_trash_outlined),
