@@ -89,6 +89,38 @@ class WebdavImportFlow {
     );
   }
 
+  /// Re-scans a single work in place: scans only its own remote folder
+  /// (localFolderPath) and writes back under the existing folderId, reviving
+  /// the tombstone if it was removed. No new ImportedFolder is created.
+  Future<ImportSummary?> reimportWork(Work work, ImportedFolder folder) async {
+    if (folder.serverId == null) return null;
+    final server = await (db.select(
+      db.webdavServers,
+    )..where((s) => s.id.equals(folder.serverId!))).getSingleOrNull();
+    if (server == null) return null;
+    final password = await passwordStore.read(server.id);
+    final config = WebdavConfig(
+      scheme: server.scheme,
+      host: server.host,
+      port: server.port,
+      basePath: server.basePath,
+      username: server.username,
+      password: password,
+    );
+    final scan = await RemoteFolderScanner(
+      client,
+    ).scan(config, work.localFolderPath);
+    final subtitleBytes = await _downloadSubtitles(config, scan, null);
+    final summary = await importer.applyScanResult(
+      scan,
+      sourceFolderId: folder.id,
+      remoteSubtitleBytes: subtitleBytes,
+      reviveTombstoned: true,
+    );
+    unawaited(enrichment.enrichBatch(summary.workIds));
+    return summary;
+  }
+
   /// Downloads subtitle file bytes so [ImportService] can parse them without
   /// touching the (remote) filesystem. Audio is streamed, never downloaded.
   Future<Map<String, List<int>>> _downloadSubtitles(
@@ -97,10 +129,13 @@ class WebdavImportFlow {
     ImportProgress? onProgress,
   ) async {
     final out = <String, List<int>>{};
-    final total = scan.works.fold<int>(0, (a, w) => a + w.subtitles.length);
+    final total = scan.works
+        .where((w) => !w.incomplete)
+        .fold<int>(0, (a, w) => a + w.subtitles.length);
     if (total == 0) return out;
     var done = 0;
     for (final w in scan.works) {
+      if (w.incomplete) continue;
       for (final sub in w.subtitles) {
         try {
           out[sub.path] = await client.getBytes(config, sub.path);

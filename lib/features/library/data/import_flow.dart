@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/db/database.dart';
 import '../../../core/files/folder_bookmark.dart';
 import '../../../core/scanner/folder_scanner.dart';
+import '../../../core/scanner/scan_models.dart';
 import 'import_service.dart';
 import 'metadata_enrichment.dart';
 
@@ -38,6 +39,40 @@ class ImportFlow {
   static String _urlToPath(String url) {
     if (!url.startsWith('file://')) return Uri.decodeComponent(url);
     return Uri.parse(url).toFilePath();
+  }
+
+  /// Re-scans a single local work in place: resolves the source folder's
+  /// bookmark, scans only the work's own directory (localFolderPath), and
+  /// writes back under the existing folderId, reviving the tombstone if it was
+  /// removed.
+  Future<ImportSummary> reimportWork(Work work, ImportedFolder folder) async {
+    final resolution = await FolderBookmark.resolve(folder.bookmarkBase64);
+    try {
+      final rootPath = _urlToPath(resolution.url);
+      final scan = _onlyWork(
+        await FolderScanner.scan(rootPath),
+        work.productId,
+      );
+      final summary = await importer.applyScanResult(
+        scan,
+        sourceFolderId: folder.id,
+        reviveTombstoned: true,
+      );
+      onImported?.call(summary);
+      return summary;
+    } finally {
+      await FolderBookmark.release(resolution.url);
+    }
+  }
+
+  static ScanResult _onlyWork(ScanResult scan, String productId) {
+    return ScanResult(
+      rootPath: scan.rootPath,
+      works: scan.works.where((w) => w.productId == productId).toList(),
+      filesScanned: scan.filesScanned,
+      unrecognizedDirs: scan.unrecognizedDirs,
+      errors: scan.errors,
+    );
   }
 }
 

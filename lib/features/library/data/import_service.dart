@@ -59,6 +59,7 @@ class ImportService {
     ScanResult scan, {
     String? sourceFolderId,
     Map<String, List<int>> remoteSubtitleBytes = const {},
+    bool reviveTombstoned = false,
   }) async {
     var worksInserted = 0;
     var worksUpdated = 0;
@@ -84,8 +85,10 @@ class ImportService {
           _db.works,
         )..where((row) => row.productId.equals(w.productId))).getSingleOrNull();
         // Tombstone: the user removed this work. A folder re-import must not
-        // resurrect it (reimport-to-restore clears isRemoved first).
-        if (existing != null && existing.isRemoved) continue;
+        // resurrect it — unless this is an explicit single-work reimport.
+        if (existing != null && existing.isRemoved && !reviveTombstoned) {
+          continue;
+        }
         workIds.add(w.productId);
 
         if (existing == null) {
@@ -112,6 +115,9 @@ class ImportService {
               updatedAt: Value(now),
               importedFolderId: Value(sourceFolderId),
               needsRescan: const Value(false),
+              isRemoved: reviveTombstoned
+                  ? const Value(false)
+                  : const Value.absent(),
             ),
           );
           worksUpdated++;

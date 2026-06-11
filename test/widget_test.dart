@@ -7,10 +7,12 @@ import 'package:tonari/core/db/database.dart';
 import 'package:tonari/core/files/folder_picker_service.dart';
 import 'package:tonari/core/prefs/shared_prefs_provider.dart';
 import 'package:tonari/features/library/data/import_flow.dart';
+import 'package:tonari/features/library/data/import_service.dart';
 import 'package:tonari/features/library/data/metadata_enrichment.dart';
 import 'package:tonari/features/library/data/rescan_service.dart';
 import 'package:tonari/features/library/data/work_actions_provider.dart';
 import 'package:tonari/features/library/data/work_image_cache.dart';
+import 'package:tonari/features/library/data/work_reimport_provider.dart';
 import 'package:tonari/features/library/data/works_providers.dart';
 import 'package:tonari/features/p115/data/p115_cookie_store.dart';
 import 'package:tonari/features/webdav/data/webdav_server_repository.dart';
@@ -23,7 +25,7 @@ Widget testApp({
   List<WorkFile> workFiles = const [],
   List<ImportedFolder> folders = const [],
   RemoveWork? removeWork,
-  RestoreWork? restoreWork,
+  ReimportWork? reimportWork,
   ToggleFavorite? toggleFavorite,
   ImportFlow? importFlow,
 }) => ProviderScope(
@@ -47,7 +49,8 @@ Widget testApp({
     p115CookieProvider.overrideWith((ref) => Future.value(null)),
     webdavServersStreamProvider.overrideWith((ref) => Stream.value(const [])),
     if (removeWork != null) removeWorkProvider.overrideWithValue(removeWork),
-    if (restoreWork != null) restoreWorkProvider.overrideWithValue(restoreWork),
+    if (reimportWork != null)
+      reimportWorkProvider.overrideWithValue(reimportWork),
     if (toggleFavorite != null)
       toggleFavoriteProvider.overrideWithValue(toggleFavorite),
     if (importFlow != null) importFlowProvider.overrideWithValue(importFlow),
@@ -216,12 +219,20 @@ void main() {
     expect(find.text('已移除 Test Work'), findsOneWidget);
   });
 
-  testWidgets('settings lists a removed work with re-import disabled', (
-    tester,
-  ) async {
+  testWidgets('settings re-imports a removed work', (tester) async {
+    String? reimportedProductId;
     await tester.pumpWidget(
       testApp(
         works: [_work('RJ01560714', title: 'Hidden Work', isRemoved: true)],
+        reimportWork: (work, {task}) async {
+          reimportedProductId = work.productId;
+          return ImportSummary(
+            worksInserted: 0,
+            worksUpdated: 1,
+            tracksTotal: 1,
+            workIds: {work.productId},
+          );
+        },
       ),
     );
     await tester.pumpAndSettle();
@@ -234,11 +245,48 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Hidden Work'), findsOneWidget);
-    // Re-import (restore) is disabled until M-B2 lands single-work reimport.
     final reimport = tester.widget<TextButton>(
       find.widgetWithText(TextButton, '重新导入'),
     );
-    expect(reimport.onPressed, isNull);
+    expect(reimport.onPressed, isNotNull);
+
+    await tester.tap(find.text('重新导入'));
+    await tester.pumpAndSettle();
+
+    expect(reimportedProductId, 'RJ01560714');
+    expect(find.text('已重新导入 Hidden Work'), findsOneWidget);
+  });
+
+  testWidgets('detail menu rescans the current work', (tester) async {
+    String? rescannedProductId;
+    await tester.pumpWidget(
+      testApp(
+        works: [_work('RJ01560714', title: 'Test Work')],
+        reimportWork: (work, {task}) async {
+          rescannedProductId = work.productId;
+          return ImportSummary(
+            worksInserted: 0,
+            worksUpdated: 1,
+            tracksTotal: 1,
+            workIds: {work.productId},
+          );
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Test Work'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('更多'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('重新扫描此作品'), findsOneWidget);
+
+    await tester.tap(find.text('重新扫描此作品'));
+    await tester.pumpAndSettle();
+
+    expect(rescannedProductId, 'RJ01560714');
+    expect(find.text('作品已重新扫描'), findsOneWidget);
   });
 
   testWidgets('tapping a work opens detail with a files entry', (tester) async {

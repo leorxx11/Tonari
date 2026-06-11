@@ -18,6 +18,7 @@ import '../../translation/data/translation_controller.dart';
 import '../data/library_task_controller.dart';
 import '../data/metadata_enrichment.dart';
 import '../data/work_actions_provider.dart';
+import '../data/work_reimport_provider.dart';
 import '../data/works_providers.dart';
 import 'widgets/library_task_status.dart';
 import 'widgets/sample_gallery.dart';
@@ -201,7 +202,9 @@ class _WorkDetailViewState extends ConsumerState<_WorkDetailView> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('从媒体库移除'),
-        content: const Text('将清除该作品在 App 内的快照（音轨、文件、字幕），云盘/本地的原文件不受影响。重新导入可找回。'),
+        content: const Text(
+          '将清除该作品在 App 内的快照（音轨、文件、字幕），云盘/本地的原文件不受影响。重新导入可找回。',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -221,6 +224,31 @@ class _WorkDetailViewState extends ConsumerState<_WorkDetailView> {
     rootScaffoldMessengerKey.currentState?.showSnackBar(
       const SnackBar(content: Text('已从媒体库移除')),
     );
+  }
+
+  Future<void> rescanWork(Work work) async {
+    final taskController = ref.read(workTaskControllerProvider.notifier);
+    final reimport = ref.read(reimportWorkProvider);
+    try {
+      await taskController.run<void>(
+        productId: work.productId,
+        kind: LibraryTaskKind.import,
+        title: '重新扫描作品',
+        initialStage: '扫描文件',
+        action: (task) async {
+          await reimport(work, task: task);
+        },
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('作品已重新扫描')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('重新扫描失败：$e')));
+    }
   }
 }
 
@@ -1344,6 +1372,8 @@ class _MoreMenu extends ConsumerWidget {
             state.refreshMetadata(work.productId);
           case 'refresh_images':
             state.refreshImages(work.productId);
+          case 'rescan':
+            state.rescanWork(work);
           case 'remove':
             state.removeWork(work.productId);
         }
@@ -1378,6 +1408,16 @@ class _MoreMenu extends ConsumerWidget {
             contentPadding: EdgeInsets.zero,
             leading: Icon(Icons.image_outlined),
             title: Text('只刷新图片'),
+          ),
+        ),
+        PopupMenuItem(
+          value: 'rescan',
+          enabled: canRefresh,
+          child: const ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.manage_search),
+            title: Text('重新扫描此作品'),
           ),
         ),
         const PopupMenuDivider(),

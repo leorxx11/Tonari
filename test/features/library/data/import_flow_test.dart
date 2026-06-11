@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -151,6 +152,55 @@ void main() {
 
       final work = await db.select(db.works).getSingle();
       expect(work.productId, 'RJ01560716');
+    },
+  );
+
+  test(
+    're-imports a removed work from the resolved folder when stored path is stale',
+    () async {
+      touch('RJ01560714/track01.wav');
+
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        if (call.method == 'resolve') {
+          return {'url': Uri.file(tmp.path).toString(), 'isStale': false};
+        }
+        if (call.method == 'release') return null;
+        throw StateError('Unexpected method ${call.method}');
+      });
+
+      final now = DateTime(2026, 5, 24, 14, 30);
+      final folder = ImportedFolder(
+        id: 'folder-1',
+        displayName: 'ASMR',
+        bookmarkBase64: 'bookmark',
+        type: 'local',
+        createdAt: now,
+        updatedAt: now,
+      );
+      await db
+          .into(db.works)
+          .insert(
+            WorksCompanion.insert(
+              productId: 'RJ01560714',
+              title: 'Removed Work',
+              localImportedAt: now,
+              localFolderPath: '/stale/RJ01560714',
+              importedFolderId: const Value('folder-1'),
+              isRemoved: const Value(true),
+              createdAt: now,
+              updatedAt: now,
+            ),
+          );
+      final work = await db.select(db.works).getSingle();
+
+      final summary = await flow.reimportWork(work, folder);
+
+      expect(summary.workIds, {'RJ01560714'});
+      final restored = await db.select(db.works).getSingle();
+      expect(restored.isRemoved, isFalse);
+      expect(restored.localFolderPath, '${tmp.path}/RJ01560714');
+      final track = await db.select(db.tracks).getSingle();
+      expect(track.relativePath, 'track01.wav');
     },
   );
 }

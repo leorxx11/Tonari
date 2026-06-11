@@ -28,6 +28,7 @@ class RemoteFolderScanner {
       final videos = <DetectedFile>[];
       final textNotes = <DetectedFile>[];
       final others = <DetectedFile>[];
+      var incomplete = false;
       final rootLen = workDir.endsWith('/')
           ? workDir.length
           : workDir.length + 1;
@@ -43,6 +44,7 @@ class RemoteFolderScanner {
           entries = await _client.list(config, dir);
         } catch (e) {
           errors.add('$dir: $e');
+          incomplete = true;
           return;
         }
         for (final e in entries) {
@@ -128,6 +130,7 @@ class RemoteFolderScanner {
         videos: videos,
         textNotes: textNotes,
         others: others,
+        incomplete: incomplete,
       );
     }
 

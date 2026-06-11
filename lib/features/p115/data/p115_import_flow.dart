@@ -62,17 +62,49 @@ class P115ImportFlow {
     );
   }
 
+  /// Re-scans a single work in place: scans only its own 115 folder (cid stored
+  /// as localFolderPath) and writes back under the work's existing folderId,
+  /// reviving the tombstone if it was removed. No new ImportedFolder is created.
+  Future<ImportSummary> reimportWork(Work work) async {
+    final entry = RemoteEntry(
+      id: work.localFolderPath,
+      path: work.localFolderPath,
+      name: work.productId,
+      kind: RemoteEntryKind.folder,
+      sourceId: P115Client.sourceId,
+    );
+    final scan = await P115FolderScanner(client).scan(entry);
+    final subtitleBytes = await _downloadSubtitles(scan, null);
+    final summary = await importer.applyScanResult(
+      scan,
+      sourceFolderId: work.importedFolderId,
+      remoteSubtitleBytes: subtitleBytes,
+      reviveTombstoned: true,
+    );
+    unawaited(enrichment.enrichBatch(summary.workIds));
+    return summary;
+  }
+
   Future<Map<String, List<int>>> _downloadSubtitles(
     ScanResult scan,
     P115ImportProgress? onProgress,
   ) async {
     final out = <String, List<int>>{};
-    final total = scan.works.fold<int>(0, (a, w) => a + w.subtitles.length);
+    final total = scan.works
+        .where((w) => !w.incomplete)
+        .fold<int>(0, (a, w) => a + w.subtitles.length);
     if (total == 0) return out;
     var done = 0;
     for (final work in scan.works) {
+      if (work.incomplete) continue;
       for (final sub in work.subtitles) {
-        out[sub.path] = await client.getBytesByPickcode(sub.path);
+        try {
+          out[sub.path] = await client.getBytesByPickcode(sub.path);
+        } on P115AuthExpiredException {
+          rethrow;
+        } catch (_) {
+          // skip unreadable subtitle; import proceeds without it
+        }
         done++;
         onProgress?.call(scan.works.length, '下载字幕 $done/$total');
       }
