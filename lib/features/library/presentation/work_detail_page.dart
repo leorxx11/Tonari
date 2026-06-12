@@ -46,6 +46,55 @@ class _WorkDetailView extends ConsumerStatefulWidget {
 
 class _WorkDetailViewState extends ConsumerState<_WorkDetailView> {
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _autoEnrichIfNeeded());
+  }
+
+  // Opening a work that hasn't been enriched yet kicks off its metadata fetch
+  // right away (non-force), so the user doesn't have to hit refresh manually.
+  // Progress shows on the app-bar WorkTaskStatusButton; the page is reactive,
+  // so cover/metadata fill in when it lands.
+  Future<void> _autoEnrichIfNeeded() async {
+    if (!mounted) return;
+    final w =
+        ref.read(workByIdProvider(widget.work.productId)).value ?? widget.work;
+    final needs =
+        w.scrapedAt == null ||
+        LocalImagePath.resolve(w.mainImageLocalPath) == null;
+    if (!needs) return;
+    if (ref.read(workTaskControllerProvider)[w.productId]?.active ?? false) {
+      return;
+    }
+    final taskController = ref.read(workTaskControllerProvider.notifier);
+    final enrichment = ref.read(metadataEnrichmentProvider);
+    try {
+      await taskController.run<void>(
+        productId: w.productId,
+        kind: LibraryTaskKind.metadata,
+        title: '补全资料',
+        initialStage: '获取 DLsite 元数据',
+        action: (task) async {
+          task.update(stage: '获取 DLsite 元数据', message: w.productId);
+          await enrichment.enrichOne(
+            w.productId,
+            onImageProgress: (completed, total, current) {
+              task.update(
+                stage: '下载图片',
+                message: current,
+                completed: completed,
+                total: total,
+              );
+            },
+          );
+        },
+      );
+    } catch (_) {
+      // silent: leave pending; top-right batch or manual refresh can retry
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final liveWork = ref.watch(workByIdProvider(widget.work.productId)).value;
     final work = liveWork ?? widget.work;

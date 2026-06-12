@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../features/library/data/metadata_enrichment.dart';
+import '../../features/library/data/enrichment_queue.dart';
 import '../../features/library/data/rescan_service.dart';
 import '../../features/browse/presentation/browse_page.dart';
 import '../../features/library/presentation/library_page.dart';
@@ -22,7 +22,7 @@ class _RootTabViewState extends ConsumerState<RootTabView> {
   @override
   void initState() {
     super.initState();
-    unawaited(ref.read(metadataEnrichmentProvider).enrichPending());
+    unawaited(ref.read(enrichmentQueueProvider.notifier).runPending());
     unawaited(_runPendingRescan());
   }
 

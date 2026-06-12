@@ -8,9 +8,9 @@ import '../../../core/scanner/file_classifier.dart';
 import '../../../core/ui/root_messenger.dart';
 import '../../browse/data/remote_models.dart';
 import '../../browse/presentation/remote_browser_page.dart';
+import '../../library/data/enrichment_queue.dart';
 import '../../library/data/import_service.dart';
 import '../../library/data/library_task_controller.dart';
-import '../../library/data/metadata_enrichment.dart';
 import '../data/webdav_client.dart';
 import '../data/webdav_import_flow.dart';
 
@@ -101,17 +101,17 @@ class WebdavBrowserPage extends ConsumerWidget {
     // messenger, which outlives this page.
     final flow = ref.read(webdavImportFlowProvider);
     final taskController = ref.read(libraryTaskControllerProvider.notifier);
-    final enrichment = ref.read(metadataEnrichmentProvider);
+    final queue = ref.read(enrichmentQueueProvider.notifier);
     rootScaffoldMessengerKey.currentState?.showSnackBar(
       SnackBar(content: Text('已在后台导入「${folder.name}」…')),
     );
-    unawaited(_runImport(taskController, flow, enrichment, folder));
+    unawaited(_runImport(taskController, flow, queue, folder));
   }
 
   Future<void> _runImport(
     LibraryTaskController taskController,
     WebdavImportFlow flow,
-    MetadataEnrichmentService enrichment,
+    EnrichmentQueue queue,
     RemoteEntry folder,
   ) async {
     final messenger = rootScaffoldMessengerKey.currentState;
@@ -134,10 +134,10 @@ class WebdavBrowserPage extends ConsumerWidget {
             },
           );
           task.update(stage: '写入媒体库', message: '${summary.workIds.length} 个作品');
-          await _enrichImportedWorks(enrichment, summary, task);
           return summary;
         },
       );
+      unawaited(queue.runPending());
       messenger?.showSnackBar(
         SnackBar(
           content: Text(
@@ -159,22 +159,4 @@ class WebdavBrowserPage extends ConsumerWidget {
     }
   }
 
-  Future<void> _enrichImportedWorks(
-    MetadataEnrichmentService enrichment,
-    ImportSummary summary,
-    LibraryTaskReporter task,
-  ) async {
-    if (summary.workIds.isEmpty) return;
-    await enrichment.enrichBatch(
-      summary.workIds,
-      onProgress: (completed, total, current) {
-        task.update(
-          stage: '补全元数据',
-          message: current,
-          completed: completed,
-          total: total,
-        );
-      },
-    );
-  }
 }

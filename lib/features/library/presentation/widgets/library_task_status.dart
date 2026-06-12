@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/enrichment_queue.dart';
 import '../../data/library_task_controller.dart';
 
 class LibraryTaskStatusButton extends ConsumerWidget {
@@ -48,6 +49,57 @@ Future<void> showLibraryTaskSheet(BuildContext context) {
     context: context,
     builder: (_) => const _LibraryTaskSheet(),
   );
+}
+
+/// App-bar action for background metadata enrichment. While the queue runs it
+/// shows the current work + a spinner; when idle but works still lack metadata
+/// it offers a one-tap "补全 N 个"; otherwise it hides.
+class EnrichmentStatusAction extends ConsumerWidget {
+  const EnrichmentStatusAction({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final queue = ref.watch(enrichmentQueueProvider);
+    // Also stay active while a single-work metadata task runs (detail-page
+    // auto-enrich or manual refresh) so the indicator ends with the work, not
+    // when the background batch happens to finish first.
+    final metaBusy = ref.watch(
+      workTaskControllerProvider.select(
+        (tasks) => tasks.values.any(
+          (t) => t.active && t.kind == LibraryTaskKind.metadata,
+        ),
+      ),
+    );
+    if (queue.active || metaBusy) {
+      final message = queue.active
+          ? '补全资料中 ${queue.current ?? ''}（${queue.done + 1}/${queue.total}）'
+          : '补全资料中…';
+      return Tooltip(
+        message: message,
+        child: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2.4),
+          ),
+        ),
+      );
+    }
+    final pending = ref.watch(
+      pendingEnrichmentCountProvider.select((v) => v.value ?? 0),
+    );
+    if (pending == 0) return const SizedBox.shrink();
+    return IconButton(
+      tooltip: '补全 $pending 个作品的资料',
+      icon: Badge(
+        label: Text('$pending'),
+        child: const Icon(Icons.download_for_offline_outlined),
+      ),
+      onPressed: () =>
+          ref.read(enrichmentQueueProvider.notifier).runPending(reset: true),
+    );
+  }
 }
 
 class WorkTaskStatusButton extends ConsumerWidget {

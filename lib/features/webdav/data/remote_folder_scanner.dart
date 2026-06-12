@@ -15,6 +15,7 @@ class RemoteFolderScanner {
     WebdavConfig config,
     String rootPath, {
     void Function(int worksFound, String current)? onProgress,
+    Set<String> skipProductIds = const {},
   }) async {
     final works = <DetectedWork>[];
     final unrecognized = <String>[];
@@ -165,6 +166,7 @@ class RemoteFolderScanner {
       if (!child.isDir) continue;
       final childRj = RjId.extract(child.name);
       if (childRj != null) {
+        if (skipProductIds.contains(childRj)) continue;
         works.add(await buildWork(child.path, childRj));
         onProgress?.call(works.length, childRj);
         continue;
@@ -176,9 +178,10 @@ class RemoteFolderScanner {
           if (!grand.isDir) continue;
           final grandRj = RjId.extract(grand.name);
           if (grandRj != null) {
+            foundGrand = true;
+            if (skipProductIds.contains(grandRj)) continue;
             works.add(await buildWork(grand.path, grandRj));
             onProgress?.call(works.length, grandRj);
-            foundGrand = true;
           }
         }
       } catch (e) {

@@ -37,14 +37,12 @@ class P115ImportFlow {
     bool skipExisting = false,
   }) async {
     final folderId = await _ensureFolder(folder);
+    final skip = skipExisting
+        ? await importer.allActiveWorkIds()
+        : const <String>{};
     final scan = await P115FolderScanner(
       client,
-    ).scan(folder, onProgress: onProgress);
-    final skip = skipExisting
-        ? await importer.existingActiveWorkIds(
-            scan.works.map((w) => w.productId),
-          )
-        : const <String>{};
+    ).scan(folder, onProgress: onProgress, skipProductIds: skip);
     final subtitleBytes = await _downloadSubtitles(scan, onProgress, skip: skip);
     final summary = await importer.applyScanResult(
       scan,

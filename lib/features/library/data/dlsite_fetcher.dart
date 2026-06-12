@@ -134,7 +134,15 @@ class DlsiteFetchException implements Exception {
 }
 
 class DlsiteFetcher {
-  DlsiteFetcher({Dio? dio}) : _dio = dio ?? Dio();
+  DlsiteFetcher({Dio? dio})
+    : _dio =
+          dio ??
+          Dio(
+            BaseOptions(
+              connectTimeout: const Duration(seconds: 12),
+              receiveTimeout: const Duration(seconds: 12),
+            ),
+          );
 
   final Dio _dio;
 

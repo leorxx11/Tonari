@@ -29,7 +29,17 @@ class WorkImageCache {
     Future<Directory> Function()? documentsDir,
     ImageDownloader? downloader,
   }) : _documentsDir = documentsDir ?? getApplicationDocumentsDirectory,
-       _downloader = downloader ?? _defaultDownloader(dio ?? Dio());
+       _downloader =
+           downloader ??
+           _defaultDownloader(
+             dio ??
+                 Dio(
+                   BaseOptions(
+                     connectTimeout: const Duration(seconds: 12),
+                     receiveTimeout: const Duration(seconds: 30),
+                   ),
+                 ),
+           );
 
   final Future<Directory> Function() _documentsDir;
   final ImageDownloader _downloader;

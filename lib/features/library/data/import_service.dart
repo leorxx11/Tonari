@@ -391,6 +391,19 @@ class ImportService {
     return rows.toSet();
   }
 
+  /// All product IDs currently in the library and not tombstoned — used to skip
+  /// already-imported works at SCAN time, so a remote re-import doesn't re-list
+  /// (and rate-limit) the whole tree.
+  Future<Set<String>> allActiveWorkIds() async {
+    final rows =
+        await (_db.selectOnly(_db.works)
+              ..addColumns([_db.works.productId])
+              ..where(_db.works.isRemoved.equals(false)))
+            .map((row) => row.read(_db.works.productId)!)
+            .get();
+    return rows.toSet();
+  }
+
   /// Stable across re-scans for the same logical track.
   static String trackIdFor(String workId, String relativePath) {
     return '$workId|${relativePath.toLowerCase()}';

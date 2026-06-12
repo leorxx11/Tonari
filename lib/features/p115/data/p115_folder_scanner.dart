@@ -12,6 +12,7 @@ class P115FolderScanner {
   Future<ScanResult> scan(
     RemoteEntry root, {
     void Function(int worksFound, String current)? onProgress,
+    Set<String> skipProductIds = const {},
   }) async {
     final works = <DetectedWork>[];
     final unrecognized = <String>[];
@@ -173,6 +174,7 @@ class P115FolderScanner {
       if (!child.isFolder) continue;
       final childRj = RjId.extract(child.name);
       if (childRj != null) {
+        if (skipProductIds.contains(childRj)) continue;
         works.add(await buildWork(child, childRj));
         onProgress?.call(works.length, childRj);
         continue;
@@ -184,9 +186,10 @@ class P115FolderScanner {
           if (!grand.isFolder) continue;
           final grandRj = RjId.extract(grand.name);
           if (grandRj != null) {
+            foundGrand = true;
+            if (skipProductIds.contains(grandRj)) continue;
             works.add(await buildWork(grand, grandRj));
             onProgress?.call(works.length, grandRj);
-            foundGrand = true;
           }
         }
       } catch (e) {

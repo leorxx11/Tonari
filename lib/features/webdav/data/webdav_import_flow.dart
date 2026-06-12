@@ -45,14 +45,12 @@ class WebdavImportFlow {
     bool skipExisting = false,
   }) async {
     final folderId = await _ensureFolder(server, remotePath);
+    final skip = skipExisting
+        ? await importer.allActiveWorkIds()
+        : const <String>{};
     final scan = await RemoteFolderScanner(
       client,
-    ).scan(config, remotePath, onProgress: onProgress);
-    final skip = skipExisting
-        ? await importer.existingActiveWorkIds(
-            scan.works.map((w) => w.productId),
-          )
-        : const <String>{};
+    ).scan(config, remotePath, onProgress: onProgress, skipProductIds: skip);
     final subtitleBytes = await _downloadSubtitles(
       config,
       scan,

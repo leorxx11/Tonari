@@ -6,9 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/ui/root_messenger.dart';
 import '../../browse/data/remote_models.dart';
 import '../../browse/presentation/remote_browser_page.dart';
+import '../../library/data/enrichment_queue.dart';
 import '../../library/data/import_service.dart';
 import '../../library/data/library_task_controller.dart';
-import '../../library/data/metadata_enrichment.dart';
 import '../data/p115_auth_service.dart';
 import '../data/p115_client.dart';
 import '../data/p115_cookie_store.dart';
@@ -88,17 +88,17 @@ class P115BrowserPage extends ConsumerWidget {
     final flow = ref.read(p115ImportFlowProvider);
     final auth = ref.read(p115AuthServiceProvider);
     final taskController = ref.read(libraryTaskControllerProvider.notifier);
-    final enrichment = ref.read(metadataEnrichmentProvider);
+    final queue = ref.read(enrichmentQueueProvider.notifier);
     rootScaffoldMessengerKey.currentState?.showSnackBar(
       SnackBar(content: Text('已在后台导入「${folder.name}」…')),
     );
-    unawaited(_runImport(taskController, flow, enrichment, auth, folder));
+    unawaited(_runImport(taskController, flow, queue, auth, folder));
   }
 
   Future<void> _runImport(
     LibraryTaskController taskController,
     P115ImportFlow flow,
-    MetadataEnrichmentService enrichment,
+    EnrichmentQueue queue,
     P115AuthService auth,
     RemoteEntry folder,
   ) async {
@@ -120,10 +120,10 @@ class P115BrowserPage extends ConsumerWidget {
             },
           );
           task.update(stage: '写入媒体库', message: '${summary.workIds.length} 个作品');
-          await _enrichImportedWorks(enrichment, summary, task);
           return summary;
         },
       );
+      unawaited(queue.runPending());
       messenger?.showSnackBar(
         SnackBar(
           content: Text(
@@ -150,22 +150,4 @@ class P115BrowserPage extends ConsumerWidget {
     }
   }
 
-  Future<void> _enrichImportedWorks(
-    MetadataEnrichmentService enrichment,
-    ImportSummary summary,
-    LibraryTaskReporter task,
-  ) async {
-    if (summary.workIds.isEmpty) return;
-    await enrichment.enrichBatch(
-      summary.workIds,
-      onProgress: (completed, total, current) {
-        task.update(
-          stage: '补全元数据',
-          message: current,
-          completed: completed,
-          total: total,
-        );
-      },
-    );
-  }
 }
