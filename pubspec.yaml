@@ -29,6 +29,7 @@ dependencies:
   flutter_secure_storage: ^9.2.4
   xml: ^6.3.0
   fvp: ^0.37.2
+  share_plus: ^12.0.2
 
 dev_dependencies:
   flutter_test:

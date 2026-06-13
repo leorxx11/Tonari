@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/diagnostics/diagnostic_log.dart';
 import '../../../core/net/media_proxy.dart';
 import '../../../core/scanner/file_classifier.dart';
 import '../../browse/data/remote_models.dart';
@@ -43,6 +44,7 @@ class P115Client {
   final Dio _dio;
 
   DateTime? _lastListAt;
+  var _resolveSeq = 0;
   static const _listMinInterval = Duration(milliseconds: 350);
 
   static const sourceId = 'p115';
@@ -77,40 +79,74 @@ class P115Client {
   }
 
   Future<ResolvedMediaUrl> resolveDownloadUrl(String pickcode) async {
-    final cookie = await _cookie();
-    final encrypted = P115Cipher.encryptJson({'pickcode': pickcode});
-    final res = await _dio.post<dynamic>(
-      'https://proapi.115.com/app/chrome/downurl',
-      data: {'data': encrypted},
-      options: Options(
-        contentType: Headers.formUrlEncodedContentType,
-        headers: {'Cookie': cookie.header, 'User-Agent': _downloadUserAgent},
-        followRedirects: false,
-        validateStatus: (s) => s != null && s < 500,
-      ),
-    );
-    if (res.statusCode == 401 || res.statusCode == 403) {
-      throw const P115AuthExpiredException();
-    }
-    final setCookies = <String>[];
-    final body = await _followDownurl(res, cookie, setCookies);
-    final json = _asJson(body);
-    if (!_truthy(json['state'])) {
-      if (_authExpired(json)) throw const P115AuthExpiredException();
-      throw P115Exception('${json['error'] ?? json['message'] ?? '获取直链失败'}');
-    }
-    final data = jsonDecode(P115Cipher.decryptToString('${json['data']}'));
-    final url = _extractDownloadUrl(data);
-    // The CDN 403s "no cookie value" unless we send the session cookie PLUS the
-    // signed anti-leech cookies 115 sets during the download redirect (acw_tc +
-    // a dynamic one), with a 115 referer. fvp/FFmpeg also won't forward a Cookie
-    // header at all, so stream through the local proxy which injects them all.
-    final proxied = await MediaProxy.instance.wrap(Uri.parse(url), {
-      'User-Agent': _downloadUserAgent,
-      'Cookie': _mergeCookieHeader(cookie.header, setCookies),
-      'Referer': 'https://115.com/',
+    final resolveId = ++_resolveSeq;
+    DiagnosticLog.write('p115', 'resolve_start', {
+      'resolveId': resolveId,
+      'pickcodeTail': _tail(pickcode),
     });
-    return ResolvedMediaUrl(url: proxied.url, release: proxied.release);
+    try {
+      final cookie = await _cookie();
+      final encrypted = P115Cipher.encryptJson({'pickcode': pickcode});
+      final res = await _dio.post<dynamic>(
+        'https://proapi.115.com/app/chrome/downurl',
+        data: {'data': encrypted},
+        options: Options(
+          contentType: Headers.formUrlEncodedContentType,
+          headers: {'Cookie': cookie.header, 'User-Agent': _downloadUserAgent},
+          followRedirects: false,
+          validateStatus: (s) => s != null && s < 500,
+        ),
+      );
+      DiagnosticLog.write('p115', 'downurl_response', {
+        'resolveId': resolveId,
+        'status': res.statusCode,
+        'setCookieNames': _cookieNamesFromSetCookies(
+          res.headers['set-cookie'] ?? const [],
+        ),
+        'hasLocation': res.headers.value('location') != null,
+      });
+      if (res.statusCode == 401 || res.statusCode == 403) {
+        throw const P115AuthExpiredException();
+      }
+      final followed = await _followDownurl(res, cookie);
+      final json = _asJson(followed.body);
+      if (!_truthy(json['state'])) {
+        if (_authExpired(json)) throw const P115AuthExpiredException();
+        throw P115Exception('${json['error'] ?? json['message'] ?? '获取直链失败'}');
+      }
+      final data = jsonDecode(P115Cipher.decryptToString('${json['data']}'));
+      final url = _extractDownloadUrl(data);
+      final uri = Uri.parse(url);
+      final proxyCookie = _mergeCookieHeader(cookie.header, followed.cookies);
+      // The CDN 403s "no cookie value" unless we send the session cookie PLUS the
+      // signed anti-leech cookies 115 sets during the download redirect (acw_tc +
+      // a dynamic one), with a 115 referer. fvp/FFmpeg also won't forward a Cookie
+      // header at all, so stream through the local proxy which injects them all.
+      final proxied = await MediaProxy.instance.wrap(uri, {
+        'User-Agent': _downloadUserAgent,
+        'Cookie': proxyCookie,
+        'Referer': 'https://115.com/',
+      });
+      DiagnosticLog.write('p115', 'resolve_done', {
+        'resolveId': resolveId,
+        'hopCount': followed.hopCount,
+        'lastStatus': followed.lastStatus,
+        'downloadScheme': uri.scheme,
+        'downloadHost': uri.host,
+        'downloadQueryKeys': uri.queryParameters.keys.toList()..sort(),
+        'setCookieNames': _cookieNamesFromSetCookies(followed.cookies),
+        'proxyCookieNames': _cookieNamesFromHeader(proxyCookie),
+        'proxyPort': proxied.url.port,
+      });
+      return ResolvedMediaUrl(url: proxied.url, release: proxied.release);
+    } catch (e) {
+      DiagnosticLog.write('p115', 'resolve_error', {
+        'resolveId': resolveId,
+        'errorType': '${e.runtimeType}',
+        'message': '$e',
+      });
+      rethrow;
+    }
   }
 
   Future<List<int>> getBytesByPickcode(String pickcode) async {
@@ -139,16 +175,25 @@ class P115Client {
   /// 115 proapi 302-redirects the downurl POST to a `dl302` gateway that serves
   /// the encrypted JSON. dart:io doesn't auto-follow a POST redirect, so chase
   /// the `Location` chain manually (GET) and return the JSON-bearing body.
-  Future<dynamic> _followDownurl(
+  Future<_DownurlResult> _followDownurl(
     Response<dynamic> res,
     P115Cookie cookie,
-    List<String> setCookies,
   ) async {
     var current = res;
+    var hopCount = 0;
+    final setCookies = <String>[];
     setCookies.addAll(current.headers['set-cookie'] ?? const []);
     for (var hop = 0; hop < 5; hop++) {
       final location = current.headers.value('location');
-      if (location == null || location.isEmpty) return current.data;
+      if (location == null || location.isEmpty) {
+        return _DownurlResult(
+          body: current.data,
+          cookies: setCookies,
+          hopCount: hopCount,
+          lastStatus: current.statusCode,
+        );
+      }
+      hopCount++;
       current = await _dio.get<dynamic>(
         location,
         options: Options(
@@ -166,7 +211,12 @@ class P115Client {
         throw const P115AuthExpiredException();
       }
     }
-    return current.data;
+    return _DownurlResult(
+      body: current.data,
+      cookies: setCookies,
+      hopCount: hopCount,
+      lastStatus: current.statusCode,
+    );
   }
 
   static List<RemoteEntry> mapEntries(Map<String, dynamic> json) {
@@ -285,6 +335,31 @@ class P115Client {
     return values.entries.map((e) => '${e.key}=${e.value}').join('; ');
   }
 
+  static List<String> _cookieNamesFromSetCookies(Iterable<String> headers) {
+    final names = <String>{};
+    for (final header in headers) {
+      final first = header.split(';').first.trim();
+      final i = first.indexOf('=');
+      if (i > 0) names.add(first.substring(0, i));
+    }
+    return names.toList()..sort();
+  }
+
+  static List<String> _cookieNamesFromHeader(String header) {
+    final names = <String>{};
+    for (final pair in header.split(';')) {
+      final trimmed = pair.trim();
+      final i = trimmed.indexOf('=');
+      if (i > 0) names.add(trimmed.substring(0, i));
+    }
+    return names.toList()..sort();
+  }
+
+  static String _tail(String value) {
+    if (value.length <= 6) return value;
+    return value.substring(value.length - 6);
+  }
+
   static String _extractDownloadUrl(Object? data) {
     final map = Map<String, dynamic>.from(data as Map);
     final single = map['url'];
@@ -297,6 +372,20 @@ class P115Client {
     }
     throw const P115Exception('115 未返回可播放直链');
   }
+}
+
+class _DownurlResult {
+  const _DownurlResult({
+    required this.body,
+    required this.cookies,
+    required this.hopCount,
+    required this.lastStatus,
+  });
+
+  final dynamic body;
+  final List<String> cookies;
+  final int hopCount;
+  final int? lastStatus;
 }
 
 final p115ClientProvider = Provider<P115Client>((ref) {

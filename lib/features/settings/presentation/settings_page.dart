@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'appearance_settings_page.dart';
 import 'data_settings_page.dart';
+import 'diagnostic_log_page.dart';
 import 'playback_settings_page.dart';
 import 'translation_settings_page.dart';
 
@@ -37,6 +38,12 @@ class SettingsPage extends StatelessWidget {
             title: '数据管理',
             subtitle: '导入文件夹、云存储、已移除作品',
             page: DataSettingsPage(),
+          ),
+          _Entry(
+            icon: Icons.bug_report_outlined,
+            title: '诊断日志',
+            subtitle: '复制播放代理日志',
+            page: DiagnosticLogPage(),
           ),
         ],
       ),

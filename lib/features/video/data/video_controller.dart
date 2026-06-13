@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../../core/db/providers.dart';
+import '../../../core/diagnostics/diagnostic_log.dart';
 import '../../browse/data/remote_models.dart';
 import '../../p115/data/p115_auth_service.dart';
 import '../../p115/data/p115_client.dart';
@@ -45,6 +46,7 @@ class VideoController extends Notifier<VideoPlaybackState> {
   VideoPlayerController? _controller;
   FutureOr<void> Function()? _resolvedRelease;
   bool _lastPlaying = false;
+  String? _lastVideoError;
 
   @override
   VideoPlaybackState build() {
@@ -64,10 +66,18 @@ class VideoController extends Notifier<VideoPlaybackState> {
     _publishTimer = null;
     await _teardown();
     state = VideoPlaybackState(item: item);
+    _lastVideoError = null;
+    DiagnosticLog.write('video_player', 'open_start', _videoItemFields(item));
     VideoPlayerController? controller;
     FutureOr<void> Function()? release;
     try {
       final resolved = await item.resolve();
+      DiagnosticLog.write('video_player', 'resolved', {
+        ..._videoItemFields(item),
+        'urlScheme': resolved.url.scheme,
+        'urlHost': resolved.url.host,
+        'hasHeaders': resolved.headers?.isNotEmpty ?? false,
+      });
       release = resolved.release;
       final options = VideoPlayerOptions(allowBackgroundPlayback: true);
       if (resolved.url.isScheme('file')) {
@@ -83,9 +93,19 @@ class VideoController extends Notifier<VideoPlaybackState> {
         );
       }
       await controller.initialize();
+      DiagnosticLog.write('video_player', 'initialized', {
+        ..._videoItemFields(item),
+        'durationMs': controller.value.duration.inMilliseconds,
+        'width': controller.value.size.width,
+        'height': controller.value.size.height,
+      });
       _resumeFromSlot(controller, item);
       controller.addListener(_onValue);
       await controller.play();
+      DiagnosticLog.write('video_player', 'play_requested', {
+        ..._videoItemFields(item),
+        'positionMs': controller.value.position.inMilliseconds,
+      });
       _controller = controller;
       _resolvedRelease = release;
       state = VideoPlaybackState(item: item, controller: controller);
@@ -97,6 +117,11 @@ class VideoController extends Notifier<VideoPlaybackState> {
         _saveSlot();
       });
     } catch (e) {
+      DiagnosticLog.write('video_player', 'open_error', {
+        ..._videoItemFields(item),
+        'errorType': '${e.runtimeType}',
+        'message': '$e',
+      });
       await controller?.dispose();
       await release?.call();
       state = VideoPlaybackState(item: item, error: e);
@@ -122,6 +147,9 @@ class VideoController extends Notifier<VideoPlaybackState> {
   }
 
   Future<void> seek(Duration position) async {
+    DiagnosticLog.write('video_player', 'seek', {
+      'positionMs': position.inMilliseconds,
+    });
     await _controller?.seekTo(position);
     _publish();
     _saveSlot();
@@ -134,6 +162,7 @@ class VideoController extends Notifier<VideoPlaybackState> {
 
   Future<void> stop() async {
     if (_controller == null && state.item == null) return;
+    DiagnosticLog.write('video_player', 'stop');
     _publishTimer?.cancel();
     _publishTimer = null;
     _saveSlot();
@@ -148,12 +177,27 @@ class VideoController extends Notifier<VideoPlaybackState> {
     final pos = slot.positionMs;
     final dur = controller.value.duration.inMilliseconds;
     if (pos > 3000 && (dur == 0 || pos < dur - 3000)) {
+      DiagnosticLog.write('video_player', 'resume_seek', {
+        ..._videoItemFields(item),
+        'positionMs': pos,
+        'durationMs': dur,
+      });
       controller.seekTo(Duration(milliseconds: pos));
     }
   }
 
   void _onValue() {
-    final playing = _controller?.value.isPlaying ?? false;
+    final c = _controller;
+    if (c == null) return;
+    final value = c.value;
+    if (value.hasError && value.errorDescription != _lastVideoError) {
+      _lastVideoError = value.errorDescription;
+      DiagnosticLog.write('video_player', 'player_error', {
+        'errorDescription': value.errorDescription,
+        'positionMs': value.position.inMilliseconds,
+      });
+    }
+    final playing = value.isPlaying;
     if (playing != _lastPlaying) {
       _lastPlaying = playing;
       _publish();
@@ -173,6 +217,7 @@ class VideoController extends Notifier<VideoPlaybackState> {
     await c.pause();
     await c.dispose();
     await release?.call();
+    _lastVideoError = null;
   }
 
   void _saveSlot() {
@@ -337,3 +382,26 @@ class VideoController extends Notifier<VideoPlaybackState> {
 
 final videoControllerProvider =
     NotifierProvider<VideoController, VideoPlaybackState>(VideoController.new);
+
+Map<String, Object?> _videoItemFields(PlayableItem item) {
+  return {
+    'itemId': item.id,
+    'sourceKind': item.sourceKind.name,
+    'sourceId': item.sourceId,
+    'extension': _fileExtension(item.fileName),
+    'size': item.size,
+    'hasPickcode': item.pickcode != null,
+    'pickcodeTail': item.pickcode == null ? null : _tail(item.pickcode!),
+  };
+}
+
+String _fileExtension(String name) {
+  final dot = name.lastIndexOf('.');
+  if (dot < 0 || dot == name.length - 1) return '';
+  return name.substring(dot + 1).toLowerCase();
+}
+
+String _tail(String value) {
+  if (value.length <= 6) return value;
+  return value.substring(value.length - 6);
+}

@@ -5,6 +5,7 @@ import 'package:fvp/fvp.dart' as fvp;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app.dart';
+import 'core/diagnostics/diagnostic_log.dart';
 import 'core/files/local_image_path.dart';
 import 'core/prefs/shared_prefs_provider.dart';
 
@@ -17,6 +18,7 @@ Future<void> main() async {
 
   await LocalImagePath.init();
   final prefs = await SharedPreferences.getInstance();
+  await DiagnosticLog.init(prefs);
 
   final session = await AudioSession.instance;
   await session.configure(
