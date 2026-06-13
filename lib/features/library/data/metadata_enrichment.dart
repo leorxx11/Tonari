@@ -29,6 +29,20 @@ class MetadataEnrichmentService {
   final DlsiteFetcher _fetcher;
   final WorkImageCache _imageCache;
   final Duration _delay;
+  Future<void> _gate = Future<void>.value();
+
+  // Every enrichment funnels through one serial gate with [_delay] between
+  // works, so the background queue, manual refreshes and detail-page
+  // auto-enrich can't fire concurrent DLsite requests and trip rate limiting.
+  // Re-reading the row inside the gate also dedupes callers racing on the
+  // same work: whoever queued second sees it enriched and returns early.
+  Future<T> _throttled<T>(Future<T> Function() body) {
+    final run = _gate.then((_) => body());
+    _gate = run
+        .then<void>((_) {}, onError: (_) {})
+        .then((_) => Future<void>.delayed(_delay));
+    return run;
+  }
 
   Future<void> enrichBatch(
     Iterable<String> productIds, {
@@ -38,7 +52,6 @@ class MetadataEnrichmentService {
     for (var i = 0; i < ids.length; i++) {
       final id = ids[i];
       onProgress?.call(i, ids.length, id);
-      if (i > 0) await Future<void>.delayed(_delay);
       try {
         await enrichOne(id);
       } catch (_) {
@@ -66,6 +79,17 @@ class MetadataEnrichmentService {
   Future<void> enrichOne(
     String productId, {
     bool force = false,
+    ImageCacheProgress? onImageProgress,
+  }) {
+    return _throttled(
+      () =>
+          _enrichOne(productId, force: force, onImageProgress: onImageProgress),
+    );
+  }
+
+  Future<void> _enrichOne(
+    String productId, {
+    required bool force,
     ImageCacheProgress? onImageProgress,
   }) async {
     final row = await (_db.select(

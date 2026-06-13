@@ -54,23 +54,6 @@ class P115ImportFlow {
     return summary;
   }
 
-  Future<ImportSummary?> rescanFolder(
-    ImportedFolder folder, {
-    bool skipExisting = false,
-  }) async {
-    if (folder.type != 'p115' || folder.remotePath == null) return null;
-    return importFolder(
-      folder: RemoteEntry(
-        id: folder.remotePath!,
-        path: folder.remotePath!,
-        name: folder.displayName,
-        kind: RemoteEntryKind.folder,
-        sourceId: P115Client.sourceId,
-      ),
-      skipExisting: skipExisting,
-    );
-  }
-
   /// Re-scans a single work in place: scans only its own 115 folder (cid stored
   /// as localFolderPath) and writes back under the work's existing folderId,
   /// reviving the tombstone if it was removed. No new ImportedFolder is created.

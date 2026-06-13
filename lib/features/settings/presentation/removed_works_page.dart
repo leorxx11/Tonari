@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/db/database.dart';
 import '../../library/data/library_task_controller.dart';
+import '../../library/data/work_actions_provider.dart';
 import '../../library/data/work_reimport_provider.dart';
 import '../../library/data/works_providers.dart';
 
@@ -49,9 +50,22 @@ class _RemovedWorkTile extends ConsumerWidget {
       leading: const Icon(Icons.album_outlined),
       title: Text(work.title),
       subtitle: Text('${work.productId} · 快照已清除'),
-      trailing: TextButton(
-        onPressed: active ? null : () => _reimport(context, ref),
-        child: Text(active ? '导入中' : '重新导入'),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextButton(
+            onPressed: active ? null : () => _reimport(context, ref),
+            child: Text(active ? '导入中' : '重新导入'),
+          ),
+          IconButton(
+            tooltip: '彻底移除',
+            icon: Icon(
+              Icons.delete_forever_outlined,
+              color: Theme.of(context).colorScheme.error,
+            ),
+            onPressed: active ? null : () => _deleteForever(context, ref),
+          ),
+        ],
       ),
     );
   }
@@ -79,5 +93,31 @@ class _RemovedWorkTile extends ConsumerWidget {
         context,
       ).showSnackBar(SnackBar(content: Text('重新导入失败：$e')));
     }
+  }
+
+  Future<void> _deleteForever(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('彻底移除'),
+        content: Text('将永久删除「${work.title}」的移除记录。下次导入会作为新作品加入。确定？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('彻底移除'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    await ref.read(deleteWorkPermanentlyProvider)(work.productId);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('已彻底移除 ${work.title}')));
   }
 }

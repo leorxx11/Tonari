@@ -18,6 +18,7 @@ import '../../p115/presentation/p115_login_page.dart';
 import '../../webdav/data/webdav_client.dart';
 import '../../webdav/data/webdav_server_repository.dart';
 import '../../webdav/presentation/webdav_browser_page.dart';
+import '../../webdav/presentation/webdav_settings_page.dart';
 import 'widgets/library_task_status.dart';
 import 'widgets/work_card.dart';
 import 'work_detail_page.dart';
@@ -166,10 +167,18 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
               },
             ),
             if (servers.isEmpty)
-              const ListTile(
-                enabled: false,
-                leading: Icon(Icons.cloud_off_outlined),
-                title: Text('未配置 WebDAV'),
+              ListTile(
+                leading: const Icon(Icons.cloud_off_outlined),
+                title: const Text('未配置 WebDAV'),
+                subtitle: const Text('点此添加服务器'),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const WebdavSettingsPage(),
+                    ),
+                  );
+                },
               ),
             for (final s in servers)
               ListTile(
@@ -252,43 +261,20 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
         },
       );
       if (!mounted) return;
+      if (summary.workIds.isEmpty) {
+        await ref.read(folderPickerServiceProvider).removeIfEmpty(folder.id);
+      }
       unawaited(ref.read(enrichmentQueueProvider.notifier).runPending());
-      await _showImportDebugDialog(summary);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(_importResultText(summary)),
+          duration: const Duration(seconds: 5),
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       messenger.showSnackBar(SnackBar(content: Text('导入失败：$e')));
     }
-  }
-
-  Future<void> _showImportDebugDialog(ImportSummary s) async {
-    await showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('导入诊断'),
-        content: SingleChildScrollView(
-          child: SelectableText(
-            '根路径: ${s.scannedRootPath}\n'
-            '\n'
-            '总扫描文件: ${s.filesScanned}\n'
-            '识别作品: ${s.workIds.length}（新增 ${s.worksInserted} / 更新 ${s.worksUpdated}）\n'
-            '识别音轨: ${s.tracksTotal}\n'
-            '扫描失败跳过: ${s.incompleteWorks.length}\n'
-            '\n'
-            '未识别的子目录 (${s.unrecognizedDirs.length}):\n'
-            '${s.unrecognizedDirs.take(20).join("\n")}\n'
-            '\n'
-            '错误 (${s.scanErrors.length}):\n'
-            '${s.scanErrors.take(10).join("\n")}',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('关闭'),
-          ),
-        ],
-      ),
-    );
   }
 
   Future<void> _onRemoveWork(Work work) async {
@@ -309,6 +295,15 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     _searchController.clear();
     ref.read(workFilterProvider.notifier).setSearchQuery('');
   }
+}
+
+String _importResultText(ImportSummary summary) {
+  final incomplete = summary.incompleteWorks.isEmpty
+      ? ''
+      : '\n${summary.incompleteWorks.length} 个作品扫描失败，已跳过，可稍后重新导入。';
+  return '导入完成：新增 ${summary.worksInserted}，'
+      '已有 ${summary.worksSkipped} 跳过，共 ${summary.tracksTotal} 音轨。'
+      '封面和元数据后台补全中。$incomplete';
 }
 
 class _WorksGrid extends StatelessWidget {

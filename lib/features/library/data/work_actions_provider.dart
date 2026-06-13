@@ -5,6 +5,7 @@ import '../../../core/db/database.dart';
 import '../../../core/db/providers.dart';
 
 typedef RemoveWork = Future<void> Function(String productId);
+typedef DeleteWorkPermanently = Future<void> Function(String productId);
 typedef ToggleFavorite = Future<void> Function(String productId, bool favorite);
 
 final removeWorkProvider = Provider<RemoveWork>((ref) {
@@ -42,6 +43,38 @@ RemoveWork removeWorkWithDatabase(TonariDatabase db) {
           updatedAt: Value(DateTime.now()),
         ),
       );
+    });
+  };
+}
+
+final deleteWorkPermanentlyProvider = Provider<DeleteWorkPermanently>((ref) {
+  final db = ref.watch(databaseProvider);
+  return deleteWorkPermanentlyWithDatabase(db);
+});
+
+DeleteWorkPermanently deleteWorkPermanentlyWithDatabase(TonariDatabase db) {
+  return (productId) async {
+    await db.transaction(() async {
+      final trackIds =
+          await (db.selectOnly(db.tracks)
+                ..addColumns([db.tracks.id])
+                ..where(db.tracks.workId.equals(productId)))
+              .map((row) => row.read(db.tracks.id)!)
+              .get();
+      if (trackIds.isNotEmpty) {
+        await (db.delete(
+          db.subtitles,
+        )..where((s) => s.trackId.isIn(trackIds))).go();
+      }
+      await (db.delete(
+        db.tracks,
+      )..where((t) => t.workId.equals(productId))).go();
+      await (db.delete(
+        db.workFiles,
+      )..where((f) => f.workId.equals(productId))).go();
+      await (db.delete(
+        db.works,
+      )..where((w) => w.productId.equals(productId))).go();
     });
   };
 }

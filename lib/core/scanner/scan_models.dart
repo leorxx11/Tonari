@@ -5,6 +5,7 @@ class ScanResult {
     required this.filesScanned,
     required this.unrecognizedDirs,
     this.errors = const [],
+    this.skippedExisting = 0,
   });
 
   final String rootPath;
@@ -16,6 +17,11 @@ class ScanResult {
   final List<String> unrecognizedDirs;
 
   final List<String> errors;
+
+  /// Works skipped during the scan because their RJ id was in the caller's
+  /// skip set (remote re-import dedupe). They never enter [works], so the
+  /// importer can't tally them — the scanner reports the count here instead.
+  final int skippedExisting;
 }
 
 class DetectedWork {

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/db/database.dart';
 import '../../../core/files/folder_picker_service.dart';
+import '../../library/data/enrichment_queue.dart';
 import '../../library/data/folder_reimport_provider.dart';
 import '../../library/data/library_task_controller.dart';
 
@@ -40,15 +41,19 @@ class _SourceTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Block delete while this folder's task or a global import is running, so
-    // an in-flight import can't write works pointing at a just-deleted source.
+    // Block delete while any single-work task, a global import, or background
+    // enrichment is running, so in-flight work can't write rows / cache images
+    // pointing at a just-deleted source. Single-work tasks are keyed by
+    // productId (not folder id), so match on "any active" rather than this
+    // folder — coarse but safe: deletes are rare and these tasks are short.
     final busy =
         ref.watch(
           workTaskControllerProvider.select(
-            (tasks) => tasks[folder.id]?.active ?? false,
+            (tasks) => tasks.values.any((t) => t.active),
           ),
         ) ||
-        ref.watch(libraryTaskControllerProvider.select((s) => s.active));
+        ref.watch(libraryTaskControllerProvider.select((s) => s.active)) ||
+        ref.watch(enrichmentQueueProvider.select((s) => s.active));
     final count = ref.watch(
       folderWorkCountsProvider.select(
         (counts) => counts.value?[folder.id] ?? 0,

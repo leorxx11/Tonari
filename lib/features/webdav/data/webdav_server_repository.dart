@@ -93,6 +93,28 @@ class WebdavServerRepository {
     await (db.delete(db.webdavServers)..where((s) => s.id.equals(id))).go();
     await passwordStore.delete(id);
   }
+
+  /// Active (non-tombstoned) works imported through this server. Used to warn
+  /// before delete, since removing the server leaves them in the library but
+  /// unplayable (the stream URL can no longer be rebuilt).
+  Future<int> countActiveWorks(String serverId) async {
+    final folders =
+        await (db.select(db.importedFolders)
+              ..where((f) => f.serverId.equals(serverId)))
+            .get();
+    if (folders.isEmpty) return 0;
+    final ids = folders.map((f) => f.id).toList();
+    final countExpr = db.works.productId.count();
+    final row =
+        await (db.selectOnly(db.works)
+              ..addColumns([countExpr])
+              ..where(
+                db.works.importedFolderId.isIn(ids) &
+                    db.works.isRemoved.equals(false),
+              ))
+            .getSingle();
+    return row.read(countExpr) ?? 0;
+  }
 }
 
 final webdavServerRepositoryProvider = Provider<WebdavServerRepository>((ref) {

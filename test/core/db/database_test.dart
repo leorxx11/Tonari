@@ -182,6 +182,91 @@ void main() {
     expect(await db.select(db.subtitles).get(), isEmpty);
   });
 
+  test('deleteWorkPermanently removes tombstone and residual rows', () async {
+    final now = DateTime.now();
+    await db
+        .into(db.works)
+        .insert(
+          WorksCompanion.insert(
+            productId: 'RJ_delete',
+            title: 'Deleted Work',
+            localImportedAt: now,
+            localFolderPath: '/delete',
+            isRemoved: const Value(true),
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+    await db
+        .into(db.tracks)
+        .insert(
+          TracksCompanion.insert(
+            id: 'delete-track',
+            workId: 'RJ_delete',
+            filePath: '/delete/track01.mp3',
+            fileName: 'track01.mp3',
+            fileFormat: 'mp3',
+            fileSizeBytes: 1024,
+            durationMs: 0,
+            parentDirName: 'delete',
+            title: 'track01',
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+    await db
+        .into(db.subtitles)
+        .insert(
+          SubtitlesCompanion.insert(
+            id: 'delete-subtitle',
+            trackId: 'delete-track',
+            filePath: '/delete/track01.srt',
+            fileFormat: 'srt',
+            fileHash: 'hash',
+            originalLinesJson: '[]',
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+    await db
+        .into(db.workFiles)
+        .insert(
+          WorkFilesCompanion.insert(
+            id: 'delete-file',
+            workId: 'RJ_delete',
+            filePath: '/delete/cover.jpg',
+            relativePath: 'cover.jpg',
+            fileName: 'cover.jpg',
+            fileKind: 'image',
+            fileSizeBytes: 1,
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+
+    await deleteWorkPermanentlyWithDatabase(db)('RJ_delete');
+
+    expect(await db.select(db.works).get(), isEmpty);
+    expect(await db.select(db.tracks).get(), isEmpty);
+    expect(await db.select(db.subtitles).get(), isEmpty);
+    expect(await db.select(db.workFiles).get(), isEmpty);
+
+    await db
+        .into(db.works)
+        .insert(
+          WorksCompanion.insert(
+            productId: 'RJ_delete',
+            title: 'Reimported Work',
+            localImportedAt: now,
+            localFolderPath: '/delete',
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+    final work = await db.select(db.works).getSingle();
+    expect(work.isRemoved, isFalse);
+  });
+
   test('ImportedFolders insert + watch streams newest first', () async {
     final older = DateTime(2026, 1, 1);
     final newer = DateTime(2026, 1, 2);

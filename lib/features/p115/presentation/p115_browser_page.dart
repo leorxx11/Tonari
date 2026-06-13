@@ -127,8 +127,8 @@ class P115BrowserPage extends ConsumerWidget {
       messenger?.showSnackBar(
         SnackBar(
           content: Text(
-            '「${folder.name}」导入完成：${summary.worksInserted} 新增 / '
-            '${summary.worksUpdated} 更新，共 ${summary.tracksTotal} 音轨。'
+            '「${folder.name}」导入完成：新增 ${summary.worksInserted}，'
+            '已有 ${summary.worksSkipped} 跳过，共 ${summary.tracksTotal} 音轨。'
             '封面和元数据后台补全中。'
             '${summary.incompleteWorks.isEmpty ? '' : '\n${summary.incompleteWorks.length} 个作品扫描失败（疑似风控），已跳过，可稍后重新导入。'}',
           ),

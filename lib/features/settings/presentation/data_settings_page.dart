@@ -17,7 +17,7 @@ class DataSettingsPage extends StatelessWidget {
           ListTile(
             leading: const Icon(Icons.folder_copy_outlined),
             title: const Text('媒体来源'),
-            subtitle: const Text('导入、刷新、删除来源'),
+            subtitle: const Text('查看、删除来源'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => _push(context, const MediaSourcesPage()),
           ),

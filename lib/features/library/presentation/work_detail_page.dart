@@ -16,6 +16,7 @@ import '../../settings/presentation/translation_settings_page.dart';
 import '../../translation/data/llm_provider_repository.dart';
 import '../../translation/data/translation_controller.dart';
 import '../data/library_task_controller.dart';
+import '../data/enrichment_queue.dart';
 import '../data/metadata_enrichment.dart';
 import '../data/work_actions_provider.dart';
 import '../data/work_reimport_provider.dart';
@@ -87,6 +88,7 @@ class _WorkDetailViewState extends ConsumerState<_WorkDetailView> {
               );
             },
           );
+          ref.read(enrichmentQueueProvider.notifier).clearFailure(w.productId);
         },
       );
     } catch (_) {
@@ -174,6 +176,7 @@ class _WorkDetailViewState extends ConsumerState<_WorkDetailView> {
               );
             },
           );
+          ref.read(enrichmentQueueProvider.notifier).clearFailure(productId);
         },
       );
       _evictWorkImages(before);
@@ -1467,6 +1470,7 @@ class _MoreMenu extends ConsumerWidget {
             contentPadding: EdgeInsets.zero,
             leading: Icon(Icons.manage_search),
             title: Text('重新扫描此作品'),
+            subtitle: Text('重新读取文件和音轨'),
           ),
         ),
         const PopupMenuDivider(),

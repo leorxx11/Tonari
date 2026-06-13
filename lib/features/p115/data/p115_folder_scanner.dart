@@ -18,6 +18,7 @@ class P115FolderScanner {
     final unrecognized = <String>[];
     final errors = <String>[];
     var filesScanned = 0;
+    var skippedExisting = 0;
 
     Future<DetectedWork> buildWork(
       RemoteEntry workDir,
@@ -146,6 +147,16 @@ class P115FolderScanner {
 
     final rootRj = RjId.extract(root.name);
     if (rootRj != null) {
+      if (skipProductIds.contains(rootRj)) {
+        return ScanResult(
+          rootPath: root.path,
+          works: const [],
+          filesScanned: 0,
+          unrecognizedDirs: const [],
+          errors: const [],
+          skippedExisting: 1,
+        );
+      }
       works.add(await buildWork(root, rootRj));
       onProgress?.call(works.length, rootRj);
       return ScanResult(
@@ -174,7 +185,10 @@ class P115FolderScanner {
       if (!child.isFolder) continue;
       final childRj = RjId.extract(child.name);
       if (childRj != null) {
-        if (skipProductIds.contains(childRj)) continue;
+        if (skipProductIds.contains(childRj)) {
+          skippedExisting++;
+          continue;
+        }
         works.add(await buildWork(child, childRj));
         onProgress?.call(works.length, childRj);
         continue;
@@ -187,7 +201,10 @@ class P115FolderScanner {
           final grandRj = RjId.extract(grand.name);
           if (grandRj != null) {
             foundGrand = true;
-            if (skipProductIds.contains(grandRj)) continue;
+            if (skipProductIds.contains(grandRj)) {
+              skippedExisting++;
+              continue;
+            }
             works.add(await buildWork(grand, grandRj));
             onProgress?.call(works.length, grandRj);
           }
@@ -204,6 +221,7 @@ class P115FolderScanner {
       filesScanned: filesScanned,
       unrecognizedDirs: unrecognized,
       errors: errors,
+      skippedExisting: skippedExisting,
     );
   }
 }

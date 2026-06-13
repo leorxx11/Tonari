@@ -18,10 +18,8 @@ class ImportSummary {
     this.workIds = const {},
     this.trackIds = const {},
     this.incompleteWorks = const [],
+    this.worksSkipped = 0,
     this.scannedRootPath = '',
-    this.filesScanned = 0,
-    this.unrecognizedDirs = const [],
-    this.scanErrors = const [],
   });
 
   final int worksInserted;
@@ -35,12 +33,14 @@ class ImportSummary {
   /// no empty shells created — so the caller can tell the user to retry.
   final List<String> incompleteWorks;
 
-  // Debug fields — surfaced in the import-complete dialog so we can see
-  // why a scan returned zero works on device.
+  /// Works left untouched because they were already imported and active
+  /// (skipExisting on a folder re-import). Reported so the user sees a
+  /// re-import that found nothing new isn't a silent no-op.
+  final int worksSkipped;
+
+  /// The root path actually scanned, after resolving the security-scoped
+  /// bookmark / percent-decoding an iOS file-provider URL.
   final String scannedRootPath;
-  final int filesScanned;
-  final List<String> unrecognizedDirs;
-  final List<String> scanErrors;
 }
 
 class ImportService {
@@ -367,10 +367,8 @@ class ImportService {
       workIds: workIds,
       trackIds: trackIds,
       incompleteWorks: incompleteWorks,
+      worksSkipped: scan.skippedExisting + skip.length,
       scannedRootPath: scan.rootPath,
-      filesScanned: scan.filesScanned,
-      unrecognizedDirs: scan.unrecognizedDirs,
-      scanErrors: scan.errors,
     );
   }
 

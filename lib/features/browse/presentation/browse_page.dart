@@ -9,6 +9,7 @@ import '../../p115/presentation/p115_login_page.dart';
 import '../../webdav/data/webdav_client.dart';
 import '../../webdav/data/webdav_server_repository.dart';
 import '../../webdav/presentation/webdav_browser_page.dart';
+import '../../webdav/presentation/webdav_settings_page.dart';
 
 class BrowsePage extends ConsumerWidget {
   const BrowsePage({super.key});
@@ -65,9 +66,16 @@ class BrowsePage extends ConsumerWidget {
             error: (e, _) => ListTile(title: Text('WebDAV 加载失败：$e')),
             data: (servers) {
               if (servers.isEmpty) {
-                return const ListTile(
-                  leading: Icon(Icons.cloud_off_outlined),
-                  title: Text('未配置 WebDAV'),
+                return ListTile(
+                  leading: const Icon(Icons.cloud_off_outlined),
+                  title: const Text('未配置 WebDAV'),
+                  subtitle: const Text('点此添加服务器'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const WebdavSettingsPage(),
+                    ),
+                  ),
                 );
               }
               return Column(

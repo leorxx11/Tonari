@@ -11,6 +11,7 @@ class EnrichmentQueueState {
     this.current,
     this.done = 0,
     this.total = 0,
+    this.failures = const {},
   });
 
   const EnrichmentQueueState.idle() : this();
@@ -19,6 +20,11 @@ class EnrichmentQueueState {
   final String? current;
   final int done;
   final int total;
+
+  /// Works that exhausted their retries this session, keyed by product id with
+  /// a short failure reason. Kept across idle so the indicator can surface them
+  /// instead of silently dropping the work.
+  final Map<String, String> failures;
 
   double? get progress => total > 0 ? done / total : null;
 }
@@ -29,6 +35,7 @@ class EnrichmentQueueState {
 /// enrichment indicator; [runPending] is also the manual "一键补全" action.
 class EnrichmentQueue extends Notifier<EnrichmentQueueState> {
   final Map<String, int> _attempts = {};
+  final Map<String, String> _failures = {};
   bool _running = false;
 
   static const _maxAttempts = 2;
@@ -42,10 +49,13 @@ class EnrichmentQueue extends Notifier<EnrichmentQueueState> {
 
   /// Enriches every work still missing metadata, re-querying after each pass so
   /// works imported mid-run are picked up too. [reset] clears the per-work
-  /// retry counters first — used by the manual action so the user can re-try
-  /// works that already hit the cap.
+  /// retry counters and recorded failures first — used by the manual action so
+  /// the user can re-try works that already hit the cap.
   Future<void> runPending({bool reset = false}) async {
-    if (reset) _attempts.clear();
+    if (reset) {
+      _attempts.clear();
+      _failures.clear();
+    }
     if (_running) return;
     _running = true;
     try {
@@ -71,12 +81,17 @@ class EnrichmentQueue extends Notifier<EnrichmentQueueState> {
             current: id,
             done: i,
             total: pending.length,
+            failures: Map.unmodifiable(_failures),
           );
-          _attempts[id] = (_attempts[id] ?? 0) + 1;
+          final attempt = (_attempts[id] ?? 0) + 1;
+          _attempts[id] = attempt;
           try {
             await enrichment.enrichOne(id);
-          } catch (_) {
-            // leave pending; the attempt is counted so we stop after the cap
+            _failures.remove(id);
+          } catch (e) {
+            // Record the reason once retries are exhausted so the indicator can
+            // surface it; otherwise leave pending for the next pass.
+            if (attempt >= _maxAttempts) _failures[id] = _reason(e);
           }
         }
       }
@@ -84,27 +99,46 @@ class EnrichmentQueue extends Notifier<EnrichmentQueueState> {
       // best-effort background; ignore db-unavailable (tests) / transient errors
     } finally {
       _running = false;
-      state = const EnrichmentQueueState.idle();
+      state = EnrichmentQueueState(failures: Map.unmodifiable(_failures));
     }
+  }
+
+  void clearFailure(String productId) {
+    _attempts.remove(productId);
+    _failures.remove(productId);
+    state = EnrichmentQueueState(
+      active: state.active,
+      current: state.current,
+      done: state.done,
+      total: state.total,
+      failures: Map.unmodifiable(_failures),
+    );
+  }
+
+  static String _reason(Object e) {
+    final s = e.toString();
+    return s.length > 200 ? '${s.substring(0, 200)}…' : s;
   }
 }
 
 final enrichmentQueueProvider =
-    NotifierProvider<EnrichmentQueue, EnrichmentQueueState>(EnrichmentQueue.new);
+    NotifierProvider<EnrichmentQueue, EnrichmentQueueState>(
+      EnrichmentQueue.new,
+    );
 
 /// Reactive count of works still missing metadata (no scrapedAt or no cover).
 /// Single source of truth for the idle "补全 N 个" affordance.
 final pendingEnrichmentCountProvider = StreamProvider<int>((ref) {
   final db = ref.watch(databaseProvider);
-  return (db.select(db.works)..where((r) => r.isRemoved.equals(false)))
-      .watch()
-      .map(
-        (rows) => rows
-            .where(
-              (r) =>
-                  r.scrapedAt == null ||
-                  LocalImagePath.resolve(r.mainImageLocalPath) == null,
-            )
-            .length,
-      );
+  return (db.select(
+    db.works,
+  )..where((r) => r.isRemoved.equals(false))).watch().map(
+    (rows) => rows
+        .where(
+          (r) =>
+              r.scrapedAt == null ||
+              LocalImagePath.resolve(r.mainImageLocalPath) == null,
+        )
+        .length,
+  );
 });

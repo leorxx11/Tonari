@@ -25,6 +25,7 @@ Widget testApp({
   List<WorkFile> workFiles = const [],
   List<ImportedFolder> folders = const [],
   RemoveWork? removeWork,
+  DeleteWorkPermanently? deleteWorkPermanently,
   ReimportWork? reimportWork,
   ToggleFavorite? toggleFavorite,
   ImportFlow? importFlow,
@@ -49,6 +50,8 @@ Widget testApp({
     p115CookieProvider.overrideWith((ref) => Future.value(null)),
     webdavServersStreamProvider.overrideWith((ref) => Stream.value(const [])),
     if (removeWork != null) removeWorkProvider.overrideWithValue(removeWork),
+    if (deleteWorkPermanently != null)
+      deleteWorkPermanentlyProvider.overrideWithValue(deleteWorkPermanently),
     if (reimportWork != null)
       reimportWorkProvider.overrideWithValue(reimportWork),
     if (toggleFavorite != null)
@@ -255,6 +258,34 @@ void main() {
 
     expect(reimportedProductId, 'RJ01560714');
     expect(find.text('已重新导入 Hidden Work'), findsOneWidget);
+  });
+
+  testWidgets('settings permanently deletes a removed work', (tester) async {
+    String? deletedProductId;
+    await tester.pumpWidget(
+      testApp(
+        works: [_work('RJ01560714', title: 'Hidden Work', isRemoved: true)],
+        deleteWorkPermanently: (productId) async {
+          deletedProductId = productId;
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('设置'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('数据管理'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('已移除作品'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('彻底移除'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, '彻底移除'));
+    await tester.pumpAndSettle();
+
+    expect(deletedProductId, 'RJ01560714');
+    expect(find.text('已彻底移除 Hidden Work'), findsOneWidget);
   });
 
   testWidgets('detail menu rescans the current work', (tester) async {

@@ -70,39 +70,6 @@ class WebdavImportFlow {
     return summary;
   }
 
-  /// Re-scans an existing webdav folder, rebuilding the server config from the
-  /// stored serverId. Returns null if the folder isn't a resolvable webdav
-  /// source (e.g. its server was deleted).
-  Future<ImportSummary?> rescanFolder(
-    ImportedFolder folder, {
-    bool skipExisting = false,
-  }) async {
-    if (folder.type != 'webdav' ||
-        folder.serverId == null ||
-        folder.remotePath == null) {
-      return null;
-    }
-    final server = await (db.select(
-      db.webdavServers,
-    )..where((s) => s.id.equals(folder.serverId!))).getSingleOrNull();
-    if (server == null) return null;
-    final password = await passwordStore.read(server.id);
-    final config = WebdavConfig(
-      scheme: server.scheme,
-      host: server.host,
-      port: server.port,
-      basePath: server.basePath,
-      username: server.username,
-      password: password,
-    );
-    return importFolder(
-      server: server,
-      config: config,
-      remotePath: folder.remotePath!,
-      skipExisting: skipExisting,
-    );
-  }
-
   /// Re-scans a single work in place: scans only its own remote folder
   /// (localFolderPath) and writes back under the existing folderId, reviving
   /// the tombstone if it was removed. No new ImportedFolder is created.

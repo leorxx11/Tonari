@@ -48,6 +48,37 @@ void main() {
     },
   );
 
+  test('scanner skips works in skipProductIds and reports the count', () async {
+    final client = _FakeP115Client({
+      '0': [_folder('rj1', 'RJ111111'), _folder('rj2', 'RJ222222')],
+      'rj1': [_file('a1', '01.wav', RemoteEntryKind.audio, 'pc-a1')],
+      'rj2': [_file('a2', '01.wav', RemoteEntryKind.audio, 'pc-a2')],
+    });
+
+    final scan = await P115FolderScanner(
+      client,
+    ).scan(_folder('0', '115 网盘'), skipProductIds: {'RJ111111'});
+
+    // The skipped RJ never enters works; the scanner reports it separately so
+    // the importer can still tell the user "已有 N 跳过".
+    expect(scan.works.map((w) => w.productId), ['RJ222222']);
+    expect(scan.skippedExisting, 1);
+  });
+
+  test('scanner skips root RJ folder without listing it', () async {
+    final client = _FakeP115Client({
+      'rj': [_file('a1', '01.wav', RemoteEntryKind.audio, 'pc-a1')],
+    });
+
+    final scan = await P115FolderScanner(
+      client,
+    ).scan(_folder('rj', 'RJ111111'), skipProductIds: {'RJ111111'});
+
+    expect(scan.works, isEmpty);
+    expect(scan.filesScanned, 0);
+    expect(scan.skippedExisting, 1);
+  });
+
   test(
     'import flow stores p115 snapshot and updates same relative path',
     () async {

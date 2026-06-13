@@ -111,11 +111,18 @@ class _ServerTile extends ConsumerWidget {
           if (v == 'edit') {
             _openEdit(context);
           } else if (v == 'delete') {
+            final affected = await repo.countActiveWorks(server.id);
+            if (!context.mounted) return;
             final confirm = await showDialog<bool>(
               context: context,
               builder: (ctx) => AlertDialog(
                 title: const Text('删除服务器'),
-                content: Text('确认删除「${server.name}」？'),
+                content: Text(
+                  affected > 0
+                      ? '「${server.name}」已导入 $affected 个作品。删除服务器后它们仍留在媒体库，'
+                            '但无法再播放或刷新（流地址依赖此服务器）。确定删除？'
+                      : '确认删除「${server.name}」？',
+                ),
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.of(ctx).pop(false),

@@ -52,8 +52,9 @@ Future<void> showLibraryTaskSheet(BuildContext context) {
 }
 
 /// App-bar action for background metadata enrichment. While the queue runs it
-/// shows the current work + a spinner; when idle but works still lack metadata
-/// it offers a one-tap "补全 N 个"; otherwise it hides.
+/// shows the current work + a spinner; when idle it offers a one-tap "补全 N 个"
+/// for works that can still be auto-enriched, surfaces a separate error entry
+/// for works that exhausted their retries, and otherwise hides.
 class EnrichmentStatusAction extends ConsumerWidget {
   const EnrichmentStatusAction({super.key});
 
@@ -89,15 +90,111 @@ class EnrichmentStatusAction extends ConsumerWidget {
     final pending = ref.watch(
       pendingEnrichmentCountProvider.select((v) => v.value ?? 0),
     );
-    if (pending == 0) return const SizedBox.shrink();
-    return IconButton(
-      tooltip: '补全 $pending 个作品的资料',
-      icon: Badge(
-        label: Text('$pending'),
-        child: const Icon(Icons.download_for_offline_outlined),
+    final failures = queue.failures;
+    // Works that hit the retry cap stay in [pending] (they still lack metadata)
+    // but can't be auto-completed, so exclude them from the badge count —
+    // otherwise the badge sticks forever on a permanently-failing fetch.
+    final autoPending = (pending - failures.length).clamp(0, pending);
+    if (autoPending > 0) {
+      return IconButton(
+        tooltip: '补全 $autoPending 个作品的资料',
+        icon: Badge(
+          label: Text('$autoPending'),
+          child: const Icon(Icons.download_for_offline_outlined),
+        ),
+        // reset:false — only fetch works that haven't exhausted retries; the
+        // failure sheet's "重试全部" is the way to retry the capped ones.
+        onPressed: () => ref.read(enrichmentQueueProvider.notifier).runPending(),
+      );
+    }
+    if (failures.isNotEmpty) {
+      final scheme = Theme.of(context).colorScheme;
+      return IconButton(
+        tooltip: '${failures.length} 个作品补全失败',
+        icon: Badge(
+          backgroundColor: scheme.error,
+          label: Text('${failures.length}'),
+          child: Icon(Icons.error_outline, color: scheme.error),
+        ),
+        onPressed: () => showEnrichmentFailureSheet(context),
+      );
+    }
+    return const SizedBox.shrink();
+  }
+}
+
+Future<void> showEnrichmentFailureSheet(BuildContext context) {
+  return showModalBottomSheet<void>(
+    context: context,
+    builder: (_) => const _EnrichmentFailureSheet(),
+  );
+}
+
+class _EnrichmentFailureSheet extends ConsumerWidget {
+  const _EnrichmentFailureSheet();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final failures = ref.watch(
+      enrichmentQueueProvider.select((s) => s.failures),
+    );
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '补全失败（${failures.length}）',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'DLsite 抓取或图片下载失败。可能是作品已下架、网络问题或被风控。',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  for (final entry in failures.entries)
+                    ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(entry.key),
+                      subtitle: Text(
+                        entry.value,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton.tonalIcon(
+                icon: const Icon(Icons.refresh),
+                label: const Text('重试全部'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  ref
+                      .read(enrichmentQueueProvider.notifier)
+                      .runPending(reset: true);
+                },
+              ),
+            ),
+          ],
+        ),
       ),
-      onPressed: () =>
-          ref.read(enrichmentQueueProvider.notifier).runPending(reset: true),
     );
   }
 }

@@ -23,9 +23,8 @@ class FolderPickerService {
     // Dedupe by path: re-picking an already-imported local folder refreshes its
     // (possibly stale) bookmark instead of stacking a duplicate record.
     final existing =
-        await (_db.select(_db.importedFolders)..where(
-              (f) => f.type.equals('local') & f.remotePath.equals(url),
-            ))
+        await (_db.select(_db.importedFolders)
+              ..where((f) => f.type.equals('local') & f.remotePath.equals(url)))
             .getSingleOrNull();
     final id = existing?.id ?? _uuid.v4();
 
@@ -67,6 +66,20 @@ class FolderPickerService {
 
   Future<void> remove(String id) async {
     await (_db.delete(_db.importedFolders)..where((f) => f.id.equals(id))).go();
+  }
+
+  Future<void> removeIfEmpty(String id) async {
+    final countExpr = _db.works.productId.count();
+    final row =
+        await (_db.selectOnly(_db.works)
+              ..addColumns([countExpr])
+              ..where(_db.works.importedFolderId.equals(id)))
+            .getSingle();
+    if ((row.read(countExpr) ?? 0) == 0) {
+      await (_db.delete(
+        _db.importedFolders,
+      )..where((f) => f.id.equals(id))).go();
+    }
   }
 
   static String _lastPathComponent(String url) {

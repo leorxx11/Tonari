@@ -21,6 +21,7 @@ class RemoteFolderScanner {
     final unrecognized = <String>[];
     final errors = <String>[];
     var filesScanned = 0;
+    var skippedExisting = 0;
 
     Future<DetectedWork> buildWork(String workDir, String productId) async {
       final audios = <DetectedAudio>[];
@@ -138,6 +139,16 @@ class RemoteFolderScanner {
     final String root = _stripSlash(rootPath);
     final rootRj = RjId.extract(_basename(root));
     if (rootRj != null) {
+      if (skipProductIds.contains(rootRj)) {
+        return ScanResult(
+          rootPath: rootPath,
+          works: const [],
+          filesScanned: 0,
+          unrecognizedDirs: const [],
+          errors: const [],
+          skippedExisting: 1,
+        );
+      }
       works.add(await buildWork(root, rootRj));
       onProgress?.call(works.length, rootRj);
       return ScanResult(
@@ -166,7 +177,10 @@ class RemoteFolderScanner {
       if (!child.isDir) continue;
       final childRj = RjId.extract(child.name);
       if (childRj != null) {
-        if (skipProductIds.contains(childRj)) continue;
+        if (skipProductIds.contains(childRj)) {
+          skippedExisting++;
+          continue;
+        }
         works.add(await buildWork(child.path, childRj));
         onProgress?.call(works.length, childRj);
         continue;
@@ -179,7 +193,10 @@ class RemoteFolderScanner {
           final grandRj = RjId.extract(grand.name);
           if (grandRj != null) {
             foundGrand = true;
-            if (skipProductIds.contains(grandRj)) continue;
+            if (skipProductIds.contains(grandRj)) {
+              skippedExisting++;
+              continue;
+            }
             works.add(await buildWork(grand.path, grandRj));
             onProgress?.call(works.length, grandRj);
           }
@@ -196,6 +213,7 @@ class RemoteFolderScanner {
       filesScanned: filesScanned,
       unrecognizedDirs: unrecognized,
       errors: errors,
+      skippedExisting: skippedExisting,
     );
   }
 
