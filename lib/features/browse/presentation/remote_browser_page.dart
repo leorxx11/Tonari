@@ -267,7 +267,7 @@ class _EntryRow extends StatelessWidget {
     if (entry.isFolder) {
       return ListTile(
         leading: Icon(Icons.folder_rounded, color: iosBlue, size: 40),
-        title: Text(entry.name, maxLines: 2, overflow: TextOverflow.ellipsis),
+        title: Text(entry.name, maxLines: 5, overflow: TextOverflow.ellipsis),
         trailing: Icon(
           CupertinoIcons.chevron_right,
           size: 14,
@@ -278,7 +278,7 @@ class _EntryRow extends StatelessWidget {
     }
     return ListTile(
       leading: Icon(_iconFor(entry.kind), color: iosSecondary, size: 34),
-      title: Text(entry.name, maxLines: 2, overflow: TextOverflow.ellipsis),
+      title: Text(entry.name, maxLines: 5, overflow: TextOverflow.ellipsis),
       subtitle: entry.size == null ? null : Text(_fmtBytes(entry.size!)),
       onTap: entry.isAudio
           ? () => onPlayAudio(entry)
