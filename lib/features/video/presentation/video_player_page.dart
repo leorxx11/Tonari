@@ -372,7 +372,13 @@ class _LandscapeControls extends StatelessWidget {
                       onSelected: onSpeed,
                       itemBuilder: (_) => [
                         for (final s in const [1.0, 1.25, 1.5, 2.0])
-                          PopupMenuItem(value: s, child: Text('${s}x')),
+                          PopupMenuItem(
+                            value: s,
+                            child: Text(
+                              '${s}x',
+                              style: const TextStyle(color: Color(0xDE000000)),
+                            ),
+                          ),
                       ],
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
@@ -501,7 +507,13 @@ class _Controls extends StatelessWidget {
                       onSelected: onSpeed,
                       itemBuilder: (_) => [
                         for (final s in const [1.0, 1.25, 1.5, 2.0])
-                          PopupMenuItem(value: s, child: Text('${s}x')),
+                          PopupMenuItem(
+                            value: s,
+                            child: Text(
+                              '${s}x',
+                              style: const TextStyle(color: Color(0xDE000000)),
+                            ),
+                          ),
                       ],
                       child: SizedBox(
                         width: 48,
