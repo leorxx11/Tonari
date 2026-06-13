@@ -19,7 +19,18 @@ class _VideoPlayerPageState extends ConsumerState<VideoPlayerPage> {
   bool _landscape = false;
   bool _landscapeControlsVisible = false;
   double? _dragValue;
+  int? _scrubAnchorMs;
+  int _scrubStartPos = 0;
+  double _scrubDx = 0;
   Timer? _hideControlsTimer;
+
+  /// Full screen-width horizontal swipe spans this much time, so a swipe is a
+  /// fine local nudge instead of the slider's whole-duration jump.
+  static const _scrubRangeMs = 90000;
+
+  /// Extra travel past the system drag slop before a swipe counts as scrubbing,
+  /// so a tap (or the faintest graze) never seeks.
+  static const _scrubThresholdPx = 8.0;
 
   @override
   void dispose() {
@@ -62,6 +73,50 @@ class _VideoPlayerPageState extends ConsumerState<VideoPlayerPage> {
         setState(() => _landscapeControlsVisible = false);
       }
     });
+  }
+
+  void _onScrubStart(DragStartDetails _) {
+    _scrubStartPos =
+        ref.read(videoControllerProvider).controller?.value.position.inMilliseconds ?? 0;
+    _scrubDx = 0;
+  }
+
+  void _onScrubUpdate(DragUpdateDetails details) {
+    final durationMs =
+        ref.read(videoControllerProvider).controller?.value.duration.inMilliseconds ?? 0;
+    if (durationMs == 0) return;
+    _scrubDx += details.primaryDelta ?? 0;
+    if (_scrubAnchorMs == null && _scrubDx.abs() < _scrubThresholdPx) return;
+    if (_scrubAnchorMs == null) _hideControlsTimer?.cancel();
+    final width = MediaQuery.sizeOf(context).width;
+    final next = (_scrubStartPos + _scrubDx * (_scrubRangeMs / width))
+        .clamp(0, durationMs.toDouble())
+        .toDouble();
+    setState(() {
+      _scrubAnchorMs ??= _scrubStartPos;
+      _dragValue = next;
+    });
+  }
+
+  Future<void> _onScrubEnd(DragEndDetails _) async {
+    if (_scrubAnchorMs == null) return;
+    final v = _dragValue;
+    setState(() => _scrubAnchorMs = null);
+    if (v != null) {
+      await ref
+          .read(videoControllerProvider.notifier)
+          .seek(Duration(milliseconds: v.round()));
+    }
+    if (mounted) {
+      setState(() => _dragValue = null);
+      if (_landscape) _scheduleControlsHide();
+    }
+  }
+
+  String? get _scrubLabel {
+    final v = _dragValue;
+    if (_scrubAnchorMs == null || v == null) return null;
+    return _fmt(Duration(milliseconds: v.round()));
   }
 
   @override
@@ -110,6 +165,10 @@ class _VideoPlayerPageState extends ConsumerState<VideoPlayerPage> {
               title: state.item?.fileName ?? '',
               controlsVisible: _landscapeControlsVisible,
               dragValue: _dragValue,
+              scrubLabel: _scrubLabel,
+              onScrubStart: _onScrubStart,
+              onScrubUpdate: _onScrubUpdate,
+              onScrubEnd: _onScrubEnd,
               onTap: _toggleLandscapeControls,
               onBack: () => Navigator.of(context).maybePop(),
               onDragChanged: (v) {
@@ -135,10 +194,25 @@ class _VideoPlayerPageState extends ConsumerState<VideoPlayerPage> {
               child: Column(
                 children: [
                   Expanded(
-                    child: Center(
-                      child: AspectRatio(
-                        aspectRatio: vpc.value.aspectRatio,
-                        child: VideoPlayer(vpc),
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onHorizontalDragStart: _onScrubStart,
+                      onHorizontalDragUpdate: _onScrubUpdate,
+                      onHorizontalDragEnd: _onScrubEnd,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Center(
+                            child: AspectRatio(
+                              aspectRatio: vpc.value.aspectRatio,
+                              child: VideoPlayer(vpc),
+                            ),
+                          ),
+                          if (_scrubLabel != null)
+                            IgnorePointer(
+                              child: Center(child: _ScrubBadge(label: _scrubLabel!)),
+                            ),
+                        ],
                       ),
                     ),
                   ),
@@ -170,6 +244,10 @@ class _LandscapePlayer extends StatelessWidget {
     required this.title,
     required this.controlsVisible,
     required this.dragValue,
+    required this.scrubLabel,
+    required this.onScrubStart,
+    required this.onScrubUpdate,
+    required this.onScrubEnd,
     required this.onTap,
     required this.onBack,
     required this.onDragChanged,
@@ -183,6 +261,10 @@ class _LandscapePlayer extends StatelessWidget {
   final String title;
   final bool controlsVisible;
   final double? dragValue;
+  final String? scrubLabel;
+  final GestureDragStartCallback onScrubStart;
+  final GestureDragUpdateCallback onScrubUpdate;
+  final GestureDragEndCallback onScrubEnd;
   final VoidCallback onTap;
   final VoidCallback onBack;
   final ValueChanged<double> onDragChanged;
@@ -199,6 +281,9 @@ class _LandscapePlayer extends StatelessWidget {
         GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: onTap,
+          onHorizontalDragStart: onScrubStart,
+          onHorizontalDragUpdate: onScrubUpdate,
+          onHorizontalDragEnd: onScrubEnd,
           child: Center(
             child: AspectRatio(
               aspectRatio: controller.value.aspectRatio,
@@ -206,6 +291,8 @@ class _LandscapePlayer extends StatelessWidget {
             ),
           ),
         ),
+        if (scrubLabel != null)
+          IgnorePointer(child: Center(child: _ScrubBadge(label: scrubLabel!))),
         if (controlsVisible) ...[
           Positioned(
             left: 0,
@@ -540,6 +627,33 @@ class _Controls extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _ScrubBadge extends StatelessWidget {
+  const _ScrubBadge({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.black54,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
     );
   }
 }
