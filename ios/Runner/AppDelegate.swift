@@ -563,6 +563,20 @@ private final class PipSubtitleController: NSObject {
       sampleBufferOut: &sampleBuffer
     )
     guard let sb = sampleBuffer else { return }
+    if let attachments = CMSampleBufferGetSampleAttachmentsArray(
+      sb,
+      createIfNecessary: true
+    ) {
+      let attachment = unsafeBitCast(
+        CFArrayGetValueAtIndex(attachments, 0),
+        to: CFMutableDictionary.self
+      )
+      CFDictionarySetValue(
+        attachment,
+        Unmanaged.passUnretained(kCMSampleAttachmentKey_DisplayImmediately).toOpaque(),
+        Unmanaged.passUnretained(kCFBooleanTrue).toOpaque()
+      )
+    }
     displayLayer.enqueue(sb)
   }
 }

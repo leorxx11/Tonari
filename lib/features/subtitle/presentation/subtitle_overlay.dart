@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -158,29 +156,28 @@ class _SubtitleBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final background = Theme.of(context).brightness == Brightness.dark
+        ? const Color(0x26FFFFFF)
+        : const Color(0x1F000000);
     // decoration: none is required because the overlay is rendered
     // outside any Material ancestor (Stack child of MaterialApp.builder),
     // where Flutter falls back to the debug "yellow double underline".
-    return ClipRect(
-      child: BackdropFilter(
-        // sigma ~8 matches iOS .systemUltraThinMaterial — soft enough to add
-        // a frosted feel while keeping the page underneath legible.
-        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Text(
-            text,
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Color(0xFF9123A7),
-              fontSize: 17,
-              fontWeight: FontWeight.w700,
-              height: 1.35,
-              decoration: TextDecoration.none,
-              shadows: [Shadow(color: Color(0x99FFFFFF), blurRadius: 6)],
-            ),
+    return ColoredBox(
+      color: background,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Text(
+          text,
+          textAlign: TextAlign.center,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: Color(0xFF9123A7),
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+            height: 1.35,
+            decoration: TextDecoration.none,
+            shadows: [Shadow(color: Color(0x99FFFFFF), blurRadius: 6)],
           ),
         ),
       ),
