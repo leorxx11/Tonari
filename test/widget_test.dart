@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tonari/app.dart';
 import 'package:tonari/core/db/database.dart';
 import 'package:tonari/core/files/folder_picker_service.dart';
+import 'package:tonari/core/subtitle/subtitle_cue.dart';
 import 'package:tonari/core/prefs/shared_prefs_provider.dart';
 import 'package:tonari/features/library/data/import_flow.dart';
 import 'package:tonari/features/library/data/import_service.dart';
@@ -15,6 +16,7 @@ import 'package:tonari/features/library/data/work_image_cache.dart';
 import 'package:tonari/features/library/data/work_reimport_provider.dart';
 import 'package:tonari/features/library/data/works_providers.dart';
 import 'package:tonari/features/p115/data/p115_cookie_store.dart';
+import 'package:tonari/features/subtitle/data/subtitle_providers.dart';
 import 'package:tonari/features/webdav/data/webdav_server_repository.dart';
 
 late SharedPreferences _testPrefs;
@@ -29,6 +31,7 @@ Widget testApp({
   ReimportWork? reimportWork,
   ToggleFavorite? toggleFavorite,
   ImportFlow? importFlow,
+  Map<String, List<SubtitleCue>> subtitlePreviews = const {},
 }) => ProviderScope(
   overrides: [
     sharedPreferencesProvider.overrideWithValue(_testPrefs),
@@ -57,6 +60,10 @@ Widget testApp({
     if (toggleFavorite != null)
       toggleFavoriteProvider.overrideWithValue(toggleFavorite),
     if (importFlow != null) importFlowProvider.overrideWithValue(importFlow),
+    if (subtitlePreviews.isNotEmpty)
+      subtitlePreviewProvider.overrideWith(
+        (ref, filePath) async => subtitlePreviews[filePath],
+      ),
     metadataEnrichmentProvider.overrideWith((ref) => _NoopEnrichment()),
     rescanServiceProvider.overrideWith((ref) => _NoopRescan()),
   ],
@@ -154,6 +161,28 @@ Track _track({
     alternateQualityPathsJson: '{}',
     lastPositionMs: 0,
     playCount: 0,
+    createdAt: now,
+    updatedAt: now,
+  );
+}
+
+WorkFile _workFile({
+  required String id,
+  required String workId,
+  required String fileName,
+  required String fileKind,
+  required String filePath,
+  String? relativePath,
+}) {
+  final now = DateTime(2026, 5, 24, 14, 30);
+  return WorkFile(
+    id: id,
+    workId: workId,
+    filePath: filePath,
+    relativePath: relativePath ?? fileName,
+    fileName: fileName,
+    fileKind: fileKind,
+    fileSizeBytes: 128,
     createdAt: now,
     updatedAt: now,
   );
@@ -450,6 +479,58 @@ void main() {
     expect(find.text('01_FLAC'), findsOneWidget);
     expect(find.text('02_MP3'), findsOneWidget);
     expect(find.text('flac-track.flac'), findsNothing);
+  });
+
+  testWidgets('subtitle file opens parsed text preview', (tester) async {
+    await tester.pumpWidget(
+      testApp(
+        works: [_work('RJ01560714', title: 'Test Work')],
+        tracks: [
+          _track(
+            id: 'track-1',
+            workId: 'RJ01560714',
+            title: 'track01',
+            fileName: 'track01.wav',
+            fileFormat: 'wav',
+            relativeDir: '.',
+          ),
+        ],
+        workFiles: [
+          _workFile(
+            id: 'subtitle-1',
+            workId: 'RJ01560714',
+            fileName: 'track01.wav.lrc',
+            fileKind: 'subtitle',
+            filePath: '/imported/RJ01560714/track01.wav.lrc',
+          ),
+        ],
+        subtitlePreviews: {
+          '/imported/RJ01560714/track01.wav.lrc': const [
+            SubtitleCue(startMs: 0, endMs: 1500, text: 'hello'),
+            SubtitleCue(startMs: 1500, endMs: 6500, text: 'world'),
+          ],
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Test Work'));
+    await tester.pumpAndSettle();
+    await tester.dragUntilVisible(
+      find.text('文件'),
+      find.byType(CustomScrollView),
+      const Offset(0, -200),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('文件'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('track01.wav.lrc'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('00:00.000 - 00:01.500'), findsOneWidget);
+    expect(find.textContaining('hello'), findsOneWidget);
+    expect(find.textContaining('00:01.500 - 00:06.500'), findsOneWidget);
+    expect(find.textContaining('world'), findsOneWidget);
   });
 
   testWidgets('favorite work shows heart icon on card', (tester) async {

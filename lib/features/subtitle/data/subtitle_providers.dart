@@ -24,19 +24,31 @@ final currentSubtitleProvider = StreamProvider.autoDispose<LoadedSubtitle?>((
     db.subtitles,
   )..where((s) => s.id.equals(trackId))).watchSingleOrNull().map((row) {
     if (row == null) return null;
-    final raw = jsonDecode(row.originalLinesJson) as List<dynamic>;
-    final cues = <SubtitleCue>[
-      for (final item in raw)
-        SubtitleCue.fromJson(item as Map<String, dynamic>),
-    ];
     return LoadedSubtitle(
       subtitleId: row.id,
       trackId: row.trackId,
-      cues: cues,
+      cues: decodeSubtitleCues(row.originalLinesJson),
       timeOffsetMs: row.timeOffsetMs,
     );
   });
 });
+
+final subtitlePreviewProvider = FutureProvider.autoDispose
+    .family<List<SubtitleCue>?, String>((ref, filePath) async {
+      final db = ref.watch(databaseProvider);
+      final row = await (db.select(
+        db.subtitles,
+      )..where((s) => s.filePath.equals(filePath))).getSingleOrNull();
+      if (row == null) return null;
+      return decodeSubtitleCues(row.originalLinesJson);
+    });
+
+List<SubtitleCue> decodeSubtitleCues(String rawJson) {
+  final raw = jsonDecode(rawJson) as List<dynamic>;
+  return <SubtitleCue>[
+    for (final item in raw) SubtitleCue.fromJson(item as Map<String, dynamic>),
+  ];
+}
 
 /// Index of the cue to display at the current position, or -1 before the first
 /// cue / when there's no subtitle. During a gap between cues, returns the last

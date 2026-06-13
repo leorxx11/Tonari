@@ -80,13 +80,14 @@ class P115FolderScanner {
                 ),
               );
             case FileKind.subtitle:
-              if (FileClassifier.extOf(name) == '.vtt') {
+              final ext = FileClassifier.extOf(name);
+              if (ext == '.vtt' || ext == '.lrc') {
                 subtitles.add(
                   DetectedSubtitle(
                     path: pickcode,
                     relativePath: rel,
                     fileName: name,
-                    format: 'vtt',
+                    format: ext.substring(1),
                     sizeBytes: size,
                   ),
                 );

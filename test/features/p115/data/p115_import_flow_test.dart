@@ -144,6 +144,38 @@ void main() {
       expect(updatedVideo.filePath, 'pc-video-2');
     },
   );
+
+  test('import flow parses p115 lrc subtitles', () async {
+    final db = TonariDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final client = _FakeP115Client(
+      {
+        'rj': [
+          _file('audio-1', '01.wav', RemoteEntryKind.audio, 'pc-audio'),
+          _file('sub-1', '01.wav.lrc', RemoteEntryKind.subtitle, 'pc-lrc'),
+        ],
+      },
+      bytes: {'pc-lrc': utf8.encode(_lrc)},
+    );
+    final flow = P115ImportFlow(
+      db: db,
+      client: client,
+      importer: ImportService(db),
+      enrichment: _NoopEnrichment(),
+    );
+
+    final summary = await flow.importFolder(folder: _folder('rj', 'RJ999998'));
+
+    expect(summary.worksInserted, 1);
+    final subtitle = await db.select(db.subtitles).getSingle();
+    expect(subtitle.filePath, 'pc-lrc');
+    expect(subtitle.fileFormat, 'lrc');
+    final cues = jsonDecode(subtitle.originalLinesJson) as List<dynamic>;
+    expect(cues.map((c) => (c as Map<String, dynamic>)['t']), [
+      'hello',
+      'world',
+    ]);
+  });
 }
 
 const _vtt = '''
@@ -151,6 +183,11 @@ WEBVTT
 
 00:00:00.000 --> 00:00:01.000
 hello
+''';
+
+const _lrc = '''
+[00:00.00]hello
+[00:01.50]world
 ''';
 
 RemoteEntry _folder(String id, String name) {

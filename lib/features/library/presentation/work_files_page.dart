@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/db/database.dart';
+import '../../../core/subtitle/subtitle_cue.dart';
 import '../../browse/data/remote_models.dart';
 import '../../p115/data/p115_auth_service.dart';
 import '../../p115/data/p115_client.dart';
 import '../../p115/data/p115_cookie_store.dart';
 import '../../player/data/playback_controller.dart';
+import '../../subtitle/data/subtitle_providers.dart';
 import '../../video/data/video_controller.dart';
 import '../data/track_duration_probe.dart';
 import '../data/work_media_source.dart';
@@ -103,6 +105,7 @@ class _WorkFilesPageState extends ConsumerState<WorkFilesPage> {
                         onTapFolder: (name) => setState(() => _path.add(name)),
                         onPlayTrack: (t) => _play(t, playQueue),
                         onPlayVideo: _playVideo,
+                        onOpenSubtitle: _openSubtitlePreview,
                       ),
                     ),
             ),
@@ -204,6 +207,24 @@ class _WorkFilesPageState extends ConsumerState<WorkFilesPage> {
             resolve: resolver,
           ),
         );
+  }
+
+  Future<void> _openSubtitlePreview(WorkFile file) async {
+    final cues = await ref.read(subtitlePreviewProvider(file.filePath).future);
+    if (!mounted) return;
+    if (cues == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('没有可预览的字幕文本')));
+      return;
+    }
+    await Navigator.of(context, rootNavigator: true).push(
+      CupertinoSheetRoute<void>(
+        scrollableBuilder: (_, _) =>
+            _SubtitlePreviewPage(fileName: file.fileName, cues: cues),
+        showDragHandle: true,
+      ),
+    );
   }
 
   /// Walks [roots] following [path], returning the children at that depth.
@@ -354,12 +375,14 @@ class _NodeRow extends ConsumerWidget {
     required this.onTapFolder,
     required this.onPlayTrack,
     required this.onPlayVideo,
+    required this.onOpenSubtitle,
   });
 
   final WorkTreeNode node;
   final void Function(String name) onTapFolder;
   final void Function(Track track) onPlayTrack;
   final void Function(WorkFile file) onPlayVideo;
+  final void Function(WorkFile file) onOpenSubtitle;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -462,9 +485,53 @@ class _NodeRow extends ConsumerWidget {
         _formatBytes(f.fileSizeBytes),
         style: theme.textTheme.bodySmall?.copyWith(color: iosSecondary),
       ),
-      onTap: f.fileKind == 'video' ? () => onPlayVideo(f) : null,
+      onTap: switch (f.fileKind) {
+        'video' => () => onPlayVideo(f),
+        'subtitle' => () => onOpenSubtitle(f),
+        _ => null,
+      },
     );
   }
+}
+
+class _SubtitlePreviewPage extends StatelessWidget {
+  const _SubtitlePreviewPage({required this.fileName, required this.cues});
+
+  final String fileName;
+  final List<SubtitleCue> cues;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final text = cues.map(_formatCue).join('\n\n');
+    return Scaffold(
+      appBar: AppBar(title: Text(fileName)),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          child: SelectableText(
+            text,
+            style: theme.textTheme.bodyMedium?.copyWith(height: 1.45),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+String _formatCue(SubtitleCue cue) {
+  return '${_formatCueTime(cue.startMs)} - ${_formatCueTime(cue.endMs)}\n'
+      '${cue.text}';
+}
+
+String _formatCueTime(int ms) {
+  final totalSeconds = ms ~/ 1000;
+  final minutes = totalSeconds ~/ 60;
+  final seconds = totalSeconds % 60;
+  final millis = ms % 1000;
+  return '${minutes.toString().padLeft(2, '0')}:'
+      '${seconds.toString().padLeft(2, '0')}.'
+      '${millis.toString().padLeft(3, '0')}';
 }
 
 class _TrackLeading extends StatelessWidget {
