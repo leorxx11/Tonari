@@ -87,28 +87,33 @@ class MediaProxy {
 
     final start = (rangeFields['rangeStart'] as int?) ?? 0;
     final requestedEnd = rangeFields['rangeEnd'] as int?;
-    DiagnosticLog.write('media_proxy', 'request_start', {
-      'requestId': reqId,
-      'proxyId': id,
-      'method': req.method,
-      'range': range,
-      ...rangeFields,
-      'pathExtension': _extension(req.uri.pathSegments),
-    });
-
-    try {
-      final index = start ~/ chunkBytes;
-      final cached = up.isCached(index);
-      final block = await up.block(req.method, index);
-
-      DiagnosticLog.write('media_proxy', 'upstream_response', {
+    final index = start ~/ chunkBytes;
+    final cached = up.isCached(index);
+    // Cache hits dominate and carry no signal; log only when we touch upstream.
+    // Rejections and errors below are always logged.
+    if (!cached) {
+      DiagnosticLog.write('media_proxy', 'request_start', {
         'requestId': reqId,
         'proxyId': id,
-        'status': block.status,
-        'contentRange': block.contentRange,
-        'cached': cached,
-        'elapsedMs': stopwatch.elapsedMilliseconds,
+        'method': req.method,
+        'range': range,
+        ...rangeFields,
+        'pathExtension': _extension(req.uri.pathSegments),
       });
+    }
+
+    try {
+      final block = await up.block(req.method, index);
+
+      if (!cached) {
+        DiagnosticLog.write('media_proxy', 'upstream_response', {
+          'requestId': reqId,
+          'proxyId': id,
+          'status': block.status,
+          'contentRange': block.contentRange,
+          'elapsedMs': stopwatch.elapsedMilliseconds,
+        });
+      }
 
       if (block.status >= 400) {
         res.statusCode = block.status;
@@ -163,12 +168,14 @@ class MediaProxy {
       );
       await res.flush();
       await res.close();
-      DiagnosticLog.write('media_proxy', 'transfer_done', {
-        'requestId': reqId,
-        'proxyId': id,
-        'bytes': len,
-        'elapsedMs': stopwatch.elapsedMilliseconds,
-      });
+      if (!cached) {
+        DiagnosticLog.write('media_proxy', 'transfer_done', {
+          'requestId': reqId,
+          'proxyId': id,
+          'bytes': len,
+          'elapsedMs': stopwatch.elapsedMilliseconds,
+        });
+      }
     } catch (e) {
       DiagnosticLog.write('media_proxy', 'request_error', {
         'requestId': reqId,
