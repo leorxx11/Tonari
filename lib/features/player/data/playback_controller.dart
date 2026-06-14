@@ -2,13 +2,16 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:drift/drift.dart' show OrderingTerm, Value;
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 
 import '../../../core/db/database.dart';
 import '../../../core/db/providers.dart';
+import '../../../core/diagnostics/diagnostic_log.dart';
 import '../../../core/files/folder_bookmark.dart';
 import '../../../core/files/local_image_path.dart';
+import '../../../core/ui/root_messenger.dart';
 import '../../browse/data/remote_models.dart';
 import '../../settings/data/player_prefs.dart';
 import '../../video/data/video_controller.dart';
@@ -320,11 +323,33 @@ class PlaybackController extends Notifier<PlaybackState> {
     state = PlaybackState.empty;
   }
 
+  /// Loads the current item and plays. Failures (offline source, expired auth,
+  /// unreadable stream) are surfaced as a SnackBar — audio has no in-player
+  /// error view like video, and this covers manual taps and auto-advance alike.
+  Future<void> _loadAndPlay() async {
+    try {
+      await _loadAndPlayInner();
+    } catch (e) {
+      DiagnosticLog.write('player', 'play_error', {
+        'errorType': '${e.runtimeType}',
+        'message': '$e',
+      });
+      rootScaffoldMessengerKey.currentState
+        ?..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(_playErrorText(e))));
+    }
+  }
+
+  String _playErrorText(Object e) {
+    if (e is P115AuthExpiredException) return '115 登录已失效，请重新登录';
+    return '无法播放：$e';
+  }
+
   /// Loads the current track from scratch and starts playing. Per-track
   /// resume is deliberately not done here — the user wants every tap on a
   /// track to start from the beginning. Cold-start MiniPlayer hydration in
   /// [_restoreLastPlayed] is the only place that seeks to `lastPositionMs`.
-  Future<void> _loadAndPlay() async {
+  Future<void> _loadAndPlayInner() async {
     // Only one source plays at a time: stop any video and reclaim the lock
     // screen / Control Center commands for audio.
     final hadVideo = ref.read(videoControllerProvider).hasVideo;
