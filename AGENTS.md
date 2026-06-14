@@ -36,7 +36,7 @@
 - 技术栈：Flutter 3.x + Riverpod + Drift + just_audio + audio_service + dio。
 - 平台：iOS 15+，iPhone 优先，iPad 兼容。
 - 显示名 `Tonari`，pubspec 包名 `tonari`，Bundle ID `com.leo.tonari`。
-- 根目录：`/Users/leo/code/Tonari/`；需求文档：`REQUIREMENTS.md`。
+- 根目录：`/Users/<user>/code/Tonari/`；需求文档：`REQUIREMENTS.md`。
 - UI 基底：Material 3 + iOS 风主题，需要时混用 Cupertino widget。
 
 ## 项目范围
@@ -45,8 +45,8 @@
 - 不做后端、账号、云同步。
 - 不做 Share Extension / Widget / Action Extension。
 - M6 LLM 范围已收敛为详情页简介翻译，不做字幕翻译。
-- 云存储当前路线是纯 WebDAV 直连；115 OpenAPI、Alist 中间层、cookie 逆向当前不做。
-- WebDAV 远程作品走快照式导入，远程目录结构按“根目录 -> RJ 子目录”处理。
+- 云存储：WebDAV 直连 + 115 网盘 cookie 扫码登录均为正式 provider；115 OpenAPI、Alist 中间层已弃。
+- 远程作品（WebDAV / 115）走快照式导入，远程目录结构按“根目录 -> RJ 子目录”处理。
 
 ## 开发与验收
 
@@ -58,10 +58,9 @@
 ## Tonari 真机验证
 
 - 如果已经连接 iPhone 真机，且任务涉及构建、运行、验收或验证 App 行为，默认直接 build/run 到真机上验证。
-- 真机安装和验收默认安装 release 版，使用 `flutter run --release -d 00008130-000634EE0CE1001C`。
+- 真机安装和验收默认安装 release 版（`flutter run --release -d <device-ecid>`）。
 - 不要默认安装 debug 版；release 安装失败时按实际错误排查，不要自行切换 debug 作为兜底方案。
-- 粒宇的 iPhone Flutter/ECID：`00008130-000634EE0CE1001C`。
-- devicectl coredevice UUID：`AEB6268D-9F4D-54FC-9976-6ED7C7C08FA9`。
+- 设备标识（Flutter ECID、devicectl coredevice UUID）属隐私信息，不写入版本库；实际值保存在本地配置 / 记忆中。
 - 手机走无线或 USB 安装前要解锁并保持亮屏；iOS 16+ 首次/重装后可能需要到“设置 -> 通用 -> VPN 与设备管理”信任开发者证书。
 
 ## 签名与分发
