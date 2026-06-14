@@ -79,6 +79,20 @@ class P115Client {
   }
 
   Future<ResolvedMediaUrl> resolveDownloadUrl(String pickcode) async {
+    final direct = await _resolveDirect(pickcode);
+    // fvp/FFmpeg won't forward a Cookie header at all, so stream playback
+    // through the local proxy which injects the auth headers per request.
+    final proxied = await MediaProxy.instance.wrap(direct.url, direct.headers);
+    return ResolvedMediaUrl(url: proxied.url, release: proxied.release);
+  }
+
+  /// Resolves the signed CDN direct link plus the headers it needs. The CDN
+  /// 403s "no cookie value" unless we send the session cookie PLUS the signed
+  /// anti-leech cookies 115 sets during the download redirect (acw_tc + a
+  /// dynamic one), with a 115 referer.
+  Future<({Uri url, Map<String, String> headers})> _resolveDirect(
+    String pickcode,
+  ) async {
     final resolveId = ++_resolveSeq;
     DiagnosticLog.write('p115', 'resolve_start', {
       'resolveId': resolveId,
@@ -118,15 +132,6 @@ class P115Client {
       final url = _extractDownloadUrl(data);
       final uri = Uri.parse(url);
       final proxyCookie = _mergeCookieHeader(cookie.header, followed.cookies);
-      // The CDN 403s "no cookie value" unless we send the session cookie PLUS the
-      // signed anti-leech cookies 115 sets during the download redirect (acw_tc +
-      // a dynamic one), with a 115 referer. fvp/FFmpeg also won't forward a Cookie
-      // header at all, so stream through the local proxy which injects them all.
-      final proxied = await MediaProxy.instance.wrap(uri, {
-        'User-Agent': _downloadUserAgent,
-        'Cookie': proxyCookie,
-        'Referer': 'https://115.com/',
-      });
       DiagnosticLog.write('p115', 'resolve_done', {
         'resolveId': resolveId,
         'hopCount': followed.hopCount,
@@ -136,9 +141,15 @@ class P115Client {
         'downloadQueryKeys': uri.queryParameters.keys.toList()..sort(),
         'setCookieNames': _cookieNamesFromSetCookies(followed.cookies),
         'proxyCookieNames': _cookieNamesFromHeader(proxyCookie),
-        'proxyPort': proxied.url.port,
       });
-      return ResolvedMediaUrl(url: proxied.url, release: proxied.release);
+      return (
+        url: uri,
+        headers: {
+          'User-Agent': _downloadUserAgent,
+          'Cookie': proxyCookie,
+          'Referer': 'https://115.com/',
+        },
+      );
     } catch (e) {
       DiagnosticLog.write('p115', 'resolve_error', {
         'resolveId': resolveId,
@@ -149,27 +160,27 @@ class P115Client {
     }
   }
 
+  /// One-shot whole-file download (subtitles). Goes straight to the CDN with the
+  /// auth headers — dio *can* send a Cookie, so no proxy. Routing this through
+  /// [MediaProxy] would bound the response to one 4 MiB block and answer 206,
+  /// which this 200-expecting path treats as a failure.
   Future<List<int>> getBytesByPickcode(String pickcode) async {
-    final resolved = await resolveDownloadUrl(pickcode);
-    try {
-      final res = await _dio.get<List<int>>(
-        resolved.url.toString(),
-        options: Options(
-          responseType: ResponseType.bytes,
-          headers: resolved.headers,
-          validateStatus: (s) => s != null && s < 500,
-        ),
-      );
-      if (res.statusCode == 401 || res.statusCode == 403) {
-        throw const P115AuthExpiredException();
-      }
-      if (res.statusCode != 200) {
-        throw P115Exception('115 文件下载失败：${res.statusCode}');
-      }
-      return res.data!;
-    } finally {
-      await resolved.release?.call();
+    final direct = await _resolveDirect(pickcode);
+    final res = await _dio.get<List<int>>(
+      direct.url.toString(),
+      options: Options(
+        responseType: ResponseType.bytes,
+        headers: direct.headers,
+        validateStatus: (s) => s != null && s < 500,
+      ),
+    );
+    if (res.statusCode == 401 || res.statusCode == 403) {
+      throw const P115AuthExpiredException();
     }
+    if (res.statusCode != 200 && res.statusCode != 206) {
+      throw P115Exception('115 文件下载失败：${res.statusCode}');
+    }
+    return res.data!;
   }
 
   /// 115 proapi 302-redirects the downurl POST to a `dl302` gateway that serves
