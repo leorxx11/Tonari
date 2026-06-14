@@ -156,6 +156,7 @@ class P115Client {
         'errorType': '${e.runtimeType}',
         'message': '$e',
       });
+      if (e is DioException) throw _networkError(e);
       rethrow;
     }
   }
@@ -270,14 +271,19 @@ class P115Client {
   }) async {
     await _throttleList();
     final cookie = await _cookie();
-    final res = await _dio.get<dynamic>(
-      url,
-      queryParameters: query,
-      options: Options(
-        headers: {'Cookie': cookie.header},
-        validateStatus: (s) => s != null && s < 500,
-      ),
-    );
+    final Response<dynamic> res;
+    try {
+      res = await _dio.get<dynamic>(
+        url,
+        queryParameters: query,
+        options: Options(
+          headers: {'Cookie': cookie.header},
+          validateStatus: (s) => s != null && s < 500,
+        ),
+      );
+    } on DioException catch (e) {
+      throw _networkError(e);
+    }
     if (res.statusCode == 401 || res.statusCode == 403) {
       throw const P115AuthExpiredException();
     }
@@ -293,6 +299,24 @@ class P115Client {
     final cookie = await cookieStore.read();
     if (cookie == null) throw const P115AuthExpiredException();
     return cookie;
+  }
+
+  // Connection-level dio failures carry no useful message for users; map them
+  // to the same friendly wording WebDAV uses so offline browse/playback reads
+  // as a network problem, not a stack-trace string.
+  static P115Exception _networkError(DioException e) {
+    switch (e.type) {
+      case DioExceptionType.connectionTimeout:
+      case DioExceptionType.sendTimeout:
+      case DioExceptionType.receiveTimeout:
+        return const P115Exception('连接 115 超时，请检查网络后重试');
+      case DioExceptionType.connectionError:
+        return const P115Exception('无法连接到 115，请检查网络');
+      case DioExceptionType.badCertificate:
+        return const P115Exception('115 证书校验失败');
+      default:
+        return P115Exception('115 请求失败：${e.message ?? e.type.name}');
+    }
   }
 
   // 115 throttles bursts of /files calls by serving an HTML verification page.
