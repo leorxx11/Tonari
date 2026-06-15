@@ -403,14 +403,14 @@ class VideoController extends Notifier<VideoPlaybackState>
       ..._videoItemFields(item),
       ..._controllerFields(c),
     });
-    await ref.read(videoResumeStoreProvider).write(slot);
     final dormant = _rehydrate(slot) ?? _withControllerResolver(item);
+    state = VideoPlaybackState(item: dormant, dormant: true);
+    await ref.read(videoResumeStoreProvider).write(slot);
     _publishTimer?.cancel();
     _publishTimer = null;
     await _teardown();
     await NowPlayingBridge.clear();
-    await MediaProxy.instance.reset('video_$reason');
-    state = VideoPlaybackState(item: dormant, dormant: true);
+    unawaited(MediaProxy.instance.reset('video_$reason'));
     DiagnosticLog.write('video_player', 'park_done', {
       'reason': reason,
       ..._videoItemFields(dormant),
