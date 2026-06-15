@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/diagnostics/diagnostic_log.dart';
 import '../../player/data/playback_controller.dart';
 import '../../video/data/video_controller.dart';
 import '../data/browse_location_store.dart';
@@ -115,6 +116,13 @@ class _RemoteBrowserPageState extends ConsumerState<RemoteBrowserPage> {
   void _openVideo(RemoteEntry entry) {
     // Start playback in the mini player (like audio); tap the mini bar to open
     // the full-screen view. No auto-push.
+    DiagnosticLog.write('remote_browser', 'video_tap', {
+      'entryId': entry.id,
+      'sourceKind': widget.sourceKind.name,
+      'sourceId': widget.sourceId,
+      'extension': _extension(entry.name),
+      'hasPickcode': entry.pickcode != null,
+    });
     ref.read(videoControllerProvider.notifier).open(_toPlayable(entry));
   }
 
@@ -129,6 +137,7 @@ class _RemoteBrowserPageState extends ConsumerState<RemoteBrowserPage> {
       kind: entry.kind,
       size: entry.size,
       pickcode: entry.pickcode,
+      resolverSource: 'remote_browser_widget',
       resolve: () => widget.resolveFile(entry),
     );
   }
@@ -335,4 +344,10 @@ String _fmtBytes(int bytes) {
     return '${(bytes / 1024 / 1024).toStringAsFixed(1)} MB';
   }
   return '${(bytes / 1024 / 1024 / 1024).toStringAsFixed(2)} GB';
+}
+
+String _extension(String name) {
+  final dot = name.lastIndexOf('.');
+  if (dot < 0 || dot == name.length - 1) return '';
+  return name.substring(dot + 1).toLowerCase();
 }

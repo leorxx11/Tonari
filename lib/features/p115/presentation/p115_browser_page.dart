@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/diagnostics/diagnostic_log.dart';
 import '../../../core/ui/root_messenger.dart';
 import '../../browse/data/remote_models.dart';
 import '../../browse/presentation/remote_browser_page.dart';
@@ -44,10 +45,24 @@ class P115BrowserPage extends ConsumerWidget {
         }
       },
       resolveFile: (entry) async {
+        DiagnosticLog.write('p115_browser', 'resolve_file_start', {
+          'entryId': entry.id,
+          'extension': _extension(entry.name),
+          'hasPickcode': entry.pickcode != null,
+          'pickcodeTail': entry.pickcode == null
+              ? null
+              : _tail(entry.pickcode!),
+        });
         try {
-          return await ref
+          final resolved = await ref
               .read(p115ClientProvider)
               .resolveDownloadUrl(entry.pickcode!);
+          DiagnosticLog.write('p115_browser', 'resolve_file_done', {
+            'entryId': entry.id,
+            'urlScheme': resolved.url.scheme,
+            'urlHost': resolved.url.host,
+          });
+          return resolved;
         } on P115AuthExpiredException {
           await ref.read(p115AuthServiceProvider).clearCookie();
           ref.invalidate(p115CookieProvider);
@@ -149,5 +164,15 @@ class P115BrowserPage extends ConsumerWidget {
       );
     }
   }
+}
 
+String _extension(String name) {
+  final dot = name.lastIndexOf('.');
+  if (dot < 0 || dot == name.length - 1) return '';
+  return name.substring(dot + 1).toLowerCase();
+}
+
+String _tail(String value) {
+  if (value.length <= 6) return value;
+  return value.substring(value.length - 6);
 }

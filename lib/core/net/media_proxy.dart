@@ -57,18 +57,144 @@ class MediaProxy {
       'upstreamHost': url.host,
       'pathExtension': _extension(['', name]),
       'headerNames': headerNames,
+      'serverPort': _server!.port,
+      'activeEntries': _entries.length,
     });
+    if (DiagnosticLog.enabled) {
+      await _probeLoopback(id);
+    }
     return MediaProxyRegistration._(
       Uri.parse('http://127.0.0.1:${_server!.port}/$id/$name'),
-      () => _entries.remove(id),
+      () {
+        _entries.remove(id);
+        DiagnosticLog.write('media_proxy', 'release', {
+          'proxyId': id,
+          'serverPort': _server?.port,
+          'activeEntries': _entries.length,
+        });
+      },
     );
   }
 
+  Future<void> reset(String reason) => _closeServer(reason);
+
+  Future<void> _probeLoopback(String id) async {
+    final server = _server!;
+    final uri = Uri.parse('http://127.0.0.1:${server.port}/__probe/$id');
+    final stopwatch = Stopwatch()..start();
+    DiagnosticLog.write('media_proxy', 'probe_start', {
+      'proxyId': id,
+      'serverPort': server.port,
+      'activeEntries': _entries.length,
+    });
+    final client = HttpClient()..connectionTimeout = const Duration(seconds: 2);
+    try {
+      final req = await client.getUrl(uri).timeout(const Duration(seconds: 2));
+      final res = await req.close().timeout(const Duration(seconds: 2));
+      await res.drain<void>().timeout(const Duration(seconds: 2));
+      DiagnosticLog.write('media_proxy', 'probe_done', {
+        'proxyId': id,
+        'serverPort': server.port,
+        'status': res.statusCode,
+        'elapsedMs': stopwatch.elapsedMilliseconds,
+      });
+    } catch (e) {
+      DiagnosticLog.write('media_proxy', 'probe_error', {
+        'proxyId': id,
+        'serverPort': server.port,
+        'errorType': '${e.runtimeType}',
+        'message': '$e',
+        'elapsedMs': stopwatch.elapsedMilliseconds,
+      });
+    } finally {
+      client.close(force: true);
+    }
+  }
+
   Future<void> _ensureStarted() async {
-    if (_server != null) return;
+    final existing = _server;
+    if (existing != null) {
+      final healthy = await _canAcceptConnections(existing);
+      if (healthy) return;
+      await _closeServer('health_check_failed');
+    }
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-    server.listen(_handle);
+    // Surface unexpected listener failures; normal recovery happens before
+    // each registration through the loopback health check above.
+    server.listen(
+      _handle,
+      onError: (Object e) => DiagnosticLog.write(
+        'media_proxy',
+        'server_error',
+        {'port': server.port, 'message': '$e'},
+      ),
+      onDone: () => DiagnosticLog.write('media_proxy', 'server_done', {
+        'port': server.port,
+      }),
+    );
     _server = server;
+    DiagnosticLog.write('media_proxy', 'server_start', {'port': server.port});
+  }
+
+  Future<bool> _canAcceptConnections(HttpServer server) async {
+    final uri = Uri.parse('http://127.0.0.1:${server.port}/__health');
+    final stopwatch = Stopwatch()..start();
+    DiagnosticLog.write('media_proxy', 'health_start', {
+      'serverPort': server.port,
+      'targetPort': uri.port,
+      'activeEntries': _entries.length,
+    });
+    final client = HttpClient()..connectionTimeout = const Duration(seconds: 2);
+    try {
+      final req = await client.getUrl(uri).timeout(const Duration(seconds: 2));
+      final res = await req.close().timeout(const Duration(seconds: 2));
+      await res.drain<void>().timeout(const Duration(seconds: 2));
+      final ok = res.statusCode == HttpStatus.noContent;
+      DiagnosticLog.write('media_proxy', 'health_done', {
+        'serverPort': server.port,
+        'targetPort': uri.port,
+        'status': res.statusCode,
+        'healthy': ok,
+        'elapsedMs': stopwatch.elapsedMilliseconds,
+      });
+      return ok;
+    } catch (e) {
+      DiagnosticLog.write('media_proxy', 'health_error', {
+        'serverPort': server.port,
+        'targetPort': uri.port,
+        'errorType': '${e.runtimeType}',
+        'message': '$e',
+        'elapsedMs': stopwatch.elapsedMilliseconds,
+      });
+      return false;
+    } finally {
+      client.close(force: true);
+    }
+  }
+
+  Future<void> _closeServer(String reason) async {
+    final server = _server;
+    _server = null;
+    _entries.clear();
+    if (server == null) return;
+    DiagnosticLog.write('media_proxy', 'server_close_start', {
+      'reason': reason,
+      'serverPort': server.port,
+    });
+    try {
+      await server.close(force: true).timeout(const Duration(seconds: 2));
+      DiagnosticLog.write('media_proxy', 'server_close_done', {
+        'reason': reason,
+        'serverPort': server.port,
+      });
+    } catch (e) {
+      DiagnosticLog.write('media_proxy', 'server_close_error', {
+        'reason': reason,
+        'serverPort': server.port,
+        'errorType': '${e.runtimeType}',
+        'message': '$e',
+      });
+    }
   }
 
   Future<void> _handle(HttpRequest req) async {
@@ -78,8 +204,51 @@ class MediaProxy {
     final rangeFields = _rangeFields(range);
     final stopwatch = Stopwatch()..start();
     final id = req.uri.pathSegments.isEmpty ? '' : req.uri.pathSegments.first;
+    if (id == '__health') {
+      DiagnosticLog.write('media_proxy', 'health_request', {
+        'requestId': reqId,
+        'method': req.method,
+        'serverPort': _server?.port,
+        'activeEntries': _entries.length,
+      });
+      res.statusCode = HttpStatus.noContent;
+      await res.close();
+      return;
+    }
+    if (id == '__probe') {
+      final target = req.uri.pathSegments.length > 1
+          ? req.uri.pathSegments[1]
+          : '';
+      DiagnosticLog.write('media_proxy', 'probe_request', {
+        'requestId': reqId,
+        'proxyId': target,
+        'method': req.method,
+        'serverPort': _server?.port,
+        'activeEntries': _entries.length,
+      });
+      res.statusCode = HttpStatus.noContent;
+      await res.close();
+      return;
+    }
     final up = _entries[id];
+    DiagnosticLog.write('media_proxy', 'request_received', {
+      'requestId': reqId,
+      'proxyId': id,
+      'method': req.method,
+      'range': range,
+      ...rangeFields,
+      'knownProxy': up != null,
+      'serverPort': _server?.port,
+      'activeEntries': _entries.length,
+      'pathExtension': _extension(req.uri.pathSegments),
+    });
     if (up == null) {
+      DiagnosticLog.write('media_proxy', 'unknown_proxy', {
+        'requestId': reqId,
+        'proxyId': id,
+        'range': range,
+        'activeEntries': _entries.length,
+      });
       res.statusCode = HttpStatus.notFound;
       await res.close();
       return;
@@ -164,7 +333,11 @@ class MediaProxy {
       final len = sliceEnd - start + 1;
       res.headers.set(HttpHeaders.contentLengthHeader, '$len');
       res.add(
-        Uint8List.view(block.body.buffer, block.body.offsetInBytes + offset, len),
+        Uint8List.view(
+          block.body.buffer,
+          block.body.offsetInBytes + offset,
+          len,
+        ),
       );
       await res.flush();
       await res.close();
@@ -195,7 +368,10 @@ class MediaProxy {
 void _copyContentHeaders(HttpResponse res, _Block block) {
   final type = block.contentType;
   if (type != null) res.headers.set(HttpHeaders.contentTypeHeader, type);
-  res.headers.set(HttpHeaders.acceptRangesHeader, block.acceptRanges ?? 'bytes');
+  res.headers.set(
+    HttpHeaders.acceptRangesHeader,
+    block.acceptRanges ?? 'bytes',
+  );
 }
 
 Map<String, Object?> _rangeFields(String? range) {
@@ -298,7 +474,8 @@ class _Upstream {
       );
       final t = _contentRangeTotal(contentRange);
       if (t != null) total = t;
-      if (res.statusCode == HttpStatus.partialContent && block.body.isNotEmpty) {
+      if (res.statusCode == HttpStatus.partialContent &&
+          block.body.isNotEmpty) {
         _store(index, block);
       }
       return block;

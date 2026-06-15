@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
 
+import '../../../core/diagnostics/diagnostic_log.dart';
 import '../../library/presentation/widgets/work_cover.dart';
 import '../../video/data/video_controller.dart';
 import '../../video/presentation/video_player_page.dart';
@@ -148,14 +149,30 @@ class _VideoMiniBar extends StatelessWidget {
         // Ready → expand to full screen. Dormant/error → tap loads + resumes.
         // Loading → ignore taps.
         onTap: isReady
-            ? () => Navigator.of(context, rootNavigator: true).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const VideoPlayerPage(),
-                ),
-              )
+            ? () {
+                DiagnosticLog.write('video_player', 'mini_tap_open_page', {
+                  'itemId': item.id,
+                  'sourceKind': item.sourceKind.name,
+                  'resolverSource': item.resolverSource,
+                });
+                Navigator.of(context, rootNavigator: true).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const VideoPlayerPage(),
+                  ),
+                );
+              }
             : isLoading
             ? null
-            : notifier.resume,
+            : () {
+                DiagnosticLog.write('video_player', 'mini_tap_resume', {
+                  'itemId': item.id,
+                  'sourceKind': item.sourceKind.name,
+                  'resolverSource': item.resolverSource,
+                  'stateDormant': state.dormant,
+                  'stateHasError': state.error != null,
+                });
+                notifier.resume();
+              },
         child: SizedBox(
           height: 72,
           child: Stack(
@@ -207,9 +224,24 @@ class _VideoMiniBar extends StatelessWidget {
                         icon: Icon(
                           value.isPlaying ? Icons.pause : Icons.play_arrow,
                         ),
-                        onPressed: () => value.isPlaying
-                            ? notifier.pause()
-                            : notifier.play(),
+                        onPressed: () {
+                          DiagnosticLog.write(
+                            'video_player',
+                            value.isPlaying
+                                ? 'mini_button_pause'
+                                : 'mini_button_play',
+                            {
+                              'itemId': item.id,
+                              'sourceKind': item.sourceKind.name,
+                              'resolverSource': item.resolverSource,
+                              'positionMs': value.position.inMilliseconds,
+                              'durationMs': value.duration.inMilliseconds,
+                              'hasError': value.hasError,
+                              'errorDescription': value.errorDescription,
+                            },
+                          );
+                          value.isPlaying ? notifier.pause() : notifier.play();
+                        },
                       ),
                     )
                   else if (isLoading)
@@ -227,7 +259,20 @@ class _VideoMiniBar extends StatelessWidget {
                   else
                     IconButton(
                       icon: const Icon(Icons.play_arrow),
-                      onPressed: notifier.resume,
+                      onPressed: () {
+                        DiagnosticLog.write(
+                          'video_player',
+                          'mini_button_resume',
+                          {
+                            'itemId': item.id,
+                            'sourceKind': item.sourceKind.name,
+                            'resolverSource': item.resolverSource,
+                            'stateDormant': state.dormant,
+                            'stateHasError': state.error != null,
+                          },
+                        );
+                        notifier.resume();
+                      },
                     ),
                   const SizedBox(width: 4),
                 ],

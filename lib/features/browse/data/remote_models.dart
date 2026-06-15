@@ -52,6 +52,7 @@ class PlayableItem {
     required this.resolve,
     this.size,
     this.pickcode,
+    this.resolverSource = 'unknown',
     String? title,
   }) : title = title ?? fileName;
 
@@ -65,6 +66,7 @@ class PlayableItem {
   final RemoteEntryKind kind;
   final int? size;
   final String? pickcode;
+  final String resolverSource;
   final PlayableResolver resolve;
 
   bool get isAudio => kind == RemoteEntryKind.audio;

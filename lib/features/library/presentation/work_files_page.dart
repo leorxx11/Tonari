@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/db/database.dart';
+import '../../../core/diagnostics/diagnostic_log.dart';
 import '../../../core/subtitle/subtitle_cue.dart';
 import '../../browse/data/remote_models.dart';
 import '../../p115/data/p115_auth_service.dart';
@@ -160,6 +161,12 @@ class _WorkFilesPageState extends ConsumerState<WorkFilesPage> {
   }
 
   Future<void> _playVideo(WorkFile file) async {
+    DiagnosticLog.write('work_files', 'video_tap', {
+      'workId': widget.work.productId,
+      'fileId': file.id,
+      'extension': _extension(file.fileName),
+      'fileSize': file.fileSizeBytes,
+    });
     final source = await ref
         .read(workMediaSourceProvider)
         .sourceForWork(widget.work);
@@ -178,10 +185,22 @@ class _WorkFilesPageState extends ConsumerState<WorkFilesPage> {
         };
       case RemoteSourceKind.p115:
         resolver = () async {
+          DiagnosticLog.write('work_files', 'p115_resolve_start', {
+            'workId': widget.work.productId,
+            'fileId': file.id,
+            'extension': _extension(file.fileName),
+          });
           try {
-            return await ref
+            final resolved = await ref
                 .read(p115ClientProvider)
                 .resolveDownloadUrl(file.filePath);
+            DiagnosticLog.write('work_files', 'p115_resolve_done', {
+              'workId': widget.work.productId,
+              'fileId': file.id,
+              'urlScheme': resolved.url.scheme,
+              'urlHost': resolved.url.host,
+            });
+            return resolved;
           } on P115AuthExpiredException {
             await ref.read(p115AuthServiceProvider).clearCookie();
             ref.invalidate(p115CookieProvider);
@@ -204,6 +223,7 @@ class _WorkFilesPageState extends ConsumerState<WorkFilesPage> {
             pickcode: source.kind == RemoteSourceKind.p115
                 ? file.filePath
                 : null,
+            resolverSource: 'work_files_widget',
             resolve: resolver,
           ),
         );
@@ -630,4 +650,10 @@ String _formatBytes(int bytes) {
     return '${(bytes / 1024 / 1024).toStringAsFixed(1)} MB';
   }
   return '${(bytes / 1024 / 1024 / 1024).toStringAsFixed(2)} GB';
+}
+
+String _extension(String name) {
+  final dot = name.lastIndexOf('.');
+  if (dot < 0 || dot == name.length - 1) return '';
+  return name.substring(dot + 1).toLowerCase();
 }
