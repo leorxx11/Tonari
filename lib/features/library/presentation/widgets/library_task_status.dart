@@ -20,19 +20,28 @@ class LibraryTaskStatusButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final task = ref.watch(libraryTaskControllerProvider);
-    if (task.active) {
-      return IconButton(
-        tooltip: task.title,
-        icon: SizedBox(
-          width: 20,
-          height: 20,
-          child: CircularProgressIndicator(
-            value: task.progress,
-            strokeWidth: 2.4,
-          ),
-        ),
+    final libraryTask = ref.watch(libraryTaskControllerProvider);
+    final queue = ref.watch(enrichmentQueueProvider);
+    final metadataTask = ref.watch(
+      workTaskControllerProvider.select(_firstActiveMetadataTask),
+    );
+    if (libraryTask.active) {
+      return _TaskStatusIconButton(
+        task: libraryTask,
         onPressed: () => showLibraryTaskSheet(context),
+      );
+    }
+    if (queue.active) {
+      return _TaskStatusIconButton(
+        task: _taskFromEnrichmentQueue(queue),
+        tooltip: _enrichmentTaskTooltip(queue),
+        onPressed: () => showEnrichmentTaskSheet(context),
+      );
+    }
+    if (metadataTask != null) {
+      return _TaskStatusIconButton(
+        task: metadataTask.task,
+        onPressed: () => showWorkTaskSheet(context, metadataTask.productId),
       );
     }
     if (!showWhenIdle) return const SizedBox.shrink();
@@ -44,6 +53,34 @@ class LibraryTaskStatusButton extends ConsumerWidget {
   }
 }
 
+class _TaskStatusIconButton extends StatelessWidget {
+  const _TaskStatusIconButton({
+    required this.task,
+    required this.onPressed,
+    this.tooltip,
+  });
+
+  final LibraryTaskState task;
+  final VoidCallback onPressed;
+  final String? tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      tooltip: tooltip ?? task.title,
+      icon: SizedBox(
+        width: 20,
+        height: 20,
+        child: CircularProgressIndicator(
+          value: task.progress,
+          strokeWidth: 2.4,
+        ),
+      ),
+      onPressed: onPressed,
+    );
+  }
+}
+
 Future<void> showLibraryTaskSheet(BuildContext context) {
   return showModalBottomSheet<void>(
     context: context,
@@ -51,66 +88,31 @@ Future<void> showLibraryTaskSheet(BuildContext context) {
   );
 }
 
-/// App-bar action for background metadata enrichment. While the queue runs it
-/// shows the current work + a spinner; when idle it offers a one-tap "补全 N 个"
-/// for works that can still be auto-enriched, surfaces a separate error entry
-/// for works that exhausted their retries, and otherwise hides.
+/// App-bar action for background metadata enrichment. Active tasks are shown by
+/// [LibraryTaskStatusButton]; this action only exposes idle affordances.
 class EnrichmentStatusAction extends ConsumerWidget {
   const EnrichmentStatusAction({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final queue = ref.watch(enrichmentQueueProvider);
-    // Also stay active while a single-work metadata task runs (detail-page
-    // auto-enrich or manual refresh) so the indicator ends with the work, not
-    // when the background batch happens to finish first.
-    final metaBusy = ref.watch(
-      workTaskControllerProvider.select(
-        (tasks) => tasks.values.any(
-          (t) => t.active && t.kind == LibraryTaskKind.metadata,
-        ),
-      ),
-    );
-    if (queue.active || metaBusy) {
-      final message = queue.active
-          ? '补全资料中 ${queue.current ?? ''}（${queue.done + 1}/${queue.total}）'
-          : '补全资料中…';
-      return Tooltip(
-        message: message,
-        child: const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16),
-          child: SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2.4),
+    final taskActive =
+        ref.watch(libraryTaskControllerProvider.select((s) => s.active)) ||
+        queue.active ||
+        ref.watch(
+          workTaskControllerProvider.select(
+            (tasks) => _firstActiveMetadataTask(tasks) != null,
           ),
-        ),
-      );
-    }
+        );
+    if (taskActive) return const SizedBox.shrink();
     final pending = ref.watch(
       pendingEnrichmentCountProvider.select((v) => v.value ?? 0),
     );
     final failures = queue.failures;
-    // Works that hit the retry cap stay in [pending] (they still lack metadata)
-    // but can't be auto-completed, so exclude them from the badge count —
-    // otherwise the badge sticks forever on a permanently-failing fetch.
-    final autoPending = (pending - failures.length).clamp(0, pending);
-    if (autoPending > 0) {
-      return IconButton(
-        tooltip: '补全 $autoPending 个作品的资料',
-        icon: Badge(
-          label: Text('$autoPending'),
-          child: const Icon(Icons.download_for_offline_outlined),
-        ),
-        // reset:false — only fetch works that haven't exhausted retries; the
-        // failure sheet's "重试全部" is the way to retry the capped ones.
-        onPressed: () => ref.read(enrichmentQueueProvider.notifier).runPending(),
-      );
-    }
     if (failures.isNotEmpty) {
       final scheme = Theme.of(context).colorScheme;
       return IconButton(
-        tooltip: '${failures.length} 个作品补全失败',
+        tooltip: '${failures.length} 个作品补全失败，点开重试',
         icon: Badge(
           backgroundColor: scheme.error,
           label: Text('${failures.length}'),
@@ -119,8 +121,26 @@ class EnrichmentStatusAction extends ConsumerWidget {
         onPressed: () => showEnrichmentFailureSheet(context),
       );
     }
+    if (pending > 0) {
+      return IconButton(
+        tooltip: '补全 $pending 个作品的资料',
+        icon: Badge(
+          label: Text('$pending'),
+          child: const Icon(Icons.download_for_offline_outlined),
+        ),
+        onPressed: () =>
+            ref.read(enrichmentQueueProvider.notifier).runPending(),
+      );
+    }
     return const SizedBox.shrink();
   }
+}
+
+Future<void> showEnrichmentTaskSheet(BuildContext context) {
+  return showModalBottomSheet<void>(
+    context: context,
+    builder: (_) => const _EnrichmentTaskSheet(),
+  );
 }
 
 Future<void> showEnrichmentFailureSheet(BuildContext context) {
@@ -128,6 +148,19 @@ Future<void> showEnrichmentFailureSheet(BuildContext context) {
     context: context,
     builder: (_) => const _EnrichmentFailureSheet(),
   );
+}
+
+class _EnrichmentTaskSheet extends ConsumerWidget {
+  const _EnrichmentTaskSheet();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final queue = ref.watch(enrichmentQueueProvider);
+    final task = queue.active
+        ? _taskFromEnrichmentQueue(queue)
+        : const LibraryTaskState.idle();
+    return _TaskSheetBody(task: task, idleText: '当前没有元数据补全任务。');
+  }
 }
 
 class _EnrichmentFailureSheet extends ConsumerWidget {
@@ -138,6 +171,9 @@ class _EnrichmentFailureSheet extends ConsumerWidget {
     final theme = Theme.of(context);
     final failures = ref.watch(
       enrichmentQueueProvider.select((s) => s.failures),
+    );
+    final pending = ref.watch(
+      pendingEnrichmentCountProvider.select((v) => v.value ?? 0),
     );
     return SafeArea(
       child: Padding(
@@ -154,7 +190,9 @@ class _EnrichmentFailureSheet extends ConsumerWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              'DLsite 抓取或图片下载失败。可能是作品已下架、网络问题或被风控。',
+              pending > failures.length
+                  ? '还有 $pending 个作品资料不完整。重试会重新补全全部缺失资料。'
+                  : 'DLsite 抓取或图片下载失败。可能是作品已下架、网络问题或被风控。',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -183,7 +221,7 @@ class _EnrichmentFailureSheet extends ConsumerWidget {
               alignment: Alignment.centerRight,
               child: FilledButton.tonalIcon(
                 icon: const Icon(Icons.refresh),
-                label: const Text('重试全部'),
+                label: const Text('重试并补全全部'),
                 onPressed: () {
                   Navigator.of(context).pop();
                   ref
@@ -234,6 +272,34 @@ class WorkTaskStatusButton extends ConsumerWidget {
   }
 }
 
+({String productId, LibraryTaskState task})? _firstActiveMetadataTask(
+  Map<String, LibraryTaskState> tasks,
+) {
+  for (final entry in tasks.entries) {
+    final task = entry.value;
+    if (task.active && task.kind == LibraryTaskKind.metadata) {
+      return (productId: entry.key, task: task);
+    }
+  }
+  return null;
+}
+
+String _enrichmentTaskTooltip(EnrichmentQueueState queue) {
+  return '补全资料中 ${queue.current ?? ''}（${queue.done + 1}/${queue.total}）';
+}
+
+LibraryTaskState _taskFromEnrichmentQueue(EnrichmentQueueState queue) {
+  return LibraryTaskState(
+    active: true,
+    kind: LibraryTaskKind.metadata,
+    title: '补全资料',
+    stage: '获取 DLsite 元数据',
+    message: queue.current ?? '',
+    completed: queue.done + 1,
+    total: queue.total,
+  );
+}
+
 Future<void> showWorkTaskSheet(BuildContext context, String productId) {
   return showModalBottomSheet<void>(
     context: context,
@@ -267,15 +333,36 @@ class _WorkTaskSheet extends ConsumerWidget {
   }
 }
 
-class _TaskSheetBody extends StatelessWidget {
+class _TaskSheetBody extends StatefulWidget {
   const _TaskSheetBody({required this.task, required this.idleText});
 
   final LibraryTaskState task;
   final String idleText;
 
   @override
+  State<_TaskSheetBody> createState() => _TaskSheetBodyState();
+}
+
+class _TaskSheetBodyState extends State<_TaskSheetBody> {
+  LibraryTaskState? _lastActiveTask;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.task.active) _lastActiveTask = widget.task;
+  }
+
+  @override
+  void didUpdateWidget(covariant _TaskSheetBody oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.task.active) _lastActiveTask = widget.task;
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final task = widget.task.active ? widget.task : _lastActiveTask;
+    final finished = !widget.task.active && task != null;
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
@@ -284,34 +371,44 @@ class _TaskSheetBody extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              task.active ? task.title : '没有后台任务',
+              task != null ? task.title : '没有后台任务',
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w700,
               ),
             ),
             const SizedBox(height: 14),
-            if (task.active) ...[
-              LinearProgressIndicator(value: task.progress),
+            if (task != null) ...[
+              LinearProgressIndicator(value: finished ? 1 : task.progress),
               const SizedBox(height: 14),
               Text(
-                task.stage,
+                finished ? '已完成' : task.stage,
                 style: theme.textTheme.bodyLarge?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              if (task.message.isNotEmpty) ...[
+              if (!finished && task.message.isNotEmpty) ...[
                 const SizedBox(height: 6),
                 Text(task.message, style: theme.textTheme.bodyMedium),
               ],
-              if (task.progressText.isNotEmpty) ...[
+              if (_progressText(task, finished).isNotEmpty) ...[
                 const SizedBox(height: 6),
-                Text(task.progressText, style: theme.textTheme.bodySmall),
+                Text(
+                  _progressText(task, finished),
+                  style: theme.textTheme.bodySmall,
+                ),
               ],
             ] else
-              Text(idleText, style: theme.textTheme.bodyMedium),
+              Text(widget.idleText, style: theme.textTheme.bodyMedium),
           ],
         ),
       ),
     );
+  }
+
+  String _progressText(LibraryTaskState task, bool finished) {
+    if (!finished) return task.progressText;
+    final total = task.total;
+    if (total == null || total <= 0) return '';
+    return '$total/$total';
   }
 }
