@@ -32,7 +32,7 @@ class WorkCard extends StatelessWidget {
       button: onTap != null,
       label: displayTitle,
       child: Card(
-        clipBehavior: Clip.antiAlias,
+        clipBehavior: Clip.hardEdge,
         margin: EdgeInsets.zero,
         child: GestureDetector(
           onLongPressStart: !hasMenu
@@ -132,6 +132,17 @@ class WorkCard extends StatelessWidget {
 
 enum _WorkCardAction { remove, toggleFavorite }
 
+const _overlayStrong = Color(0x8C000000);
+const _overlayWeak = Color(0x73000000);
+const _maxVisibleTags = 8;
+const _cardChipDensity = _ChipDensity(
+  fontSize: 11,
+  paddingH: 6,
+  paddingV: 2,
+  spacing: 4,
+  maxWidth: 92,
+);
+
 class _CoverWithOverlays extends StatelessWidget {
   const _CoverWithOverlays({
     required this.work,
@@ -157,7 +168,7 @@ class _CoverWithOverlays extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.55),
+                color: _overlayStrong,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(Icons.cloud, size: 12, color: Colors.white),
@@ -168,7 +179,7 @@ class _CoverWithOverlays extends StatelessWidget {
           left: 6,
           child: _Pill(
             text: work.productId,
-            background: Colors.black.withValues(alpha: 0.55),
+            background: _overlayStrong,
             foreground: Colors.white,
           ),
         ),
@@ -188,7 +199,7 @@ class _CoverWithOverlays extends StatelessWidget {
             right: 6,
             child: _Pill(
               text: _formatDate(date),
-              background: Colors.black.withValues(alpha: 0.55),
+              background: _overlayStrong,
               foreground: Colors.white,
             ),
           ),
@@ -245,12 +256,12 @@ class _CircleIconButton extends StatelessWidget {
     final theme = Theme.of(context);
     final bg = filled
         ? theme.colorScheme.primary
-        : Colors.black.withValues(alpha: 0.45);
+        : _overlayWeak;
     final fg = filled ? theme.colorScheme.onPrimary : Colors.white;
     return Material(
       color: bg,
       shape: const CircleBorder(),
-      clipBehavior: Clip.antiAlias,
+      clipBehavior: Clip.hardEdge,
       child: InkWell(
         onTap: onTap,
         child: SizedBox(
@@ -303,27 +314,18 @@ class _TagWrap extends StatelessWidget {
 
     if (entries.isEmpty) return const SizedBox.shrink();
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final w = constraints.maxWidth;
-        final h = constraints.maxHeight.isFinite
-            ? constraints.maxHeight
-            : 200.0;
-        final density = _pickDensity(entries, w, h);
-        return Wrap(
-          spacing: density.spacing,
-          runSpacing: density.spacing,
-          children: [
-            for (final e in entries)
-              _Chip(
-                label: e.label,
-                background: e.background,
-                foreground: e.foreground,
-                density: density,
-              ),
-          ],
-        );
-      },
+    return Wrap(
+      spacing: _cardChipDensity.spacing,
+      runSpacing: _cardChipDensity.spacing,
+      children: [
+        for (final e in entries.take(_maxVisibleTags))
+          _Chip(
+            label: e.label,
+            background: e.background,
+            foreground: e.foreground,
+            density: _cardChipDensity,
+          ),
+      ],
     );
   }
 }
@@ -354,67 +356,6 @@ class _ChipDensity {
   final double paddingV;
   final double spacing;
   final double maxWidth;
-}
-
-/// Largest chip font size that lets [entries] fit inside the available
-/// box (`maxWidth` × `maxHeight`). Walks from a generous max down to a
-/// readable minimum in 0.5 steps so cards with few chips render large
-/// and cards with many chips shrink just enough to pack everything.
-_ChipDensity _pickDensity(
-  List<_TagEntry> entries,
-  double maxWidth,
-  double maxHeight,
-) {
-  const maxFont = 16.0;
-  const minFont = 8.0;
-  for (double f = maxFont; f >= minFont; f -= 0.5) {
-    final d = _density(f);
-    if (_chipsFitInBox(entries, d, maxWidth, maxHeight)) return d;
-  }
-  return _density(minFont);
-}
-
-_ChipDensity _density(double fontSize) {
-  return _ChipDensity(
-    fontSize: fontSize,
-    paddingH: (fontSize * 0.55).clamp(4.0, 9.0),
-    paddingV: (fontSize * 0.22).clamp(1.5, 3.5),
-    spacing: (fontSize * 0.4).clamp(2.5, 6.0),
-    maxWidth: fontSize * 12,
-  );
-}
-
-bool _chipsFitInBox(
-  List<_TagEntry> entries,
-  _ChipDensity d,
-  double maxWidth,
-  double maxHeight,
-) {
-  double rowW = 0;
-  var rows = 1;
-  final chipH = d.fontSize * 1.25 + d.paddingV * 2;
-  for (final e in entries) {
-    final tp = TextPainter(
-      text: TextSpan(
-        text: e.label,
-        style: TextStyle(fontSize: d.fontSize, fontWeight: FontWeight.w600),
-      ),
-      textDirection: TextDirection.ltr,
-      maxLines: 1,
-    )..layout();
-    final rawW = tp.width + d.paddingH * 2;
-    final chipW = rawW > d.maxWidth ? d.maxWidth : rawW;
-    if (rowW == 0) {
-      rowW = chipW;
-    } else if (rowW + d.spacing + chipW <= maxWidth) {
-      rowW += d.spacing + chipW;
-    } else {
-      rows++;
-      rowW = chipW;
-    }
-  }
-  final totalH = rows * chipH + (rows - 1) * d.spacing;
-  return totalH <= maxHeight;
 }
 
 class _Chip extends StatelessWidget {
@@ -457,13 +398,19 @@ class _Chip extends StatelessWidget {
   }
 }
 
+final Map<String, List<String>> _genreNamesCache = {};
+
 List<String> _genreNames(String genresJson) {
+  final cached = _genreNamesCache[genresJson];
+  if (cached != null) return cached;
   final decoded = jsonDecode(genresJson);
-  if (decoded is! List) return const [];
-  return [
-    for (final item in decoded)
-      if (item is Map && item['name'] is String) item['name'] as String,
-  ];
+  final names = decoded is! List
+      ? const <String>[]
+      : [
+          for (final item in decoded)
+            if (item is Map && item['name'] is String) item['name'] as String,
+        ];
+  return _genreNamesCache[genresJson] = names;
 }
 
 String _formatDate(DateTime d) {

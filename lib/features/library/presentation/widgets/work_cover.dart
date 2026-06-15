@@ -20,6 +20,7 @@ class WorkCover extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final dpr = MediaQuery.devicePixelRatioOf(context);
 
     Widget placeholder() => Container(
       color: theme.colorScheme.surfaceContainerHighest,
@@ -31,30 +32,39 @@ class WorkCover extends StatelessWidget {
       ),
     );
 
-    Widget image;
-    final localPath = LocalImagePath.resolve(work.mainImageLocalPath);
-    if (localPath != null) {
-      image = Image.file(
-        File(localPath),
-        fit: BoxFit.cover,
-        errorBuilder: (_, _, _) => placeholder(),
-      );
-    } else if (work.mainImageUrl != null && work.mainImageUrl!.isNotEmpty) {
-      image = Image.network(
-        work.mainImageUrl!,
-        fit: BoxFit.cover,
-        loadingBuilder: (ctx, child, progress) {
-          if (progress == null) return child;
-          return placeholder();
-        },
-        errorBuilder: (_, _, _) => placeholder(),
-      );
-    } else {
-      image = placeholder();
-    }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final side = constraints.biggest.longestSide;
+        final cacheHeight = side.isFinite ? (side * dpr).round() : null;
 
-    final radius = borderRadius;
-    if (radius == null) return image;
-    return ClipRRect(borderRadius: radius, child: image);
+        Widget image;
+        final localPath = LocalImagePath.resolve(work.mainImageLocalPath);
+        if (localPath != null) {
+          image = Image.file(
+            File(localPath),
+            fit: BoxFit.cover,
+            cacheHeight: cacheHeight,
+            errorBuilder: (_, _, _) => placeholder(),
+          );
+        } else if (work.mainImageUrl != null && work.mainImageUrl!.isNotEmpty) {
+          image = Image.network(
+            work.mainImageUrl!,
+            fit: BoxFit.cover,
+            cacheHeight: cacheHeight,
+            loadingBuilder: (ctx, child, progress) {
+              if (progress == null) return child;
+              return placeholder();
+            },
+            errorBuilder: (_, _, _) => placeholder(),
+          );
+        } else {
+          image = placeholder();
+        }
+
+        final radius = borderRadius;
+        if (radius == null) return image;
+        return ClipRRect(borderRadius: radius, child: image);
+      },
+    );
   }
 }

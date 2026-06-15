@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../../core/files/local_image_path.dart';
 import 'dlsite_fetcher.dart';
 
 class WorkImagePaths {
@@ -125,9 +126,11 @@ class WorkImageCache {
   }
 
   Future<void> evict(String productId) async {
+    LocalImagePath.clearCache();
     final docs = await _documentsDir();
     final dir = Directory(p.join(docs.path, 'images', productId));
     if (dir.existsSync()) dir.deleteSync(recursive: true);
+    LocalImagePath.clearCache();
   }
 
   Future<Directory> _ensureWorkDir(String productId) async {
