@@ -101,6 +101,9 @@ class PlaybackController extends Notifier<PlaybackState>
   bool _proxyStale = false;
   DateTime? _leftForegroundAt;
   Future<void>? _refreshing;
+  // Position to resume to when a deferred/stale source is (re)resolved. Set by
+  // cold-start restore (lastPositionMs); null means "resume at live position".
+  int? _resumePositionMs;
 
   @override
   PlaybackState build() {
@@ -131,6 +134,13 @@ class PlaybackController extends Notifier<PlaybackState>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    DiagnosticLog.write('player', 'app_lifecycle', {
+      'lifecycleState': state.name,
+      'playing': player.playing,
+      'lastResolvedWasProxy': _lastResolvedWasProxy,
+      'proxyStale': _proxyStale,
+      'hasCurrent': this.state.hasCurrent,
+    });
     if (state == AppLifecycleState.paused) {
       _leftForegroundAt ??= DateTime.now();
       return;
@@ -152,6 +162,15 @@ class PlaybackController extends Notifier<PlaybackState>
 
   bool _isProxyUrl(Uri url) => url.host == '127.0.0.1';
 
+  void _logSourceSet(Uri url, String via) {
+    DiagnosticLog.write('player', 'source_set', {
+      'via': via,
+      'urlHost': url.host,
+      'urlPort': url.hasPort ? url.port : null,
+      'isProxy': _isProxyUrl(url),
+    });
+  }
+
   /// Re-resolves a stale P115 source before play. Deduped so a proactive resume
   /// refresh and a near-simultaneous play tap share one re-resolution.
   Future<void> _ensureFreshSource() {
@@ -162,9 +181,11 @@ class PlaybackController extends Notifier<PlaybackState>
   }
 
   Future<void> _refreshStaleSource() async {
-    _proxyStale = false;
     if (!state.hasCurrent) return;
-    final at = player.position;
+    final pending = _resumePositionMs;
+    final at = pending != null
+        ? Duration(milliseconds: pending)
+        : player.position;
     final wasPlaying = player.playing;
     ResolvedMediaUrl resolved;
     try {
@@ -200,6 +221,9 @@ class PlaybackController extends Notifier<PlaybackState>
     }
     _resolvedMediaRelease = resolved.release;
     _lastResolvedWasProxy = _isProxyUrl(resolved.url);
+    _proxyStale = false;
+    _resumePositionMs = null;
+    _logSourceSet(resolved.url, 'refresh');
     await previousRelease?.call();
     if (wasPlaying) await player.play();
     await _publishNowPlaying();
@@ -276,6 +300,26 @@ class PlaybackController extends Notifier<PlaybackState>
     );
 
     final track = tracks[idx];
+    // P115 needs a fresh signed link + loopback proxy that can't be built
+    // offline, so don't preload a bogus file:// source — defer resolution to
+    // the first play, like the video mini player's dormant resume.
+    if (remoteKind == RemoteSourceKind.p115) {
+      _lastResolvedWasProxy = true;
+      _proxyStale = true;
+      _resumePositionMs = track.lastPositionMs;
+      DiagnosticLog.write('player', 'restore', {
+        'remoteKind': remoteKind?.name,
+        'deferred': true,
+        'positionMs': track.lastPositionMs,
+      });
+      await _publishNowPlaying();
+      return;
+    }
+    DiagnosticLog.write('player', 'restore', {
+      'remoteKind': remoteKind?.name,
+      'deferred': false,
+      'positionMs': track.lastPositionMs,
+    });
     try {
       await player.setAudioSource(_audioSourceFor(track));
       if (track.lastPositionMs > 0) {
@@ -304,7 +348,7 @@ class PlaybackController extends Notifier<PlaybackState>
     final newTrack = tracks[initialIndex];
 
     if (state.currentTrack?.id == newTrack.id) {
-      if (!player.playing) await player.play();
+      if (!player.playing) await play();
       return;
     }
 
@@ -342,7 +386,7 @@ class PlaybackController extends Notifier<PlaybackState>
     final newItem = items[initialIndex];
 
     if (state.currentBrowseItem?.id == newItem.id) {
-      if (!player.playing) await player.play();
+      if (!player.playing) await play();
       return;
     }
 
@@ -382,6 +426,11 @@ class PlaybackController extends Notifier<PlaybackState>
   }
 
   Future<void> play() async {
+    DiagnosticLog.write('player', 'play_requested', {
+      'proxyStale': _proxyStale,
+      'playing': player.playing,
+      'processingState': player.processingState.name,
+    });
     await _ensureFreshSource();
     await player.play();
     await _publishNowPlaying();
@@ -408,6 +457,7 @@ class PlaybackController extends Notifier<PlaybackState>
     await _releaseResolvedMedia();
     _lastResolvedWasProxy = false;
     _proxyStale = false;
+    _resumePositionMs = null;
     await NowPlayingBridge.clear();
     await _releaseScope();
     state = PlaybackState.empty;
@@ -440,6 +490,9 @@ class PlaybackController extends Notifier<PlaybackState>
   /// track to start from the beginning. Cold-start MiniPlayer hydration in
   /// [_restoreLastPlayed] is the only place that seeks to `lastPositionMs`.
   Future<void> _loadAndPlayInner() async {
+    // A fresh load plays from the beginning, so drop any deferred restore
+    // position so it can't leak into a later background-resume refresh.
+    _resumePositionMs = null;
     // Only one source plays at a time: stop any video and reclaim the lock
     // screen / Control Center commands for audio.
     final hadVideo = ref.read(videoControllerProvider).hasVideo;
@@ -467,6 +520,7 @@ class PlaybackController extends Notifier<PlaybackState>
       _resolvedMediaRelease = resolved.release;
       _lastResolvedWasProxy = _isProxyUrl(resolved.url);
       _proxyStale = false;
+      _logSourceSet(resolved.url, 'load_browse');
       await previousRelease?.call();
       await player.play();
       await _publishNowPlaying();
@@ -491,6 +545,7 @@ class PlaybackController extends Notifier<PlaybackState>
       _resolvedMediaRelease = resolved.release;
       _lastResolvedWasProxy = _isProxyUrl(resolved.url);
       _proxyStale = false;
+      _logSourceSet(resolved.url, 'load_p115');
       await previousRelease?.call();
       await _bumpLastPlayed(trackChanged: true);
       await player.play();
@@ -538,6 +593,11 @@ class PlaybackController extends Notifier<PlaybackState>
   }
 
   Future<void> _onProcessingState(ProcessingState s) async {
+    DiagnosticLog.write('player', 'processing_state', {
+      'state': s.name,
+      'playing': player.playing,
+      'positionMs': player.position.inMilliseconds,
+    });
     if (s != ProcessingState.completed) return;
     await _bumpPlayCount();
     final mode = ref.read(playerPrefsProvider).playbackMode;
