@@ -107,7 +107,7 @@ void main() {
     final client = P115Client(cookieStore: store, dio: dio);
 
     await expectLater(
-      client.resolveDownloadUrl('pickcode'),
+      client.resolveVideoUrl('pickcode'),
       throwsA(isA<P115Exception>()),
     );
 

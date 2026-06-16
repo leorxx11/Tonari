@@ -78,11 +78,20 @@ class P115Client {
     return out;
   }
 
-  Future<ResolvedMediaUrl> resolveDownloadUrl(String pickcode) async {
+  Future<ResolvedMediaUrl> resolveVideoUrl(String pickcode) async {
     final direct = await _resolveDirect(pickcode);
     // fvp/FFmpeg won't forward a Cookie header at all, so stream playback
     // through the local proxy which injects the auth headers per request.
     final proxied = await MediaProxy.instance.wrap(direct.url, direct.headers);
+    return ResolvedMediaUrl(url: proxied.url, release: proxied.release);
+  }
+
+  Future<ResolvedMediaUrl> resolveAudioUrl(String pickcode) async {
+    final direct = await _resolveDirect(pickcode);
+    final proxied = await MediaProxy.instance.wrapAudio(
+      direct.url,
+      direct.headers,
+    );
     return ResolvedMediaUrl(url: proxied.url, release: proxied.release);
   }
 

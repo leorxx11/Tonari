@@ -54,9 +54,10 @@ class P115BrowserPage extends ConsumerWidget {
               : _tail(entry.pickcode!),
         });
         try {
-          final resolved = await ref
-              .read(p115ClientProvider)
-              .resolveDownloadUrl(entry.pickcode!);
+          final client = ref.read(p115ClientProvider);
+          final resolved = entry.isVideo
+              ? await client.resolveVideoUrl(entry.pickcode!)
+              : await client.resolveAudioUrl(entry.pickcode!);
           DiagnosticLog.write('p115_browser', 'resolve_file_done', {
             'entryId': entry.id,
             'urlScheme': resolved.url.scheme,

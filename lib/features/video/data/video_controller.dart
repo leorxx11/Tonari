@@ -535,7 +535,7 @@ class VideoController extends Notifier<VideoPlaybackState>
         }
         return () async {
           try {
-            return await ref.read(p115ClientProvider).resolveDownloadUrl(pc);
+            return await ref.read(p115ClientProvider).resolveVideoUrl(pc);
           } on P115AuthExpiredException {
             await ref.read(p115AuthServiceProvider).clearCookie();
             ref.invalidate(p115CookieProvider);

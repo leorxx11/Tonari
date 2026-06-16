@@ -86,16 +86,26 @@ class PlaybackState {
 /// App-lifetime audio playback owner. Lives outside PlayerPage so that
 /// popping back to the detail page (or anywhere) does not stop the audio,
 /// and so a mini player at the root can keep showing what's playing.
-class PlaybackController extends Notifier<PlaybackState> {
+class PlaybackController extends Notifier<PlaybackState>
+    with WidgetsBindingObserver {
   late final AudioPlayer player;
   StreamSubscription<ProcessingState>? _processingSub;
   Timer? _positionTimer;
   String? _resolvedFolderUrl;
   FutureOr<void> Function()? _resolvedMediaRelease;
+  // P115's signed CDN link and the loopback proxy both go stale after iOS
+  // suspends the app in the background. Track whether the live source is that
+  // proxy so a resumed P115 source is re-resolved before the next play, instead
+  // of `player.play()` hanging forever on a dead URL.
+  bool _lastResolvedWasProxy = false;
+  bool _proxyStale = false;
+  DateTime? _leftForegroundAt;
+  Future<void>? _refreshing;
 
   @override
   PlaybackState build() {
     player = AudioPlayer();
+    WidgetsBinding.instance.addObserver(this);
     NowPlayingBridge.setCommandHandler(_handleNowPlayingCommand);
     _processingSub = player.processingStateStream.listen(_onProcessingState);
     _positionTimer = Timer.periodic(
@@ -104,6 +114,7 @@ class PlaybackController extends Notifier<PlaybackState> {
     );
 
     ref.onDispose(() {
+      WidgetsBinding.instance.removeObserver(this);
       _processingSub?.cancel();
       _positionTimer?.cancel();
       NowPlayingBridge.clearCommandHandler();
@@ -116,6 +127,82 @@ class PlaybackController extends Notifier<PlaybackState> {
     Future.microtask(_restoreLastPlayed);
 
     return PlaybackState.empty;
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      _leftForegroundAt ??= DateTime.now();
+      return;
+    }
+    if (state != AppLifecycleState.resumed) return;
+    final left = _leftForegroundAt;
+    _leftForegroundAt = null;
+    if (left == null) return;
+    // Only the loopback-proxied P115 source expires, and only mark it stale when
+    // paused — actively-playing background audio is proven-live, so leave it be.
+    // The 30s floor skips quick app switches that can't have expired anything.
+    if (_lastResolvedWasProxy &&
+        !player.playing &&
+        DateTime.now().difference(left) > const Duration(seconds: 30)) {
+      _proxyStale = true;
+      unawaited(_ensureFreshSource());
+    }
+  }
+
+  bool _isProxyUrl(Uri url) => url.host == '127.0.0.1';
+
+  /// Re-resolves a stale P115 source before play. Deduped so a proactive resume
+  /// refresh and a near-simultaneous play tap share one re-resolution.
+  Future<void> _ensureFreshSource() {
+    if (!_proxyStale) return Future<void>.value();
+    return _refreshing ??= _refreshStaleSource().whenComplete(
+      () => _refreshing = null,
+    );
+  }
+
+  Future<void> _refreshStaleSource() async {
+    _proxyStale = false;
+    if (!state.hasCurrent) return;
+    final at = player.position;
+    final wasPlaying = player.playing;
+    ResolvedMediaUrl resolved;
+    try {
+      final browseItem = state.currentBrowseItem;
+      if (browseItem != null) {
+        resolved = await browseItem.resolve();
+      } else if (state.currentTrack != null &&
+          state.remoteKind == RemoteSourceKind.p115) {
+        resolved = await _resolveP115(state.currentTrack!.filePath);
+      } else {
+        return;
+      }
+    } catch (e) {
+      DiagnosticLog.write('player', 'source_refresh_error', {
+        'errorType': '${e.runtimeType}',
+        'message': '$e',
+      });
+      return;
+    }
+    DiagnosticLog.write('player', 'source_refresh', {
+      'positionMs': at.inMilliseconds,
+      'wasPlaying': wasPlaying,
+    });
+    final previousRelease = _resolvedMediaRelease;
+    try {
+      await player.setAudioSource(
+        AudioSource.uri(resolved.url, headers: resolved.headers),
+        initialPosition: at,
+      );
+    } catch (_) {
+      await resolved.release?.call();
+      return;
+    }
+    _resolvedMediaRelease = resolved.release;
+    _lastResolvedWasProxy = _isProxyUrl(resolved.url);
+    await previousRelease?.call();
+    if (wasPlaying) await player.play();
+    await _publishNowPlaying();
   }
 
   /// On cold start, surface the most-recently-played work into the
@@ -295,6 +382,7 @@ class PlaybackController extends Notifier<PlaybackState> {
   }
 
   Future<void> play() async {
+    await _ensureFreshSource();
     await player.play();
     await _publishNowPlaying();
   }
@@ -318,6 +406,8 @@ class PlaybackController extends Notifier<PlaybackState> {
     await _savePosition();
     await player.stop();
     await _releaseResolvedMedia();
+    _lastResolvedWasProxy = false;
+    _proxyStale = false;
     await NowPlayingBridge.clear();
     await _releaseScope();
     state = PlaybackState.empty;
@@ -375,6 +465,8 @@ class PlaybackController extends Notifier<PlaybackState> {
         rethrow;
       }
       _resolvedMediaRelease = resolved.release;
+      _lastResolvedWasProxy = _isProxyUrl(resolved.url);
+      _proxyStale = false;
       await previousRelease?.call();
       await player.play();
       await _publishNowPlaying();
@@ -397,6 +489,8 @@ class PlaybackController extends Notifier<PlaybackState> {
         rethrow;
       }
       _resolvedMediaRelease = resolved.release;
+      _lastResolvedWasProxy = _isProxyUrl(resolved.url);
+      _proxyStale = false;
       await previousRelease?.call();
       await _bumpLastPlayed(trackChanged: true);
       await player.play();
@@ -407,6 +501,8 @@ class PlaybackController extends Notifier<PlaybackState> {
     final previousRelease = _resolvedMediaRelease;
     await player.setAudioSource(_audioSourceFor(track));
     _resolvedMediaRelease = null;
+    _lastResolvedWasProxy = false;
+    _proxyStale = false;
     await previousRelease?.call();
     await _bumpLastPlayed(trackChanged: true);
     await player.play();
@@ -421,7 +517,7 @@ class PlaybackController extends Notifier<PlaybackState> {
 
   Future<ResolvedMediaUrl> _resolveP115(String pickcode) async {
     try {
-      return await ref.read(p115ClientProvider).resolveDownloadUrl(pickcode);
+      return await ref.read(p115ClientProvider).resolveAudioUrl(pickcode);
     } on P115AuthExpiredException {
       await ref.read(p115AuthServiceProvider).clearCookie();
       ref.invalidate(p115CookieProvider);

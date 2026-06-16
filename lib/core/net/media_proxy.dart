@@ -5,10 +5,9 @@ import 'dart:typed_data';
 
 import '../diagnostics/diagnostic_log.dart';
 
-/// App-local HTTP proxy on `127.0.0.1` that injects auth headers the media
-/// player can't send itself. fvp/FFmpeg drops the `Cookie` header set via
-/// `avio.headers`, so 115's CDN (which 403s without the session cookie) is
-/// unplayable directly — the player hits this proxy instead.
+/// App-local HTTP proxy on `127.0.0.1` that injects auth headers media players
+/// can't send themselves. P115's CDN 403s without the session cookie, so players
+/// hit this proxy instead.
 ///
 /// Three upstream realities shape the design:
 ///  * FFmpeg keeps several large reads alive at once for MP4/TS (audio and
@@ -40,19 +39,46 @@ class MediaProxy {
   var _seq = 0;
   var _requestSeq = 0;
 
-  /// Registers [url] + [headers] and returns a loopback URL the player can open
-  /// without any headers of its own.
-  Future<MediaProxyRegistration> wrap(
+  /// Registers [url] + [headers] for video playback.
+  Future<MediaProxyRegistration> wrapVideo(
     Uri url,
     Map<String, String> headers,
   ) async {
+    return _wrap(url, headers, _ProxyMode.boundedBlocks);
+  }
+
+  /// Registers [url] + [headers] for audio playback.
+  ///
+  /// Audio plays through AVPlayer (just_audio), which — unlike FFmpeg — does not
+  /// re-request after a short 206. It asks for the whole range and treats a
+  /// truncated reply as a broken stream, so audio gets [_ProxyMode.streamRange]:
+  /// the full requested range is delivered in one response, fetched internally
+  /// as gated 4 MiB blocks so no long-lived upstream connection burns 115's
+  /// per-URL connection quota.
+  Future<MediaProxyRegistration> wrapAudio(
+    Uri url,
+    Map<String, String> headers,
+  ) async {
+    return _wrap(url, headers, _ProxyMode.streamRange);
+  }
+
+  Future<MediaProxyRegistration> wrap(Uri url, Map<String, String> headers) {
+    return wrapVideo(url, headers);
+  }
+
+  Future<MediaProxyRegistration> _wrap(
+    Uri url,
+    Map<String, String> headers,
+    _ProxyMode mode,
+  ) async {
     await _ensureStarted();
     final id = '${_seq++}';
-    _entries[id] = _Upstream(url, headers);
+    _entries[id] = _Upstream(url, headers, mode);
     final name = url.pathSegments.isNotEmpty ? url.pathSegments.last : 'media';
     final headerNames = headers.keys.toList()..sort();
     DiagnosticLog.write('media_proxy', 'register', {
       'proxyId': id,
+      'mode': mode.name,
       'upstreamScheme': url.scheme,
       'upstreamHost': url.host,
       'pathExtension': _extension(['', name]),
@@ -66,9 +92,11 @@ class MediaProxy {
     return MediaProxyRegistration._(
       Uri.parse('http://127.0.0.1:${_server!.port}/$id/$name'),
       () {
-        _entries.remove(id);
+        final removed = _entries.remove(id);
+        removed?.close();
         DiagnosticLog.write('media_proxy', 'release', {
           'proxyId': id,
+          'mode': mode.name,
           'serverPort': _server?.port,
           'activeEntries': _entries.length,
         });
@@ -119,6 +147,10 @@ class MediaProxy {
       await _closeServer('health_check_failed');
     }
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    // Capture the port now: once the server closes, `server.port` throws
+    // `HttpServer is not bound to a socket`, and the onDone callback below fires
+    // exactly at close — reading it there would raise an uncaught async error.
+    final port = server.port;
     // Surface unexpected listener failures; normal recovery happens before
     // each registration through the loopback health check above.
     server.listen(
@@ -126,14 +158,14 @@ class MediaProxy {
       onError: (Object e) => DiagnosticLog.write(
         'media_proxy',
         'server_error',
-        {'port': server.port, 'message': '$e'},
+        {'port': port, 'message': '$e'},
       ),
       onDone: () => DiagnosticLog.write('media_proxy', 'server_done', {
-        'port': server.port,
+        'port': port,
       }),
     );
     _server = server;
-    DiagnosticLog.write('media_proxy', 'server_start', {'port': server.port});
+    DiagnosticLog.write('media_proxy', 'server_start', {'port': port});
   }
 
   Future<bool> _canAcceptConnections(HttpServer server) async {
@@ -177,20 +209,24 @@ class MediaProxy {
     _server = null;
     _entries.clear();
     if (server == null) return;
+    // Capture the port before close(): reading `server.port` afterwards throws
+    // `HttpServer is not bound to a socket`, which would propagate out of
+    // video stop() and abort a concurrent audio switch.
+    final port = server.port;
     DiagnosticLog.write('media_proxy', 'server_close_start', {
       'reason': reason,
-      'serverPort': server.port,
+      'serverPort': port,
     });
     try {
       await server.close(force: true).timeout(const Duration(seconds: 2));
       DiagnosticLog.write('media_proxy', 'server_close_done', {
         'reason': reason,
-        'serverPort': server.port,
+        'serverPort': port,
       });
     } catch (e) {
       DiagnosticLog.write('media_proxy', 'server_close_error', {
         'reason': reason,
-        'serverPort': server.port,
+        'serverPort': port,
         'errorType': '${e.runtimeType}',
         'message': '$e',
       });
@@ -238,6 +274,7 @@ class MediaProxy {
       'range': range,
       ...rangeFields,
       'knownProxy': up != null,
+      'mode': up?.mode.name,
       'serverPort': _server?.port,
       'activeEntries': _entries.length,
       'pathExtension': _extension(req.uri.pathSegments),
@@ -253,9 +290,22 @@ class MediaProxy {
       await res.close();
       return;
     }
-
     final start = (rangeFields['rangeStart'] as int?) ?? 0;
     final requestedEnd = rangeFields['rangeEnd'] as int?;
+    if (up.mode == _ProxyMode.streamRange) {
+      await _handleStreamRange(
+        req,
+        res,
+        up,
+        id,
+        reqId,
+        start,
+        requestedEnd,
+        range,
+        stopwatch,
+      );
+      return;
+    }
     final index = start ~/ chunkBytes;
     final cached = up.isCached(index);
     // Cache hits dominate and carry no signal; log only when we touch upstream.
@@ -363,6 +413,109 @@ class MediaProxy {
       } catch (_) {}
     }
   }
+
+  /// Streams the full requested range back in one response (for AVPlayer), but
+  /// pulls it from upstream as gated 4 MiB blocks so each upstream connection
+  /// stays short and never trips 115's concurrent-connection cap.
+  Future<void> _handleStreamRange(
+    HttpRequest req,
+    HttpResponse res,
+    _Upstream up,
+    String id,
+    int reqId,
+    int start,
+    int? requestedEnd,
+    String? range,
+    Stopwatch stopwatch,
+  ) async {
+    DiagnosticLog.write('media_proxy', 'request_start', {
+      'requestId': reqId,
+      'proxyId': id,
+      'method': req.method,
+      'range': range,
+      'rangeStart': start,
+      'rangeEnd': requestedEnd,
+      'mode': up.mode.name,
+      'pathExtension': _extension(req.uri.pathSegments),
+    });
+    try {
+      final first = await up.block(req.method, start ~/ chunkBytes);
+      if (first.status >= 400) {
+        res.statusCode = first.status;
+        _copyContentHeaders(res, first);
+        res.add(first.body);
+        await res.flush();
+        await res.close();
+        DiagnosticLog.write('media_proxy', 'upstream_rejected', {
+          'requestId': reqId,
+          'proxyId': id,
+          'status': first.status,
+          'bytes': first.body.length,
+          'bodySample': utf8.decode(
+            first.body.take(512).toList(),
+            allowMalformed: true,
+          ),
+          'elapsedMs': stopwatch.elapsedMilliseconds,
+        });
+        return;
+      }
+
+      final total = _contentRangeTotal(first.contentRange) ?? up.total;
+      final end =
+          requestedEnd ??
+          (total != null ? total - 1 : start + first.body.length - 1);
+
+      res.statusCode = HttpStatus.partialContent;
+      _copyContentHeaders(res, first);
+      if (total != null) {
+        res.headers.set(
+          HttpHeaders.contentRangeHeader,
+          'bytes $start-$end/$total',
+        );
+      }
+      res.headers.set(HttpHeaders.contentLengthHeader, '${end - start + 1}');
+
+      var pos = start;
+      var block = first;
+      var sent = 0;
+      while (pos <= end) {
+        if (pos ~/ chunkBytes != block.start ~/ chunkBytes) {
+          block = await up.block(req.method, pos ~/ chunkBytes);
+          if (block.status >= 400) break;
+        }
+        final blockEnd = block.start + block.body.length - 1;
+        if (pos < block.start || pos > blockEnd) break;
+        final sliceEnd = end < blockEnd ? end : blockEnd;
+        final offset = pos - block.start;
+        final len = sliceEnd - pos + 1;
+        res.add(
+          Uint8List.view(block.body.buffer, block.body.offsetInBytes + offset, len),
+        );
+        await res.flush();
+        sent += len;
+        pos = sliceEnd + 1;
+      }
+      await res.close();
+      DiagnosticLog.write('media_proxy', 'transfer_done', {
+        'requestId': reqId,
+        'proxyId': id,
+        'bytes': sent,
+        'elapsedMs': stopwatch.elapsedMilliseconds,
+      });
+    } catch (e) {
+      DiagnosticLog.write('media_proxy', 'request_error', {
+        'requestId': reqId,
+        'proxyId': id,
+        'errorType': '${e.runtimeType}',
+        'message': '$e',
+        'elapsedMs': stopwatch.elapsedMilliseconds,
+      });
+      // Player seeked (closed this connection) or upstream failed — best effort.
+      try {
+        await res.close();
+      } catch (_) {}
+    }
+  }
 }
 
 void _copyContentHeaders(HttpResponse res, _Block block) {
@@ -373,6 +526,8 @@ void _copyContentHeaders(HttpResponse res, _Block block) {
     block.acceptRanges ?? 'bytes',
   );
 }
+
+enum _ProxyMode { boundedBlocks, streamRange }
 
 Map<String, Object?> _rangeFields(String? range) {
   if (range == null || !range.startsWith('bytes=')) {
@@ -412,23 +567,35 @@ class MediaProxyRegistration {
 }
 
 class _Upstream {
-  _Upstream(this.url, this.headers);
+  _Upstream(this.url, this.headers, this.mode);
   final Uri url;
   final Map<String, String> headers;
+  final _ProxyMode mode;
 
   final _gate = _Semaphore(MediaProxy.maxConcurrentUpstream);
   static const _maxBlocks = 8;
   final _cache = <int, _Block>{};
   final _lru = <int>[];
   final _inflight = <int, Future<_Block>>{};
+  final _clients = <HttpClient>{};
+  var _closed = false;
 
   /// File size, learned from the first `Content-Range` we see.
   int? total;
 
   bool isCached(int index) => _cache.containsKey(index);
 
+  void close() {
+    _closed = true;
+    for (final client in _clients.toList()) {
+      client.close(force: true);
+    }
+    _clients.clear();
+  }
+
   /// Returns block [index] from cache, an in-flight fetch, or a fresh one.
   Future<_Block> block(String method, int index) {
+    if (_closed) return Future<_Block>.error(StateError('proxy released'));
     final hit = _cache[index];
     if (hit != null) {
       _lru
@@ -448,7 +615,12 @@ class _Upstream {
 
   Future<_Block> _fetch(String method, int index) async {
     await _gate.acquire();
+    if (_closed) {
+      _gate.release();
+      throw StateError('proxy released');
+    }
     final client = HttpClient();
+    _clients.add(client);
     try {
       final start = index * MediaProxy.chunkBytes;
       var end = start + MediaProxy.chunkBytes - 1;
@@ -480,6 +652,7 @@ class _Upstream {
       }
       return block;
     } finally {
+      _clients.remove(client);
       client.close(force: true);
       _gate.release();
     }

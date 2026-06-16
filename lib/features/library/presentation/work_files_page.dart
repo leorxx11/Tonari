@@ -193,7 +193,7 @@ class _WorkFilesPageState extends ConsumerState<WorkFilesPage> {
           try {
             final resolved = await ref
                 .read(p115ClientProvider)
-                .resolveDownloadUrl(file.filePath);
+                .resolveVideoUrl(file.filePath);
             DiagnosticLog.write('work_files', 'p115_resolve_done', {
               'workId': widget.work.productId,
               'fileId': file.id,
