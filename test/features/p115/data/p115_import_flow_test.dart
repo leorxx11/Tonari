@@ -176,6 +176,38 @@ void main() {
       'world',
     ]);
   });
+
+  test(
+    'import flow fails before writing work when subtitle download is blocked',
+    () async {
+      final db = TonariDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final client = _FakeP115Client(
+        {
+          'rj': [
+            _file('audio-1', '01.wav', RemoteEntryKind.audio, 'pc-audio'),
+            _file('sub-1', '01.wav.vtt', RemoteEntryKind.subtitle, 'pc-vtt'),
+          ],
+        },
+        byteErrors: {'pc-vtt': const P115BlockedException()},
+      );
+      final flow = P115ImportFlow(
+        db: db,
+        client: client,
+        importer: ImportService(db),
+        enrichment: _NoopEnrichment(),
+      );
+
+      await expectLater(
+        flow.importFolder(folder: _folder('rj', 'RJ999997')),
+        throwsA(isA<P115BlockedException>()),
+      );
+
+      expect(await db.select(db.works).get(), isEmpty);
+      expect(await db.select(db.workFiles).get(), isEmpty);
+      expect(await db.select(db.subtitles).get(), isEmpty);
+    },
+  );
 }
 
 const _vtt = '''
@@ -218,17 +250,20 @@ RemoteEntry _file(
 }
 
 class _FakeP115Client extends P115Client {
-  _FakeP115Client(this.rows, {this.bytes = const {}})
+  _FakeP115Client(this.rows, {this.bytes = const {}, this.byteErrors = const {}})
     : super(cookieStore: P115CookieStore(backend: _MemoryCookieBackend()));
 
   final Map<String, List<RemoteEntry>> rows;
   final Map<String, List<int>> bytes;
+  final Map<String, Object> byteErrors;
 
   @override
   Future<List<RemoteEntry>> list(String cid) async => rows[cid] ?? const [];
 
   @override
   Future<List<int>> getBytesByPickcode(String pickcode) async {
+    final error = byteErrors[pickcode];
+    if (error != null) throw error;
     return bytes[pickcode]!;
   }
 }

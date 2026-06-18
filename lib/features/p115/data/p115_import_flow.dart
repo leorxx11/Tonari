@@ -91,13 +91,7 @@ class P115ImportFlow {
     for (final work in scan.works) {
       if (work.incomplete || skip.contains(work.productId)) continue;
       for (final sub in work.subtitles) {
-        try {
-          out[sub.path] = await client.getBytesByPickcode(sub.path);
-        } on P115AuthExpiredException {
-          rethrow;
-        } catch (_) {
-          // skip unreadable subtitle; import proceeds without it
-        }
+        out[sub.path] = await client.getBytesByPickcode(sub.path);
         done++;
         onProgress?.call(scan.works.length, '下载字幕 $done/$total');
       }

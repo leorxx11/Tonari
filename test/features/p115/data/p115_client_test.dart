@@ -71,6 +71,49 @@ class _DownurlCookieInterceptor extends Interceptor {
   }
 }
 
+class _ThrottledApiInterceptor extends Interceptor {
+  _ThrottledApiInterceptor(this.delay);
+
+  final Duration delay;
+  final starts = <DateTime>[];
+  final kinds = <String>[];
+  var active = 0;
+  var maxActive = 0;
+
+  @override
+  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
+    final kind = _kind(options);
+    starts.add(DateTime.now());
+    kinds.add(kind);
+    active++;
+    if (active > maxActive) maxActive = active;
+
+    Future<void>.delayed(delay).then((_) {
+      active--;
+      handler.resolve(
+        Response<dynamic>(
+          requestOptions: options,
+          statusCode: 200,
+          data: kind.startsWith('files:')
+              ? {'state': true, 'count': 0, 'data': <Object>[]}
+              : {'state': false, 'message': 'stop before decrypt'},
+        ),
+      );
+    });
+  }
+
+  String _kind(RequestOptions options) {
+    final uri = options.uri;
+    if (uri.host == 'webapi.115.com' && uri.path == '/files') {
+      return 'files:${options.queryParameters['cid']}';
+    }
+    if (uri.host == 'proapi.115.com' && uri.path == '/app/chrome/downurl') {
+      return 'downurl';
+    }
+    throw StateError('unexpected request $uri');
+  }
+}
+
 void main() {
   test('maps 115 directory response into remote entries', () {
     final entries = P115Client.mapEntries({
@@ -119,5 +162,33 @@ void main() {
     expect(interceptor.cookies[2], contains('acw_tc=second'));
     expect(interceptor.cookies[2], contains('dl=token'));
     expect(interceptor.cookies[2], isNot(contains('acw_tc=first')));
+  });
+
+  test('serializes list and downurl requests through one p115 gate', () async {
+    final store = P115CookieStore(backend: _MemoryBackend());
+    await store.write(
+      const P115Cookie(uid: 'u', cid: 'c', seid: 's', kid: 'k'),
+    );
+    final interceptor = _ThrottledApiInterceptor(
+      const Duration(milliseconds: 20),
+    );
+    final dio = Dio()..interceptors.add(interceptor);
+    final client = P115Client(
+      cookieStore: store,
+      dio: dio,
+      apiMinInterval: const Duration(milliseconds: 60),
+    );
+
+    await Future.wait<void>([
+      client.list('root').then<void>((_) {}),
+      client.resolveVideoUrl('pickcode').then<void>((_) {}, onError: (_) {}),
+    ]);
+
+    expect(interceptor.kinds, ['files:root', 'downurl']);
+    expect(interceptor.maxActive, 1);
+    expect(
+      interceptor.starts[1].difference(interceptor.starts[0]).inMilliseconds,
+      greaterThanOrEqualTo(45),
+    );
   });
 }

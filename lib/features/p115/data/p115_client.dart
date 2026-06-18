@@ -30,22 +30,26 @@ class P115BlockedException extends P115Exception {
 }
 
 class P115Client {
-  P115Client({required this.cookieStore, Dio? dio})
-    : _dio =
-          dio ??
-          Dio(
-            BaseOptions(
-              connectTimeout: const Duration(seconds: 10),
-              receiveTimeout: const Duration(seconds: 25),
-            ),
-          );
+  P115Client({
+    required this.cookieStore,
+    Dio? dio,
+    this.apiMinInterval = const Duration(milliseconds: 1200),
+  }) : _dio =
+           dio ??
+           Dio(
+             BaseOptions(
+               connectTimeout: const Duration(seconds: 10),
+               receiveTimeout: const Duration(seconds: 25),
+             ),
+           );
 
   final P115CookieStore cookieStore;
   final Dio _dio;
+  final Duration apiMinInterval;
 
-  DateTime? _lastListAt;
+  Future<void> _apiGate = Future<void>.value();
+  DateTime? _lastApiAt;
   var _resolveSeq = 0;
-  static const _listMinInterval = Duration(milliseconds: 350);
 
   static const sourceId = 'p115';
   static const sourceName = '115 网盘';
@@ -108,30 +112,38 @@ class P115Client {
       'pickcodeTail': _tail(pickcode),
     });
     try {
-      final cookie = await _cookie();
-      final encrypted = P115Cipher.encryptJson({'pickcode': pickcode});
-      final res = await _dio.post<dynamic>(
-        'https://proapi.115.com/app/chrome/downurl',
-        data: {'data': encrypted},
-        options: Options(
-          contentType: Headers.formUrlEncodedContentType,
-          headers: {'Cookie': cookie.header, 'User-Agent': _downloadUserAgent},
-          followRedirects: false,
-          validateStatus: (s) => s != null && s < 500,
-        ),
-      );
-      DiagnosticLog.write('p115', 'downurl_response', {
-        'resolveId': resolveId,
-        'status': res.statusCode,
-        'setCookieNames': _cookieNamesFromSetCookies(
-          res.headers['set-cookie'] ?? const [],
-        ),
-        'hasLocation': res.headers.value('location') != null,
+      final resolved = await _throttledApi(() async {
+        final cookie = await _cookie();
+        final encrypted = P115Cipher.encryptJson({'pickcode': pickcode});
+        final res = await _dio.post<dynamic>(
+          'https://proapi.115.com/app/chrome/downurl',
+          data: {'data': encrypted},
+          options: Options(
+            contentType: Headers.formUrlEncodedContentType,
+            headers: {
+              'Cookie': cookie.header,
+              'User-Agent': _downloadUserAgent,
+            },
+            followRedirects: false,
+            validateStatus: (s) => s != null && s < 500,
+          ),
+        );
+        DiagnosticLog.write('p115', 'downurl_response', {
+          'resolveId': resolveId,
+          'status': res.statusCode,
+          'setCookieNames': _cookieNamesFromSetCookies(
+            res.headers['set-cookie'] ?? const [],
+          ),
+          'hasLocation': res.headers.value('location') != null,
+        });
+        if (res.statusCode == 401 || res.statusCode == 403) {
+          throw const P115AuthExpiredException();
+        }
+        final followed = await _followDownurl(res, cookie);
+        return (cookie: cookie, followed: followed);
       });
-      if (res.statusCode == 401 || res.statusCode == 403) {
-        throw const P115AuthExpiredException();
-      }
-      final followed = await _followDownurl(res, cookie);
+      final followed = resolved.followed;
+      final cookie = resolved.cookie;
       final json = _asJson(followed.body);
       if (!_truthy(json['state'])) {
         if (_authExpired(json)) throw const P115AuthExpiredException();
@@ -278,30 +290,33 @@ class P115Client {
     String url, {
     required Map<String, dynamic> query,
   }) async {
-    await _throttleList();
-    final cookie = await _cookie();
-    final Response<dynamic> res;
-    try {
-      res = await _dio.get<dynamic>(
-        url,
-        queryParameters: query,
-        options: Options(
-          headers: {'Cookie': cookie.header},
-          validateStatus: (s) => s != null && s < 500,
-        ),
-      );
-    } on DioException catch (e) {
-      throw _networkError(e);
-    }
-    if (res.statusCode == 401 || res.statusCode == 403) {
-      throw const P115AuthExpiredException();
-    }
-    final json = _asJson(res.data);
-    if (!_truthy(json['state'])) {
-      if (_authExpired(json)) throw const P115AuthExpiredException();
-      throw P115Exception('${json['error'] ?? json['message'] ?? '115 请求失败'}');
-    }
-    return json;
+    return _throttledApi(() async {
+      final cookie = await _cookie();
+      final Response<dynamic> res;
+      try {
+        res = await _dio.get<dynamic>(
+          url,
+          queryParameters: query,
+          options: Options(
+            headers: {'Cookie': cookie.header},
+            validateStatus: (s) => s != null && s < 500,
+          ),
+        );
+      } on DioException catch (e) {
+        throw _networkError(e);
+      }
+      if (res.statusCode == 401 || res.statusCode == 403) {
+        throw const P115AuthExpiredException();
+      }
+      final json = _asJson(res.data);
+      if (!_truthy(json['state'])) {
+        if (_authExpired(json)) throw const P115AuthExpiredException();
+        throw P115Exception(
+          '${json['error'] ?? json['message'] ?? '115 请求失败'}',
+        );
+      }
+      return json;
+    });
   }
 
   Future<P115Cookie> _cookie() async {
@@ -328,16 +343,21 @@ class P115Client {
     }
   }
 
-  // 115 throttles bursts of /files calls by serving an HTML verification page.
-  // The recursive folder scan fans out one request per directory plus paging,
-  // so space list requests apart to stay under that threshold.
-  Future<void> _throttleList() async {
-    final last = _lastListAt;
-    if (last != null) {
-      final wait = _listMinInterval - DateTime.now().difference(last);
-      if (wait > Duration.zero) await Future<void>.delayed(wait);
-    }
-    _lastListAt = DateTime.now();
+  // 115 throttles bursts across cookie-backed API endpoints, not just /files.
+  // Keep directory listing, import subtitle downurl resolution, browse resolve,
+  // and playback resolve on one serial rhythm so separate UI flows cannot burst.
+  Future<T> _throttledApi<T>(Future<T> Function() request) {
+    final run = _apiGate.then((_) async {
+      final last = _lastApiAt;
+      if (last != null) {
+        final wait = apiMinInterval - DateTime.now().difference(last);
+        if (wait > Duration.zero) await Future<void>.delayed(wait);
+      }
+      _lastApiAt = DateTime.now();
+      return request();
+    });
+    _apiGate = run.then<void>((_) {}, onError: (_) {});
+    return run;
   }
 
   Map<String, dynamic> _asJson(dynamic data) {
