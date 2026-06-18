@@ -108,19 +108,6 @@ class EnrichmentStatusAction extends ConsumerWidget {
     final pending = ref.watch(
       pendingEnrichmentCountProvider.select((v) => v.value ?? 0),
     );
-    final failures = queue.failures;
-    if (failures.isNotEmpty) {
-      final scheme = Theme.of(context).colorScheme;
-      return IconButton(
-        tooltip: '${failures.length} 个作品补全失败，点开重试',
-        icon: Badge(
-          backgroundColor: scheme.error,
-          label: Text('${failures.length}'),
-          child: Icon(Icons.error_outline, color: scheme.error),
-        ),
-        onPressed: () => showEnrichmentFailureSheet(context),
-      );
-    }
     if (pending > 0) {
       return IconButton(
         tooltip: '补全 $pending 个作品的资料',
@@ -143,13 +130,6 @@ Future<void> showEnrichmentTaskSheet(BuildContext context) {
   );
 }
 
-Future<void> showEnrichmentFailureSheet(BuildContext context) {
-  return showModalBottomSheet<void>(
-    context: context,
-    builder: (_) => const _EnrichmentFailureSheet(),
-  );
-}
-
 class _EnrichmentTaskSheet extends ConsumerWidget {
   const _EnrichmentTaskSheet();
 
@@ -160,80 +140,6 @@ class _EnrichmentTaskSheet extends ConsumerWidget {
         ? _taskFromEnrichmentQueue(queue)
         : const LibraryTaskState.idle();
     return _TaskSheetBody(task: task, idleText: '当前没有元数据补全任务。');
-  }
-}
-
-class _EnrichmentFailureSheet extends ConsumerWidget {
-  const _EnrichmentFailureSheet();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final failures = ref.watch(
-      enrichmentQueueProvider.select((s) => s.failures),
-    );
-    final pending = ref.watch(
-      pendingEnrichmentCountProvider.select((v) => v.value ?? 0),
-    );
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '补全失败（${failures.length}）',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              pending > failures.length
-                  ? '还有 $pending 个作品资料不完整。重试会重新补全全部缺失资料。'
-                  : 'DLsite 抓取或图片下载失败。可能是作品已下架、网络问题或被风控。',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Flexible(
-              child: ListView(
-                shrinkWrap: true,
-                children: [
-                  for (final entry in failures.entries)
-                    ListTile(
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(entry.key),
-                      subtitle: Text(
-                        entry.value,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerRight,
-              child: FilledButton.tonalIcon(
-                icon: const Icon(Icons.refresh),
-                label: const Text('重试并补全全部'),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  ref
-                      .read(enrichmentQueueProvider.notifier)
-                      .runPending(reset: true);
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
 

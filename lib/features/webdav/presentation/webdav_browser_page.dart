@@ -8,6 +8,7 @@ import '../../../core/scanner/file_classifier.dart';
 import '../../../core/ui/root_messenger.dart';
 import '../../browse/data/remote_models.dart';
 import '../../browse/presentation/remote_browser_page.dart';
+import '../../library/data/app_events.dart';
 import '../../library/data/enrichment_queue.dart';
 import '../../library/data/import_service.dart';
 import '../../library/data/library_task_controller.dart';
@@ -102,16 +103,18 @@ class WebdavBrowserPage extends ConsumerWidget {
     final flow = ref.read(webdavImportFlowProvider);
     final taskController = ref.read(libraryTaskControllerProvider.notifier);
     final queue = ref.read(enrichmentQueueProvider.notifier);
+    final sink = ref.read(appEventSinkProvider);
     rootScaffoldMessengerKey.currentState?.showSnackBar(
       SnackBar(content: Text('已在后台导入「${folder.name}」…')),
     );
-    unawaited(_runImport(taskController, flow, queue, folder));
+    unawaited(_runImport(taskController, flow, queue, sink, folder));
   }
 
   Future<void> _runImport(
     LibraryTaskController taskController,
     WebdavImportFlow flow,
     EnrichmentQueue queue,
+    AppEventSink sink,
     RemoteEntry folder,
   ) async {
     final messenger = rootScaffoldMessengerKey.currentState;
@@ -138,6 +141,17 @@ class WebdavBrowserPage extends ConsumerWidget {
         },
       );
       unawaited(queue.runPending());
+      if (summary.incompleteWorks.isNotEmpty) {
+        unawaited(
+          sink.log(
+            category: 'import',
+            severity: 'warning',
+            title: '${summary.incompleteWorks.length} 个作品扫描失败',
+            detail: '已跳过，可稍后重新导入整个文件夹。',
+            sourceName: folder.name,
+          ),
+        );
+      }
       messenger?.showSnackBar(
         SnackBar(
           content: Text(
@@ -150,6 +164,14 @@ class WebdavBrowserPage extends ConsumerWidget {
         ),
       );
     } catch (e) {
+      unawaited(
+        sink.log(
+          category: 'import',
+          title: '「${folder.name}」导入失败',
+          detail: '$e',
+          sourceName: folder.name,
+        ),
+      );
       messenger?.showSnackBar(
         SnackBar(
           content: Text('「${folder.name}」导入失败：$e'),

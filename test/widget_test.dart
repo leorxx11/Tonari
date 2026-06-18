@@ -7,6 +7,7 @@ import 'package:tonari/core/db/database.dart';
 import 'package:tonari/core/files/folder_picker_service.dart';
 import 'package:tonari/core/subtitle/subtitle_cue.dart';
 import 'package:tonari/core/prefs/shared_prefs_provider.dart';
+import 'package:tonari/features/library/data/app_events.dart';
 import 'package:tonari/features/library/data/import_flow.dart';
 import 'package:tonari/features/library/data/import_service.dart';
 import 'package:tonari/features/library/data/metadata_enrichment.dart';
@@ -31,10 +32,16 @@ Widget testApp({
   ReimportWork? reimportWork,
   ToggleFavorite? toggleFavorite,
   ImportFlow? importFlow,
+  List<AppEvent> appEvents = const [],
   Map<String, List<SubtitleCue>> subtitlePreviews = const {},
 }) => ProviderScope(
   overrides: [
     sharedPreferencesProvider.overrideWithValue(_testPrefs),
+    appEventSinkProvider.overrideWithValue(_FakeEventSink()),
+    appEventsProvider.overrideWith((ref) => Stream.value(appEvents)),
+    unreadEventCountProvider.overrideWith(
+      (ref) => Stream.value(appEvents.where((e) => !e.read).length),
+    ),
     allWorksProvider.overrideWith(
       (ref) => Stream.value(works.where((work) => !work.isRemoved).toList()),
     ),
@@ -70,8 +77,30 @@ Widget testApp({
   child: const TonariApp(),
 );
 
-class _NoopEnrichment implements MetadataEnrichmentService {
+class _FakeEventSink implements AppEventSink {
   @override
+  Future<void> log({
+    required String category,
+    String severity = 'error',
+    required String title,
+    String detail = '',
+    String? productId,
+    String? workTitle,
+    String? sourceName,
+    String? actionKey,
+  }) async {}
+
+  @override
+  Future<void> markAllRead() async {}
+
+  @override
+  Future<void> dismiss(String id) async {}
+
+  @override
+  Future<void> clear() async {}
+}
+
+class _NoopEnrichment implements MetadataEnrichmentService {  @override
   Future<void> enrichBatch(
     Iterable<String> productIds, {
     MetadataProgress? onProgress,
@@ -133,6 +162,28 @@ Work _work(
     userTags: const [],
     createdAt: now,
     updatedAt: now,
+  );
+}
+
+AppEvent _event({
+  required String title,
+  String? actionKey,
+  bool read = false,
+}) {
+  final now = DateTime(2026, 6, 18);
+  return AppEvent(
+    id: title,
+    createdAt: now,
+    lastAt: now,
+    category: 'metadata',
+    severity: 'error',
+    title: title,
+    detail: 'boom',
+    productId: 'RJ1',
+    workTitle: 'W',
+    actionKey: actionKey,
+    count: 1,
+    read: read,
   );
 }
 
@@ -211,8 +262,36 @@ void main() {
     expect(find.text('媒体库还是空的'), findsOneWidget);
   });
 
-  testWidgets('library tab shows works grid when populated', (tester) async {
+  testWidgets('message bell shows unread badge and opens sheet', (
+    tester,
+  ) async {
     await tester.pumpWidget(
+      testApp(appEvents: [_event(title: '资料补全失败', actionKey: 'enrich')]),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('1 条未读消息'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('1 条未读消息'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('消息'), findsOneWidget);
+    expect(find.text('资料补全失败'), findsOneWidget);
+    expect(find.text('补全资料'), findsOneWidget);
+  });
+
+  testWidgets('message sheet shows empty state with no events', (tester) async {
+    await tester.pumpWidget(testApp());
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('消息'), findsOneWidget);
+    await tester.tap(find.byTooltip('消息'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('暂无消息'), findsOneWidget);
+  });
+
+  testWidgets('library tab shows works grid when populated', (tester) async {    await tester.pumpWidget(
       testApp(
         works: [
           _work('RJ01560714', title: 'Test Work'),

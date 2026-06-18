@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/db/database.dart';
 import '../../../core/db/providers.dart';
 import '../../../core/files/local_image_path.dart';
+import 'app_events.dart';
 import 'metadata_enrichment.dart';
 
 class EnrichmentQueueState {
@@ -91,7 +94,23 @@ class EnrichmentQueue extends Notifier<EnrichmentQueueState> {
           } catch (e) {
             // Record the reason once retries are exhausted so the indicator can
             // surface it; otherwise leave pending for the next pass.
-            if (attempt >= _maxAttempts) _failures[id] = _reason(e);
+            if (attempt >= _maxAttempts) {
+              _failures[id] = _reason(e);
+              unawaited(
+                ref
+                    .read(appEventSinkProvider)
+                    .log(
+                      category: 'metadata',
+                      title: '资料补全失败',
+                      detail: _reason(e),
+                      productId: id,
+                      workTitle: rows
+                          .firstWhere((r) => r.productId == id)
+                          .title,
+                      actionKey: 'enrich',
+                    ),
+              );
+            }
           }
         }
       }

@@ -7,6 +7,7 @@ import '../../../core/diagnostics/diagnostic_log.dart';
 import '../../../core/ui/root_messenger.dart';
 import '../../browse/data/remote_models.dart';
 import '../../browse/presentation/remote_browser_page.dart';
+import '../../library/data/app_events.dart';
 import '../../library/data/enrichment_queue.dart';
 import '../../library/data/import_service.dart';
 import '../../library/data/library_task_controller.dart';
@@ -105,16 +106,18 @@ class P115BrowserPage extends ConsumerWidget {
     final auth = ref.read(p115AuthServiceProvider);
     final taskController = ref.read(libraryTaskControllerProvider.notifier);
     final queue = ref.read(enrichmentQueueProvider.notifier);
+    final sink = ref.read(appEventSinkProvider);
     rootScaffoldMessengerKey.currentState?.showSnackBar(
       SnackBar(content: Text('已在后台导入「${folder.name}」…')),
     );
-    unawaited(_runImport(taskController, flow, queue, auth, folder));
+    unawaited(_runImport(taskController, flow, queue, sink, auth, folder));
   }
 
   Future<void> _runImport(
     LibraryTaskController taskController,
     P115ImportFlow flow,
     EnrichmentQueue queue,
+    AppEventSink sink,
     P115AuthService auth,
     RemoteEntry folder,
   ) async {
@@ -140,6 +143,17 @@ class P115BrowserPage extends ConsumerWidget {
         },
       );
       unawaited(queue.runPending());
+      if (summary.incompleteWorks.isNotEmpty) {
+        unawaited(
+          sink.log(
+            category: 'import',
+            severity: 'warning',
+            title: '${summary.incompleteWorks.length} 个作品扫描失败',
+            detail: '疑似 115 风控，已跳过，可稍后重新导入整个文件夹。',
+            sourceName: folder.name,
+          ),
+        );
+      }
       messenger?.showSnackBar(
         SnackBar(
           content: Text(
@@ -153,10 +167,29 @@ class P115BrowserPage extends ConsumerWidget {
       );
     } on P115AuthExpiredException catch (e) {
       await auth.clearCookie();
+      unawaited(
+        sink.log(
+          category: 'auth',
+          title: '115 登录已过期',
+          detail: '$e',
+          sourceName: folder.name,
+          actionKey: 'reauth',
+        ),
+      );
       messenger?.showSnackBar(
         SnackBar(content: Text('$e'), duration: const Duration(seconds: 6)),
       );
     } catch (e) {
+      unawaited(
+        sink.log(
+          category: e is P115BlockedException ? 'network' : 'import',
+          title: e is P115BlockedException
+              ? '115 风控，导入已中断'
+              : '「${folder.name}」导入失败',
+          detail: '$e',
+          sourceName: folder.name,
+        ),
+      );
       messenger?.showSnackBar(
         SnackBar(
           content: Text('「${folder.name}」导入失败：$e'),

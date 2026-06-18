@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/db/database.dart';
 import '../../../core/files/folder_picker_service.dart';
+import '../data/app_events.dart';
 import '../data/enrichment_queue.dart';
 import '../data/import_flow.dart';
 import '../data/import_service.dart';
@@ -19,6 +20,7 @@ import '../../webdav/data/webdav_client.dart';
 import '../../webdav/data/webdav_server_repository.dart';
 import '../../webdav/presentation/webdav_browser_page.dart';
 import '../../webdav/presentation/webdav_settings_page.dart';
+import 'widgets/app_events_sheet.dart';
 import 'widgets/library_task_status.dart';
 import 'widgets/work_card.dart';
 import 'work_detail_page.dart';
@@ -116,6 +118,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                 ),
             ],
           ),
+          const AppEventsAction(),
           const EnrichmentStatusAction(),
           LibraryTaskStatusButton(
             idleTooltip: '导入文件夹',
@@ -273,6 +276,11 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
       );
     } catch (e) {
       if (!mounted) return;
+      unawaited(
+        ref
+            .read(appEventSinkProvider)
+            .log(category: 'import', title: '导入失败', detail: '$e'),
+      );
       messenger.showSnackBar(SnackBar(content: Text('导入失败：$e')));
     }
   }

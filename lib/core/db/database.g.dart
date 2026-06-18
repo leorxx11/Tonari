@@ -7010,6 +7010,751 @@ class WebdavServersCompanion extends UpdateCompanion<WebdavServer> {
   }
 }
 
+class $AppEventsTable extends AppEvents
+    with TableInfo<$AppEventsTable, AppEvent> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AppEventsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _lastAtMeta = const VerificationMeta('lastAt');
+  @override
+  late final GeneratedColumn<DateTime> lastAt = GeneratedColumn<DateTime>(
+    'last_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _categoryMeta = const VerificationMeta(
+    'category',
+  );
+  @override
+  late final GeneratedColumn<String> category = GeneratedColumn<String>(
+    'category',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _severityMeta = const VerificationMeta(
+    'severity',
+  );
+  @override
+  late final GeneratedColumn<String> severity = GeneratedColumn<String>(
+    'severity',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _detailMeta = const VerificationMeta('detail');
+  @override
+  late final GeneratedColumn<String> detail = GeneratedColumn<String>(
+    'detail',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _productIdMeta = const VerificationMeta(
+    'productId',
+  );
+  @override
+  late final GeneratedColumn<String> productId = GeneratedColumn<String>(
+    'product_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _workTitleMeta = const VerificationMeta(
+    'workTitle',
+  );
+  @override
+  late final GeneratedColumn<String> workTitle = GeneratedColumn<String>(
+    'work_title',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sourceNameMeta = const VerificationMeta(
+    'sourceName',
+  );
+  @override
+  late final GeneratedColumn<String> sourceName = GeneratedColumn<String>(
+    'source_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _actionKeyMeta = const VerificationMeta(
+    'actionKey',
+  );
+  @override
+  late final GeneratedColumn<String> actionKey = GeneratedColumn<String>(
+    'action_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _countMeta = const VerificationMeta('count');
+  @override
+  late final GeneratedColumn<int> count = GeneratedColumn<int>(
+    'count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _readMeta = const VerificationMeta('read');
+  @override
+  late final GeneratedColumn<bool> read = GeneratedColumn<bool>(
+    'read',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("read" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    createdAt,
+    lastAt,
+    category,
+    severity,
+    title,
+    detail,
+    productId,
+    workTitle,
+    sourceName,
+    actionKey,
+    count,
+    read,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'app_events';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<AppEvent> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('last_at')) {
+      context.handle(
+        _lastAtMeta,
+        lastAt.isAcceptableOrUnknown(data['last_at']!, _lastAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_lastAtMeta);
+    }
+    if (data.containsKey('category')) {
+      context.handle(
+        _categoryMeta,
+        category.isAcceptableOrUnknown(data['category']!, _categoryMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_categoryMeta);
+    }
+    if (data.containsKey('severity')) {
+      context.handle(
+        _severityMeta,
+        severity.isAcceptableOrUnknown(data['severity']!, _severityMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_severityMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('detail')) {
+      context.handle(
+        _detailMeta,
+        detail.isAcceptableOrUnknown(data['detail']!, _detailMeta),
+      );
+    }
+    if (data.containsKey('product_id')) {
+      context.handle(
+        _productIdMeta,
+        productId.isAcceptableOrUnknown(data['product_id']!, _productIdMeta),
+      );
+    }
+    if (data.containsKey('work_title')) {
+      context.handle(
+        _workTitleMeta,
+        workTitle.isAcceptableOrUnknown(data['work_title']!, _workTitleMeta),
+      );
+    }
+    if (data.containsKey('source_name')) {
+      context.handle(
+        _sourceNameMeta,
+        sourceName.isAcceptableOrUnknown(data['source_name']!, _sourceNameMeta),
+      );
+    }
+    if (data.containsKey('action_key')) {
+      context.handle(
+        _actionKeyMeta,
+        actionKey.isAcceptableOrUnknown(data['action_key']!, _actionKeyMeta),
+      );
+    }
+    if (data.containsKey('count')) {
+      context.handle(
+        _countMeta,
+        count.isAcceptableOrUnknown(data['count']!, _countMeta),
+      );
+    }
+    if (data.containsKey('read')) {
+      context.handle(
+        _readMeta,
+        read.isAcceptableOrUnknown(data['read']!, _readMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  AppEvent map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AppEvent(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      lastAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_at'],
+      )!,
+      category: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category'],
+      )!,
+      severity: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}severity'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      detail: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}detail'],
+      )!,
+      productId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}product_id'],
+      ),
+      workTitle: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}work_title'],
+      ),
+      sourceName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_name'],
+      ),
+      actionKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}action_key'],
+      ),
+      count: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}count'],
+      )!,
+      read: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}read'],
+      )!,
+    );
+  }
+
+  @override
+  $AppEventsTable createAlias(String alias) {
+    return $AppEventsTable(attachedDatabase, alias);
+  }
+}
+
+class AppEvent extends DataClass implements Insertable<AppEvent> {
+  final String id;
+  final DateTime createdAt;
+  final DateTime lastAt;
+  final String category;
+  final String severity;
+  final String title;
+  final String detail;
+  final String? productId;
+  final String? workTitle;
+  final String? sourceName;
+  final String? actionKey;
+  final int count;
+  final bool read;
+  const AppEvent({
+    required this.id,
+    required this.createdAt,
+    required this.lastAt,
+    required this.category,
+    required this.severity,
+    required this.title,
+    required this.detail,
+    this.productId,
+    this.workTitle,
+    this.sourceName,
+    this.actionKey,
+    required this.count,
+    required this.read,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['last_at'] = Variable<DateTime>(lastAt);
+    map['category'] = Variable<String>(category);
+    map['severity'] = Variable<String>(severity);
+    map['title'] = Variable<String>(title);
+    map['detail'] = Variable<String>(detail);
+    if (!nullToAbsent || productId != null) {
+      map['product_id'] = Variable<String>(productId);
+    }
+    if (!nullToAbsent || workTitle != null) {
+      map['work_title'] = Variable<String>(workTitle);
+    }
+    if (!nullToAbsent || sourceName != null) {
+      map['source_name'] = Variable<String>(sourceName);
+    }
+    if (!nullToAbsent || actionKey != null) {
+      map['action_key'] = Variable<String>(actionKey);
+    }
+    map['count'] = Variable<int>(count);
+    map['read'] = Variable<bool>(read);
+    return map;
+  }
+
+  AppEventsCompanion toCompanion(bool nullToAbsent) {
+    return AppEventsCompanion(
+      id: Value(id),
+      createdAt: Value(createdAt),
+      lastAt: Value(lastAt),
+      category: Value(category),
+      severity: Value(severity),
+      title: Value(title),
+      detail: Value(detail),
+      productId: productId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(productId),
+      workTitle: workTitle == null && nullToAbsent
+          ? const Value.absent()
+          : Value(workTitle),
+      sourceName: sourceName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sourceName),
+      actionKey: actionKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(actionKey),
+      count: Value(count),
+      read: Value(read),
+    );
+  }
+
+  factory AppEvent.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AppEvent(
+      id: serializer.fromJson<String>(json['id']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      lastAt: serializer.fromJson<DateTime>(json['lastAt']),
+      category: serializer.fromJson<String>(json['category']),
+      severity: serializer.fromJson<String>(json['severity']),
+      title: serializer.fromJson<String>(json['title']),
+      detail: serializer.fromJson<String>(json['detail']),
+      productId: serializer.fromJson<String?>(json['productId']),
+      workTitle: serializer.fromJson<String?>(json['workTitle']),
+      sourceName: serializer.fromJson<String?>(json['sourceName']),
+      actionKey: serializer.fromJson<String?>(json['actionKey']),
+      count: serializer.fromJson<int>(json['count']),
+      read: serializer.fromJson<bool>(json['read']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'lastAt': serializer.toJson<DateTime>(lastAt),
+      'category': serializer.toJson<String>(category),
+      'severity': serializer.toJson<String>(severity),
+      'title': serializer.toJson<String>(title),
+      'detail': serializer.toJson<String>(detail),
+      'productId': serializer.toJson<String?>(productId),
+      'workTitle': serializer.toJson<String?>(workTitle),
+      'sourceName': serializer.toJson<String?>(sourceName),
+      'actionKey': serializer.toJson<String?>(actionKey),
+      'count': serializer.toJson<int>(count),
+      'read': serializer.toJson<bool>(read),
+    };
+  }
+
+  AppEvent copyWith({
+    String? id,
+    DateTime? createdAt,
+    DateTime? lastAt,
+    String? category,
+    String? severity,
+    String? title,
+    String? detail,
+    Value<String?> productId = const Value.absent(),
+    Value<String?> workTitle = const Value.absent(),
+    Value<String?> sourceName = const Value.absent(),
+    Value<String?> actionKey = const Value.absent(),
+    int? count,
+    bool? read,
+  }) => AppEvent(
+    id: id ?? this.id,
+    createdAt: createdAt ?? this.createdAt,
+    lastAt: lastAt ?? this.lastAt,
+    category: category ?? this.category,
+    severity: severity ?? this.severity,
+    title: title ?? this.title,
+    detail: detail ?? this.detail,
+    productId: productId.present ? productId.value : this.productId,
+    workTitle: workTitle.present ? workTitle.value : this.workTitle,
+    sourceName: sourceName.present ? sourceName.value : this.sourceName,
+    actionKey: actionKey.present ? actionKey.value : this.actionKey,
+    count: count ?? this.count,
+    read: read ?? this.read,
+  );
+  AppEvent copyWithCompanion(AppEventsCompanion data) {
+    return AppEvent(
+      id: data.id.present ? data.id.value : this.id,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      lastAt: data.lastAt.present ? data.lastAt.value : this.lastAt,
+      category: data.category.present ? data.category.value : this.category,
+      severity: data.severity.present ? data.severity.value : this.severity,
+      title: data.title.present ? data.title.value : this.title,
+      detail: data.detail.present ? data.detail.value : this.detail,
+      productId: data.productId.present ? data.productId.value : this.productId,
+      workTitle: data.workTitle.present ? data.workTitle.value : this.workTitle,
+      sourceName: data.sourceName.present
+          ? data.sourceName.value
+          : this.sourceName,
+      actionKey: data.actionKey.present ? data.actionKey.value : this.actionKey,
+      count: data.count.present ? data.count.value : this.count,
+      read: data.read.present ? data.read.value : this.read,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AppEvent(')
+          ..write('id: $id, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('lastAt: $lastAt, ')
+          ..write('category: $category, ')
+          ..write('severity: $severity, ')
+          ..write('title: $title, ')
+          ..write('detail: $detail, ')
+          ..write('productId: $productId, ')
+          ..write('workTitle: $workTitle, ')
+          ..write('sourceName: $sourceName, ')
+          ..write('actionKey: $actionKey, ')
+          ..write('count: $count, ')
+          ..write('read: $read')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    createdAt,
+    lastAt,
+    category,
+    severity,
+    title,
+    detail,
+    productId,
+    workTitle,
+    sourceName,
+    actionKey,
+    count,
+    read,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AppEvent &&
+          other.id == this.id &&
+          other.createdAt == this.createdAt &&
+          other.lastAt == this.lastAt &&
+          other.category == this.category &&
+          other.severity == this.severity &&
+          other.title == this.title &&
+          other.detail == this.detail &&
+          other.productId == this.productId &&
+          other.workTitle == this.workTitle &&
+          other.sourceName == this.sourceName &&
+          other.actionKey == this.actionKey &&
+          other.count == this.count &&
+          other.read == this.read);
+}
+
+class AppEventsCompanion extends UpdateCompanion<AppEvent> {
+  final Value<String> id;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> lastAt;
+  final Value<String> category;
+  final Value<String> severity;
+  final Value<String> title;
+  final Value<String> detail;
+  final Value<String?> productId;
+  final Value<String?> workTitle;
+  final Value<String?> sourceName;
+  final Value<String?> actionKey;
+  final Value<int> count;
+  final Value<bool> read;
+  final Value<int> rowid;
+  const AppEventsCompanion({
+    this.id = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.lastAt = const Value.absent(),
+    this.category = const Value.absent(),
+    this.severity = const Value.absent(),
+    this.title = const Value.absent(),
+    this.detail = const Value.absent(),
+    this.productId = const Value.absent(),
+    this.workTitle = const Value.absent(),
+    this.sourceName = const Value.absent(),
+    this.actionKey = const Value.absent(),
+    this.count = const Value.absent(),
+    this.read = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AppEventsCompanion.insert({
+    required String id,
+    required DateTime createdAt,
+    required DateTime lastAt,
+    required String category,
+    required String severity,
+    required String title,
+    this.detail = const Value.absent(),
+    this.productId = const Value.absent(),
+    this.workTitle = const Value.absent(),
+    this.sourceName = const Value.absent(),
+    this.actionKey = const Value.absent(),
+    this.count = const Value.absent(),
+    this.read = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       createdAt = Value(createdAt),
+       lastAt = Value(lastAt),
+       category = Value(category),
+       severity = Value(severity),
+       title = Value(title);
+  static Insertable<AppEvent> custom({
+    Expression<String>? id,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? lastAt,
+    Expression<String>? category,
+    Expression<String>? severity,
+    Expression<String>? title,
+    Expression<String>? detail,
+    Expression<String>? productId,
+    Expression<String>? workTitle,
+    Expression<String>? sourceName,
+    Expression<String>? actionKey,
+    Expression<int>? count,
+    Expression<bool>? read,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (createdAt != null) 'created_at': createdAt,
+      if (lastAt != null) 'last_at': lastAt,
+      if (category != null) 'category': category,
+      if (severity != null) 'severity': severity,
+      if (title != null) 'title': title,
+      if (detail != null) 'detail': detail,
+      if (productId != null) 'product_id': productId,
+      if (workTitle != null) 'work_title': workTitle,
+      if (sourceName != null) 'source_name': sourceName,
+      if (actionKey != null) 'action_key': actionKey,
+      if (count != null) 'count': count,
+      if (read != null) 'read': read,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AppEventsCompanion copyWith({
+    Value<String>? id,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? lastAt,
+    Value<String>? category,
+    Value<String>? severity,
+    Value<String>? title,
+    Value<String>? detail,
+    Value<String?>? productId,
+    Value<String?>? workTitle,
+    Value<String?>? sourceName,
+    Value<String?>? actionKey,
+    Value<int>? count,
+    Value<bool>? read,
+    Value<int>? rowid,
+  }) {
+    return AppEventsCompanion(
+      id: id ?? this.id,
+      createdAt: createdAt ?? this.createdAt,
+      lastAt: lastAt ?? this.lastAt,
+      category: category ?? this.category,
+      severity: severity ?? this.severity,
+      title: title ?? this.title,
+      detail: detail ?? this.detail,
+      productId: productId ?? this.productId,
+      workTitle: workTitle ?? this.workTitle,
+      sourceName: sourceName ?? this.sourceName,
+      actionKey: actionKey ?? this.actionKey,
+      count: count ?? this.count,
+      read: read ?? this.read,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (lastAt.present) {
+      map['last_at'] = Variable<DateTime>(lastAt.value);
+    }
+    if (category.present) {
+      map['category'] = Variable<String>(category.value);
+    }
+    if (severity.present) {
+      map['severity'] = Variable<String>(severity.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (detail.present) {
+      map['detail'] = Variable<String>(detail.value);
+    }
+    if (productId.present) {
+      map['product_id'] = Variable<String>(productId.value);
+    }
+    if (workTitle.present) {
+      map['work_title'] = Variable<String>(workTitle.value);
+    }
+    if (sourceName.present) {
+      map['source_name'] = Variable<String>(sourceName.value);
+    }
+    if (actionKey.present) {
+      map['action_key'] = Variable<String>(actionKey.value);
+    }
+    if (count.present) {
+      map['count'] = Variable<int>(count.value);
+    }
+    if (read.present) {
+      map['read'] = Variable<bool>(read.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AppEventsCompanion(')
+          ..write('id: $id, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('lastAt: $lastAt, ')
+          ..write('category: $category, ')
+          ..write('severity: $severity, ')
+          ..write('title: $title, ')
+          ..write('detail: $detail, ')
+          ..write('productId: $productId, ')
+          ..write('workTitle: $workTitle, ')
+          ..write('sourceName: $sourceName, ')
+          ..write('actionKey: $actionKey, ')
+          ..write('count: $count, ')
+          ..write('read: $read, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$TonariDatabase extends GeneratedDatabase {
   _$TonariDatabase(QueryExecutor e) : super(e);
   $TonariDatabaseManager get managers => $TonariDatabaseManager(this);
@@ -7022,6 +7767,7 @@ abstract class _$TonariDatabase extends GeneratedDatabase {
   );
   late final $LlmProvidersTable llmProviders = $LlmProvidersTable(this);
   late final $WebdavServersTable webdavServers = $WebdavServersTable(this);
+  late final $AppEventsTable appEvents = $AppEventsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -7034,6 +7780,7 @@ abstract class _$TonariDatabase extends GeneratedDatabase {
     importedFolders,
     llmProviders,
     webdavServers,
+    appEvents,
   ];
 }
 
@@ -10804,6 +11551,357 @@ typedef $$WebdavServersTableProcessedTableManager =
       WebdavServer,
       PrefetchHooks Function()
     >;
+typedef $$AppEventsTableCreateCompanionBuilder =
+    AppEventsCompanion Function({
+      required String id,
+      required DateTime createdAt,
+      required DateTime lastAt,
+      required String category,
+      required String severity,
+      required String title,
+      Value<String> detail,
+      Value<String?> productId,
+      Value<String?> workTitle,
+      Value<String?> sourceName,
+      Value<String?> actionKey,
+      Value<int> count,
+      Value<bool> read,
+      Value<int> rowid,
+    });
+typedef $$AppEventsTableUpdateCompanionBuilder =
+    AppEventsCompanion Function({
+      Value<String> id,
+      Value<DateTime> createdAt,
+      Value<DateTime> lastAt,
+      Value<String> category,
+      Value<String> severity,
+      Value<String> title,
+      Value<String> detail,
+      Value<String?> productId,
+      Value<String?> workTitle,
+      Value<String?> sourceName,
+      Value<String?> actionKey,
+      Value<int> count,
+      Value<bool> read,
+      Value<int> rowid,
+    });
+
+class $$AppEventsTableFilterComposer
+    extends Composer<_$TonariDatabase, $AppEventsTable> {
+  $$AppEventsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastAt => $composableBuilder(
+    column: $table.lastAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get category => $composableBuilder(
+    column: $table.category,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get severity => $composableBuilder(
+    column: $table.severity,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get detail => $composableBuilder(
+    column: $table.detail,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get productId => $composableBuilder(
+    column: $table.productId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get workTitle => $composableBuilder(
+    column: $table.workTitle,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceName => $composableBuilder(
+    column: $table.sourceName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get actionKey => $composableBuilder(
+    column: $table.actionKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get count => $composableBuilder(
+    column: $table.count,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get read => $composableBuilder(
+    column: $table.read,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$AppEventsTableOrderingComposer
+    extends Composer<_$TonariDatabase, $AppEventsTable> {
+  $$AppEventsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastAt => $composableBuilder(
+    column: $table.lastAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get category => $composableBuilder(
+    column: $table.category,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get severity => $composableBuilder(
+    column: $table.severity,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get detail => $composableBuilder(
+    column: $table.detail,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get productId => $composableBuilder(
+    column: $table.productId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get workTitle => $composableBuilder(
+    column: $table.workTitle,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceName => $composableBuilder(
+    column: $table.sourceName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get actionKey => $composableBuilder(
+    column: $table.actionKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get count => $composableBuilder(
+    column: $table.count,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get read => $composableBuilder(
+    column: $table.read,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$AppEventsTableAnnotationComposer
+    extends Composer<_$TonariDatabase, $AppEventsTable> {
+  $$AppEventsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get lastAt =>
+      $composableBuilder(column: $table.lastAt, builder: (column) => column);
+
+  GeneratedColumn<String> get category =>
+      $composableBuilder(column: $table.category, builder: (column) => column);
+
+  GeneratedColumn<String> get severity =>
+      $composableBuilder(column: $table.severity, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get detail =>
+      $composableBuilder(column: $table.detail, builder: (column) => column);
+
+  GeneratedColumn<String> get productId =>
+      $composableBuilder(column: $table.productId, builder: (column) => column);
+
+  GeneratedColumn<String> get workTitle =>
+      $composableBuilder(column: $table.workTitle, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceName => $composableBuilder(
+    column: $table.sourceName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get actionKey =>
+      $composableBuilder(column: $table.actionKey, builder: (column) => column);
+
+  GeneratedColumn<int> get count =>
+      $composableBuilder(column: $table.count, builder: (column) => column);
+
+  GeneratedColumn<bool> get read =>
+      $composableBuilder(column: $table.read, builder: (column) => column);
+}
+
+class $$AppEventsTableTableManager
+    extends
+        RootTableManager<
+          _$TonariDatabase,
+          $AppEventsTable,
+          AppEvent,
+          $$AppEventsTableFilterComposer,
+          $$AppEventsTableOrderingComposer,
+          $$AppEventsTableAnnotationComposer,
+          $$AppEventsTableCreateCompanionBuilder,
+          $$AppEventsTableUpdateCompanionBuilder,
+          (
+            AppEvent,
+            BaseReferences<_$TonariDatabase, $AppEventsTable, AppEvent>,
+          ),
+          AppEvent,
+          PrefetchHooks Function()
+        > {
+  $$AppEventsTableTableManager(_$TonariDatabase db, $AppEventsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AppEventsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AppEventsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AppEventsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> lastAt = const Value.absent(),
+                Value<String> category = const Value.absent(),
+                Value<String> severity = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String> detail = const Value.absent(),
+                Value<String?> productId = const Value.absent(),
+                Value<String?> workTitle = const Value.absent(),
+                Value<String?> sourceName = const Value.absent(),
+                Value<String?> actionKey = const Value.absent(),
+                Value<int> count = const Value.absent(),
+                Value<bool> read = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => AppEventsCompanion(
+                id: id,
+                createdAt: createdAt,
+                lastAt: lastAt,
+                category: category,
+                severity: severity,
+                title: title,
+                detail: detail,
+                productId: productId,
+                workTitle: workTitle,
+                sourceName: sourceName,
+                actionKey: actionKey,
+                count: count,
+                read: read,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required DateTime createdAt,
+                required DateTime lastAt,
+                required String category,
+                required String severity,
+                required String title,
+                Value<String> detail = const Value.absent(),
+                Value<String?> productId = const Value.absent(),
+                Value<String?> workTitle = const Value.absent(),
+                Value<String?> sourceName = const Value.absent(),
+                Value<String?> actionKey = const Value.absent(),
+                Value<int> count = const Value.absent(),
+                Value<bool> read = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => AppEventsCompanion.insert(
+                id: id,
+                createdAt: createdAt,
+                lastAt: lastAt,
+                category: category,
+                severity: severity,
+                title: title,
+                detail: detail,
+                productId: productId,
+                workTitle: workTitle,
+                sourceName: sourceName,
+                actionKey: actionKey,
+                count: count,
+                read: read,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$AppEventsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$TonariDatabase,
+      $AppEventsTable,
+      AppEvent,
+      $$AppEventsTableFilterComposer,
+      $$AppEventsTableOrderingComposer,
+      $$AppEventsTableAnnotationComposer,
+      $$AppEventsTableCreateCompanionBuilder,
+      $$AppEventsTableUpdateCompanionBuilder,
+      (AppEvent, BaseReferences<_$TonariDatabase, $AppEventsTable, AppEvent>),
+      AppEvent,
+      PrefetchHooks Function()
+    >;
 
 class $TonariDatabaseManager {
   final _$TonariDatabase _db;
@@ -10822,4 +11920,6 @@ class $TonariDatabaseManager {
       $$LlmProvidersTableTableManager(_db, _db.llmProviders);
   $$WebdavServersTableTableManager get webdavServers =>
       $$WebdavServersTableTableManager(_db, _db.webdavServers);
+  $$AppEventsTableTableManager get appEvents =>
+      $$AppEventsTableTableManager(_db, _db.appEvents);
 }

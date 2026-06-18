@@ -80,39 +80,6 @@ void main() {
     expect(find.text('没有后台任务'), findsNothing);
     expect(find.byType(LinearProgressIndicator), findsOneWidget);
   });
-
-  testWidgets('failure action retries all incomplete metadata', (tester) async {
-    late _FailedEnrichmentQueue queue;
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          enrichmentQueueProvider.overrideWith(() {
-            queue = _FailedEnrichmentQueue();
-            return queue;
-          }),
-          pendingEnrichmentCountProvider.overrideWith((ref) => Stream.value(3)),
-        ],
-        child: MaterialApp(
-          home: Scaffold(
-            appBar: AppBar(actions: const [EnrichmentStatusAction()]),
-            body: const SizedBox(),
-          ),
-        ),
-      ),
-    );
-
-    expect(find.byTooltip('1 个作品补全失败，点开重试'), findsOneWidget);
-    expect(find.byTooltip('补全 3 个作品的资料'), findsNothing);
-
-    await tester.tap(find.byTooltip('1 个作品补全失败，点开重试'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('还有 3 个作品资料不完整。重试会重新补全全部缺失资料。'), findsOneWidget);
-    await tester.tap(find.text('重试并补全全部'));
-    await tester.pumpAndSettle();
-
-    expect(queue.resetArg, isTrue);
-  });
 }
 
 class _ActiveEnrichmentQueue extends EnrichmentQueue {
@@ -140,19 +107,5 @@ class _ControllableEnrichmentQueue extends EnrichmentQueue {
 
   void finish() {
     state = const EnrichmentQueueState.idle();
-  }
-}
-
-class _FailedEnrichmentQueue extends EnrichmentQueue {
-  bool? resetArg;
-
-  @override
-  EnrichmentQueueState build() {
-    return const EnrichmentQueueState(failures: {'RJ_BAD': 'boom'});
-  }
-
-  @override
-  Future<void> runPending({bool reset = false}) async {
-    resetArg = reset;
   }
 }
