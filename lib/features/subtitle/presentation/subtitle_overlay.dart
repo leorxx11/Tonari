@@ -173,11 +173,10 @@ class _SubtitleBar extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(
             color: Color(0xFF9123A7),
-            fontSize: 17,
+            fontSize: 20,
             fontWeight: FontWeight.w700,
             height: 1.35,
             decoration: TextDecoration.none,
-            shadows: [Shadow(color: Color(0x99FFFFFF), blurRadius: 6)],
           ),
         ),
       ),
