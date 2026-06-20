@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -11,10 +12,12 @@ import 'package:tonari/core/net/media_proxy.dart';
 Future<_FakeUpstream> _serveBuffer(Uint8List data) async {
   final ranges = <String?>[];
   final headers = <String?>[];
+  final remotePorts = <int?>[];
   final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
   server.listen((req) async {
     ranges.add(req.headers.value(HttpHeaders.rangeHeader));
     headers.add(req.headers.value('X-Test'));
+    remotePorts.add(req.connectionInfo?.remotePort);
     final range = req.headers.value(HttpHeaders.rangeHeader);
     var start = 0;
     var end = data.length - 1;
@@ -36,15 +39,93 @@ Future<_FakeUpstream> _serveBuffer(Uint8List data) async {
     req.response.add(data.sublist(start, end + 1));
     await req.response.close();
   });
-  return _FakeUpstream(server, ranges, headers);
+  return _FakeUpstream(server, ranges, headers, remotePorts);
+}
+
+Future<_ControlledUpstream> _serveControlledBuffer(Uint8List data) async {
+  final ranges = <String?>[];
+  final headers = <String?>[];
+  final remotePorts = <int?>[];
+  final releases = <Completer<void>>[];
+  final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+  server.listen((req) async {
+    ranges.add(req.headers.value(HttpHeaders.rangeHeader));
+    headers.add(req.headers.value('X-Test'));
+    remotePorts.add(req.connectionInfo?.remotePort);
+    final release = Completer<void>();
+    releases.add(release);
+    await release.future;
+    final range = req.headers.value(HttpHeaders.rangeHeader);
+    var start = 0;
+    var end = data.length - 1;
+    if (range != null && range.startsWith('bytes=')) {
+      final spec = range.substring(6).split('-');
+      start = int.parse(spec[0]);
+      if (spec[1].isNotEmpty) {
+        final asked = int.parse(spec[1]);
+        if (asked < end) end = asked;
+      }
+    }
+    req.response.statusCode = HttpStatus.partialContent;
+    req.response.headers.set(
+      HttpHeaders.contentRangeHeader,
+      'bytes $start-$end/${data.length}',
+    );
+    req.response.headers.contentLength = end - start + 1;
+    req.response.headers.contentType = ContentType('audio', 'wav');
+    req.response.add(data.sublist(start, end + 1));
+    await req.response.close();
+  });
+  return _ControlledUpstream(server, ranges, headers, remotePorts, releases);
 }
 
 class _FakeUpstream {
-  _FakeUpstream(this.server, this.ranges, this.headers);
+  _FakeUpstream(this.server, this.ranges, this.headers, this.remotePorts);
   final HttpServer server;
   final List<String?> ranges;
   final List<String?> headers;
+  // Client-side ephemeral port of each request, as seen by the server. A new
+  // socket gets a new port; a reused keep-alive connection keeps the same one.
+  final List<int?> remotePorts;
   Uri url(String name) => Uri.parse('http://127.0.0.1:${server.port}/$name');
+}
+
+class _ControlledUpstream extends _FakeUpstream {
+  _ControlledUpstream(
+    super.server,
+    super.ranges,
+    super.headers,
+    super.remotePorts,
+    this.releases,
+  );
+
+  final List<Completer<void>> releases;
+
+  Future<void> waitForRequests(int count) async {
+    final deadline = DateTime.now().add(const Duration(seconds: 5));
+    while (ranges.length < count) {
+      if (DateTime.now().isAfter(deadline)) {
+        fail('Expected $count upstream requests, got ${ranges.length}');
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+  }
+
+  void release(int index) {
+    releases[index].complete();
+  }
+}
+
+Future<int> _drainAllowingTruncated(HttpClientResponse res) async {
+  var bytes = 0;
+  try {
+    await for (final chunk in res) {
+      bytes += chunk.length;
+    }
+  } on HttpException {
+    return bytes;
+  }
+  return bytes;
 }
 
 void main() {
@@ -249,12 +330,93 @@ void main() {
     expect(res.headers.contentLength, 21);
   });
 
+  test('audio proxy reuses one upstream connection across blocks', () async {
+    // Each 4 MiB block is still a separate upstream request, but they must ride
+    // one pooled keep-alive connection — a fresh TCP+TLS handshake per block is
+    // what overheated the phone during background playback.
+    final total = MediaProxy.chunkBytes * 2 + 100;
+    final data = Uint8List(total);
+    for (var i = 0; i < total; i++) {
+      data[i] = i & 0xff;
+    }
+    final upstream = await _serveBuffer(data);
+    addTearDown(() => upstream.server.close(force: true));
+
+    final registration = await MediaProxy.instance.wrapAudio(
+      upstream.url('audio.wav'),
+      const {},
+    );
+    addTearDown(registration.release);
+    final client = HttpClient();
+    addTearDown(() => client.close());
+
+    final req = await client.getUrl(registration.url);
+    req.headers.set(HttpHeaders.rangeHeader, 'bytes=0-${total - 1}');
+    final res = await req.close();
+    await res.drain<void>();
+
+    // Three block fetches, all over a single reused connection (one port).
+    expect(upstream.ranges, hasLength(3));
+    expect(upstream.remotePorts.whereType<int>().toSet(), hasLength(1));
+  });
+
+  test('new long audio range stops the previous long stream', () async {
+    final total = MediaProxy.chunkBytes * 3;
+    final data = Uint8List(total);
+    for (var i = 0; i < total; i++) {
+      data[i] = i & 0xff;
+    }
+    final upstream = await _serveControlledBuffer(data);
+    addTearDown(() => upstream.server.close(force: true));
+
+    final registration = await MediaProxy.instance.wrapAudio(
+      upstream.url('audio.wav'),
+      const {},
+    );
+    addTearDown(registration.release);
+    final client = HttpClient();
+    addTearDown(() => client.close());
+
+    final firstReq = await client.getUrl(registration.url);
+    firstReq.headers.set(HttpHeaders.rangeHeader, 'bytes=0-${total - 1}');
+    final firstResFuture = firstReq.close();
+    await upstream.waitForRequests(1);
+    upstream.release(0);
+    final firstRes = await firstResFuture;
+    final firstDrain = _drainAllowingTruncated(firstRes);
+
+    await upstream.waitForRequests(2);
+    final secondReq = await client.getUrl(registration.url);
+    secondReq.headers.set(
+      HttpHeaders.rangeHeader,
+      'bytes=${MediaProxy.chunkBytes}-${total - 1}',
+    );
+    final secondResFuture = secondReq.close();
+
+    upstream.release(1);
+    final secondRes = await secondResFuture;
+    final secondDrain = _drainAllowingTruncated(secondRes);
+    await upstream.waitForRequests(3);
+    upstream.release(2);
+
+    expect(await firstDrain, MediaProxy.chunkBytes);
+    expect(await secondDrain, total - MediaProxy.chunkBytes);
+    expect(upstream.ranges, [
+      'bytes=0-${MediaProxy.chunkBytes - 1}',
+      'bytes=${MediaProxy.chunkBytes}-${MediaProxy.chunkBytes * 2 - 1}',
+      'bytes=${MediaProxy.chunkBytes * 2}-${total - 1}',
+    ]);
+  });
+
   test('reset completes without throwing and the server rebinds', () async {
     final data = Uint8List.fromList(List.generate(100, (i) => i));
     final upstream = await _serveBuffer(data);
     addTearDown(() => upstream.server.close(force: true));
 
-    final first = await MediaProxy.instance.wrap(upstream.url('a.mp4'), const {});
+    final first = await MediaProxy.instance.wrap(
+      upstream.url('a.mp4'),
+      const {},
+    );
     // reset() reads the port internally; if it did so after close() it would
     // throw "HttpServer is not bound to a socket" and break a video→audio switch.
     await MediaProxy.instance.reset('test');

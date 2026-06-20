@@ -160,9 +160,8 @@ class MediaProxy {
         'server_error',
         {'port': port, 'message': '$e'},
       ),
-      onDone: () => DiagnosticLog.write('media_proxy', 'server_done', {
-        'port': port,
-      }),
+      onDone: () =>
+          DiagnosticLog.write('media_proxy', 'server_done', {'port': port}),
     );
     _server = server;
     DiagnosticLog.write('media_proxy', 'server_start', {'port': port});
@@ -438,8 +437,31 @@ class MediaProxy {
       'mode': up.mode.name,
       'pathExtension': _extension(req.uri.pathSegments),
     });
+    final streamId = _isLongStreamRange(start, requestedEnd)
+        ? up.claimStreamRange()
+        : null;
+    var cancelled = false;
+
+    bool isCancelled() {
+      if (streamId == null) return false;
+      final stale = !up.isCurrentStreamRange(streamId);
+      if (stale) cancelled = true;
+      return stale;
+    }
+
     try {
       final first = await up.block(req.method, start ~/ chunkBytes);
+      if (isCancelled()) {
+        await res.close();
+        DiagnosticLog.write('media_proxy', 'transfer_done', {
+          'requestId': reqId,
+          'proxyId': id,
+          'bytes': 0,
+          'cancelled': true,
+          'elapsedMs': stopwatch.elapsedMilliseconds,
+        });
+        return;
+      }
       if (first.status >= 400) {
         res.statusCode = first.status;
         _copyContentHeaders(res, first);
@@ -479,8 +501,10 @@ class MediaProxy {
       var block = first;
       var sent = 0;
       while (pos <= end) {
+        if (isCancelled()) break;
         if (pos ~/ chunkBytes != block.start ~/ chunkBytes) {
           block = await up.block(req.method, pos ~/ chunkBytes);
+          if (isCancelled()) break;
           if (block.status >= 400) break;
         }
         final blockEnd = block.start + block.body.length - 1;
@@ -489,7 +513,11 @@ class MediaProxy {
         final offset = pos - block.start;
         final len = sliceEnd - pos + 1;
         res.add(
-          Uint8List.view(block.body.buffer, block.body.offsetInBytes + offset, len),
+          Uint8List.view(
+            block.body.buffer,
+            block.body.offsetInBytes + offset,
+            len,
+          ),
         );
         await res.flush();
         sent += len;
@@ -500,6 +528,7 @@ class MediaProxy {
         'requestId': reqId,
         'proxyId': id,
         'bytes': sent,
+        'cancelled': cancelled,
         'elapsedMs': stopwatch.elapsedMilliseconds,
       });
     } catch (e) {
@@ -528,6 +557,11 @@ void _copyContentHeaders(HttpResponse res, _Block block) {
 }
 
 enum _ProxyMode { boundedBlocks, streamRange }
+
+bool _isLongStreamRange(int start, int? requestedEnd) {
+  return requestedEnd == null ||
+      requestedEnd - start + 1 > MediaProxy.chunkBytes;
+}
 
 Map<String, Object?> _rangeFields(String? range) {
   if (range == null || !range.startsWith('bytes=')) {
@@ -577,7 +611,11 @@ class _Upstream {
   final _cache = <int, _Block>{};
   final _lru = <int>[];
   final _inflight = <int, Future<_Block>>{};
-  final _clients = <HttpClient>{};
+  // One pooled client per upstream: block fetches reuse its keep-alive
+  // connections instead of paying a fresh TCP + TLS handshake every 4 MiB,
+  // which kept the CPU (and the phone) hot during long background playback.
+  HttpClient? _client;
+  var _streamRangeSeq = 0;
   var _closed = false;
 
   /// File size, learned from the first `Content-Range` we see.
@@ -587,11 +625,13 @@ class _Upstream {
 
   void close() {
     _closed = true;
-    for (final client in _clients.toList()) {
-      client.close(force: true);
-    }
-    _clients.clear();
+    _client?.close(force: true);
+    _client = null;
   }
+
+  int claimStreamRange() => ++_streamRangeSeq;
+
+  bool isCurrentStreamRange(int id) => !_closed && id == _streamRangeSeq;
 
   /// Returns block [index] from cache, an in-flight fetch, or a fresh one.
   Future<_Block> block(String method, int index) {
@@ -619,8 +659,7 @@ class _Upstream {
       _gate.release();
       throw StateError('proxy released');
     }
-    final client = HttpClient();
-    _clients.add(client);
+    final client = _client ??= HttpClient();
     try {
       final start = index * MediaProxy.chunkBytes;
       var end = start + MediaProxy.chunkBytes - 1;
@@ -652,8 +691,6 @@ class _Upstream {
       }
       return block;
     } finally {
-      _clients.remove(client);
-      client.close(force: true);
       _gate.release();
     }
   }
