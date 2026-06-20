@@ -358,6 +358,8 @@ private final class PipSubtitleController: NSObject {
   private var hostView: UIView?
   private var lastRenderedText: String = ""
   private var hasEnqueuedAtLeastOneFrame = false
+  private var pendingStart = false
+  private var pipPossibleObservation: NSKeyValueObservation?
 
   // 7:1 wide-strip canvas — PiP scales the window to this aspect ratio.
   // Long-and-thin so it sits on screen like a system caption bar.
@@ -369,6 +371,12 @@ private final class PipSubtitleController: NSObject {
     DispatchQueue.main.async { [weak self] in
       self?.setupHostAndPip()
     }
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(handleDidBecomeActive),
+      name: UIApplication.didBecomeActiveNotification,
+      object: nil
+    )
   }
 
   private func setupHostAndPip() {
@@ -401,6 +409,10 @@ private final class PipSubtitleController: NSObject {
       let pip = AVPictureInPictureController(contentSource: contentSource)
       pip.delegate = self
       pipController = pip
+      if pendingStart {
+        pendingStart = false
+        start()
+      }
     }
   }
 
@@ -414,6 +426,11 @@ private final class PipSubtitleController: NSObject {
   func start() {
     DispatchQueue.main.async { [weak self] in
       guard let self = self else { return }
+      guard let pip = self.pipController else {
+        // Controller is still spinning up (cold start). Replay once ready.
+        self.pendingStart = true
+        return
+      }
       // PiP refuses to start until at least one frame has been enqueued.
       // Render a visible placeholder so a broken render pipeline shows up
       // immediately (rather than a mysterious black window).
@@ -421,11 +438,33 @@ private final class PipSubtitleController: NSObject {
         ? "字幕加载中…"
         : self.lastRenderedText
       self.renderText(bootstrap)
-      // Tiny delay gives the display layer time to ingest the buffer
-      // before AVKit checks readiness.
-      DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
-        self?.pipController?.startPictureInPicture()
-      }
+      self.startWhenPossible(pip)
+    }
+  }
+
+  /// Starts PiP as soon as AVKit reports it's possible (i.e. the first frame
+  /// has been ingested), instead of betting on a fixed delay. A hard timeout
+  /// forces an attempt so a stuck `isPictureInPicturePossible` can't wedge us.
+  private func startWhenPossible(_ pip: AVPictureInPictureController) {
+    if pip.isPictureInPicturePossible {
+      pip.startPictureInPicture()
+      return
+    }
+    pipPossibleObservation?.invalidate()
+    pipPossibleObservation = pip.observe(
+      \.isPictureInPicturePossible,
+      options: [.new]
+    ) { [weak self] pip, _ in
+      guard pip.isPictureInPicturePossible else { return }
+      pip.startPictureInPicture()
+      self?.pipPossibleObservation?.invalidate()
+      self?.pipPossibleObservation = nil
+    }
+    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+      guard let self = self, self.pipPossibleObservation != nil else { return }
+      self.pipPossibleObservation?.invalidate()
+      self.pipPossibleObservation = nil
+      pip.startPictureInPicture()
     }
   }
 
@@ -441,6 +480,16 @@ private final class PipSubtitleController: NSObject {
     lastRenderedText = display
     DispatchQueue.main.async { [weak self] in
       self?.renderText(display)
+    }
+  }
+
+  @objc private func handleDidBecomeActive() {
+    // Returning from background often leaves the display layer in a failed
+    // state where enqueue is silently dropped. Replay the current cue;
+    // enqueuePixelBuffer flushes first when the layer has failed.
+    DispatchQueue.main.async { [weak self] in
+      guard let self = self, self.hasEnqueuedAtLeastOneFrame else { return }
+      self.renderText(self.lastRenderedText)
     }
   }
 
@@ -576,6 +625,9 @@ private final class PipSubtitleController: NSObject {
         Unmanaged.passUnretained(kCMSampleAttachmentKey_DisplayImmediately).toOpaque(),
         Unmanaged.passUnretained(kCFBooleanTrue).toOpaque()
       )
+    }
+    if displayLayer.status == .failed {
+      displayLayer.flush()
     }
     displayLayer.enqueue(sb)
   }
