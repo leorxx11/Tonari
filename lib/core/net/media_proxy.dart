@@ -450,7 +450,12 @@ class MediaProxy {
     }
 
     try {
-      final first = await up.block(req.method, start ~/ chunkBytes);
+      final first = await up.block(
+        req.method,
+        start ~/ chunkBytes,
+        requestId: reqId,
+        proxyId: id,
+      );
       if (isCancelled()) {
         await res.close();
         DiagnosticLog.write('media_proxy', 'transfer_done', {
@@ -503,7 +508,12 @@ class MediaProxy {
       while (pos <= end) {
         if (isCancelled()) break;
         if (pos ~/ chunkBytes != block.start ~/ chunkBytes) {
-          block = await up.block(req.method, pos ~/ chunkBytes);
+          block = await up.block(
+            req.method,
+            pos ~/ chunkBytes,
+            requestId: reqId,
+            proxyId: id,
+          );
           if (isCancelled()) break;
           if (block.status >= 400) break;
         }
@@ -611,6 +621,7 @@ class _Upstream {
   final _cache = <int, _Block>{};
   final _lru = <int>[];
   final _inflight = <int, Future<_Block>>{};
+  static const _streamRangeBlockAttempts = 2;
   // One pooled client per upstream: block fetches reuse its keep-alive
   // connections instead of paying a fresh TCP + TLS handshake every 4 MiB,
   // which kept the CPU (and the phone) hot during long background playback.
@@ -634,7 +645,12 @@ class _Upstream {
   bool isCurrentStreamRange(int id) => !_closed && id == _streamRangeSeq;
 
   /// Returns block [index] from cache, an in-flight fetch, or a fresh one.
-  Future<_Block> block(String method, int index) {
+  Future<_Block> block(
+    String method,
+    int index, {
+    int? requestId,
+    String? proxyId,
+  }) {
     if (_closed) return Future<_Block>.error(StateError('proxy released'));
     final hit = _cache[index];
     if (hit != null) {
@@ -645,12 +661,61 @@ class _Upstream {
     }
     final pending = _inflight[index];
     if (pending != null) return pending;
-    final fut = _fetch(method, index);
+    final fut = mode == _ProxyMode.streamRange
+        ? _fetchStreamRangeBlock(
+            method,
+            index,
+            requestId: requestId,
+            proxyId: proxyId,
+          )
+        : _fetch(method, index);
     _inflight[index] = fut;
     fut.whenComplete(() {
       if (identical(_inflight[index], fut)) _inflight.remove(index);
     });
     return fut;
+  }
+
+  Future<_Block> _fetchStreamRangeBlock(
+    String method,
+    int index, {
+    required int? requestId,
+    required String? proxyId,
+  }) async {
+    var attempt = 1;
+    while (true) {
+      try {
+        return await _fetch(method, index);
+      } catch (e) {
+        final replayable = _isReplayableUpstreamError(e);
+        if (replayable) _closeClient();
+        if (!replayable || attempt >= _streamRangeBlockAttempts) {
+          DiagnosticLog.write('media_proxy', 'block_fetch_error', {
+            'requestId': requestId,
+            'proxyId': proxyId,
+            'blockIndex': index,
+            'attempt': attempt,
+            'maxAttempts': _streamRangeBlockAttempts,
+            'range': _blockRangeHeader(index),
+            'errorType': '${e.runtimeType}',
+            'message': '$e',
+          });
+          rethrow;
+        }
+        DiagnosticLog.write('media_proxy', 'block_retry', {
+          'requestId': requestId,
+          'proxyId': proxyId,
+          'blockIndex': index,
+          'attempt': attempt,
+          'nextAttempt': attempt + 1,
+          'maxAttempts': _streamRangeBlockAttempts,
+          'range': _blockRangeHeader(index),
+          'errorType': '${e.runtimeType}',
+          'message': '$e',
+        });
+        attempt++;
+      }
+    }
   }
 
   Future<_Block> _fetch(String method, int index) async {
@@ -661,10 +726,8 @@ class _Upstream {
     }
     final client = _client ??= HttpClient();
     try {
-      final start = index * MediaProxy.chunkBytes;
-      var end = start + MediaProxy.chunkBytes - 1;
-      final known = total;
-      if (known != null && end > known - 1) end = known - 1;
+      final start = _blockStart(index);
+      final end = _blockEnd(index);
       final fwd = await client.openUrl(method, url);
       fwd.followRedirects = true;
       headers.forEach(fwd.headers.set);
@@ -695,6 +758,25 @@ class _Upstream {
     }
   }
 
+  int _blockStart(int index) => index * MediaProxy.chunkBytes;
+
+  int _blockEnd(int index) {
+    final start = _blockStart(index);
+    var end = start + MediaProxy.chunkBytes - 1;
+    final known = total;
+    if (known != null && end > known - 1) end = known - 1;
+    return end;
+  }
+
+  String _blockRangeHeader(int index) {
+    return 'bytes=${_blockStart(index)}-${_blockEnd(index)}';
+  }
+
+  void _closeClient() {
+    _client?.close(force: true);
+    _client = null;
+  }
+
   void _store(int index, _Block block) {
     _cache[index] = block;
     _lru
@@ -704,6 +786,14 @@ class _Upstream {
       _cache.remove(_lru.removeAt(0));
     }
   }
+}
+
+bool _isReplayableUpstreamError(Object e) {
+  return e is SocketException ||
+      e is HttpException ||
+      e is TimeoutException ||
+      e is HandshakeException ||
+      e is TlsException;
 }
 
 class _Block {
