@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'converters.dart';
 import 'tables/app_events.dart';
+import 'tables/collections.dart';
 import 'tables/imported_folders.dart';
 import 'tables/llm_providers.dart';
 import 'tables/subtitles.dart';
@@ -26,6 +27,8 @@ part 'database.g.dart';
     LlmProviders,
     WebdavServers,
     AppEvents,
+    Collections,
+    CollectionWorks,
   ],
 )
 class TonariDatabase extends _$TonariDatabase {
@@ -34,7 +37,7 @@ class TonariDatabase extends _$TonariDatabase {
   TonariDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 13;
+  int get schemaVersion => 14;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -99,6 +102,10 @@ class TonariDatabase extends _$TonariDatabase {
       }
       if (from < 13) {
         await m.createTable(appEvents);
+      }
+      if (from < 14) {
+        await m.createTable(collections);
+        await m.createTable(collectionWorks);
       }
     },
   );

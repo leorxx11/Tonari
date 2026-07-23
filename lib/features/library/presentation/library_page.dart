@@ -22,8 +22,7 @@ import '../../webdav/presentation/webdav_browser_page.dart';
 import '../../webdav/presentation/webdav_settings_page.dart';
 import 'widgets/app_events_sheet.dart';
 import 'widgets/library_task_status.dart';
-import 'widgets/work_card.dart';
-import 'work_detail_page.dart';
+import 'widgets/works_grid.dart';
 
 class LibraryPage extends ConsumerStatefulWidget {
   const LibraryPage({super.key});
@@ -51,29 +50,26 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
   @override
   Widget build(BuildContext context) {
     final worksAsync = ref.watch(allWorksProvider);
-    final remoteIds =
-        ref.watch(remoteFolderIdsProvider).value ?? const <String>{};
     final sort = ref.watch(workSortProvider);
     final filter = ref.watch(workFilterProvider);
+    final searching = _searching || filter.chips.isNotEmpty;
     return Scaffold(
       appBar: AppBar(
-        leading: _searching
+        leading: searching
             ? IconButton(
                 tooltip: '关闭搜索',
                 icon: const Icon(Icons.arrow_back),
                 onPressed: _closeSearch,
               )
             : null,
-        title: _searching
-            ? TextField(
+        title: searching
+            ? _SearchField(
                 controller: _searchController,
-                autofocus: true,
-                decoration: const InputDecoration(
-                  hintText: '搜索 RJ 编号或标题…',
-                  border: InputBorder.none,
-                ),
-                onChanged: (q) =>
+                chips: filter.chips,
+                onQueryChanged: (q) =>
                     ref.read(workFilterProvider.notifier).setSearchQuery(q),
+                onRemoveChip: (c) =>
+                    ref.read(workFilterProvider.notifier).removeChip(c),
               )
             : _SourceFilterMenu(
                 current: filter.source,
@@ -81,7 +77,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                     ref.read(workFilterProvider.notifier).setSource(s),
               ),
         actions: [
-          if (!_searching) ...[
+          if (!searching) ...[
             IconButton(
               tooltip: '搜索',
               icon: const Icon(Icons.search),
@@ -132,12 +128,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
         error: (e, _) => Center(child: Text('加载失败：$e')),
         data: (works) => works.isEmpty
             ? _EmptyState(filter: filter)
-            : _WorksGrid(
-                works: works,
-                remoteFolderIds: remoteIds,
-                onRemove: _onRemoveWork,
-                onToggleFavorite: _onToggleFavorite,
-              ),
+            : WorksGrid(works: works, onRemove: _onRemoveWork),
       ),
     );
   }
@@ -293,15 +284,10 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     ).showSnackBar(SnackBar(content: Text('已移除 ${work.title}')));
   }
 
-  Future<void> _onToggleFavorite(Work work) async {
-    final next = !work.isFavorite;
-    await ref.read(toggleFavoriteProvider).call(work.productId, next);
-  }
-
   void _closeSearch() {
     setState(() => _searching = false);
     _searchController.clear();
-    ref.read(workFilterProvider.notifier).setSearchQuery('');
+    ref.read(workFilterProvider.notifier).clearSearch();
   }
 }
 
@@ -314,50 +300,96 @@ String _importResultText(ImportSummary summary) {
       '封面和元数据后台补全中。$incomplete';
 }
 
-class _WorksGrid extends StatelessWidget {
-  const _WorksGrid({
-    required this.works,
-    required this.remoteFolderIds,
-    required this.onRemove,
-    required this.onToggleFavorite,
+class _SearchField extends StatelessWidget {
+  const _SearchField({
+    required this.controller,
+    required this.chips,
+    required this.onQueryChanged,
+    required this.onRemoveChip,
   });
 
-  final List<Work> works;
-  final Set<String> remoteFolderIds;
-  final ValueChanged<Work> onRemove;
-  final ValueChanged<Work> onToggleFavorite;
+  final TextEditingController controller;
+  final List<WorkChipFilter> chips;
+  final ValueChanged<String> onQueryChanged;
+  final ValueChanged<WorkChipFilter> onRemoveChip;
 
   @override
   Widget build(BuildContext context) {
-    return GridView.builder(
-      physics: const AlwaysScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 0.6,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
-      ),
-      padding: const EdgeInsets.fromLTRB(10, 10, 10, 16),
-      itemCount: works.length,
-      itemBuilder: (ctx, i) {
-        final work = works[i];
-        final isRemote =
-            work.importedFolderId != null &&
-            remoteFolderIds.contains(work.importedFolderId);
-        return WorkCard(
-          work: work,
-          isRemote: isRemote,
-          onRemove: () => onRemove(work),
-          onToggleFavorite: () => onToggleFavorite(work),
-          onTap: () {
-            Navigator.of(context, rootNavigator: true).push(
-              MaterialPageRoute<void>(
-                builder: (_) => WorkDetailPage(work: work),
+    return LayoutBuilder(
+      builder: (context, constraints) => Row(
+        children: [
+          if (chips.isNotEmpty)
+            ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: constraints.maxWidth * 0.7),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                reverse: true,
+                child: Row(
+                  children: [
+                    for (final chip in chips)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: _FilterToken(
+                          chip: chip,
+                          onRemove: () => onRemoveChip(chip),
+                        ),
+                      ),
+                  ],
+                ),
               ),
-            );
-          },
-        );
-      },
+            ),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              autofocus: chips.isEmpty,
+              decoration: InputDecoration(
+                hintText: chips.isEmpty ? '搜索 RJ 编号、标题，#标签…' : null,
+                border: InputBorder.none,
+              ),
+              onChanged: onQueryChanged,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FilterToken extends StatelessWidget {
+  const _FilterToken({required this.chip, required this.onRemove});
+
+  final WorkChipFilter chip;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.fromLTRB(10, 4, 6, 4),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            chipLabel(chip),
+            style: theme.textTheme.labelLarge?.copyWith(
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+          const SizedBox(width: 4),
+          GestureDetector(
+            onTap: onRemove,
+            child: Icon(
+              Icons.cancel,
+              size: 16,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -430,6 +462,7 @@ class _EmptyState extends StatelessWidget {
     final isFiltered =
         filter.favoritesOnly ||
         filter.searchQuery.trim().isNotEmpty ||
+        filter.chips.isNotEmpty ||
         filter.source != SourceFilter.all;
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),

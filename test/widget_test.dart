@@ -8,6 +8,7 @@ import 'package:tonari/core/files/folder_picker_service.dart';
 import 'package:tonari/core/subtitle/subtitle_cue.dart';
 import 'package:tonari/core/prefs/shared_prefs_provider.dart';
 import 'package:tonari/features/library/data/app_events.dart';
+import 'package:tonari/features/library/data/collections_providers.dart';
 import 'package:tonari/features/library/data/import_flow.dart';
 import 'package:tonari/features/library/data/import_service.dart';
 import 'package:tonari/features/library/data/metadata_enrichment.dart';
@@ -42,8 +43,20 @@ Widget testApp({
     unreadEventCountProvider.overrideWith(
       (ref) => Stream.value(appEvents.where((e) => !e.read).length),
     ),
-    allWorksProvider.overrideWith(
-      (ref) => Stream.value(works.where((work) => !work.isRemoved).toList()),
+    allWorksProvider.overrideWith((ref) {
+      final filter = ref.watch(workFilterProvider);
+      return Stream.value(
+        works
+            .where(
+              (w) =>
+                  !w.isRemoved &&
+                  filter.chips.every((c) => workMatchesChip(w, c)),
+            )
+            .toList(),
+      );
+    }),
+    collectionsProvider.overrideWith(
+      (ref) => Stream.value(const <Collection>[]),
     ),
     removedWorksProvider.overrideWith(
       (ref) => Stream.value(works.where((work) => work.isRemoved).toList()),
@@ -100,7 +113,8 @@ class _FakeEventSink implements AppEventSink {
   Future<void> clear() async {}
 }
 
-class _NoopEnrichment implements MetadataEnrichmentService {  @override
+class _NoopEnrichment implements MetadataEnrichmentService {
+  @override
   Future<void> enrichBatch(
     Iterable<String> productIds, {
     MetadataProgress? onProgress,
@@ -139,12 +153,13 @@ Work _work(
   String? title,
   bool isRemoved = false,
   bool isFavorite = false,
+  List<String> voiceActors = const [],
 }) {
   final now = DateTime(2026, 5, 24, 14, 30);
   return Work(
     productId: rj,
     title: title ?? rj,
-    voiceActors: const [],
+    voiceActors: voiceActors,
     illustrators: const [],
     scenarioWriters: const [],
     musicians: const [],
@@ -165,11 +180,7 @@ Work _work(
   );
 }
 
-AppEvent _event({
-  required String title,
-  String? actionKey,
-  bool read = false,
-}) {
+AppEvent _event({required String title, String? actionKey, bool read = false}) {
   final now = DateTime(2026, 6, 18);
   return AppEvent(
     id: title,
@@ -246,11 +257,12 @@ void main() {
     _testPrefs = await SharedPreferences.getInstance();
   });
 
-  testWidgets('root renders 3 navigation tabs', (tester) async {
+  testWidgets('root renders 4 navigation tabs', (tester) async {
     await tester.pumpWidget(testApp());
     await tester.pumpAndSettle();
 
     expect(find.text('媒体库'), findsWidgets);
+    expect(find.text('书架'), findsWidgets);
     expect(find.text('浏览'), findsWidgets);
     expect(find.text('设置'), findsWidgets);
   });
@@ -266,7 +278,9 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      testApp(appEvents: [_event(title: '资料补全失败', actionKey: 'enrich')]),
+      testApp(
+        appEvents: [_event(title: '资料补全失败', actionKey: 'enrich')],
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -291,7 +305,8 @@ void main() {
     expect(find.text('暂无消息'), findsOneWidget);
   });
 
-  testWidgets('library tab shows works grid when populated', (tester) async {    await tester.pumpWidget(
+  testWidgets('library tab shows works grid when populated', (tester) async {
+    await tester.pumpWidget(
       testApp(
         works: [
           _work('RJ01560714', title: 'Test Work'),
@@ -303,6 +318,60 @@ void main() {
 
     expect(find.text('Test Work'), findsOneWidget);
     expect(find.text('Another'), findsOneWidget);
+  });
+
+  testWidgets('tapping a CV chip adds a removable AND filter token', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      testApp(
+        works: [
+          _work('RJ1', title: 'With CV', voiceActors: ['花玲']),
+          _work('RJ2', title: 'Other Work'),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('花玲').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('CV：花玲'), findsOneWidget);
+    expect(find.text('With CV'), findsOneWidget);
+    expect(find.text('Other Work'), findsNothing);
+
+    await tester.tap(find.byIcon(Icons.cancel));
+    await tester.pumpAndSettle();
+
+    expect(find.text('CV：花玲'), findsNothing);
+    expect(find.text('Other Work'), findsOneWidget);
+  });
+
+  testWidgets('shelf tab shows empty state', (tester) async {
+    await tester.pumpWidget(testApp());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('书架'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('书架还是空的'), findsOneWidget);
+  });
+
+  testWidgets('long press menu includes 加入分组 and opens picker', (tester) async {
+    await tester.pumpWidget(
+      testApp(works: [_work('RJ01560714', title: 'Test Work')]),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.longPress(find.text('Test Work'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('加入分组…'), findsOneWidget);
+
+    await tester.tap(find.text('加入分组…'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('还没有分组，点右上角新建一个'), findsOneWidget);
   });
 
   testWidgets('long pressing a work shows remove menu action', (tester) async {
@@ -660,7 +729,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(TextField), findsOneWidget);
-    expect(find.text('搜索 RJ 编号或标题…'), findsOneWidget);
+    expect(find.text('搜索 RJ 编号、标题，#标签…'), findsOneWidget);
 
     await tester.tap(find.byTooltip('关闭搜索'));
     await tester.pumpAndSettle();

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/db/database.dart';
 import '../../../core/db/providers.dart';
+import 'work_genres.dart';
 
 enum WorkSortMode {
   importedAtDesc('导入时间 ↓'),
@@ -25,26 +26,46 @@ final workSortProvider = NotifierProvider<WorkSort, WorkSortMode>(WorkSort.new);
 
 enum SourceFilter { all, local, remote }
 
+enum WorkChipKind { genre, voiceActor, series }
+
+typedef WorkChipFilter = ({WorkChipKind kind, String value});
+
+String chipLabel(WorkChipFilter chip) => switch (chip.kind) {
+  WorkChipKind.genre => '#${chip.value}',
+  WorkChipKind.voiceActor => 'CV：${chip.value}',
+  WorkChipKind.series => '系列：${chip.value}',
+};
+
+bool workMatchesChip(Work w, WorkChipFilter chip) => switch (chip.kind) {
+  WorkChipKind.genre => genreNamesOf(w).contains(chip.value),
+  WorkChipKind.voiceActor => w.voiceActors.contains(chip.value),
+  WorkChipKind.series => w.seriesName == chip.value,
+};
+
 class WorkFilter {
   const WorkFilter({
     this.favoritesOnly = false,
     this.searchQuery = '',
     this.source = SourceFilter.all,
+    this.chips = const [],
   });
 
   final bool favoritesOnly;
   final String searchQuery;
   final SourceFilter source;
+  final List<WorkChipFilter> chips;
 
   WorkFilter copyWith({
     bool? favoritesOnly,
     String? searchQuery,
     SourceFilter? source,
+    List<WorkChipFilter>? chips,
   }) {
     return WorkFilter(
       favoritesOnly: favoritesOnly ?? this.favoritesOnly,
       searchQuery: searchQuery ?? this.searchQuery,
       source: source ?? this.source,
+      chips: chips ?? this.chips,
     );
   }
 }
@@ -64,6 +85,19 @@ class WorkFilterNotifier extends Notifier<WorkFilter> {
   void setSource(SourceFilter source) {
     state = state.copyWith(source: source);
   }
+
+  void addChip(WorkChipFilter chip) {
+    if (state.chips.contains(chip)) return;
+    state = state.copyWith(chips: [...state.chips, chip]);
+  }
+
+  void removeChip(WorkChipFilter chip) {
+    state = state.copyWith(chips: state.chips.where((c) => c != chip).toList());
+  }
+
+  void clearSearch() {
+    state = state.copyWith(searchQuery: '', chips: const []);
+  }
 }
 
 final workFilterProvider = NotifierProvider<WorkFilterNotifier, WorkFilter>(
@@ -75,36 +109,57 @@ final allWorksProvider = StreamProvider<List<Work>>((ref) {
   final sort = ref.watch(workSortProvider);
   final filter = ref.watch(workFilterProvider);
   final query = filter.searchQuery.trim().toLowerCase();
+  final tagQuery = query.startsWith('#') ? query.substring(1).trim() : null;
 
-  return (db.select(db.works)
-        ..where((w) {
-          var expr = w.isRemoved.equals(false);
-          if (filter.favoritesOnly) {
-            expr = expr & w.isFavorite.equals(true);
-          }
-          if (query.isNotEmpty) {
-            final like = '%$query%';
-            expr =
-                expr &
-                (w.productId.lower().like(like) | w.title.lower().like(like));
-          }
-          if (filter.source != SourceFilter.all) {
-            final remoteIds = db.selectOnly(db.importedFolders)
-              ..addColumns([db.importedFolders.id])
-              ..where(db.importedFolders.type.equals('local').not());
-            if (filter.source == SourceFilter.remote) {
-              expr = expr & w.importedFolderId.isInQuery(remoteIds);
-            } else {
-              expr =
-                  expr &
-                  (w.importedFolderId.isNull() |
-                      w.importedFolderId.isInQuery(remoteIds).not());
-            }
-          }
-          return expr;
-        })
-        ..orderBy([(w) => _orderingFor(sort, w)]))
-      .watch();
+  final stream =
+      (db.select(db.works)
+            ..where((w) {
+              var expr = w.isRemoved.equals(false);
+              if (filter.favoritesOnly) {
+                expr = expr & w.isFavorite.equals(true);
+              }
+              if (tagQuery == null && query.isNotEmpty) {
+                final like = '%$query%';
+                expr =
+                    expr &
+                    (w.productId.lower().like(like) |
+                        w.title.lower().like(like) |
+                        w.titleZh.lower().like(like) |
+                        w.translatedTitle.lower().like(like));
+              }
+              if (filter.source != SourceFilter.all) {
+                final remoteIds = db.selectOnly(db.importedFolders)
+                  ..addColumns([db.importedFolders.id])
+                  ..where(db.importedFolders.type.equals('local').not());
+                if (filter.source == SourceFilter.remote) {
+                  expr = expr & w.importedFolderId.isInQuery(remoteIds);
+                } else {
+                  expr =
+                      expr &
+                      (w.importedFolderId.isNull() |
+                          w.importedFolderId.isInQuery(remoteIds).not());
+                }
+              }
+              return expr;
+            })
+            ..orderBy([(w) => _orderingFor(sort, w)]))
+          .watch();
+
+  final chips = filter.chips;
+  if (chips.isEmpty && (tagQuery == null || tagQuery.isEmpty)) return stream;
+  return stream.map(
+    (rows) => rows
+        .where(
+          (w) =>
+              chips.every((c) => workMatchesChip(w, c)) &&
+              (tagQuery == null ||
+                  tagQuery.isEmpty ||
+                  genreNamesOf(
+                    w,
+                  ).any((n) => n.toLowerCase().contains(tagQuery))),
+        )
+        .toList(),
+  );
 });
 
 final remoteFolderIdsProvider = StreamProvider<Set<String>>((ref) {

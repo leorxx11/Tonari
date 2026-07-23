@@ -1,8 +1,11 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/db/database.dart';
+import '../../data/works_providers.dart';
+import 'chip_filter_actions.dart';
 import 'work_cover.dart';
 
 class WorkCard extends StatelessWidget {
@@ -13,6 +16,8 @@ class WorkCard extends StatelessWidget {
     this.onTap,
     this.onRemove,
     this.onToggleFavorite,
+    this.onAddToCollection,
+    this.onRemoveFromCollection,
   });
 
   final Work work;
@@ -20,11 +25,17 @@ class WorkCard extends StatelessWidget {
   final VoidCallback? onTap;
   final VoidCallback? onRemove;
   final VoidCallback? onToggleFavorite;
+  final VoidCallback? onAddToCollection;
+  final VoidCallback? onRemoveFromCollection;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final hasMenu = onRemove != null || onToggleFavorite != null;
+    final hasMenu =
+        onRemove != null ||
+        onToggleFavorite != null ||
+        onAddToCollection != null ||
+        onRemoveFromCollection != null;
     final displayTitle = (work.titleZh != null && work.titleZh!.isNotEmpty)
         ? work.titleZh!
         : work.title;
@@ -105,6 +116,28 @@ class WorkCard extends StatelessWidget {
               ],
             ),
           ),
+        if (onAddToCollection != null)
+          const PopupMenuItem(
+            value: _WorkCardAction.addToCollection,
+            child: Row(
+              children: [
+                Icon(Icons.bookmark_add_outlined),
+                SizedBox(width: 12),
+                Text('加入分组…'),
+              ],
+            ),
+          ),
+        if (onRemoveFromCollection != null)
+          const PopupMenuItem(
+            value: _WorkCardAction.removeFromCollection,
+            child: Row(
+              children: [
+                Icon(Icons.bookmark_remove_outlined),
+                SizedBox(width: 12),
+                Text('移出分组'),
+              ],
+            ),
+          ),
         if (onRemove != null)
           const PopupMenuItem(
             value: _WorkCardAction.remove,
@@ -123,6 +156,10 @@ class WorkCard extends StatelessWidget {
           onRemove?.call();
         case _WorkCardAction.toggleFavorite:
           onToggleFavorite?.call();
+        case _WorkCardAction.addToCollection:
+          onAddToCollection?.call();
+        case _WorkCardAction.removeFromCollection:
+          onRemoveFromCollection?.call();
         case null:
           break;
       }
@@ -130,7 +167,12 @@ class WorkCard extends StatelessWidget {
   }
 }
 
-enum _WorkCardAction { remove, toggleFavorite }
+enum _WorkCardAction {
+  remove,
+  toggleFavorite,
+  addToCollection,
+  removeFromCollection,
+}
 
 const _overlayStrong = Color(0x8C000000);
 const _overlayWeak = Color(0x73000000);
@@ -254,9 +296,7 @@ class _CircleIconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final bg = filled
-        ? theme.colorScheme.primary
-        : _overlayWeak;
+    final bg = filled ? theme.colorScheme.primary : _overlayWeak;
     final fg = filled ? theme.colorScheme.onPrimary : Colors.white;
     return Material(
       color: bg,
@@ -274,13 +314,13 @@ class _CircleIconButton extends StatelessWidget {
   }
 }
 
-class _TagWrap extends StatelessWidget {
+class _TagWrap extends ConsumerWidget {
   const _TagWrap({required this.work});
 
   final Work work;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final entries = <_TagEntry>[];
 
@@ -290,6 +330,7 @@ class _TagWrap extends StatelessWidget {
           label: work.seriesName!,
           background: const Color(0xFFFFA726),
           foreground: Colors.white,
+          filter: (kind: WorkChipKind.series, value: work.seriesName!),
         ),
       );
     }
@@ -299,6 +340,7 @@ class _TagWrap extends StatelessWidget {
           label: cv,
           background: const Color(0xFF26A69A),
           foreground: Colors.white,
+          filter: (kind: WorkChipKind.voiceActor, value: cv),
         ),
       );
     }
@@ -308,6 +350,7 @@ class _TagWrap extends StatelessWidget {
           label: g,
           background: theme.colorScheme.surfaceContainerHigh,
           foreground: theme.colorScheme.onSurfaceVariant,
+          filter: (kind: WorkChipKind.genre, value: g),
         ),
       );
     }
@@ -324,6 +367,7 @@ class _TagWrap extends StatelessWidget {
             background: e.background,
             foreground: e.foreground,
             density: _cardChipDensity,
+            onTap: () => applyChipFilter(context, ref, e.filter),
           ),
       ],
     );
@@ -335,11 +379,13 @@ class _TagEntry {
     required this.label,
     required this.background,
     required this.foreground,
+    required this.filter,
   });
 
   final String label;
   final Color background;
   final Color foreground;
+  final WorkChipFilter filter;
 }
 
 class _ChipDensity {
@@ -364,34 +410,39 @@ class _Chip extends StatelessWidget {
     required this.background,
     required this.foreground,
     required this.density,
+    this.onTap,
   });
 
   final String label;
   final Color background;
   final Color foreground;
   final _ChipDensity density;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: density.paddingH,
-        vertical: density.paddingV,
-      ),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      constraints: BoxConstraints(maxWidth: density.maxWidth),
-      child: Text(
-        label,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          color: foreground,
-          fontSize: density.fontSize,
-          fontWeight: FontWeight.w600,
-          height: 1.2,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: density.paddingH,
+          vertical: density.paddingV,
+        ),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        constraints: BoxConstraints(maxWidth: density.maxWidth),
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: foreground,
+            fontSize: density.fontSize,
+            fontWeight: FontWeight.w600,
+            height: 1.2,
+          ),
         ),
       ),
     );

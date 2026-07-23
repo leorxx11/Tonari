@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/library/data/enrichment_queue.dart';
 import '../../features/library/data/rescan_service.dart';
 import '../../features/browse/presentation/browse_page.dart';
+import '../../features/library/presentation/collections_page.dart';
 import '../../features/library/presentation/library_page.dart';
 import '../../features/player/presentation/mini_player.dart';
 import '../../features/settings/presentation/settings_page.dart';
@@ -43,7 +44,12 @@ class _RootTabViewState extends ConsumerState<RootTabView> {
           Expanded(
             child: IndexedStack(
               index: index,
-              children: const [LibraryPage(), BrowsePage(), SettingsPage()],
+              children: const [
+                LibraryPage(),
+                CollectionsPage(),
+                BrowsePage(),
+                SettingsPage(),
+              ],
             ),
           ),
           const MiniPlayer(),
@@ -59,6 +65,11 @@ class _RootTabViewState extends ConsumerState<RootTabView> {
             icon: Icon(Icons.library_music_outlined),
             selectedIcon: Icon(Icons.library_music),
             label: '媒体库',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.collections_bookmark_outlined),
+            selectedIcon: Icon(Icons.collections_bookmark),
+            label: '书架',
           ),
           NavigationDestination(
             icon: Icon(Icons.folder_open_outlined),

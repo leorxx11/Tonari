@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
@@ -19,8 +18,11 @@ import '../data/library_task_controller.dart';
 import '../data/enrichment_queue.dart';
 import '../data/metadata_enrichment.dart';
 import '../data/work_actions_provider.dart';
+import '../data/work_genres.dart';
 import '../data/work_reimport_provider.dart';
 import '../data/works_providers.dart';
+import 'widgets/chip_filter_actions.dart';
+import 'widgets/collection_picker_sheet.dart';
 import 'widgets/library_task_status.dart';
 import 'widgets/sample_gallery.dart';
 import 'work_files_page.dart';
@@ -703,19 +705,14 @@ class _CreditsSection extends StatelessWidget {
   }
 }
 
-class _GenresSection extends StatelessWidget {
+class _GenresSection extends ConsumerWidget {
   const _GenresSection({required this.work});
 
   final Work work;
 
   @override
-  Widget build(BuildContext context) {
-    final raw = jsonDecode(work.genresJson);
-    if (raw is! List || raw.isEmpty) return const SizedBox.shrink();
-    final names = <String>[
-      for (final item in raw)
-        if (item is Map && item['name'] is String) item['name'] as String,
-    ];
+  Widget build(BuildContext context, WidgetRef ref) {
+    final names = genreNamesOf(work);
     if (names.isEmpty) return const SizedBox.shrink();
 
     final theme = Theme.of(context);
@@ -726,16 +723,26 @@ class _GenresSection extends StatelessWidget {
         runSpacing: 6,
         children: [
           for (final name in names)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHigh,
+            Material(
+              color: theme.colorScheme.surfaceContainerHigh,
+              borderRadius: BorderRadius.circular(14),
+              child: InkWell(
                 borderRadius: BorderRadius.circular(14),
-              ),
-              child: Text(
-                name,
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: theme.colorScheme.onSurface,
+                onTap: () => applyChipFilter(context, ref, (
+                  kind: WorkChipKind.genre,
+                  value: name,
+                )),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  child: Text(
+                    name,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -1416,6 +1423,8 @@ class _MoreMenu extends ConsumerWidget {
       tooltip: '更多',
       onSelected: (v) {
         switch (v) {
+          case 'add_to_collection':
+            showCollectionPicker(context, work);
           case 'retranslate':
             ref
                 .read(translationControllerProvider(work.productId).notifier)
@@ -1431,6 +1440,15 @@ class _MoreMenu extends ConsumerWidget {
         }
       },
       itemBuilder: (_) => [
+        const PopupMenuItem(
+          value: 'add_to_collection',
+          child: ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.bookmark_add_outlined),
+            title: Text('加入分组…'),
+          ),
+        ),
         PopupMenuItem(
           value: 'retranslate',
           enabled: canRetranslate,
