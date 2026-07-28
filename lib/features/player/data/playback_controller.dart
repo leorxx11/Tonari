@@ -22,6 +22,7 @@ import '../../p115/data/p115_cookie_store.dart';
 import '../../webdav/data/webdav_client.dart';
 import '../../library/data/work_media_source.dart';
 import 'now_playing_bridge.dart';
+import 'sleep_timer.dart';
 
 class PlaybackState {
   const PlaybackState({
@@ -600,6 +601,12 @@ class PlaybackController extends Notifier<PlaybackState>
     });
     if (s != ProcessingState.completed) return;
     await _bumpPlayCount();
+    if (ref.read(sleepTimerProvider.notifier).consumeStopAfterTrack()) {
+      await player.pause();
+      await player.seek(Duration.zero);
+      await _publishNowPlaying();
+      return;
+    }
     final mode = ref.read(playerPrefsProvider).playbackMode;
     switch (mode) {
       case PlaybackMode.sequence:

@@ -10,6 +10,7 @@ import '../../settings/data/player_prefs.dart';
 import '../../subtitle/data/subtitle_overlay_prefs.dart';
 import '../../subtitle/data/subtitle_providers.dart';
 import '../data/playback_controller.dart';
+import '../data/sleep_timer.dart';
 
 /// Sky-blue accent used for progress + volume sliders. Lighter and warmer
 /// than `CupertinoColors.systemBlue`, which felt too saturated against the
@@ -70,6 +71,13 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     const iosBlue = _kPlayerAccent;
     final title = track?.fileName ?? browseItem!.fileName;
     final subtitle = work?.title ?? browseItem!.sourceName;
+    final sleep = ref.watch(sleepTimerProvider);
+    var subtitleLine = _speed == 1.0 ? subtitle : '$subtitle · ${_speed}x';
+    if (sleep.remaining != null) {
+      subtitleLine = '$subtitleLine · 定时 ${_formatDuration(sleep.remaining!)}';
+    } else if (sleep.stopAfterTrack) {
+      subtitleLine = '$subtitleLine · 播完本曲停';
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -129,7 +137,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      _speed == 1.0 ? subtitle : '$subtitle · ${_speed}x',
+                      subtitleLine,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
@@ -171,6 +179,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                 onQueue: () => _showQueue(context, state, controller),
                 onCycleMode: _cycleMode,
                 onPickSubtitle: () => _placeholder(context, '从文件夹选择字幕 · 敬请期待'),
+                onSleepTimer: () => _showSleepTimer(context),
                 onMore: () => _showMore(context),
               ),
             ],
@@ -257,6 +266,76 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
               ],
             ),
           ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showSleepTimer(BuildContext context) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) {
+        return Consumer(
+          builder: (ctx, ref, _) {
+            final sleep = ref.watch(sleepTimerProvider);
+            final notifier = ref.read(sleepTimerProvider.notifier);
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
+                      child: Text(
+                        sleep.remaining != null
+                            ? '睡眠定时 · 剩余 ${_formatDuration(sleep.remaining!)}'
+                            : '睡眠定时',
+                        style: Theme.of(ctx).textTheme.titleSmall,
+                      ),
+                    ),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final m in SleepTimerController.presetMinutes)
+                          ChoiceChip(
+                            label: Text('$m 分钟'),
+                            selected: false,
+                            onSelected: (_) {
+                              Navigator.of(ctx).pop();
+                              notifier.start(Duration(minutes: m));
+                            },
+                          ),
+                        ChoiceChip(
+                          label: const Text('播完本曲'),
+                          selected: sleep.stopAfterTrack,
+                          onSelected: (sel) {
+                            Navigator.of(ctx).pop();
+                            if (sel) {
+                              notifier.enableStopAfterTrack();
+                            } else {
+                              notifier.cancel();
+                            }
+                          },
+                        ),
+                        if (sleep.isActive)
+                          ActionChip(
+                            label: const Text('取消定时'),
+                            onPressed: () {
+                              Navigator.of(ctx).pop();
+                              notifier.cancel();
+                            },
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
         );
       },
     );
@@ -509,6 +588,7 @@ class _BottomActions extends ConsumerWidget {
     required this.onQueue,
     required this.onCycleMode,
     required this.onPickSubtitle,
+    required this.onSleepTimer,
     required this.onMore,
   });
 
@@ -517,6 +597,7 @@ class _BottomActions extends ConsumerWidget {
   final VoidCallback onQueue;
   final VoidCallback onCycleMode;
   final VoidCallback onPickSubtitle;
+  final VoidCallback onSleepTimer;
   final VoidCallback onMore;
 
   @override
@@ -524,6 +605,9 @@ class _BottomActions extends ConsumerWidget {
     final hasSubtitle = ref.watch(currentSubtitleProvider).value != null;
     final subtitleMode = ref.watch(
       subtitleOverlayPrefsProvider.select((p) => p.mode),
+    );
+    final sleepActive = ref.watch(
+      sleepTimerProvider.select((s) => s.isActive),
     );
 
     return Row(
@@ -554,6 +638,15 @@ class _BottomActions extends ConsumerWidget {
           iconSize: 22,
           icon: Icon(Icons.subtitles_outlined, color: color),
           onPressed: onPickSubtitle,
+        ),
+        IconButton(
+          tooltip: '睡眠定时',
+          iconSize: 22,
+          icon: Icon(
+            sleepActive ? CupertinoIcons.moon_zzz_fill : CupertinoIcons.moon_zzz,
+            color: sleepActive ? _kPlayerAccent : color,
+          ),
+          onPressed: onSleepTimer,
         ),
         IconButton(
           tooltip: '更多',
