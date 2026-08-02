@@ -7,6 +7,8 @@ import '../../../core/diagnostics/diagnostic_log.dart';
 import '../../library/presentation/widgets/work_cover.dart';
 import '../../video/data/video_controller.dart';
 import '../../video/presentation/video_player_page.dart';
+import '../../video_library/data/video_library_providers.dart';
+import '../../video_library/presentation/video_library_page.dart';
 import '../data/playback_controller.dart';
 import 'player_page.dart';
 
@@ -130,14 +132,14 @@ class MiniPlayer extends ConsumerWidget {
   }
 }
 
-class _VideoMiniBar extends StatelessWidget {
+class _VideoMiniBar extends ConsumerWidget {
   const _VideoMiniBar({required this.state, required this.notifier});
 
   final VideoPlaybackState state;
   final VideoController notifier;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final item = state.item!;
     final vpc = state.controller;
@@ -180,17 +182,17 @@ class _VideoMiniBar extends StatelessWidget {
               Row(
                 children: [
                   const SizedBox(width: 12),
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
                     child: SizedBox(
                       width: 52,
                       height: 52,
-                      child: Icon(
-                        CupertinoIcons.videocam_fill,
-                        color: theme.colorScheme.onSurfaceVariant,
+                      child: VideoCover(
+                        coverPath: ref
+                            .watch(videoItemByIdProvider(item.stableId))
+                            .value
+                            ?.coverPath,
+                        iconSize: 26,
                       ),
                     ),
                   ),

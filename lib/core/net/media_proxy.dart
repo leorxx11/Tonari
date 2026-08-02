@@ -106,6 +106,54 @@ class MediaProxy {
 
   Future<void> reset(String reason) => _closeServer(reason);
 
+  /// Rebinds the listener on the *same port* after an iOS suspend killed it,
+  /// keeping every registration. Players hold URLs pointing at this port, so
+  /// reviving in place lets a paused player pick up exactly where it was —
+  /// no re-resolve, no re-initialize. Returns false when the port can't be
+  /// reclaimed (caller must reopen the media instead). No-op when healthy.
+  Future<bool> revive() async {
+    final server = _server;
+    if (server == null) return true;
+    if (await _canAcceptConnections(server)) return true;
+    final port = server.port;
+    DiagnosticLog.write('media_proxy', 'revive_start', {
+      'port': port,
+      'activeEntries': _entries.length,
+    });
+    try {
+      await server.close(force: true).timeout(const Duration(seconds: 2));
+    } catch (_) {
+      // The listener is already dead — close failing is expected.
+    }
+    // A concurrent reset/restart swapped the server while we were closing.
+    if (!identical(_server, server)) return true;
+    try {
+      final fresh = await HttpServer.bind(InternetAddress.loopbackIPv4, port);
+      fresh.listen(
+        _handle,
+        onError: (Object e) => DiagnosticLog.write(
+          'media_proxy',
+          'server_error',
+          {'port': port, 'message': '$e'},
+        ),
+        onDone: () =>
+            DiagnosticLog.write('media_proxy', 'server_done', {'port': port}),
+      );
+      _server = fresh;
+      DiagnosticLog.write('media_proxy', 'revive_done', {'port': port});
+      return true;
+    } catch (e) {
+      DiagnosticLog.write('media_proxy', 'revive_failed', {
+        'port': port,
+        'errorType': '${e.runtimeType}',
+        'message': '$e',
+      });
+      _server = null;
+      _entries.clear();
+      return false;
+    }
+  }
+
   Future<void> _probeLoopback(String id) async {
     final server = _server!;
     final uri = Uri.parse('http://127.0.0.1:${server.port}/__probe/$id');

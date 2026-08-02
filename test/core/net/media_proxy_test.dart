@@ -530,4 +530,31 @@ void main() {
     expect(res.statusCode, HttpStatus.partialContent);
     expect(body, data);
   });
+
+  test('revive is a no-op on a healthy server and keeps the URL alive', () async {
+    final data = Uint8List.fromList(List.generate(100, (i) => i));
+    final upstream = await _serveBuffer(data);
+    addTearDown(() => upstream.server.close(force: true));
+    final registration = await MediaProxy.instance.wrap(
+      upstream.url('a.mp4'),
+      const {},
+    );
+    addTearDown(registration.release);
+
+    expect(await MediaProxy.instance.revive(), isTrue);
+
+    final client = HttpClient();
+    addTearDown(() => client.close());
+    final req = await client.getUrl(registration.url);
+    req.headers.set(HttpHeaders.rangeHeader, 'bytes=0-');
+    final res = await req.close();
+    final body = await res.fold<List<int>>(<int>[], (a, b) => a..addAll(b));
+    expect(res.statusCode, HttpStatus.partialContent);
+    expect(body, data);
+  });
+
+  test('revive with no server running reports healthy', () async {
+    await MediaProxy.instance.reset('test');
+    expect(await MediaProxy.instance.revive(), isTrue);
+  });
 }

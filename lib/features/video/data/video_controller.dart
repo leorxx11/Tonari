@@ -8,16 +8,15 @@ import 'package:video_player/video_player.dart';
 
 import '../../../core/db/providers.dart';
 import '../../../core/diagnostics/diagnostic_log.dart';
+import '../../../core/files/local_image_path.dart';
 import '../../../core/net/media_proxy.dart';
 import '../../browse/data/remote_models.dart';
-import '../../p115/data/p115_auth_service.dart';
-import '../../p115/data/p115_client.dart';
-import '../../p115/data/p115_cookie_store.dart';
+import '../../browse/data/remote_resolvers.dart';
+import '../../history/data/play_history_repository.dart';
 import '../../player/data/now_playing_bridge.dart';
 import '../../player/data/playback_controller.dart';
 import '../../player/data/sleep_timer.dart';
-import '../../webdav/data/webdav_client.dart';
-import '../../webdav/data/webdav_password_store.dart';
+import '../../video_library/data/video_library_providers.dart';
 import 'video_resume_store.dart';
 
 /// App-lifetime owner of the video player, mirroring [PlaybackController] for
@@ -54,6 +53,20 @@ class VideoController extends Notifier<VideoPlaybackState>
   bool _lastEnded = false;
   var _openSeq = 0;
   Future<void>? _parking;
+  Timer? _parkTimer;
+  String? _artworkPath;
+
+  /// Last position observed while genuinely playable (not at the end). When
+  /// mdk spuriously reports "ended" (dead local proxy → FFmpeg EOF), this is
+  /// where playback gets restored to.
+  int _lastPlayablePositionMs = 0;
+  DateTime? _lastSeekAt;
+  DateTime? _spuriousReopenAt;
+
+  /// How long a paused video survives in the background before its player is
+  /// released. Short lock-screen trips resume instantly; the resolver re-fetches
+  /// a fresh URL anyway when a parked video is reopened later.
+  static const _backgroundParkDelay = Duration(minutes: 10);
 
   @override
   VideoPlaybackState build() {
@@ -61,6 +74,7 @@ class VideoController extends Notifier<VideoPlaybackState>
     ref.onDispose(() {
       WidgetsBinding.instance.removeObserver(this);
       _publishTimer?.cancel();
+      _parkTimer?.cancel();
       unawaited(_teardown());
     });
     Future.microtask(_maybeRestoreDormant);
@@ -75,13 +89,56 @@ class VideoController extends Notifier<VideoPlaybackState>
       ..._controllerFields(_controller),
     });
     if (state == AppLifecycleState.paused) {
-      _parkPausedVideo('lifecycle_paused');
+      _parkTimer?.cancel();
+      _parkTimer = Timer(_backgroundParkDelay, () {
+        _parkTimer = null;
+        // iOS freezes timers in the background; on thaw this may fire after the
+        // app is already front-most again — don't park a video the user is
+        // looking at.
+        if (WidgetsBinding.instance.lifecycleState ==
+            AppLifecycleState.resumed) {
+          return;
+        }
+        _parkPausedVideo('background_timeout');
+      });
+    } else if (state == AppLifecycleState.resumed) {
+      _parkTimer?.cancel();
+      _parkTimer = null;
     }
   }
 
   /// Loads and plays [item], stopping audio so only one source makes sound, and
   /// resuming from the saved position if this is the remembered video.
-  Future<void> open(PlayableItem item) async {
+  ///
+  /// [force] skips the same-item fast path — used by reopen flows where the
+  /// controller looks healthy but its data source is dead. [autoplay] false
+  /// keeps the rebuilt player paused (reviving a paused video must not start
+  /// it).
+  Future<void> open(
+    PlayableItem item, {
+    bool force = false,
+    bool autoplay = true,
+  }) async {
+    // Re-opening the video that's already loaded (e.g. tapping the same
+    // library card again) just resumes it — no teardown, no re-resolve.
+    final currentItem = state.item;
+    final current = _controller;
+    if (!force &&
+        currentItem != null &&
+        current != null &&
+        currentItem.stableId == item.stableId &&
+        current.value.isInitialized &&
+        !current.value.hasError &&
+        !_isAtEnd(current)) {
+      DiagnosticLog.write('video_player', 'open_same_item_resume', {
+        ..._videoItemFields(currentItem),
+        'isPlaying': current.value.isPlaying,
+      });
+      if (!current.value.isPlaying) await current.play();
+      _publish();
+      _saveSlot();
+      return;
+    }
     final stableItem = _withControllerResolver(item);
     final attemptId = ++_openSeq;
     DiagnosticLog.write('video_player', 'open_requested', {
@@ -98,6 +155,9 @@ class VideoController extends Notifier<VideoPlaybackState>
     state = VideoPlaybackState(item: stableItem);
     _lastVideoError = null;
     _lastEnded = false;
+    _artworkPath = null;
+    _lastPlayablePositionMs = 0;
+    _lastSeekAt = null;
     DiagnosticLog.write('video_player', 'open_start', {
       ..._videoItemFields(stableItem),
       'attemptId': attemptId,
@@ -149,20 +209,28 @@ class VideoController extends Notifier<VideoPlaybackState>
         'width': controller.value.size.width,
         'height': controller.value.size.height,
       });
-      _resumeFromSlot(controller, stableItem);
+      await _restorePosition(controller, stableItem);
       controller.addListener(_onValue);
-      await controller.play();
-      DiagnosticLog.write('video_player', 'play_requested', {
-        ..._videoItemFields(stableItem),
-        'attemptId': attemptId,
-        'positionMs': controller.value.position.inMilliseconds,
-      });
+      await _loadArtwork(stableItem);
+      if (autoplay) {
+        await controller.play();
+        DiagnosticLog.write('video_player', 'play_requested', {
+          ..._videoItemFields(stableItem),
+          'attemptId': attemptId,
+          'positionMs': controller.value.position.inMilliseconds,
+        });
+      }
       _controller = controller;
       _resolvedRelease = release;
       state = VideoPlaybackState(item: stableItem, controller: controller);
       NowPlayingBridge.setCommandHandler(_handleCommand);
       _publish();
       _saveSlot();
+      unawaited(
+        ref
+            .read(videoLibraryRepositoryProvider)
+            .touchLastPlayed(stableItem.stableId),
+      );
       _publishTimer = Timer.periodic(const Duration(seconds: 5), (_) {
         _publish();
         _saveSlot();
@@ -210,6 +278,18 @@ class VideoController extends Notifier<VideoPlaybackState>
       await _reopenCurrent('play_existing_invalid');
       return;
     }
+    // An iOS suspend may have killed the proxy listener while this player
+    // looks perfectly healthy. Revive it in place (same port, registrations
+    // kept) so the player just continues; a full reopen only when the port
+    // can't be reclaimed.
+    if (!c.value.isPlaying && !await MediaProxy.instance.revive()) {
+      DiagnosticLog.write('video_player', 'proxy_revive_failed', {
+        ..._stateFields(),
+        ..._controllerFields(c),
+      });
+      await _reopenCurrent('proxy_revive_failed');
+      return;
+    }
     await c.play();
     DiagnosticLog.write('video_player', 'play_existing_done', {
       ..._stateFields(),
@@ -233,6 +313,10 @@ class VideoController extends Notifier<VideoPlaybackState>
     DiagnosticLog.write('video_player', 'seek', {
       'positionMs': position.inMilliseconds,
     });
+    _lastSeekAt = DateTime.now();
+    // Seeking needs data too — revive a suspend-killed proxy before mdk
+    // starts bisecting the stream against a dead socket.
+    if (_controller != null) await MediaProxy.instance.revive();
     await _controller?.seekTo(position);
     _publish();
     _saveSlot();
@@ -258,10 +342,27 @@ class VideoController extends Notifier<VideoPlaybackState>
     state = const VideoPlaybackState();
   }
 
-  void _resumeFromSlot(VideoPlayerController controller, PlayableItem item) {
-    final slot = ref.read(videoResumeStoreProvider).read();
-    if (slot == null || slot.id != item.id) return;
-    final pos = slot.positionMs;
+  /// Seeks to where this video was left, preferring the per-file history row
+  /// (works for any history / video-library entry) over the single resume slot.
+  Future<void> _restorePosition(
+    VideoPlayerController controller,
+    PlayableItem item,
+  ) async {
+    var pos = 0;
+    try {
+      pos =
+          await ref
+              .read(playHistoryRepositoryProvider)
+              .positionMsOf(item.stableId) ??
+          0;
+    } catch (_) {
+      // best effort — fall through to the resume slot
+    }
+    if (pos == 0) {
+      final slot = ref.read(videoResumeStoreProvider).read();
+      if (slot == null || slot.id != item.id) return;
+      pos = slot.positionMs;
+    }
     final dur = controller.value.duration.inMilliseconds;
     if (pos > 3000 && (dur == 0 || pos < dur - 3000)) {
       DiagnosticLog.write('video_player', 'resume_seek', {
@@ -269,7 +370,8 @@ class VideoController extends Notifier<VideoPlaybackState>
         'positionMs': pos,
         'durationMs': dur,
       });
-      controller.seekTo(Duration(milliseconds: pos));
+      _lastSeekAt = DateTime.now();
+      await controller.seekTo(Duration(milliseconds: pos));
     }
   }
 
@@ -296,16 +398,67 @@ class VideoController extends Notifier<VideoPlaybackState>
     final durationMs = value.duration.inMilliseconds;
     final positionMs = value.position.inMilliseconds;
     final ended = durationMs > 0 && positionMs >= durationMs - 500;
+    if (!ended && positionMs > 0) {
+      _lastPlayablePositionMs = positionMs;
+    }
     if (ended != _lastEnded) {
       _lastEnded = ended;
       DiagnosticLog.write('video_player', 'ended_changed', {
         'ended': ended,
         ..._controllerFields(c),
       });
-      // A finished video already stops on its own; this just clears a pending
-      // "finish current track then stop" sleep-timer state.
-      if (ended) ref.read(sleepTimerProvider.notifier).onTrackCompleted();
+      if (ended) {
+        if (_isSpuriousEnd(durationMs)) {
+          _recoverFromSpuriousEnd(durationMs);
+          return;
+        }
+        // A finished video already stops on its own; this just clears a pending
+        // "finish current track then stop" sleep-timer state.
+        ref.read(sleepTimerProvider.notifier).onTrackCompleted();
+      }
     }
+  }
+
+  /// mdk jumps position straight to the duration when its data source dies
+  /// (e.g. proxy socket killed by an iOS suspend): FFmpeg exhausts reconnects
+  /// and reports end-of-stream. A real end plays *into* the tail; a dead
+  /// source "ends" from far away with no recent user seek.
+  bool _isSpuriousEnd(int durationMs) {
+    final lastSeek = _lastSeekAt;
+    final recentSeek =
+        lastSeek != null &&
+        DateTime.now().difference(lastSeek) < const Duration(seconds: 3);
+    if (recentSeek) return false;
+    if (durationMs - _lastPlayablePositionMs < 60000) return false;
+    final lastReopen = _spuriousReopenAt;
+    // Throttle: if reopening didn't cure it, let the "end" stand rather than
+    // loop teardown/resolve forever.
+    if (lastReopen != null &&
+        DateTime.now().difference(lastReopen) < const Duration(seconds: 60)) {
+      return false;
+    }
+    return true;
+  }
+
+  void _recoverFromSpuriousEnd(int durationMs) {
+    _spuriousReopenAt = DateTime.now();
+    final resumeMs = _lastPlayablePositionMs;
+    final item = state.item;
+    DiagnosticLog.write('video_player', 'spurious_end_reopen', {
+      'resumePositionMs': resumeMs,
+      'durationMs': durationMs,
+      ..._stateFields(),
+    });
+    if (item != null) {
+      // Overwrite before the periodic slot save can persist the bogus
+      // end-of-file position; _restorePosition reads this back after reopen.
+      unawaited(
+        ref
+            .read(playHistoryRepositoryProvider)
+            .recordItem(item, positionMs: resumeMs, durationMs: durationMs),
+      );
+    }
+    unawaited(_reopenCurrent('spurious_end'));
   }
 
   Future<void> _teardown() async {
@@ -333,17 +486,44 @@ class VideoController extends Notifier<VideoPlaybackState>
     final item = state.item;
     final c = _controller;
     if (item == null || c == null || !c.value.isInitialized) return;
+    final positionMs = c.value.position.inMilliseconds;
     unawaited(
       ref
           .read(videoResumeStoreProvider)
           .write(
-            _slotFor(
-              item,
-              positionMs: c.value.position.inMilliseconds,
-              lastPlayedAt: DateTime.now(),
-            ),
+            _slotFor(item, positionMs: positionMs, lastPlayedAt: DateTime.now()),
           ),
     );
+    unawaited(
+      ref
+          .read(playHistoryRepositoryProvider)
+          .recordItem(
+            item,
+            positionMs: positionMs,
+            durationMs: c.value.duration.inMilliseconds,
+          ),
+    );
+  }
+
+  /// Loads the video-library cover for the lock screen / Control Center.
+  Future<void> _loadArtwork(PlayableItem item) async {
+    try {
+      final db = ref.read(databaseProvider);
+      final row = await (db.select(
+        db.videoItems,
+      )..where((v) => v.id.equals(item.stableId))).getSingleOrNull();
+      _artworkPath = LocalImagePath.resolve(row?.coverPath);
+    } catch (_) {
+      _artworkPath = null;
+    }
+  }
+
+  /// Re-reads the cover after it changed (e.g. frame captured) and republishes.
+  Future<void> refreshArtwork() async {
+    final item = state.item;
+    if (item == null) return;
+    await _loadArtwork(item);
+    _publish();
   }
 
   void _publish() {
@@ -356,7 +536,7 @@ class VideoController extends Notifier<VideoPlaybackState>
         title: item.fileName,
         album: item.sourceName,
         artist: item.sourceName,
-        artworkPath: null,
+        artworkPath: _artworkPath,
         position: v.position,
         duration: v.duration,
         playing: v.isPlaying,
@@ -421,16 +601,17 @@ class VideoController extends Notifier<VideoPlaybackState>
     });
   }
 
-  Future<void> _reopenCurrent(String reason) async {
+  Future<void> _reopenCurrent(String reason, {bool autoplay = true}) async {
     final item = state.item;
     if (item == null) return;
     DiagnosticLog.write('video_player', 'reopen_current', {
       'reason': reason,
+      'autoplay': autoplay,
       ..._videoItemFields(item),
       ..._stateFields(),
       ..._controllerFields(_controller),
     });
-    await open(item);
+    await open(item, force: true, autoplay: autoplay);
   }
 
   bool _isAtEnd(VideoPlayerController controller) {
@@ -479,11 +660,13 @@ class VideoController extends Notifier<VideoPlaybackState>
       default:
         return null;
     }
-    final resolver = _resolverFor(
-      kind: kind,
+    final resolver = buildRemoteResolver(
+      ref,
+      sourceKind: kind,
       sourceId: slot.sourceId,
       path: slot.path,
       pickcode: slot.pickcode,
+      isVideo: true,
     );
     return PlayableItem(
       id: slot.id,
@@ -501,11 +684,13 @@ class VideoController extends Notifier<VideoPlaybackState>
   }
 
   PlayableItem _withControllerResolver(PlayableItem item) {
-    final resolver = _resolverFor(
-      kind: item.sourceKind,
+    final resolver = buildRemoteResolver(
+      ref,
+      sourceKind: item.sourceKind,
       sourceId: item.sourceId,
       path: item.path,
       pickcode: item.pickcode,
+      isVideo: true,
     );
     return PlayableItem(
       id: item.id,
@@ -525,41 +710,7 @@ class VideoController extends Notifier<VideoPlaybackState>
     );
   }
 
-  PlayableResolver _resolverFor({
-    required RemoteSourceKind kind,
-    required String sourceId,
-    required String path,
-    required String? pickcode,
-  }) {
-    switch (kind) {
-      case RemoteSourceKind.p115:
-        final pc = pickcode;
-        if (pc == null || pc.isEmpty) {
-          throw const P115Exception('115 视频缺少 pickcode');
-        }
-        return () async {
-          try {
-            return await ref.read(p115ClientProvider).resolveVideoUrl(pc);
-          } on P115AuthExpiredException {
-            await ref.read(p115AuthServiceProvider).clearCookie();
-            ref.invalidate(p115CookieProvider);
-            rethrow;
-          }
-        };
-      case RemoteSourceKind.local:
-        return () async => ResolvedMediaUrl(url: Uri.file(path));
-      case RemoteSourceKind.webdav:
-        return () async {
-          final config = await _webdavConfigForServer(sourceId);
-          if (config == null) throw Exception('WebDAV 服务器配置缺失，无法续播');
-          final auth = config.authHeader;
-          return ResolvedMediaUrl(
-            url: Uri.parse(config.streamUrl(path)),
-            headers: auth == null ? null : {'Authorization': auth},
-          );
-        };
-    }
-  }
+
 
   VideoResumeSlot _slotFor(
     PlayableItem item, {
@@ -577,25 +728,6 @@ class VideoController extends Notifier<VideoPlaybackState>
       pickcode: item.pickcode,
       positionMs: positionMs,
       lastPlayedAt: lastPlayedAt,
-    );
-  }
-
-  Future<WebdavConfig?> _webdavConfigForServer(String serverId) async {
-    final db = ref.read(databaseProvider);
-    final server = await (db.select(
-      db.webdavServers,
-    )..where((s) => s.id.equals(serverId))).getSingleOrNull();
-    if (server == null) return null;
-    final password = await ref
-        .read(webdavPasswordStoreProvider)
-        .read(server.id);
-    return WebdavConfig(
-      scheme: server.scheme,
-      host: server.host,
-      port: server.port,
-      basePath: server.basePath,
-      username: server.username,
-      password: password,
     );
   }
 

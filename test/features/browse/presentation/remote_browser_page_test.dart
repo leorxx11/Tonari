@@ -34,7 +34,11 @@ class _FakeVideoController extends VideoController {
   VideoPlaybackState build() => const VideoPlaybackState();
 
   @override
-  Future<void> open(PlayableItem item) async {
+  Future<void> open(
+    PlayableItem item, {
+    bool force = false,
+    bool autoplay = true,
+  }) async {
     opened = item;
   }
 }

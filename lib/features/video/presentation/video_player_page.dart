@@ -8,7 +8,11 @@ import 'package:video_player/video_player.dart';
 
 import '../../player/data/sleep_timer.dart';
 import '../../player/presentation/sleep_timer_sheet.dart';
+import '../../video_library/data/frame_capture.dart';
+import '../../video_library/data/video_cover_store.dart';
+import '../../video_library/data/video_library_providers.dart';
 import '../data/video_controller.dart';
+import '../../../core/ui/app_toast.dart';
 
 class VideoPlayerPage extends ConsumerStatefulWidget {
   const VideoPlayerPage({super.key});
@@ -145,6 +149,7 @@ class _VideoPlayerPageState extends ConsumerState<VideoPlayerPage> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
+              actions: const [_VideoMoreMenu()],
             ),
       body: state.error != null
           ? Center(
@@ -160,7 +165,17 @@ class _VideoPlayerPageState extends ConsumerState<VideoPlayerPage> {
               ),
             )
           : vpc == null || !vpc.value.isInitialized
-          ? const Center(child: CircularProgressIndicator())
+          ? state.dormant
+                ? Center(
+                    child: IconButton(
+                      tooltip: '继续播放',
+                      iconSize: 72,
+                      color: Colors.white,
+                      icon: const Icon(CupertinoIcons.play_circle_fill),
+                      onPressed: controller.resume,
+                    ),
+                  )
+                : const Center(child: CircularProgressIndicator())
           : _landscape
           ? _LandscapePlayer(
               controller: vpc,
@@ -198,6 +213,9 @@ class _VideoPlayerPageState extends ConsumerState<VideoPlayerPage> {
                   Expanded(
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
+                      onDoubleTap: () => vpc.value.isPlaying
+                          ? controller.pause()
+                          : controller.play(),
                       onHorizontalDragStart: _onScrubStart,
                       onHorizontalDragUpdate: _onScrubUpdate,
                       onHorizontalDragEnd: _onScrubEnd,
@@ -283,6 +301,7 @@ class _LandscapePlayer extends StatelessWidget {
         GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: onTap,
+          onDoubleTap: onTogglePlay,
           onHorizontalDragStart: onScrubStart,
           onHorizontalDragUpdate: onScrubUpdate,
           onHorizontalDragEnd: onScrubEnd,
@@ -333,6 +352,7 @@ class _LandscapePlayer extends StatelessWidget {
                           ),
                         ),
                       ),
+                      const _VideoMoreMenu(),
                     ],
                   ),
                 ),
@@ -614,65 +634,84 @@ class _Controls extends ConsumerWidget {
                 ),
                 const SizedBox(height: 8),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
+                    Expanded(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          IconButton(
+                            tooltip: '睡眠定时',
+                            iconSize: 24,
+                            color: sleep.isActive
+                                ? CupertinoColors.activeBlue
+                                : Colors.white,
+                            icon: Icon(
+                              sleep.isActive
+                                  ? CupertinoIcons.moon_zzz_fill
+                                  : CupertinoIcons.moon_zzz,
+                            ),
+                            onPressed: () => showSleepTimerSheet(
+                              context,
+                              forVideo: true,
+                            ),
+                          ),
+                          PopupMenuButton<double>(
+                            tooltip: '倍速',
+                            initialValue: value.playbackSpeed,
+                            color: Colors.white,
+                            onSelected: onSpeed,
+                            itemBuilder: (_) => [
+                              for (final s in const [1.0, 1.25, 1.5, 2.0])
+                                PopupMenuItem(
+                                  value: s,
+                                  child: Text(
+                                    '${s}x',
+                                    style: const TextStyle(
+                                      color: Color(0xDE000000),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                            child: SizedBox(
+                              width: 48,
+                              height: 48,
+                              child: Center(
+                                child: Text(
+                                  '${value.playbackSpeed}x',
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                     IconButton(
                       tooltip: value.isPlaying ? '暂停' : '播放',
-                      iconSize: 34,
+                      iconSize: 52,
                       color: Colors.white,
                       icon: Icon(
                         value.isPlaying
-                            ? CupertinoIcons.pause_fill
-                            : CupertinoIcons.play_fill,
+                            ? CupertinoIcons.pause_circle_fill
+                            : CupertinoIcons.play_circle_fill,
                       ),
                       onPressed: onTogglePlay,
                     ),
-                    IconButton(
-                      tooltip: '睡眠定时',
-                      iconSize: 24,
-                      color: sleep.isActive ? CupertinoColors.activeBlue : Colors.white,
-                      icon: Icon(
-                        sleep.isActive
-                            ? CupertinoIcons.moon_zzz_fill
-                            : CupertinoIcons.moon_zzz,
-                      ),
-                      onPressed: () => showSleepTimerSheet(
-                        context,
-                        forVideo: true,
-                      ),
-                    ),
-                    PopupMenuButton<double>(
-                      tooltip: '倍速',
-                      initialValue: value.playbackSpeed,
-                      color: Colors.white,
-                      onSelected: onSpeed,
-                      itemBuilder: (_) => [
-                        for (final s in const [1.0, 1.25, 1.5, 2.0])
-                          PopupMenuItem(
-                            value: s,
-                            child: Text(
-                              '${s}x',
-                              style: const TextStyle(color: Color(0xDE000000)),
+                    Expanded(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          IconButton(
+                            tooltip: landscape ? '竖屏' : '横屏',
+                            iconSize: 28,
+                            color: Colors.white,
+                            icon: const Icon(
+                              Icons.screen_rotation_alt_outlined,
                             ),
+                            onPressed: onOrientation,
                           ),
-                      ],
-                      child: SizedBox(
-                        width: 48,
-                        height: 48,
-                        child: Center(
-                          child: Text(
-                            '${value.playbackSpeed}x',
-                            style: const TextStyle(color: Colors.white),
-                          ),
-                        ),
+                        ],
                       ),
-                    ),
-                    IconButton(
-                      tooltip: landscape ? '竖屏' : '横屏',
-                      iconSize: 28,
-                      color: Colors.white,
-                      icon: const Icon(Icons.screen_rotation_alt_outlined),
-                      onPressed: onOrientation,
                     ),
                   ],
                 ),
@@ -685,8 +724,105 @@ class _Controls extends ConsumerWidget {
   }
 }
 
-class _ScrubBadge extends StatelessWidget {
-  const _ScrubBadge({required this.label});
+/// 右上角三个点：低频动作收纳处。「截取画面设为封面」对未入库的视频会先自动
+/// 加入视频库，所以从文件浏览器直接播的视频也能一键设封面。
+class _VideoMoreMenu extends ConsumerWidget {
+  const _VideoMoreMenu();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final item = ref.watch(videoControllerProvider.select((s) => s.item));
+    if (item == null) return const SizedBox.shrink();
+    final inLibrary =
+        ref.watch(videoInLibraryProvider(item.stableId)).value ?? false;
+    return PopupMenuButton<_VideoMenuAction>(
+      tooltip: '更多',
+      icon: const Icon(Icons.more_horiz, color: Colors.white),
+      onSelected: (action) => _onAction(ref, action),
+      itemBuilder: (_) => [
+        const PopupMenuItem(
+          value: _VideoMenuAction.captureCover,
+          child: Row(
+            children: [
+              Icon(CupertinoIcons.camera_viewfinder),
+              SizedBox(width: 12),
+              Text('截取画面设为封面'),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: _VideoMenuAction.toggleLibrary,
+          child: Row(
+            children: [
+              Icon(
+                inLibrary
+                    ? Icons.video_library
+                    : Icons.video_library_outlined,
+              ),
+              const SizedBox(width: 12),
+              Text(inLibrary ? '从视频库移除' : '加入视频库'),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _onAction(WidgetRef ref, _VideoMenuAction action) async {
+    final state = ref.read(videoControllerProvider);
+    final item = state.item;
+    if (item == null) return;
+    final repo = ref.read(videoLibraryRepositoryProvider);
+    switch (action) {
+      case _VideoMenuAction.captureCover:
+        await _captureCover(ref, state, repo);
+      case _VideoMenuAction.toggleLibrary:
+        final inLibrary =
+            ref.read(videoInLibraryProvider(item.stableId)).value ?? false;
+        if (inLibrary) {
+          await repo.remove(item.stableId);
+          showAppToast('已从视频库移除');
+        } else {
+          final added = await repo.add(item);
+          showAppToast(added ? '已加入视频库' : '已在视频库中');
+        }
+    }
+  }
+
+  Future<void> _captureCover(
+    WidgetRef ref,
+    VideoPlaybackState state,
+    VideoLibraryRepository repo,
+  ) async {
+    final controller = state.controller;
+    final item = state.item;
+    if (controller == null || item == null || !controller.value.isInitialized) {
+      showAppToast('视频还没准备好');
+      return;
+    }
+    try {
+      final png = await captureFramePng(controller);
+      if (png == null) {
+        showAppToast('截取画面失败');
+        return;
+      }
+      final id = item.stableId;
+      final inLibrary = ref.read(videoInLibraryProvider(id)).value ?? false;
+      var added = false;
+      if (!inLibrary) added = await repo.add(item);
+      final rel = await ref.read(videoCoverStoreProvider).saveBytes(id, png);
+      await repo.setCoverPath(id, rel);
+      await ref.read(videoControllerProvider.notifier).refreshArtwork();
+      showAppToast(added ? '已加入视频库并设为封面' : '已设为视频封面');
+    } catch (e) {
+      showAppToast('设置封面失败：$e');
+    }
+  }
+}
+
+enum _VideoMenuAction { captureCover, toggleLibrary }
+
+class _ScrubBadge extends StatelessWidget {  const _ScrubBadge({required this.label});
 
   final String label;
 
