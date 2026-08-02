@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/diagnostics/diagnostic_log.dart';
+import '../../../core/files/natural_compare.dart';
 import '../../player/data/playback_controller.dart';
 import '../../video/data/video_controller.dart';
 import '../data/browse_location_store.dart';
@@ -65,7 +66,16 @@ class _RemoteBrowserPageState extends ConsumerState<RemoteBrowserPage> {
 
   RemoteEntry get _current => _stack.last;
 
-  Future<List<RemoteEntry>> _list() => widget.loadFolder(_current);
+  /// Sorted here rather than trusting the loader: the 115 client sorts each
+  /// 500-entry page independently, so big folders come back interleaved.
+  Future<List<RemoteEntry>> _list() async {
+    final entries = [...await widget.loadFolder(_current)];
+    entries.sort((a, b) {
+      if (a.isFolder != b.isFolder) return a.isFolder ? -1 : 1;
+      return naturalCompare(a.name, b.name);
+    });
+    return entries;
+  }
 
   void _reload() => setState(() => _future = _list());
 

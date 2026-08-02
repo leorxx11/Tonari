@@ -107,6 +107,8 @@ void main() {
 
     final tree = buildWorkTree(tracks);
     expect(tree, hasLength(2));
+    // Folders sort before files.
+    expect(tree.map((n) => n.name).toList(), ['本編', 'standalone']);
     expect(
       tree.whereType<WorkTreeTrack>().single.track.fileName,
       'standalone.wav',
@@ -124,10 +126,11 @@ void main() {
 
     final tree = buildWorkTree(tracks);
     final flat = flattenForPlayback(tree);
+    // Inside A the Z folder sorts before the loose tracks.
     expect(flat.map((t) => t.relativePath).toList(), [
+      'A/Z/extra.wav',
       'A/01.wav',
       'A/02.wav',
-      'A/Z/extra.wav',
       'B/01.wav',
     ]);
   });
@@ -156,8 +159,9 @@ void main() {
     ];
 
     final tree = buildWorkTree(tracks, workFiles: files);
-    // Top level: readme.txt (file), 特典 (folder), 音声 (folder) — sorted lex.
+    // Top level: 特典 and 音声 (folders first), then readme.txt.
     expect(tree, hasLength(3));
+    expect(tree.map((n) => n.name).toList(), ['特典', '音声', 'readme.txt']);
     expect(tree.whereType<WorkTreeFile>().single.file.fileName, 'readme.txt');
 
     final tokuten = tree.whereType<WorkTreeFolder>().firstWhere(
