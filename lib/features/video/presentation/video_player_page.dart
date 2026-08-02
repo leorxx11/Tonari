@@ -6,6 +6,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
 
+import '../../player/data/sleep_timer.dart';
+import '../../player/presentation/sleep_timer_sheet.dart';
 import '../data/video_controller.dart';
 
 class VideoPlayerPage extends ConsumerStatefulWidget {
@@ -357,7 +359,7 @@ class _LandscapePlayer extends StatelessWidget {
   }
 }
 
-class _LandscapeControls extends StatelessWidget {
+class _LandscapeControls extends ConsumerWidget {
   const _LandscapeControls({
     required this.controller,
     required this.dragValue,
@@ -377,8 +379,14 @@ class _LandscapeControls extends StatelessWidget {
   final Future<void> Function() onOrientation;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final padding = MediaQuery.paddingOf(context);
+    final sleep = ref.watch(sleepTimerProvider);
+    final sleepLabel = sleep.remaining != null
+        ? '定时 ${formatSleepRemaining(sleep.remaining!)}'
+        : sleep.waitingTrackEnd
+        ? '播完停'
+        : null;
     return ValueListenableBuilder<VideoPlayerValue>(
       valueListenable: controller,
       builder: (context, value, _) {
@@ -448,10 +456,27 @@ class _LandscapeControls extends StatelessWidget {
                     ),
                     Text(
                       '${_fmt(Duration(milliseconds: displayMs))} / '
-                      '${_fmt(value.duration)}',
+                      '${_fmt(value.duration)}'
+                      '${sleepLabel != null ? ' · $sleepLabel' : ''}',
                       style: const TextStyle(color: Colors.white, fontSize: 12),
                     ),
                     const Spacer(),
+                    IconButton(
+                      tooltip: '睡眠定时',
+                      iconSize: 22,
+                      color: sleep.isActive
+                          ? CupertinoColors.activeBlue
+                          : Colors.white,
+                      icon: Icon(
+                        sleep.isActive
+                            ? CupertinoIcons.moon_zzz_fill
+                            : CupertinoIcons.moon_zzz,
+                      ),
+                      onPressed: () => showSleepTimerSheet(
+                        context,
+                        forVideo: true,
+                      ),
+                    ),
                     PopupMenuButton<double>(
                       tooltip: '倍速',
                       initialValue: value.playbackSpeed,
@@ -499,7 +524,7 @@ class _LandscapeControls extends StatelessWidget {
   }
 }
 
-class _Controls extends StatelessWidget {
+class _Controls extends ConsumerWidget {
   const _Controls({
     required this.controller,
     required this.landscape,
@@ -521,7 +546,13 @@ class _Controls extends StatelessWidget {
   final Future<void> Function() onOrientation;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final sleep = ref.watch(sleepTimerProvider);
+    final sleepLabel = sleep.remaining != null
+        ? '定时 ${formatSleepRemaining(sleep.remaining!)}'
+        : sleep.waitingTrackEnd
+        ? '播完停'
+        : null;
     return ValueListenableBuilder<VideoPlayerValue>(
       valueListenable: controller,
       builder: (context, value, _) {
@@ -563,6 +594,15 @@ class _Controls extends StatelessWidget {
                       ),
                     ),
                     const Spacer(),
+                    if (sleepLabel != null)
+                      Text(
+                        sleepLabel,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
+                      ),
+                    const Spacer(),
                     Text(
                       _fmt(value.duration),
                       style: const TextStyle(
@@ -586,6 +626,20 @@ class _Controls extends StatelessWidget {
                             : CupertinoIcons.play_fill,
                       ),
                       onPressed: onTogglePlay,
+                    ),
+                    IconButton(
+                      tooltip: '睡眠定时',
+                      iconSize: 24,
+                      color: sleep.isActive ? CupertinoColors.activeBlue : Colors.white,
+                      icon: Icon(
+                        sleep.isActive
+                            ? CupertinoIcons.moon_zzz_fill
+                            : CupertinoIcons.moon_zzz,
+                      ),
+                      onPressed: () => showSleepTimerSheet(
+                        context,
+                        forVideo: true,
+                      ),
                     ),
                     PopupMenuButton<double>(
                       tooltip: '倍速',

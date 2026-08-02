@@ -15,6 +15,7 @@ import '../../p115/data/p115_client.dart';
 import '../../p115/data/p115_cookie_store.dart';
 import '../../player/data/now_playing_bridge.dart';
 import '../../player/data/playback_controller.dart';
+import '../../player/data/sleep_timer.dart';
 import '../../webdav/data/webdav_client.dart';
 import '../../webdav/data/webdav_password_store.dart';
 import 'video_resume_store.dart';
@@ -301,6 +302,9 @@ class VideoController extends Notifier<VideoPlaybackState>
         'ended': ended,
         ..._controllerFields(c),
       });
+      // A finished video already stops on its own; this just clears a pending
+      // "finish current track then stop" sleep-timer state.
+      if (ended) ref.read(sleepTimerProvider.notifier).onTrackCompleted();
     }
   }
 

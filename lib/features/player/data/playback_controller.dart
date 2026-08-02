@@ -601,7 +601,7 @@ class PlaybackController extends Notifier<PlaybackState>
     });
     if (s != ProcessingState.completed) return;
     await _bumpPlayCount();
-    if (ref.read(sleepTimerProvider.notifier).consumeStopAfterTrack()) {
+    if (ref.read(sleepTimerProvider.notifier).onTrackCompleted()) {
       await player.pause();
       await player.seek(Duration.zero);
       await _publishNowPlaying();

@@ -27,21 +27,33 @@ class PlayerPrefs {
   const PlayerPrefs({
     required this.seekStepSeconds,
     required this.playbackMode,
+    required this.sleepFinishCurrentTrack,
   });
 
   final int seekStepSeconds;
   final PlaybackMode playbackMode;
 
-  PlayerPrefs copyWith({int? seekStepSeconds, PlaybackMode? playbackMode}) {
+  /// Sleep timer behavior: when the countdown hits zero, let the current
+  /// track finish instead of cutting it off mid-play.
+  final bool sleepFinishCurrentTrack;
+
+  PlayerPrefs copyWith({
+    int? seekStepSeconds,
+    PlaybackMode? playbackMode,
+    bool? sleepFinishCurrentTrack,
+  }) {
     return PlayerPrefs(
       seekStepSeconds: seekStepSeconds ?? this.seekStepSeconds,
       playbackMode: playbackMode ?? this.playbackMode,
+      sleepFinishCurrentTrack:
+          sleepFinishCurrentTrack ?? this.sleepFinishCurrentTrack,
     );
   }
 
   static const defaults = PlayerPrefs(
     seekStepSeconds: 15,
     playbackMode: PlaybackMode.sequence,
+    sleepFinishCurrentTrack: false,
   );
 
   /// Tap-to-pick presets shown in settings. Custom values outside this
@@ -52,6 +64,7 @@ class PlayerPrefs {
 class PlayerPrefsNotifier extends Notifier<PlayerPrefs> {
   static const _kSeekStep = 'player.seekStepSeconds';
   static const _kPlaybackMode = 'player.playbackMode';
+  static const _kSleepFinishTrack = 'player.sleepFinishCurrentTrack';
 
   @override
   PlayerPrefs build() {
@@ -60,7 +73,17 @@ class PlayerPrefsNotifier extends Notifier<PlayerPrefs> {
       seekStepSeconds:
           prefs.getInt(_kSeekStep) ?? PlayerPrefs.defaults.seekStepSeconds,
       playbackMode: _decodeMode(prefs.getString(_kPlaybackMode)),
+      sleepFinishCurrentTrack:
+          prefs.getBool(_kSleepFinishTrack) ??
+          PlayerPrefs.defaults.sleepFinishCurrentTrack,
     );
+  }
+
+  Future<void> setSleepFinishCurrentTrack(bool on) async {
+    state = state.copyWith(sleepFinishCurrentTrack: on);
+    await ref
+        .read(sharedPreferencesProvider)
+        .setBool(_kSleepFinishTrack, on);
   }
 
   Future<void> setSeekStep(int seconds) async {

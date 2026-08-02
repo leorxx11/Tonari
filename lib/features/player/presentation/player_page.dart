@@ -11,6 +11,7 @@ import '../../subtitle/data/subtitle_overlay_prefs.dart';
 import '../../subtitle/data/subtitle_providers.dart';
 import '../data/playback_controller.dart';
 import '../data/sleep_timer.dart';
+import 'sleep_timer_sheet.dart';
 
 /// Sky-blue accent used for progress + volume sliders. Lighter and warmer
 /// than `CupertinoColors.systemBlue`, which felt too saturated against the
@@ -75,8 +76,10 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     var subtitleLine = _speed == 1.0 ? subtitle : '$subtitle · ${_speed}x';
     if (sleep.remaining != null) {
       subtitleLine = '$subtitleLine · 定时 ${_formatDuration(sleep.remaining!)}';
-    } else if (sleep.stopAfterTrack) {
+    } else if (sleep.waitingTrackEnd || sleep.remainingTracks == 1) {
       subtitleLine = '$subtitleLine · 播完本曲停';
+    } else if (sleep.remainingTracks != null) {
+      subtitleLine = '$subtitleLine · 还剩 ${sleep.remainingTracks} 曲停';
     }
 
     return Scaffold(
@@ -178,8 +181,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                 mode: ref.watch(playerPrefsProvider).playbackMode,
                 onQueue: () => _showQueue(context, state, controller),
                 onCycleMode: _cycleMode,
-                onPickSubtitle: () => _placeholder(context, '从文件夹选择字幕 · 敬请期待'),
-                onSleepTimer: () => _showSleepTimer(context),
+                onSleepTimer: () => showSleepTimerSheet(context),
                 onMore: () => _showMore(context),
               ),
             ],
@@ -187,18 +189,6 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
         ),
       ),
     );
-  }
-
-  void _placeholder(BuildContext context, String message) {
-    ScaffoldMessenger.of(context)
-      ..clearSnackBars()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
-        ),
-      );
   }
 
   Future<void> _cycleMode() async {
@@ -266,76 +256,6 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
               ],
             ),
           ),
-        );
-      },
-    );
-  }
-
-  Future<void> _showSleepTimer(BuildContext context) async {
-    await showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (ctx) {
-        return Consumer(
-          builder: (ctx, ref, _) {
-            final sleep = ref.watch(sleepTimerProvider);
-            final notifier = ref.read(sleepTimerProvider.notifier);
-            return SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
-                      child: Text(
-                        sleep.remaining != null
-                            ? '睡眠定时 · 剩余 ${_formatDuration(sleep.remaining!)}'
-                            : '睡眠定时',
-                        style: Theme.of(ctx).textTheme.titleSmall,
-                      ),
-                    ),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        for (final m in SleepTimerController.presetMinutes)
-                          ChoiceChip(
-                            label: Text('$m 分钟'),
-                            selected: false,
-                            onSelected: (_) {
-                              Navigator.of(ctx).pop();
-                              notifier.start(Duration(minutes: m));
-                            },
-                          ),
-                        ChoiceChip(
-                          label: const Text('播完本曲'),
-                          selected: sleep.stopAfterTrack,
-                          onSelected: (sel) {
-                            Navigator.of(ctx).pop();
-                            if (sel) {
-                              notifier.enableStopAfterTrack();
-                            } else {
-                              notifier.cancel();
-                            }
-                          },
-                        ),
-                        if (sleep.isActive)
-                          ActionChip(
-                            label: const Text('取消定时'),
-                            onPressed: () {
-                              Navigator.of(ctx).pop();
-                              notifier.cancel();
-                            },
-                          ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
         );
       },
     );
@@ -587,7 +507,6 @@ class _BottomActions extends ConsumerWidget {
     required this.mode,
     required this.onQueue,
     required this.onCycleMode,
-    required this.onPickSubtitle,
     required this.onSleepTimer,
     required this.onMore,
   });
@@ -596,7 +515,6 @@ class _BottomActions extends ConsumerWidget {
   final PlaybackMode mode;
   final VoidCallback onQueue;
   final VoidCallback onCycleMode;
-  final VoidCallback onPickSubtitle;
   final VoidCallback onSleepTimer;
   final VoidCallback onMore;
 
@@ -633,12 +551,6 @@ class _BottomActions extends ConsumerWidget {
             onPressed: () =>
                 ref.read(subtitleOverlayPrefsProvider.notifier).cycle(),
           ),
-        IconButton(
-          tooltip: '手动选择字幕文件',
-          iconSize: 22,
-          icon: Icon(Icons.subtitles_outlined, color: color),
-          onPressed: onPickSubtitle,
-        ),
         IconButton(
           tooltip: '睡眠定时',
           iconSize: 22,
