@@ -11,8 +11,9 @@ import '../../../core/db/providers.dart';
 import '../../../core/diagnostics/diagnostic_log.dart';
 import '../../../core/files/folder_bookmark.dart';
 import '../../../core/files/local_image_path.dart';
-import '../../../core/ui/root_messenger.dart';
+import '../../../core/ui/app_toast.dart';
 import '../../browse/data/remote_models.dart';
+import '../../history/data/play_history_repository.dart';
 import '../../settings/data/player_prefs.dart';
 import '../../video/data/video_controller.dart';
 import '../../video/data/video_resume_store.dart';
@@ -475,9 +476,7 @@ class PlaybackController extends Notifier<PlaybackState>
         'errorType': '${e.runtimeType}',
         'message': '$e',
       });
-      rootScaffoldMessengerKey.currentState
-        ?..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(_playErrorText(e))));
+      showAppToast(_playErrorText(e));
     }
   }
 
@@ -523,6 +522,9 @@ class PlaybackController extends Notifier<PlaybackState>
       _proxyStale = false;
       _logSourceSet(resolved.url, 'load_browse');
       await previousRelease?.call();
+      unawaited(
+        ref.read(playHistoryRepositoryProvider).recordItem(browseItem),
+      );
       await player.play();
       await _publishNowPlaying();
       return;
@@ -675,6 +677,7 @@ class PlaybackController extends Notifier<PlaybackState>
         updatedAt: Value(now),
       ),
     );
+    unawaited(ref.read(playHistoryRepositoryProvider).recordWork(work));
   }
 
   Future<void> _bumpPlayCount() async {

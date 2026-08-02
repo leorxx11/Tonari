@@ -8385,6 +8385,1854 @@ class CollectionWorksCompanion extends UpdateCompanion<CollectionWork> {
   }
 }
 
+class $PlayHistoryEntriesTable extends PlayHistoryEntries
+    with TableInfo<$PlayHistoryEntriesTable, PlayHistoryEntry> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PlayHistoryEntriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+    'kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _workIdMeta = const VerificationMeta('workId');
+  @override
+  late final GeneratedColumn<String> workId = GeneratedColumn<String>(
+    'work_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sourceKindMeta = const VerificationMeta(
+    'sourceKind',
+  );
+  @override
+  late final GeneratedColumn<String> sourceKind = GeneratedColumn<String>(
+    'source_kind',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sourceIdMeta = const VerificationMeta(
+    'sourceId',
+  );
+  @override
+  late final GeneratedColumn<String> sourceId = GeneratedColumn<String>(
+    'source_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sourceNameMeta = const VerificationMeta(
+    'sourceName',
+  );
+  @override
+  late final GeneratedColumn<String> sourceName = GeneratedColumn<String>(
+    'source_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _pathMeta = const VerificationMeta('path');
+  @override
+  late final GeneratedColumn<String> path = GeneratedColumn<String>(
+    'path',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _fileNameMeta = const VerificationMeta(
+    'fileName',
+  );
+  @override
+  late final GeneratedColumn<String> fileName = GeneratedColumn<String>(
+    'file_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _pickcodeMeta = const VerificationMeta(
+    'pickcode',
+  );
+  @override
+  late final GeneratedColumn<String> pickcode = GeneratedColumn<String>(
+    'pickcode',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sizeMeta = const VerificationMeta('size');
+  @override
+  late final GeneratedColumn<int> size = GeneratedColumn<int>(
+    'size',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _positionMsMeta = const VerificationMeta(
+    'positionMs',
+  );
+  @override
+  late final GeneratedColumn<int> positionMs = GeneratedColumn<int>(
+    'position_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _durationMsMeta = const VerificationMeta(
+    'durationMs',
+  );
+  @override
+  late final GeneratedColumn<int> durationMs = GeneratedColumn<int>(
+    'duration_ms',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _playedAtMeta = const VerificationMeta(
+    'playedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> playedAt = GeneratedColumn<DateTime>(
+    'played_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    kind,
+    title,
+    workId,
+    sourceKind,
+    sourceId,
+    sourceName,
+    path,
+    fileName,
+    pickcode,
+    size,
+    positionMs,
+    durationMs,
+    playedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'play_history_entries';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PlayHistoryEntry> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+        _kindMeta,
+        kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_kindMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('work_id')) {
+      context.handle(
+        _workIdMeta,
+        workId.isAcceptableOrUnknown(data['work_id']!, _workIdMeta),
+      );
+    }
+    if (data.containsKey('source_kind')) {
+      context.handle(
+        _sourceKindMeta,
+        sourceKind.isAcceptableOrUnknown(data['source_kind']!, _sourceKindMeta),
+      );
+    }
+    if (data.containsKey('source_id')) {
+      context.handle(
+        _sourceIdMeta,
+        sourceId.isAcceptableOrUnknown(data['source_id']!, _sourceIdMeta),
+      );
+    }
+    if (data.containsKey('source_name')) {
+      context.handle(
+        _sourceNameMeta,
+        sourceName.isAcceptableOrUnknown(data['source_name']!, _sourceNameMeta),
+      );
+    }
+    if (data.containsKey('path')) {
+      context.handle(
+        _pathMeta,
+        path.isAcceptableOrUnknown(data['path']!, _pathMeta),
+      );
+    }
+    if (data.containsKey('file_name')) {
+      context.handle(
+        _fileNameMeta,
+        fileName.isAcceptableOrUnknown(data['file_name']!, _fileNameMeta),
+      );
+    }
+    if (data.containsKey('pickcode')) {
+      context.handle(
+        _pickcodeMeta,
+        pickcode.isAcceptableOrUnknown(data['pickcode']!, _pickcodeMeta),
+      );
+    }
+    if (data.containsKey('size')) {
+      context.handle(
+        _sizeMeta,
+        size.isAcceptableOrUnknown(data['size']!, _sizeMeta),
+      );
+    }
+    if (data.containsKey('position_ms')) {
+      context.handle(
+        _positionMsMeta,
+        positionMs.isAcceptableOrUnknown(data['position_ms']!, _positionMsMeta),
+      );
+    }
+    if (data.containsKey('duration_ms')) {
+      context.handle(
+        _durationMsMeta,
+        durationMs.isAcceptableOrUnknown(data['duration_ms']!, _durationMsMeta),
+      );
+    }
+    if (data.containsKey('played_at')) {
+      context.handle(
+        _playedAtMeta,
+        playedAt.isAcceptableOrUnknown(data['played_at']!, _playedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_playedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  PlayHistoryEntry map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PlayHistoryEntry(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      kind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}kind'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      workId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}work_id'],
+      ),
+      sourceKind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_kind'],
+      ),
+      sourceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_id'],
+      ),
+      sourceName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_name'],
+      ),
+      path: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}path'],
+      ),
+      fileName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}file_name'],
+      ),
+      pickcode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}pickcode'],
+      ),
+      size: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}size'],
+      ),
+      positionMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}position_ms'],
+      )!,
+      durationMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}duration_ms'],
+      ),
+      playedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}played_at'],
+      )!,
+    );
+  }
+
+  @override
+  $PlayHistoryEntriesTable createAlias(String alias) {
+    return $PlayHistoryEntriesTable(attachedDatabase, alias);
+  }
+}
+
+class PlayHistoryEntry extends DataClass
+    implements Insertable<PlayHistoryEntry> {
+  final String id;
+
+  /// 'work' | 'audio' | 'video'
+  final String kind;
+  final String title;
+  final String? workId;
+  final String? sourceKind;
+  final String? sourceId;
+  final String? sourceName;
+  final String? path;
+  final String? fileName;
+  final String? pickcode;
+  final int? size;
+  final int positionMs;
+  final int? durationMs;
+  final DateTime playedAt;
+  const PlayHistoryEntry({
+    required this.id,
+    required this.kind,
+    required this.title,
+    this.workId,
+    this.sourceKind,
+    this.sourceId,
+    this.sourceName,
+    this.path,
+    this.fileName,
+    this.pickcode,
+    this.size,
+    required this.positionMs,
+    this.durationMs,
+    required this.playedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['kind'] = Variable<String>(kind);
+    map['title'] = Variable<String>(title);
+    if (!nullToAbsent || workId != null) {
+      map['work_id'] = Variable<String>(workId);
+    }
+    if (!nullToAbsent || sourceKind != null) {
+      map['source_kind'] = Variable<String>(sourceKind);
+    }
+    if (!nullToAbsent || sourceId != null) {
+      map['source_id'] = Variable<String>(sourceId);
+    }
+    if (!nullToAbsent || sourceName != null) {
+      map['source_name'] = Variable<String>(sourceName);
+    }
+    if (!nullToAbsent || path != null) {
+      map['path'] = Variable<String>(path);
+    }
+    if (!nullToAbsent || fileName != null) {
+      map['file_name'] = Variable<String>(fileName);
+    }
+    if (!nullToAbsent || pickcode != null) {
+      map['pickcode'] = Variable<String>(pickcode);
+    }
+    if (!nullToAbsent || size != null) {
+      map['size'] = Variable<int>(size);
+    }
+    map['position_ms'] = Variable<int>(positionMs);
+    if (!nullToAbsent || durationMs != null) {
+      map['duration_ms'] = Variable<int>(durationMs);
+    }
+    map['played_at'] = Variable<DateTime>(playedAt);
+    return map;
+  }
+
+  PlayHistoryEntriesCompanion toCompanion(bool nullToAbsent) {
+    return PlayHistoryEntriesCompanion(
+      id: Value(id),
+      kind: Value(kind),
+      title: Value(title),
+      workId: workId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(workId),
+      sourceKind: sourceKind == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sourceKind),
+      sourceId: sourceId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sourceId),
+      sourceName: sourceName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sourceName),
+      path: path == null && nullToAbsent ? const Value.absent() : Value(path),
+      fileName: fileName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fileName),
+      pickcode: pickcode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(pickcode),
+      size: size == null && nullToAbsent ? const Value.absent() : Value(size),
+      positionMs: Value(positionMs),
+      durationMs: durationMs == null && nullToAbsent
+          ? const Value.absent()
+          : Value(durationMs),
+      playedAt: Value(playedAt),
+    );
+  }
+
+  factory PlayHistoryEntry.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PlayHistoryEntry(
+      id: serializer.fromJson<String>(json['id']),
+      kind: serializer.fromJson<String>(json['kind']),
+      title: serializer.fromJson<String>(json['title']),
+      workId: serializer.fromJson<String?>(json['workId']),
+      sourceKind: serializer.fromJson<String?>(json['sourceKind']),
+      sourceId: serializer.fromJson<String?>(json['sourceId']),
+      sourceName: serializer.fromJson<String?>(json['sourceName']),
+      path: serializer.fromJson<String?>(json['path']),
+      fileName: serializer.fromJson<String?>(json['fileName']),
+      pickcode: serializer.fromJson<String?>(json['pickcode']),
+      size: serializer.fromJson<int?>(json['size']),
+      positionMs: serializer.fromJson<int>(json['positionMs']),
+      durationMs: serializer.fromJson<int?>(json['durationMs']),
+      playedAt: serializer.fromJson<DateTime>(json['playedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'kind': serializer.toJson<String>(kind),
+      'title': serializer.toJson<String>(title),
+      'workId': serializer.toJson<String?>(workId),
+      'sourceKind': serializer.toJson<String?>(sourceKind),
+      'sourceId': serializer.toJson<String?>(sourceId),
+      'sourceName': serializer.toJson<String?>(sourceName),
+      'path': serializer.toJson<String?>(path),
+      'fileName': serializer.toJson<String?>(fileName),
+      'pickcode': serializer.toJson<String?>(pickcode),
+      'size': serializer.toJson<int?>(size),
+      'positionMs': serializer.toJson<int>(positionMs),
+      'durationMs': serializer.toJson<int?>(durationMs),
+      'playedAt': serializer.toJson<DateTime>(playedAt),
+    };
+  }
+
+  PlayHistoryEntry copyWith({
+    String? id,
+    String? kind,
+    String? title,
+    Value<String?> workId = const Value.absent(),
+    Value<String?> sourceKind = const Value.absent(),
+    Value<String?> sourceId = const Value.absent(),
+    Value<String?> sourceName = const Value.absent(),
+    Value<String?> path = const Value.absent(),
+    Value<String?> fileName = const Value.absent(),
+    Value<String?> pickcode = const Value.absent(),
+    Value<int?> size = const Value.absent(),
+    int? positionMs,
+    Value<int?> durationMs = const Value.absent(),
+    DateTime? playedAt,
+  }) => PlayHistoryEntry(
+    id: id ?? this.id,
+    kind: kind ?? this.kind,
+    title: title ?? this.title,
+    workId: workId.present ? workId.value : this.workId,
+    sourceKind: sourceKind.present ? sourceKind.value : this.sourceKind,
+    sourceId: sourceId.present ? sourceId.value : this.sourceId,
+    sourceName: sourceName.present ? sourceName.value : this.sourceName,
+    path: path.present ? path.value : this.path,
+    fileName: fileName.present ? fileName.value : this.fileName,
+    pickcode: pickcode.present ? pickcode.value : this.pickcode,
+    size: size.present ? size.value : this.size,
+    positionMs: positionMs ?? this.positionMs,
+    durationMs: durationMs.present ? durationMs.value : this.durationMs,
+    playedAt: playedAt ?? this.playedAt,
+  );
+  PlayHistoryEntry copyWithCompanion(PlayHistoryEntriesCompanion data) {
+    return PlayHistoryEntry(
+      id: data.id.present ? data.id.value : this.id,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      title: data.title.present ? data.title.value : this.title,
+      workId: data.workId.present ? data.workId.value : this.workId,
+      sourceKind: data.sourceKind.present
+          ? data.sourceKind.value
+          : this.sourceKind,
+      sourceId: data.sourceId.present ? data.sourceId.value : this.sourceId,
+      sourceName: data.sourceName.present
+          ? data.sourceName.value
+          : this.sourceName,
+      path: data.path.present ? data.path.value : this.path,
+      fileName: data.fileName.present ? data.fileName.value : this.fileName,
+      pickcode: data.pickcode.present ? data.pickcode.value : this.pickcode,
+      size: data.size.present ? data.size.value : this.size,
+      positionMs: data.positionMs.present
+          ? data.positionMs.value
+          : this.positionMs,
+      durationMs: data.durationMs.present
+          ? data.durationMs.value
+          : this.durationMs,
+      playedAt: data.playedAt.present ? data.playedAt.value : this.playedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PlayHistoryEntry(')
+          ..write('id: $id, ')
+          ..write('kind: $kind, ')
+          ..write('title: $title, ')
+          ..write('workId: $workId, ')
+          ..write('sourceKind: $sourceKind, ')
+          ..write('sourceId: $sourceId, ')
+          ..write('sourceName: $sourceName, ')
+          ..write('path: $path, ')
+          ..write('fileName: $fileName, ')
+          ..write('pickcode: $pickcode, ')
+          ..write('size: $size, ')
+          ..write('positionMs: $positionMs, ')
+          ..write('durationMs: $durationMs, ')
+          ..write('playedAt: $playedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    kind,
+    title,
+    workId,
+    sourceKind,
+    sourceId,
+    sourceName,
+    path,
+    fileName,
+    pickcode,
+    size,
+    positionMs,
+    durationMs,
+    playedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PlayHistoryEntry &&
+          other.id == this.id &&
+          other.kind == this.kind &&
+          other.title == this.title &&
+          other.workId == this.workId &&
+          other.sourceKind == this.sourceKind &&
+          other.sourceId == this.sourceId &&
+          other.sourceName == this.sourceName &&
+          other.path == this.path &&
+          other.fileName == this.fileName &&
+          other.pickcode == this.pickcode &&
+          other.size == this.size &&
+          other.positionMs == this.positionMs &&
+          other.durationMs == this.durationMs &&
+          other.playedAt == this.playedAt);
+}
+
+class PlayHistoryEntriesCompanion extends UpdateCompanion<PlayHistoryEntry> {
+  final Value<String> id;
+  final Value<String> kind;
+  final Value<String> title;
+  final Value<String?> workId;
+  final Value<String?> sourceKind;
+  final Value<String?> sourceId;
+  final Value<String?> sourceName;
+  final Value<String?> path;
+  final Value<String?> fileName;
+  final Value<String?> pickcode;
+  final Value<int?> size;
+  final Value<int> positionMs;
+  final Value<int?> durationMs;
+  final Value<DateTime> playedAt;
+  final Value<int> rowid;
+  const PlayHistoryEntriesCompanion({
+    this.id = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.title = const Value.absent(),
+    this.workId = const Value.absent(),
+    this.sourceKind = const Value.absent(),
+    this.sourceId = const Value.absent(),
+    this.sourceName = const Value.absent(),
+    this.path = const Value.absent(),
+    this.fileName = const Value.absent(),
+    this.pickcode = const Value.absent(),
+    this.size = const Value.absent(),
+    this.positionMs = const Value.absent(),
+    this.durationMs = const Value.absent(),
+    this.playedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  PlayHistoryEntriesCompanion.insert({
+    required String id,
+    required String kind,
+    required String title,
+    this.workId = const Value.absent(),
+    this.sourceKind = const Value.absent(),
+    this.sourceId = const Value.absent(),
+    this.sourceName = const Value.absent(),
+    this.path = const Value.absent(),
+    this.fileName = const Value.absent(),
+    this.pickcode = const Value.absent(),
+    this.size = const Value.absent(),
+    this.positionMs = const Value.absent(),
+    this.durationMs = const Value.absent(),
+    required DateTime playedAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       kind = Value(kind),
+       title = Value(title),
+       playedAt = Value(playedAt);
+  static Insertable<PlayHistoryEntry> custom({
+    Expression<String>? id,
+    Expression<String>? kind,
+    Expression<String>? title,
+    Expression<String>? workId,
+    Expression<String>? sourceKind,
+    Expression<String>? sourceId,
+    Expression<String>? sourceName,
+    Expression<String>? path,
+    Expression<String>? fileName,
+    Expression<String>? pickcode,
+    Expression<int>? size,
+    Expression<int>? positionMs,
+    Expression<int>? durationMs,
+    Expression<DateTime>? playedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (kind != null) 'kind': kind,
+      if (title != null) 'title': title,
+      if (workId != null) 'work_id': workId,
+      if (sourceKind != null) 'source_kind': sourceKind,
+      if (sourceId != null) 'source_id': sourceId,
+      if (sourceName != null) 'source_name': sourceName,
+      if (path != null) 'path': path,
+      if (fileName != null) 'file_name': fileName,
+      if (pickcode != null) 'pickcode': pickcode,
+      if (size != null) 'size': size,
+      if (positionMs != null) 'position_ms': positionMs,
+      if (durationMs != null) 'duration_ms': durationMs,
+      if (playedAt != null) 'played_at': playedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  PlayHistoryEntriesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? kind,
+    Value<String>? title,
+    Value<String?>? workId,
+    Value<String?>? sourceKind,
+    Value<String?>? sourceId,
+    Value<String?>? sourceName,
+    Value<String?>? path,
+    Value<String?>? fileName,
+    Value<String?>? pickcode,
+    Value<int?>? size,
+    Value<int>? positionMs,
+    Value<int?>? durationMs,
+    Value<DateTime>? playedAt,
+    Value<int>? rowid,
+  }) {
+    return PlayHistoryEntriesCompanion(
+      id: id ?? this.id,
+      kind: kind ?? this.kind,
+      title: title ?? this.title,
+      workId: workId ?? this.workId,
+      sourceKind: sourceKind ?? this.sourceKind,
+      sourceId: sourceId ?? this.sourceId,
+      sourceName: sourceName ?? this.sourceName,
+      path: path ?? this.path,
+      fileName: fileName ?? this.fileName,
+      pickcode: pickcode ?? this.pickcode,
+      size: size ?? this.size,
+      positionMs: positionMs ?? this.positionMs,
+      durationMs: durationMs ?? this.durationMs,
+      playedAt: playedAt ?? this.playedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (workId.present) {
+      map['work_id'] = Variable<String>(workId.value);
+    }
+    if (sourceKind.present) {
+      map['source_kind'] = Variable<String>(sourceKind.value);
+    }
+    if (sourceId.present) {
+      map['source_id'] = Variable<String>(sourceId.value);
+    }
+    if (sourceName.present) {
+      map['source_name'] = Variable<String>(sourceName.value);
+    }
+    if (path.present) {
+      map['path'] = Variable<String>(path.value);
+    }
+    if (fileName.present) {
+      map['file_name'] = Variable<String>(fileName.value);
+    }
+    if (pickcode.present) {
+      map['pickcode'] = Variable<String>(pickcode.value);
+    }
+    if (size.present) {
+      map['size'] = Variable<int>(size.value);
+    }
+    if (positionMs.present) {
+      map['position_ms'] = Variable<int>(positionMs.value);
+    }
+    if (durationMs.present) {
+      map['duration_ms'] = Variable<int>(durationMs.value);
+    }
+    if (playedAt.present) {
+      map['played_at'] = Variable<DateTime>(playedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PlayHistoryEntriesCompanion(')
+          ..write('id: $id, ')
+          ..write('kind: $kind, ')
+          ..write('title: $title, ')
+          ..write('workId: $workId, ')
+          ..write('sourceKind: $sourceKind, ')
+          ..write('sourceId: $sourceId, ')
+          ..write('sourceName: $sourceName, ')
+          ..write('path: $path, ')
+          ..write('fileName: $fileName, ')
+          ..write('pickcode: $pickcode, ')
+          ..write('size: $size, ')
+          ..write('positionMs: $positionMs, ')
+          ..write('durationMs: $durationMs, ')
+          ..write('playedAt: $playedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $VideoItemsTable extends VideoItems
+    with TableInfo<$VideoItemsTable, VideoItem> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $VideoItemsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sourceKindMeta = const VerificationMeta(
+    'sourceKind',
+  );
+  @override
+  late final GeneratedColumn<String> sourceKind = GeneratedColumn<String>(
+    'source_kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sourceIdMeta = const VerificationMeta(
+    'sourceId',
+  );
+  @override
+  late final GeneratedColumn<String> sourceId = GeneratedColumn<String>(
+    'source_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sourceNameMeta = const VerificationMeta(
+    'sourceName',
+  );
+  @override
+  late final GeneratedColumn<String> sourceName = GeneratedColumn<String>(
+    'source_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _pathMeta = const VerificationMeta('path');
+  @override
+  late final GeneratedColumn<String> path = GeneratedColumn<String>(
+    'path',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _fileNameMeta = const VerificationMeta(
+    'fileName',
+  );
+  @override
+  late final GeneratedColumn<String> fileName = GeneratedColumn<String>(
+    'file_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _pickcodeMeta = const VerificationMeta(
+    'pickcode',
+  );
+  @override
+  late final GeneratedColumn<String> pickcode = GeneratedColumn<String>(
+    'pickcode',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sizeMeta = const VerificationMeta('size');
+  @override
+  late final GeneratedColumn<int> size = GeneratedColumn<int>(
+    'size',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _customTitleMeta = const VerificationMeta(
+    'customTitle',
+  );
+  @override
+  late final GeneratedColumn<String> customTitle = GeneratedColumn<String>(
+    'custom_title',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _coverPathMeta = const VerificationMeta(
+    'coverPath',
+  );
+  @override
+  late final GeneratedColumn<String> coverPath = GeneratedColumn<String>(
+    'cover_path',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isFavoriteMeta = const VerificationMeta(
+    'isFavorite',
+  );
+  @override
+  late final GeneratedColumn<bool> isFavorite = GeneratedColumn<bool>(
+    'is_favorite',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_favorite" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _addedAtMeta = const VerificationMeta(
+    'addedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> addedAt = GeneratedColumn<DateTime>(
+    'added_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _lastPlayedAtMeta = const VerificationMeta(
+    'lastPlayedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastPlayedAt = GeneratedColumn<DateTime>(
+    'last_played_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    sourceKind,
+    sourceId,
+    sourceName,
+    path,
+    fileName,
+    pickcode,
+    size,
+    customTitle,
+    coverPath,
+    isFavorite,
+    addedAt,
+    lastPlayedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'video_items';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<VideoItem> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('source_kind')) {
+      context.handle(
+        _sourceKindMeta,
+        sourceKind.isAcceptableOrUnknown(data['source_kind']!, _sourceKindMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sourceKindMeta);
+    }
+    if (data.containsKey('source_id')) {
+      context.handle(
+        _sourceIdMeta,
+        sourceId.isAcceptableOrUnknown(data['source_id']!, _sourceIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sourceIdMeta);
+    }
+    if (data.containsKey('source_name')) {
+      context.handle(
+        _sourceNameMeta,
+        sourceName.isAcceptableOrUnknown(data['source_name']!, _sourceNameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sourceNameMeta);
+    }
+    if (data.containsKey('path')) {
+      context.handle(
+        _pathMeta,
+        path.isAcceptableOrUnknown(data['path']!, _pathMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_pathMeta);
+    }
+    if (data.containsKey('file_name')) {
+      context.handle(
+        _fileNameMeta,
+        fileName.isAcceptableOrUnknown(data['file_name']!, _fileNameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_fileNameMeta);
+    }
+    if (data.containsKey('pickcode')) {
+      context.handle(
+        _pickcodeMeta,
+        pickcode.isAcceptableOrUnknown(data['pickcode']!, _pickcodeMeta),
+      );
+    }
+    if (data.containsKey('size')) {
+      context.handle(
+        _sizeMeta,
+        size.isAcceptableOrUnknown(data['size']!, _sizeMeta),
+      );
+    }
+    if (data.containsKey('custom_title')) {
+      context.handle(
+        _customTitleMeta,
+        customTitle.isAcceptableOrUnknown(
+          data['custom_title']!,
+          _customTitleMeta,
+        ),
+      );
+    }
+    if (data.containsKey('cover_path')) {
+      context.handle(
+        _coverPathMeta,
+        coverPath.isAcceptableOrUnknown(data['cover_path']!, _coverPathMeta),
+      );
+    }
+    if (data.containsKey('is_favorite')) {
+      context.handle(
+        _isFavoriteMeta,
+        isFavorite.isAcceptableOrUnknown(data['is_favorite']!, _isFavoriteMeta),
+      );
+    }
+    if (data.containsKey('added_at')) {
+      context.handle(
+        _addedAtMeta,
+        addedAt.isAcceptableOrUnknown(data['added_at']!, _addedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_addedAtMeta);
+    }
+    if (data.containsKey('last_played_at')) {
+      context.handle(
+        _lastPlayedAtMeta,
+        lastPlayedAt.isAcceptableOrUnknown(
+          data['last_played_at']!,
+          _lastPlayedAtMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  VideoItem map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return VideoItem(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      sourceKind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_kind'],
+      )!,
+      sourceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_id'],
+      )!,
+      sourceName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_name'],
+      )!,
+      path: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}path'],
+      )!,
+      fileName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}file_name'],
+      )!,
+      pickcode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}pickcode'],
+      ),
+      size: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}size'],
+      ),
+      customTitle: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}custom_title'],
+      ),
+      coverPath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}cover_path'],
+      ),
+      isFavorite: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_favorite'],
+      )!,
+      addedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}added_at'],
+      )!,
+      lastPlayedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_played_at'],
+      ),
+    );
+  }
+
+  @override
+  $VideoItemsTable createAlias(String alias) {
+    return $VideoItemsTable(attachedDatabase, alias);
+  }
+}
+
+class VideoItem extends DataClass implements Insertable<VideoItem> {
+  final String id;
+  final String sourceKind;
+  final String sourceId;
+  final String sourceName;
+  final String path;
+  final String fileName;
+  final String? pickcode;
+  final int? size;
+  final String? customTitle;
+
+  /// Cover image path relative to the documents directory.
+  final String? coverPath;
+  final bool isFavorite;
+  final DateTime addedAt;
+  final DateTime? lastPlayedAt;
+  const VideoItem({
+    required this.id,
+    required this.sourceKind,
+    required this.sourceId,
+    required this.sourceName,
+    required this.path,
+    required this.fileName,
+    this.pickcode,
+    this.size,
+    this.customTitle,
+    this.coverPath,
+    required this.isFavorite,
+    required this.addedAt,
+    this.lastPlayedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['source_kind'] = Variable<String>(sourceKind);
+    map['source_id'] = Variable<String>(sourceId);
+    map['source_name'] = Variable<String>(sourceName);
+    map['path'] = Variable<String>(path);
+    map['file_name'] = Variable<String>(fileName);
+    if (!nullToAbsent || pickcode != null) {
+      map['pickcode'] = Variable<String>(pickcode);
+    }
+    if (!nullToAbsent || size != null) {
+      map['size'] = Variable<int>(size);
+    }
+    if (!nullToAbsent || customTitle != null) {
+      map['custom_title'] = Variable<String>(customTitle);
+    }
+    if (!nullToAbsent || coverPath != null) {
+      map['cover_path'] = Variable<String>(coverPath);
+    }
+    map['is_favorite'] = Variable<bool>(isFavorite);
+    map['added_at'] = Variable<DateTime>(addedAt);
+    if (!nullToAbsent || lastPlayedAt != null) {
+      map['last_played_at'] = Variable<DateTime>(lastPlayedAt);
+    }
+    return map;
+  }
+
+  VideoItemsCompanion toCompanion(bool nullToAbsent) {
+    return VideoItemsCompanion(
+      id: Value(id),
+      sourceKind: Value(sourceKind),
+      sourceId: Value(sourceId),
+      sourceName: Value(sourceName),
+      path: Value(path),
+      fileName: Value(fileName),
+      pickcode: pickcode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(pickcode),
+      size: size == null && nullToAbsent ? const Value.absent() : Value(size),
+      customTitle: customTitle == null && nullToAbsent
+          ? const Value.absent()
+          : Value(customTitle),
+      coverPath: coverPath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(coverPath),
+      isFavorite: Value(isFavorite),
+      addedAt: Value(addedAt),
+      lastPlayedAt: lastPlayedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastPlayedAt),
+    );
+  }
+
+  factory VideoItem.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return VideoItem(
+      id: serializer.fromJson<String>(json['id']),
+      sourceKind: serializer.fromJson<String>(json['sourceKind']),
+      sourceId: serializer.fromJson<String>(json['sourceId']),
+      sourceName: serializer.fromJson<String>(json['sourceName']),
+      path: serializer.fromJson<String>(json['path']),
+      fileName: serializer.fromJson<String>(json['fileName']),
+      pickcode: serializer.fromJson<String?>(json['pickcode']),
+      size: serializer.fromJson<int?>(json['size']),
+      customTitle: serializer.fromJson<String?>(json['customTitle']),
+      coverPath: serializer.fromJson<String?>(json['coverPath']),
+      isFavorite: serializer.fromJson<bool>(json['isFavorite']),
+      addedAt: serializer.fromJson<DateTime>(json['addedAt']),
+      lastPlayedAt: serializer.fromJson<DateTime?>(json['lastPlayedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'sourceKind': serializer.toJson<String>(sourceKind),
+      'sourceId': serializer.toJson<String>(sourceId),
+      'sourceName': serializer.toJson<String>(sourceName),
+      'path': serializer.toJson<String>(path),
+      'fileName': serializer.toJson<String>(fileName),
+      'pickcode': serializer.toJson<String?>(pickcode),
+      'size': serializer.toJson<int?>(size),
+      'customTitle': serializer.toJson<String?>(customTitle),
+      'coverPath': serializer.toJson<String?>(coverPath),
+      'isFavorite': serializer.toJson<bool>(isFavorite),
+      'addedAt': serializer.toJson<DateTime>(addedAt),
+      'lastPlayedAt': serializer.toJson<DateTime?>(lastPlayedAt),
+    };
+  }
+
+  VideoItem copyWith({
+    String? id,
+    String? sourceKind,
+    String? sourceId,
+    String? sourceName,
+    String? path,
+    String? fileName,
+    Value<String?> pickcode = const Value.absent(),
+    Value<int?> size = const Value.absent(),
+    Value<String?> customTitle = const Value.absent(),
+    Value<String?> coverPath = const Value.absent(),
+    bool? isFavorite,
+    DateTime? addedAt,
+    Value<DateTime?> lastPlayedAt = const Value.absent(),
+  }) => VideoItem(
+    id: id ?? this.id,
+    sourceKind: sourceKind ?? this.sourceKind,
+    sourceId: sourceId ?? this.sourceId,
+    sourceName: sourceName ?? this.sourceName,
+    path: path ?? this.path,
+    fileName: fileName ?? this.fileName,
+    pickcode: pickcode.present ? pickcode.value : this.pickcode,
+    size: size.present ? size.value : this.size,
+    customTitle: customTitle.present ? customTitle.value : this.customTitle,
+    coverPath: coverPath.present ? coverPath.value : this.coverPath,
+    isFavorite: isFavorite ?? this.isFavorite,
+    addedAt: addedAt ?? this.addedAt,
+    lastPlayedAt: lastPlayedAt.present ? lastPlayedAt.value : this.lastPlayedAt,
+  );
+  VideoItem copyWithCompanion(VideoItemsCompanion data) {
+    return VideoItem(
+      id: data.id.present ? data.id.value : this.id,
+      sourceKind: data.sourceKind.present
+          ? data.sourceKind.value
+          : this.sourceKind,
+      sourceId: data.sourceId.present ? data.sourceId.value : this.sourceId,
+      sourceName: data.sourceName.present
+          ? data.sourceName.value
+          : this.sourceName,
+      path: data.path.present ? data.path.value : this.path,
+      fileName: data.fileName.present ? data.fileName.value : this.fileName,
+      pickcode: data.pickcode.present ? data.pickcode.value : this.pickcode,
+      size: data.size.present ? data.size.value : this.size,
+      customTitle: data.customTitle.present
+          ? data.customTitle.value
+          : this.customTitle,
+      coverPath: data.coverPath.present ? data.coverPath.value : this.coverPath,
+      isFavorite: data.isFavorite.present
+          ? data.isFavorite.value
+          : this.isFavorite,
+      addedAt: data.addedAt.present ? data.addedAt.value : this.addedAt,
+      lastPlayedAt: data.lastPlayedAt.present
+          ? data.lastPlayedAt.value
+          : this.lastPlayedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('VideoItem(')
+          ..write('id: $id, ')
+          ..write('sourceKind: $sourceKind, ')
+          ..write('sourceId: $sourceId, ')
+          ..write('sourceName: $sourceName, ')
+          ..write('path: $path, ')
+          ..write('fileName: $fileName, ')
+          ..write('pickcode: $pickcode, ')
+          ..write('size: $size, ')
+          ..write('customTitle: $customTitle, ')
+          ..write('coverPath: $coverPath, ')
+          ..write('isFavorite: $isFavorite, ')
+          ..write('addedAt: $addedAt, ')
+          ..write('lastPlayedAt: $lastPlayedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    sourceKind,
+    sourceId,
+    sourceName,
+    path,
+    fileName,
+    pickcode,
+    size,
+    customTitle,
+    coverPath,
+    isFavorite,
+    addedAt,
+    lastPlayedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is VideoItem &&
+          other.id == this.id &&
+          other.sourceKind == this.sourceKind &&
+          other.sourceId == this.sourceId &&
+          other.sourceName == this.sourceName &&
+          other.path == this.path &&
+          other.fileName == this.fileName &&
+          other.pickcode == this.pickcode &&
+          other.size == this.size &&
+          other.customTitle == this.customTitle &&
+          other.coverPath == this.coverPath &&
+          other.isFavorite == this.isFavorite &&
+          other.addedAt == this.addedAt &&
+          other.lastPlayedAt == this.lastPlayedAt);
+}
+
+class VideoItemsCompanion extends UpdateCompanion<VideoItem> {
+  final Value<String> id;
+  final Value<String> sourceKind;
+  final Value<String> sourceId;
+  final Value<String> sourceName;
+  final Value<String> path;
+  final Value<String> fileName;
+  final Value<String?> pickcode;
+  final Value<int?> size;
+  final Value<String?> customTitle;
+  final Value<String?> coverPath;
+  final Value<bool> isFavorite;
+  final Value<DateTime> addedAt;
+  final Value<DateTime?> lastPlayedAt;
+  final Value<int> rowid;
+  const VideoItemsCompanion({
+    this.id = const Value.absent(),
+    this.sourceKind = const Value.absent(),
+    this.sourceId = const Value.absent(),
+    this.sourceName = const Value.absent(),
+    this.path = const Value.absent(),
+    this.fileName = const Value.absent(),
+    this.pickcode = const Value.absent(),
+    this.size = const Value.absent(),
+    this.customTitle = const Value.absent(),
+    this.coverPath = const Value.absent(),
+    this.isFavorite = const Value.absent(),
+    this.addedAt = const Value.absent(),
+    this.lastPlayedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  VideoItemsCompanion.insert({
+    required String id,
+    required String sourceKind,
+    required String sourceId,
+    required String sourceName,
+    required String path,
+    required String fileName,
+    this.pickcode = const Value.absent(),
+    this.size = const Value.absent(),
+    this.customTitle = const Value.absent(),
+    this.coverPath = const Value.absent(),
+    this.isFavorite = const Value.absent(),
+    required DateTime addedAt,
+    this.lastPlayedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       sourceKind = Value(sourceKind),
+       sourceId = Value(sourceId),
+       sourceName = Value(sourceName),
+       path = Value(path),
+       fileName = Value(fileName),
+       addedAt = Value(addedAt);
+  static Insertable<VideoItem> custom({
+    Expression<String>? id,
+    Expression<String>? sourceKind,
+    Expression<String>? sourceId,
+    Expression<String>? sourceName,
+    Expression<String>? path,
+    Expression<String>? fileName,
+    Expression<String>? pickcode,
+    Expression<int>? size,
+    Expression<String>? customTitle,
+    Expression<String>? coverPath,
+    Expression<bool>? isFavorite,
+    Expression<DateTime>? addedAt,
+    Expression<DateTime>? lastPlayedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (sourceKind != null) 'source_kind': sourceKind,
+      if (sourceId != null) 'source_id': sourceId,
+      if (sourceName != null) 'source_name': sourceName,
+      if (path != null) 'path': path,
+      if (fileName != null) 'file_name': fileName,
+      if (pickcode != null) 'pickcode': pickcode,
+      if (size != null) 'size': size,
+      if (customTitle != null) 'custom_title': customTitle,
+      if (coverPath != null) 'cover_path': coverPath,
+      if (isFavorite != null) 'is_favorite': isFavorite,
+      if (addedAt != null) 'added_at': addedAt,
+      if (lastPlayedAt != null) 'last_played_at': lastPlayedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  VideoItemsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? sourceKind,
+    Value<String>? sourceId,
+    Value<String>? sourceName,
+    Value<String>? path,
+    Value<String>? fileName,
+    Value<String?>? pickcode,
+    Value<int?>? size,
+    Value<String?>? customTitle,
+    Value<String?>? coverPath,
+    Value<bool>? isFavorite,
+    Value<DateTime>? addedAt,
+    Value<DateTime?>? lastPlayedAt,
+    Value<int>? rowid,
+  }) {
+    return VideoItemsCompanion(
+      id: id ?? this.id,
+      sourceKind: sourceKind ?? this.sourceKind,
+      sourceId: sourceId ?? this.sourceId,
+      sourceName: sourceName ?? this.sourceName,
+      path: path ?? this.path,
+      fileName: fileName ?? this.fileName,
+      pickcode: pickcode ?? this.pickcode,
+      size: size ?? this.size,
+      customTitle: customTitle ?? this.customTitle,
+      coverPath: coverPath ?? this.coverPath,
+      isFavorite: isFavorite ?? this.isFavorite,
+      addedAt: addedAt ?? this.addedAt,
+      lastPlayedAt: lastPlayedAt ?? this.lastPlayedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (sourceKind.present) {
+      map['source_kind'] = Variable<String>(sourceKind.value);
+    }
+    if (sourceId.present) {
+      map['source_id'] = Variable<String>(sourceId.value);
+    }
+    if (sourceName.present) {
+      map['source_name'] = Variable<String>(sourceName.value);
+    }
+    if (path.present) {
+      map['path'] = Variable<String>(path.value);
+    }
+    if (fileName.present) {
+      map['file_name'] = Variable<String>(fileName.value);
+    }
+    if (pickcode.present) {
+      map['pickcode'] = Variable<String>(pickcode.value);
+    }
+    if (size.present) {
+      map['size'] = Variable<int>(size.value);
+    }
+    if (customTitle.present) {
+      map['custom_title'] = Variable<String>(customTitle.value);
+    }
+    if (coverPath.present) {
+      map['cover_path'] = Variable<String>(coverPath.value);
+    }
+    if (isFavorite.present) {
+      map['is_favorite'] = Variable<bool>(isFavorite.value);
+    }
+    if (addedAt.present) {
+      map['added_at'] = Variable<DateTime>(addedAt.value);
+    }
+    if (lastPlayedAt.present) {
+      map['last_played_at'] = Variable<DateTime>(lastPlayedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('VideoItemsCompanion(')
+          ..write('id: $id, ')
+          ..write('sourceKind: $sourceKind, ')
+          ..write('sourceId: $sourceId, ')
+          ..write('sourceName: $sourceName, ')
+          ..write('path: $path, ')
+          ..write('fileName: $fileName, ')
+          ..write('pickcode: $pickcode, ')
+          ..write('size: $size, ')
+          ..write('customTitle: $customTitle, ')
+          ..write('coverPath: $coverPath, ')
+          ..write('isFavorite: $isFavorite, ')
+          ..write('addedAt: $addedAt, ')
+          ..write('lastPlayedAt: $lastPlayedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $CollectionVideosTable extends CollectionVideos
+    with TableInfo<$CollectionVideosTable, CollectionVideo> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CollectionVideosTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _collectionIdMeta = const VerificationMeta(
+    'collectionId',
+  );
+  @override
+  late final GeneratedColumn<String> collectionId = GeneratedColumn<String>(
+    'collection_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _videoIdMeta = const VerificationMeta(
+    'videoId',
+  );
+  @override
+  late final GeneratedColumn<String> videoId = GeneratedColumn<String>(
+    'video_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _addedAtMeta = const VerificationMeta(
+    'addedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> addedAt = GeneratedColumn<DateTime>(
+    'added_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [collectionId, videoId, addedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'collection_videos';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<CollectionVideo> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('collection_id')) {
+      context.handle(
+        _collectionIdMeta,
+        collectionId.isAcceptableOrUnknown(
+          data['collection_id']!,
+          _collectionIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_collectionIdMeta);
+    }
+    if (data.containsKey('video_id')) {
+      context.handle(
+        _videoIdMeta,
+        videoId.isAcceptableOrUnknown(data['video_id']!, _videoIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_videoIdMeta);
+    }
+    if (data.containsKey('added_at')) {
+      context.handle(
+        _addedAtMeta,
+        addedAt.isAcceptableOrUnknown(data['added_at']!, _addedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_addedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {collectionId, videoId};
+  @override
+  CollectionVideo map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CollectionVideo(
+      collectionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}collection_id'],
+      )!,
+      videoId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}video_id'],
+      )!,
+      addedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}added_at'],
+      )!,
+    );
+  }
+
+  @override
+  $CollectionVideosTable createAlias(String alias) {
+    return $CollectionVideosTable(attachedDatabase, alias);
+  }
+}
+
+class CollectionVideo extends DataClass implements Insertable<CollectionVideo> {
+  final String collectionId;
+  final String videoId;
+  final DateTime addedAt;
+  const CollectionVideo({
+    required this.collectionId,
+    required this.videoId,
+    required this.addedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['collection_id'] = Variable<String>(collectionId);
+    map['video_id'] = Variable<String>(videoId);
+    map['added_at'] = Variable<DateTime>(addedAt);
+    return map;
+  }
+
+  CollectionVideosCompanion toCompanion(bool nullToAbsent) {
+    return CollectionVideosCompanion(
+      collectionId: Value(collectionId),
+      videoId: Value(videoId),
+      addedAt: Value(addedAt),
+    );
+  }
+
+  factory CollectionVideo.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CollectionVideo(
+      collectionId: serializer.fromJson<String>(json['collectionId']),
+      videoId: serializer.fromJson<String>(json['videoId']),
+      addedAt: serializer.fromJson<DateTime>(json['addedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'collectionId': serializer.toJson<String>(collectionId),
+      'videoId': serializer.toJson<String>(videoId),
+      'addedAt': serializer.toJson<DateTime>(addedAt),
+    };
+  }
+
+  CollectionVideo copyWith({
+    String? collectionId,
+    String? videoId,
+    DateTime? addedAt,
+  }) => CollectionVideo(
+    collectionId: collectionId ?? this.collectionId,
+    videoId: videoId ?? this.videoId,
+    addedAt: addedAt ?? this.addedAt,
+  );
+  CollectionVideo copyWithCompanion(CollectionVideosCompanion data) {
+    return CollectionVideo(
+      collectionId: data.collectionId.present
+          ? data.collectionId.value
+          : this.collectionId,
+      videoId: data.videoId.present ? data.videoId.value : this.videoId,
+      addedAt: data.addedAt.present ? data.addedAt.value : this.addedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CollectionVideo(')
+          ..write('collectionId: $collectionId, ')
+          ..write('videoId: $videoId, ')
+          ..write('addedAt: $addedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(collectionId, videoId, addedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CollectionVideo &&
+          other.collectionId == this.collectionId &&
+          other.videoId == this.videoId &&
+          other.addedAt == this.addedAt);
+}
+
+class CollectionVideosCompanion extends UpdateCompanion<CollectionVideo> {
+  final Value<String> collectionId;
+  final Value<String> videoId;
+  final Value<DateTime> addedAt;
+  final Value<int> rowid;
+  const CollectionVideosCompanion({
+    this.collectionId = const Value.absent(),
+    this.videoId = const Value.absent(),
+    this.addedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CollectionVideosCompanion.insert({
+    required String collectionId,
+    required String videoId,
+    required DateTime addedAt,
+    this.rowid = const Value.absent(),
+  }) : collectionId = Value(collectionId),
+       videoId = Value(videoId),
+       addedAt = Value(addedAt);
+  static Insertable<CollectionVideo> custom({
+    Expression<String>? collectionId,
+    Expression<String>? videoId,
+    Expression<DateTime>? addedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (collectionId != null) 'collection_id': collectionId,
+      if (videoId != null) 'video_id': videoId,
+      if (addedAt != null) 'added_at': addedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CollectionVideosCompanion copyWith({
+    Value<String>? collectionId,
+    Value<String>? videoId,
+    Value<DateTime>? addedAt,
+    Value<int>? rowid,
+  }) {
+    return CollectionVideosCompanion(
+      collectionId: collectionId ?? this.collectionId,
+      videoId: videoId ?? this.videoId,
+      addedAt: addedAt ?? this.addedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (collectionId.present) {
+      map['collection_id'] = Variable<String>(collectionId.value);
+    }
+    if (videoId.present) {
+      map['video_id'] = Variable<String>(videoId.value);
+    }
+    if (addedAt.present) {
+      map['added_at'] = Variable<DateTime>(addedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CollectionVideosCompanion(')
+          ..write('collectionId: $collectionId, ')
+          ..write('videoId: $videoId, ')
+          ..write('addedAt: $addedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$TonariDatabase extends GeneratedDatabase {
   _$TonariDatabase(QueryExecutor e) : super(e);
   $TonariDatabaseManager get managers => $TonariDatabaseManager(this);
@@ -8402,6 +10250,12 @@ abstract class _$TonariDatabase extends GeneratedDatabase {
   late final $CollectionWorksTable collectionWorks = $CollectionWorksTable(
     this,
   );
+  late final $PlayHistoryEntriesTable playHistoryEntries =
+      $PlayHistoryEntriesTable(this);
+  late final $VideoItemsTable videoItems = $VideoItemsTable(this);
+  late final $CollectionVideosTable collectionVideos = $CollectionVideosTable(
+    this,
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -8417,6 +10271,9 @@ abstract class _$TonariDatabase extends GeneratedDatabase {
     appEvents,
     collections,
     collectionWorks,
+    playHistoryEntries,
+    videoItems,
+    collectionVideos,
   ];
 }
 
@@ -12908,6 +14765,934 @@ typedef $$CollectionWorksTableProcessedTableManager =
       CollectionWork,
       PrefetchHooks Function()
     >;
+typedef $$PlayHistoryEntriesTableCreateCompanionBuilder =
+    PlayHistoryEntriesCompanion Function({
+      required String id,
+      required String kind,
+      required String title,
+      Value<String?> workId,
+      Value<String?> sourceKind,
+      Value<String?> sourceId,
+      Value<String?> sourceName,
+      Value<String?> path,
+      Value<String?> fileName,
+      Value<String?> pickcode,
+      Value<int?> size,
+      Value<int> positionMs,
+      Value<int?> durationMs,
+      required DateTime playedAt,
+      Value<int> rowid,
+    });
+typedef $$PlayHistoryEntriesTableUpdateCompanionBuilder =
+    PlayHistoryEntriesCompanion Function({
+      Value<String> id,
+      Value<String> kind,
+      Value<String> title,
+      Value<String?> workId,
+      Value<String?> sourceKind,
+      Value<String?> sourceId,
+      Value<String?> sourceName,
+      Value<String?> path,
+      Value<String?> fileName,
+      Value<String?> pickcode,
+      Value<int?> size,
+      Value<int> positionMs,
+      Value<int?> durationMs,
+      Value<DateTime> playedAt,
+      Value<int> rowid,
+    });
+
+class $$PlayHistoryEntriesTableFilterComposer
+    extends Composer<_$TonariDatabase, $PlayHistoryEntriesTable> {
+  $$PlayHistoryEntriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get workId => $composableBuilder(
+    column: $table.workId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceKind => $composableBuilder(
+    column: $table.sourceKind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceId => $composableBuilder(
+    column: $table.sourceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceName => $composableBuilder(
+    column: $table.sourceName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get path => $composableBuilder(
+    column: $table.path,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get fileName => $composableBuilder(
+    column: $table.fileName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get pickcode => $composableBuilder(
+    column: $table.pickcode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get size => $composableBuilder(
+    column: $table.size,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get positionMs => $composableBuilder(
+    column: $table.positionMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get durationMs => $composableBuilder(
+    column: $table.durationMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get playedAt => $composableBuilder(
+    column: $table.playedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$PlayHistoryEntriesTableOrderingComposer
+    extends Composer<_$TonariDatabase, $PlayHistoryEntriesTable> {
+  $$PlayHistoryEntriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get workId => $composableBuilder(
+    column: $table.workId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceKind => $composableBuilder(
+    column: $table.sourceKind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceId => $composableBuilder(
+    column: $table.sourceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceName => $composableBuilder(
+    column: $table.sourceName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get path => $composableBuilder(
+    column: $table.path,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get fileName => $composableBuilder(
+    column: $table.fileName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get pickcode => $composableBuilder(
+    column: $table.pickcode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get size => $composableBuilder(
+    column: $table.size,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get positionMs => $composableBuilder(
+    column: $table.positionMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get durationMs => $composableBuilder(
+    column: $table.durationMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get playedAt => $composableBuilder(
+    column: $table.playedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$PlayHistoryEntriesTableAnnotationComposer
+    extends Composer<_$TonariDatabase, $PlayHistoryEntriesTable> {
+  $$PlayHistoryEntriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get workId =>
+      $composableBuilder(column: $table.workId, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceKind => $composableBuilder(
+    column: $table.sourceKind,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get sourceId =>
+      $composableBuilder(column: $table.sourceId, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceName => $composableBuilder(
+    column: $table.sourceName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get path =>
+      $composableBuilder(column: $table.path, builder: (column) => column);
+
+  GeneratedColumn<String> get fileName =>
+      $composableBuilder(column: $table.fileName, builder: (column) => column);
+
+  GeneratedColumn<String> get pickcode =>
+      $composableBuilder(column: $table.pickcode, builder: (column) => column);
+
+  GeneratedColumn<int> get size =>
+      $composableBuilder(column: $table.size, builder: (column) => column);
+
+  GeneratedColumn<int> get positionMs => $composableBuilder(
+    column: $table.positionMs,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get durationMs => $composableBuilder(
+    column: $table.durationMs,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get playedAt =>
+      $composableBuilder(column: $table.playedAt, builder: (column) => column);
+}
+
+class $$PlayHistoryEntriesTableTableManager
+    extends
+        RootTableManager<
+          _$TonariDatabase,
+          $PlayHistoryEntriesTable,
+          PlayHistoryEntry,
+          $$PlayHistoryEntriesTableFilterComposer,
+          $$PlayHistoryEntriesTableOrderingComposer,
+          $$PlayHistoryEntriesTableAnnotationComposer,
+          $$PlayHistoryEntriesTableCreateCompanionBuilder,
+          $$PlayHistoryEntriesTableUpdateCompanionBuilder,
+          (
+            PlayHistoryEntry,
+            BaseReferences<
+              _$TonariDatabase,
+              $PlayHistoryEntriesTable,
+              PlayHistoryEntry
+            >,
+          ),
+          PlayHistoryEntry,
+          PrefetchHooks Function()
+        > {
+  $$PlayHistoryEntriesTableTableManager(
+    _$TonariDatabase db,
+    $PlayHistoryEntriesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PlayHistoryEntriesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PlayHistoryEntriesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$PlayHistoryEntriesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> kind = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String?> workId = const Value.absent(),
+                Value<String?> sourceKind = const Value.absent(),
+                Value<String?> sourceId = const Value.absent(),
+                Value<String?> sourceName = const Value.absent(),
+                Value<String?> path = const Value.absent(),
+                Value<String?> fileName = const Value.absent(),
+                Value<String?> pickcode = const Value.absent(),
+                Value<int?> size = const Value.absent(),
+                Value<int> positionMs = const Value.absent(),
+                Value<int?> durationMs = const Value.absent(),
+                Value<DateTime> playedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PlayHistoryEntriesCompanion(
+                id: id,
+                kind: kind,
+                title: title,
+                workId: workId,
+                sourceKind: sourceKind,
+                sourceId: sourceId,
+                sourceName: sourceName,
+                path: path,
+                fileName: fileName,
+                pickcode: pickcode,
+                size: size,
+                positionMs: positionMs,
+                durationMs: durationMs,
+                playedAt: playedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String kind,
+                required String title,
+                Value<String?> workId = const Value.absent(),
+                Value<String?> sourceKind = const Value.absent(),
+                Value<String?> sourceId = const Value.absent(),
+                Value<String?> sourceName = const Value.absent(),
+                Value<String?> path = const Value.absent(),
+                Value<String?> fileName = const Value.absent(),
+                Value<String?> pickcode = const Value.absent(),
+                Value<int?> size = const Value.absent(),
+                Value<int> positionMs = const Value.absent(),
+                Value<int?> durationMs = const Value.absent(),
+                required DateTime playedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => PlayHistoryEntriesCompanion.insert(
+                id: id,
+                kind: kind,
+                title: title,
+                workId: workId,
+                sourceKind: sourceKind,
+                sourceId: sourceId,
+                sourceName: sourceName,
+                path: path,
+                fileName: fileName,
+                pickcode: pickcode,
+                size: size,
+                positionMs: positionMs,
+                durationMs: durationMs,
+                playedAt: playedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$PlayHistoryEntriesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$TonariDatabase,
+      $PlayHistoryEntriesTable,
+      PlayHistoryEntry,
+      $$PlayHistoryEntriesTableFilterComposer,
+      $$PlayHistoryEntriesTableOrderingComposer,
+      $$PlayHistoryEntriesTableAnnotationComposer,
+      $$PlayHistoryEntriesTableCreateCompanionBuilder,
+      $$PlayHistoryEntriesTableUpdateCompanionBuilder,
+      (
+        PlayHistoryEntry,
+        BaseReferences<
+          _$TonariDatabase,
+          $PlayHistoryEntriesTable,
+          PlayHistoryEntry
+        >,
+      ),
+      PlayHistoryEntry,
+      PrefetchHooks Function()
+    >;
+typedef $$VideoItemsTableCreateCompanionBuilder =
+    VideoItemsCompanion Function({
+      required String id,
+      required String sourceKind,
+      required String sourceId,
+      required String sourceName,
+      required String path,
+      required String fileName,
+      Value<String?> pickcode,
+      Value<int?> size,
+      Value<String?> customTitle,
+      Value<String?> coverPath,
+      Value<bool> isFavorite,
+      required DateTime addedAt,
+      Value<DateTime?> lastPlayedAt,
+      Value<int> rowid,
+    });
+typedef $$VideoItemsTableUpdateCompanionBuilder =
+    VideoItemsCompanion Function({
+      Value<String> id,
+      Value<String> sourceKind,
+      Value<String> sourceId,
+      Value<String> sourceName,
+      Value<String> path,
+      Value<String> fileName,
+      Value<String?> pickcode,
+      Value<int?> size,
+      Value<String?> customTitle,
+      Value<String?> coverPath,
+      Value<bool> isFavorite,
+      Value<DateTime> addedAt,
+      Value<DateTime?> lastPlayedAt,
+      Value<int> rowid,
+    });
+
+class $$VideoItemsTableFilterComposer
+    extends Composer<_$TonariDatabase, $VideoItemsTable> {
+  $$VideoItemsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceKind => $composableBuilder(
+    column: $table.sourceKind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceId => $composableBuilder(
+    column: $table.sourceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceName => $composableBuilder(
+    column: $table.sourceName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get path => $composableBuilder(
+    column: $table.path,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get fileName => $composableBuilder(
+    column: $table.fileName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get pickcode => $composableBuilder(
+    column: $table.pickcode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get size => $composableBuilder(
+    column: $table.size,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get customTitle => $composableBuilder(
+    column: $table.customTitle,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get coverPath => $composableBuilder(
+    column: $table.coverPath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isFavorite => $composableBuilder(
+    column: $table.isFavorite,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get addedAt => $composableBuilder(
+    column: $table.addedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastPlayedAt => $composableBuilder(
+    column: $table.lastPlayedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$VideoItemsTableOrderingComposer
+    extends Composer<_$TonariDatabase, $VideoItemsTable> {
+  $$VideoItemsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceKind => $composableBuilder(
+    column: $table.sourceKind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceId => $composableBuilder(
+    column: $table.sourceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceName => $composableBuilder(
+    column: $table.sourceName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get path => $composableBuilder(
+    column: $table.path,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get fileName => $composableBuilder(
+    column: $table.fileName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get pickcode => $composableBuilder(
+    column: $table.pickcode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get size => $composableBuilder(
+    column: $table.size,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get customTitle => $composableBuilder(
+    column: $table.customTitle,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get coverPath => $composableBuilder(
+    column: $table.coverPath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isFavorite => $composableBuilder(
+    column: $table.isFavorite,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get addedAt => $composableBuilder(
+    column: $table.addedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastPlayedAt => $composableBuilder(
+    column: $table.lastPlayedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$VideoItemsTableAnnotationComposer
+    extends Composer<_$TonariDatabase, $VideoItemsTable> {
+  $$VideoItemsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceKind => $composableBuilder(
+    column: $table.sourceKind,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get sourceId =>
+      $composableBuilder(column: $table.sourceId, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceName => $composableBuilder(
+    column: $table.sourceName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get path =>
+      $composableBuilder(column: $table.path, builder: (column) => column);
+
+  GeneratedColumn<String> get fileName =>
+      $composableBuilder(column: $table.fileName, builder: (column) => column);
+
+  GeneratedColumn<String> get pickcode =>
+      $composableBuilder(column: $table.pickcode, builder: (column) => column);
+
+  GeneratedColumn<int> get size =>
+      $composableBuilder(column: $table.size, builder: (column) => column);
+
+  GeneratedColumn<String> get customTitle => $composableBuilder(
+    column: $table.customTitle,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get coverPath =>
+      $composableBuilder(column: $table.coverPath, builder: (column) => column);
+
+  GeneratedColumn<bool> get isFavorite => $composableBuilder(
+    column: $table.isFavorite,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get addedAt =>
+      $composableBuilder(column: $table.addedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get lastPlayedAt => $composableBuilder(
+    column: $table.lastPlayedAt,
+    builder: (column) => column,
+  );
+}
+
+class $$VideoItemsTableTableManager
+    extends
+        RootTableManager<
+          _$TonariDatabase,
+          $VideoItemsTable,
+          VideoItem,
+          $$VideoItemsTableFilterComposer,
+          $$VideoItemsTableOrderingComposer,
+          $$VideoItemsTableAnnotationComposer,
+          $$VideoItemsTableCreateCompanionBuilder,
+          $$VideoItemsTableUpdateCompanionBuilder,
+          (
+            VideoItem,
+            BaseReferences<_$TonariDatabase, $VideoItemsTable, VideoItem>,
+          ),
+          VideoItem,
+          PrefetchHooks Function()
+        > {
+  $$VideoItemsTableTableManager(_$TonariDatabase db, $VideoItemsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$VideoItemsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$VideoItemsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$VideoItemsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> sourceKind = const Value.absent(),
+                Value<String> sourceId = const Value.absent(),
+                Value<String> sourceName = const Value.absent(),
+                Value<String> path = const Value.absent(),
+                Value<String> fileName = const Value.absent(),
+                Value<String?> pickcode = const Value.absent(),
+                Value<int?> size = const Value.absent(),
+                Value<String?> customTitle = const Value.absent(),
+                Value<String?> coverPath = const Value.absent(),
+                Value<bool> isFavorite = const Value.absent(),
+                Value<DateTime> addedAt = const Value.absent(),
+                Value<DateTime?> lastPlayedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => VideoItemsCompanion(
+                id: id,
+                sourceKind: sourceKind,
+                sourceId: sourceId,
+                sourceName: sourceName,
+                path: path,
+                fileName: fileName,
+                pickcode: pickcode,
+                size: size,
+                customTitle: customTitle,
+                coverPath: coverPath,
+                isFavorite: isFavorite,
+                addedAt: addedAt,
+                lastPlayedAt: lastPlayedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String sourceKind,
+                required String sourceId,
+                required String sourceName,
+                required String path,
+                required String fileName,
+                Value<String?> pickcode = const Value.absent(),
+                Value<int?> size = const Value.absent(),
+                Value<String?> customTitle = const Value.absent(),
+                Value<String?> coverPath = const Value.absent(),
+                Value<bool> isFavorite = const Value.absent(),
+                required DateTime addedAt,
+                Value<DateTime?> lastPlayedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => VideoItemsCompanion.insert(
+                id: id,
+                sourceKind: sourceKind,
+                sourceId: sourceId,
+                sourceName: sourceName,
+                path: path,
+                fileName: fileName,
+                pickcode: pickcode,
+                size: size,
+                customTitle: customTitle,
+                coverPath: coverPath,
+                isFavorite: isFavorite,
+                addedAt: addedAt,
+                lastPlayedAt: lastPlayedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$VideoItemsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$TonariDatabase,
+      $VideoItemsTable,
+      VideoItem,
+      $$VideoItemsTableFilterComposer,
+      $$VideoItemsTableOrderingComposer,
+      $$VideoItemsTableAnnotationComposer,
+      $$VideoItemsTableCreateCompanionBuilder,
+      $$VideoItemsTableUpdateCompanionBuilder,
+      (
+        VideoItem,
+        BaseReferences<_$TonariDatabase, $VideoItemsTable, VideoItem>,
+      ),
+      VideoItem,
+      PrefetchHooks Function()
+    >;
+typedef $$CollectionVideosTableCreateCompanionBuilder =
+    CollectionVideosCompanion Function({
+      required String collectionId,
+      required String videoId,
+      required DateTime addedAt,
+      Value<int> rowid,
+    });
+typedef $$CollectionVideosTableUpdateCompanionBuilder =
+    CollectionVideosCompanion Function({
+      Value<String> collectionId,
+      Value<String> videoId,
+      Value<DateTime> addedAt,
+      Value<int> rowid,
+    });
+
+class $$CollectionVideosTableFilterComposer
+    extends Composer<_$TonariDatabase, $CollectionVideosTable> {
+  $$CollectionVideosTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get collectionId => $composableBuilder(
+    column: $table.collectionId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get videoId => $composableBuilder(
+    column: $table.videoId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get addedAt => $composableBuilder(
+    column: $table.addedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$CollectionVideosTableOrderingComposer
+    extends Composer<_$TonariDatabase, $CollectionVideosTable> {
+  $$CollectionVideosTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get collectionId => $composableBuilder(
+    column: $table.collectionId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get videoId => $composableBuilder(
+    column: $table.videoId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get addedAt => $composableBuilder(
+    column: $table.addedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$CollectionVideosTableAnnotationComposer
+    extends Composer<_$TonariDatabase, $CollectionVideosTable> {
+  $$CollectionVideosTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get collectionId => $composableBuilder(
+    column: $table.collectionId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get videoId =>
+      $composableBuilder(column: $table.videoId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get addedAt =>
+      $composableBuilder(column: $table.addedAt, builder: (column) => column);
+}
+
+class $$CollectionVideosTableTableManager
+    extends
+        RootTableManager<
+          _$TonariDatabase,
+          $CollectionVideosTable,
+          CollectionVideo,
+          $$CollectionVideosTableFilterComposer,
+          $$CollectionVideosTableOrderingComposer,
+          $$CollectionVideosTableAnnotationComposer,
+          $$CollectionVideosTableCreateCompanionBuilder,
+          $$CollectionVideosTableUpdateCompanionBuilder,
+          (
+            CollectionVideo,
+            BaseReferences<
+              _$TonariDatabase,
+              $CollectionVideosTable,
+              CollectionVideo
+            >,
+          ),
+          CollectionVideo,
+          PrefetchHooks Function()
+        > {
+  $$CollectionVideosTableTableManager(
+    _$TonariDatabase db,
+    $CollectionVideosTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CollectionVideosTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CollectionVideosTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CollectionVideosTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> collectionId = const Value.absent(),
+                Value<String> videoId = const Value.absent(),
+                Value<DateTime> addedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CollectionVideosCompanion(
+                collectionId: collectionId,
+                videoId: videoId,
+                addedAt: addedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String collectionId,
+                required String videoId,
+                required DateTime addedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => CollectionVideosCompanion.insert(
+                collectionId: collectionId,
+                videoId: videoId,
+                addedAt: addedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$CollectionVideosTableProcessedTableManager =
+    ProcessedTableManager<
+      _$TonariDatabase,
+      $CollectionVideosTable,
+      CollectionVideo,
+      $$CollectionVideosTableFilterComposer,
+      $$CollectionVideosTableOrderingComposer,
+      $$CollectionVideosTableAnnotationComposer,
+      $$CollectionVideosTableCreateCompanionBuilder,
+      $$CollectionVideosTableUpdateCompanionBuilder,
+      (
+        CollectionVideo,
+        BaseReferences<
+          _$TonariDatabase,
+          $CollectionVideosTable,
+          CollectionVideo
+        >,
+      ),
+      CollectionVideo,
+      PrefetchHooks Function()
+    >;
 
 class $TonariDatabaseManager {
   final _$TonariDatabase _db;
@@ -12932,4 +15717,10 @@ class $TonariDatabaseManager {
       $$CollectionsTableTableManager(_db, _db.collections);
   $$CollectionWorksTableTableManager get collectionWorks =>
       $$CollectionWorksTableTableManager(_db, _db.collectionWorks);
+  $$PlayHistoryEntriesTableTableManager get playHistoryEntries =>
+      $$PlayHistoryEntriesTableTableManager(_db, _db.playHistoryEntries);
+  $$VideoItemsTableTableManager get videoItems =>
+      $$VideoItemsTableTableManager(_db, _db.videoItems);
+  $$CollectionVideosTableTableManager get collectionVideos =>
+      $$CollectionVideosTableTableManager(_db, _db.collectionVideos);
 }

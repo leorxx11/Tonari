@@ -7,7 +7,7 @@ import '../../features/library/data/enrichment_queue.dart';
 import '../../features/library/data/rescan_service.dart';
 import '../../features/browse/presentation/browse_page.dart';
 import '../../features/library/presentation/collections_page.dart';
-import '../../features/library/presentation/library_page.dart';
+import '../../features/library/presentation/media_library_tab.dart';
 import '../../features/player/presentation/mini_player.dart';
 import '../../features/settings/presentation/settings_page.dart';
 import '../providers/selected_tab_index.dart';
@@ -45,7 +45,7 @@ class _RootTabViewState extends ConsumerState<RootTabView> {
             child: IndexedStack(
               index: index,
               children: const [
-                LibraryPage(),
+                MediaLibraryTab(),
                 CollectionsPage(),
                 BrowsePage(),
                 SettingsPage(),

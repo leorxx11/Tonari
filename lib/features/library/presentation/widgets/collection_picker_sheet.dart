@@ -2,13 +2,36 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/db/database.dart';
+import '../../../video_library/data/video_library_providers.dart';
 import '../../data/collections_providers.dart';
 
 Future<void> showCollectionPicker(BuildContext context, Work work) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
-    builder: (_) => _CollectionPickerSheet(work: work),
+    builder: (_) => _CollectionPickerSheet(
+      memberIdsOf: (ref) =>
+          ref.watch(workCollectionIdsProvider(work.productId)).value ??
+          const <String>{},
+      onToggle: (ref, collectionId, member) => ref
+          .read(collectionRepositoryProvider)
+          .setMembership(work.productId, collectionId, member: member),
+    ),
+  );
+}
+
+Future<void> showVideoCollectionPicker(BuildContext context, VideoItem video) {
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    builder: (_) => _CollectionPickerSheet(
+      memberIdsOf: (ref) =>
+          ref.watch(videoCollectionIdsProvider(video.id)).value ??
+          const <String>{},
+      onToggle: (ref, collectionId, member) => ref
+          .read(videoLibraryRepositoryProvider)
+          .setCollectionMembership(video.id, collectionId, member: member),
+    ),
   );
 }
 
@@ -46,17 +69,20 @@ Future<String?> promptCollectionName(
 }
 
 class _CollectionPickerSheet extends ConsumerWidget {
-  const _CollectionPickerSheet({required this.work});
+  const _CollectionPickerSheet({
+    required this.memberIdsOf,
+    required this.onToggle,
+  });
 
-  final Work work;
+  final Set<String> Function(WidgetRef ref) memberIdsOf;
+  final Future<void> Function(WidgetRef ref, String collectionId, bool member)
+  onToggle;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final collections = ref.watch(collectionsProvider).value ?? const [];
-    final memberIds =
-        ref.watch(workCollectionIdsProvider(work.productId)).value ??
-        const <String>{};
+    final memberIds = memberIdsOf(ref);
     return SafeArea(
       child: ConstrainedBox(
         constraints: BoxConstraints(
@@ -101,13 +127,7 @@ class _CollectionPickerSheet extends ConsumerWidget {
                         title: Text(c.name),
                         controlAffinity: ListTileControlAffinity.leading,
                         onChanged: (checked) {
-                          ref
-                              .read(collectionRepositoryProvider)
-                              .setMembership(
-                                work.productId,
-                                c.id,
-                                member: checked ?? false,
-                              );
+                          onToggle(ref, c.id, checked ?? false);
                         },
                       ),
                   ],
@@ -123,8 +143,8 @@ class _CollectionPickerSheet extends ConsumerWidget {
   Future<void> _createAndJoin(BuildContext context, WidgetRef ref) async {
     final name = await promptCollectionName(context);
     if (name == null) return;
-    final repo = ref.read(collectionRepositoryProvider);
-    final id = await repo.create(name);
-    await repo.setMembership(work.productId, id, member: true);
+    final id = await ref.read(collectionRepositoryProvider).create(name);
+    if (!context.mounted) return;
+    await onToggle(ref, id, true);
   }
 }

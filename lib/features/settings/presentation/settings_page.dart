@@ -24,7 +24,7 @@ class SettingsPage extends StatelessWidget {
           _Entry(
             icon: Icons.play_circle_outline,
             title: '播放',
-            subtitle: '跳秒步长',
+            subtitle: '跳秒步长、视频默认封面',
             page: PlaybackSettingsPage(),
           ),
           _Entry(

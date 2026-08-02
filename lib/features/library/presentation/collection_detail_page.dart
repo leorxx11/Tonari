@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../video_library/data/video_library_providers.dart';
+import '../../video_library/presentation/video_library_page.dart';
 import '../data/collections_providers.dart';
 import 'widgets/works_grid.dart';
 
@@ -15,23 +17,88 @@ class CollectionDetailPage extends ConsumerWidget {
     final collection = collections
         .where((c) => c.id == collectionId)
         .firstOrNull;
-    final worksAsync = ref.watch(collectionWorksProvider(collectionId));
+    final works = ref.watch(collectionWorksProvider(collectionId)).value;
+    final videos = ref.watch(collectionVideosProvider(collectionId)).value;
     if (collection == null) {
       return const Scaffold(body: SizedBox.shrink());
     }
+    final loading = works == null || videos == null;
+    final empty = !loading && works.isEmpty && videos.isEmpty;
     return Scaffold(
       appBar: AppBar(title: Text(collection.name)),
-      body: worksAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('加载失败：$e')),
-        data: (works) => works.isEmpty
-            ? const _EmptyCollection()
-            : WorksGrid(
-                works: works,
-                onRemoveFromCollection: (work) => ref
-                    .read(collectionRepositoryProvider)
-                    .setMembership(work.productId, collectionId, member: false),
-              ),
+      body: loading
+          ? const Center(child: CircularProgressIndicator())
+          : empty
+          ? const _EmptyCollection()
+          : CustomScrollView(
+              slivers: [
+                if (works.isNotEmpty) ...[
+                  if (videos.isNotEmpty) const _SectionHeader('音声'),
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(10, 10, 10, 16),
+                    sliver: SliverGrid(
+                      gridDelegate: workGridDelegate,
+                      delegate: SliverChildBuilderDelegate(
+                        (ctx, i) => WorkGridCard(
+                          work: works[i],
+                          onRemoveFromCollection: () => ref
+                              .read(collectionRepositoryProvider)
+                              .setMembership(
+                                works[i].productId,
+                                collectionId,
+                                member: false,
+                              ),
+                        ),
+                        childCount: works.length,
+                      ),
+                    ),
+                  ),
+                ],
+                if (videos.isNotEmpty) ...[
+                  if (works.isNotEmpty) const _SectionHeader('视频'),
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(10, 10, 10, 16),
+                    sliver: SliverGrid(
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            mainAxisSpacing: 10,
+                            crossAxisSpacing: 10,
+                            childAspectRatio: 1.15,
+                          ),
+                      delegate: SliverChildBuilderDelegate(
+                        (ctx, i) => VideoCard(
+                          item: videos[i],
+                          onRemoveFromCollection: () => ref
+                              .read(videoLibraryRepositoryProvider)
+                              .setCollectionMembership(
+                                videos[i].id,
+                                collectionId,
+                                member: false,
+                              ),
+                        ),
+                        childCount: videos.length,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader(this.title);
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+        child: Text(title, style: Theme.of(context).textTheme.labelLarge),
       ),
     );
   }
@@ -47,7 +114,7 @@ class _EmptyCollection extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Text(
-          '分组还是空的\n在媒体库长按作品即可加入',
+          '分组还是空的\n在媒体库长按作品或视频即可加入',
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),

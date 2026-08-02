@@ -84,6 +84,9 @@ class CollectionRepository {
       await (_db.delete(
         _db.collectionWorks,
       )..where((cw) => cw.collectionId.equals(id))).go();
+      await (_db.delete(
+        _db.collectionVideos,
+      )..where((cv) => cv.collectionId.equals(id))).go();
       await (_db.delete(_db.collections)..where((c) => c.id.equals(id))).go();
     });
   }

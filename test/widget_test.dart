@@ -7,6 +7,7 @@ import 'package:tonari/core/db/database.dart';
 import 'package:tonari/core/files/folder_picker_service.dart';
 import 'package:tonari/core/subtitle/subtitle_cue.dart';
 import 'package:tonari/core/prefs/shared_prefs_provider.dart';
+import 'package:tonari/features/history/data/play_history_repository.dart';
 import 'package:tonari/features/library/data/app_events.dart';
 import 'package:tonari/features/library/data/collections_providers.dart';
 import 'package:tonari/features/library/data/import_flow.dart';
@@ -19,6 +20,7 @@ import 'package:tonari/features/library/data/work_reimport_provider.dart';
 import 'package:tonari/features/library/data/works_providers.dart';
 import 'package:tonari/features/p115/data/p115_cookie_store.dart';
 import 'package:tonari/features/subtitle/data/subtitle_providers.dart';
+import 'package:tonari/features/video_library/data/video_library_providers.dart';
 import 'package:tonari/features/webdav/data/webdav_server_repository.dart';
 
 late SharedPreferences _testPrefs;
@@ -57,6 +59,15 @@ Widget testApp({
     }),
     collectionsProvider.overrideWith(
       (ref) => Stream.value(const <Collection>[]),
+    ),
+    videoItemsProvider.overrideWith(
+      (ref) => Stream.value(const <VideoItem>[]),
+    ),
+    collectionVideosProvider.overrideWith(
+      (ref, collectionId) => Stream.value(const <VideoItem>[]),
+    ),
+    playHistoryProvider.overrideWith(
+      (ref) => Stream.value(const <PlayHistoryEntry>[]),
     ),
     removedWorksProvider.overrideWith(
       (ref) => Stream.value(works.where((work) => work.isRemoved).toList()),
@@ -323,6 +334,10 @@ void main() {
   testWidgets('tapping a CV chip adds a removable AND filter token', (
     tester,
   ) async {
+    // The segment bar above the library grid pushes the first card's tag row
+    // just below the default 600px viewport — use a taller surface.
+    await tester.binding.setSurfaceSize(const Size(800, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(
       testApp(
         works: [

@@ -6,8 +6,10 @@ import '../../../core/diagnostics/diagnostic_log.dart';
 import '../../../core/files/natural_compare.dart';
 import '../../player/data/playback_controller.dart';
 import '../../video/data/video_controller.dart';
+import '../../video_library/data/video_library_providers.dart';
 import '../data/browse_location_store.dart';
 import '../data/remote_models.dart';
+import '../../../core/ui/app_toast.dart';
 
 typedef RemoteFolderLoader =
     Future<List<RemoteEntry>> Function(RemoteEntry folder);
@@ -136,6 +138,39 @@ class _RemoteBrowserPageState extends ConsumerState<RemoteBrowserPage> {
     ref.read(videoControllerProvider.notifier).open(_toPlayable(entry));
   }
 
+  Future<void> _onVideoLongPress(RemoteEntry entry) async {
+    final item = _toPlayable(entry);
+    final inLibrary =
+        ref.read(videoInLibraryProvider(item.stableId)).value ?? false;
+    final action = await showModalBottomSheet<bool>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(
+                inLibrary
+                    ? Icons.video_library
+                    : Icons.video_library_outlined,
+              ),
+              title: Text(inLibrary ? '从视频库移除' : '加入视频库'),
+              onTap: () => Navigator.of(ctx).pop(true),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (action != true) return;
+    if (inLibrary) {
+      await ref.read(videoLibraryRepositoryProvider).remove(item.stableId);
+      showAppToast('已从视频库移除');
+    } else {
+      final added = await ref.read(videoLibraryRepositoryProvider).add(item);
+      showAppToast(added ? '已加入视频库' : '已在视频库中');
+    }
+  }
+
   PlayableItem _toPlayable(RemoteEntry entry) {
     return PlayableItem(
       id: '${widget.sourceId}:${entry.id}',
@@ -203,6 +238,7 @@ class _RemoteBrowserPageState extends ConsumerState<RemoteBrowserPage> {
                     onOpenDir: _enter,
                     onPlayAudio: (entry) => _playAudio(entry, entries),
                     onOpenVideo: _openVideo,
+                    onVideoLongPress: _onVideoLongPress,
                   ),
                 );
               },
@@ -272,12 +308,14 @@ class _EntryRow extends StatelessWidget {
     required this.onOpenDir,
     required this.onPlayAudio,
     required this.onOpenVideo,
+    required this.onVideoLongPress,
   });
 
   final RemoteEntry entry;
   final void Function(RemoteEntry) onOpenDir;
   final void Function(RemoteEntry) onPlayAudio;
   final void Function(RemoteEntry) onOpenVideo;
+  final void Function(RemoteEntry) onVideoLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -304,6 +342,7 @@ class _EntryRow extends StatelessWidget {
           : entry.isVideo
           ? () => onOpenVideo(entry)
           : null,
+      onLongPress: entry.isVideo ? () => onVideoLongPress(entry) : null,
     );
   }
 

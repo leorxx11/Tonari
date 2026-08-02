@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/db/database.dart';
+import '../../video_library/data/video_library_providers.dart';
+import '../../video_library/presentation/video_library_page.dart';
 import '../data/collections_providers.dart';
 import 'collection_detail_page.dart';
 import 'widgets/collection_picker_sheet.dart';
@@ -53,12 +55,28 @@ class _CollectionTile extends ConsumerWidget {
     final theme = Theme.of(context);
     final works =
         ref.watch(collectionWorksProvider(collection.id)).value ?? const [];
+    final videos =
+        ref.watch(collectionVideosProvider(collection.id)).value ?? const [];
+    final counts = [
+      if (works.isNotEmpty || videos.isEmpty) '${works.length} 个作品',
+      if (videos.isNotEmpty) '${videos.length} 个视频',
+    ].join(' · ');
     return ListTile(
       leading: SizedBox(
         width: 52,
         height: 52,
-        child: works.isEmpty
-            ? Container(
+        child: works.isNotEmpty
+            ? WorkCover(
+                work: works.first,
+                borderRadius: BorderRadius.circular(8),
+                iconSize: 24,
+              )
+            : videos.isNotEmpty
+            ? ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: VideoCover(coverPath: videos.first.coverPath),
+              )
+            : Container(
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(8),
@@ -67,15 +85,10 @@ class _CollectionTile extends ConsumerWidget {
                   Icons.bookmark_outline,
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
-              )
-            : WorkCover(
-                work: works.first,
-                borderRadius: BorderRadius.circular(8),
-                iconSize: 24,
               ),
       ),
       title: Text(collection.name),
-      subtitle: Text('${works.length} 个作品'),
+      subtitle: Text(counts),
       trailing: PopupMenuButton<_CollectionAction>(
         onSelected: (action) => _onAction(context, ref, action),
         itemBuilder: (_) => const [

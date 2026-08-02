@@ -9,8 +9,10 @@ import 'tables/app_events.dart';
 import 'tables/collections.dart';
 import 'tables/imported_folders.dart';
 import 'tables/llm_providers.dart';
+import 'tables/play_history.dart';
 import 'tables/subtitles.dart';
 import 'tables/tracks.dart';
+import 'tables/video_items.dart';
 import 'tables/webdav_servers.dart';
 import 'tables/work_files.dart';
 import 'tables/works.dart';
@@ -29,6 +31,9 @@ part 'database.g.dart';
     AppEvents,
     Collections,
     CollectionWorks,
+    PlayHistoryEntries,
+    VideoItems,
+    CollectionVideos,
   ],
 )
 class TonariDatabase extends _$TonariDatabase {
@@ -37,7 +42,7 @@ class TonariDatabase extends _$TonariDatabase {
   TonariDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 14;
+  int get schemaVersion => 15;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -106,6 +111,11 @@ class TonariDatabase extends _$TonariDatabase {
       if (from < 14) {
         await m.createTable(collections);
         await m.createTable(collectionWorks);
+      }
+      if (from < 15) {
+        await m.createTable(playHistoryEntries);
+        await m.createTable(videoItems);
+        await m.createTable(collectionVideos);
       }
     },
   );

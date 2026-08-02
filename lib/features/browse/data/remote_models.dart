@@ -71,6 +71,18 @@ class PlayableItem {
 
   bool get isAudio => kind == RemoteEntryKind.audio;
   bool get isVideo => kind == RemoteEntryKind.video;
+
+  /// Identity that stays stable across entry points (browser, work files,
+  /// history) and — for 115 — across renames and moves: the pickcode never
+  /// changes, while browser paths are 115 file ids and work-file paths are
+  /// pickcodes. Used as the key for play history and the video library.
+  String get stableId {
+    final pc = pickcode;
+    if (sourceKind == RemoteSourceKind.p115 && pc != null && pc.isNotEmpty) {
+      return 'p115:$pc';
+    }
+    return '${sourceKind.name}:$sourceId:$path';
+  }
 }
 
 class BrowseQueue {

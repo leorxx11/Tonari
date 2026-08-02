@@ -22,41 +22,63 @@ class WorksGrid extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final remoteIds =
-        ref.watch(remoteFolderIdsProvider).value ?? const <String>{};
     return GridView.builder(
       physics: const AlwaysScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 0.6,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
-      ),
+      gridDelegate: workGridDelegate,
       padding: const EdgeInsets.fromLTRB(10, 10, 10, 16),
       itemCount: works.length,
       itemBuilder: (ctx, i) {
         final work = works[i];
-        return WorkCard(
+        return WorkGridCard(
           work: work,
-          isRemote:
-              work.importedFolderId != null &&
-              remoteIds.contains(work.importedFolderId),
           onRemove: onRemove == null ? null : () => onRemove!(work),
-          onToggleFavorite: () => ref.read(toggleFavoriteProvider)(
-            work.productId,
-            !work.isFavorite,
-          ),
-          onAddToCollection: () => showCollectionPicker(context, work),
           onRemoveFromCollection: onRemoveFromCollection == null
               ? null
               : () => onRemoveFromCollection!(work),
-          onTap: () {
-            Navigator.of(context, rootNavigator: true).push(
-              MaterialPageRoute<void>(
-                builder: (_) => WorkDetailPage(work: work),
-              ),
-            );
-          },
+        );
+      },
+    );
+  }
+}
+
+const workGridDelegate = SliverGridDelegateWithFixedCrossAxisCount(
+  crossAxisCount: 2,
+  childAspectRatio: 0.6,
+  crossAxisSpacing: 10,
+  mainAxisSpacing: 10,
+);
+
+/// A [WorkCard] wired to the standard library actions, shared by the library
+/// grid and the collection detail page.
+class WorkGridCard extends ConsumerWidget {
+  const WorkGridCard({
+    super.key,
+    required this.work,
+    this.onRemove,
+    this.onRemoveFromCollection,
+  });
+
+  final Work work;
+  final VoidCallback? onRemove;
+  final VoidCallback? onRemoveFromCollection;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final remoteIds =
+        ref.watch(remoteFolderIdsProvider).value ?? const <String>{};
+    return WorkCard(
+      work: work,
+      isRemote:
+          work.importedFolderId != null &&
+          remoteIds.contains(work.importedFolderId),
+      onRemove: onRemove,
+      onToggleFavorite: () =>
+          ref.read(toggleFavoriteProvider)(work.productId, !work.isFavorite),
+      onAddToCollection: () => showCollectionPicker(context, work),
+      onRemoveFromCollection: onRemoveFromCollection,
+      onTap: () {
+        Navigator.of(context, rootNavigator: true).push(
+          MaterialPageRoute<void>(builder: (_) => WorkDetailPage(work: work)),
         );
       },
     );
