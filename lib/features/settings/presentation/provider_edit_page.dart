@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/db/database.dart';
 import '../../translation/data/llm_provider_repository.dart';
 import '../../translation/data/translation_service.dart';
+import '../../../core/ui/app_toast.dart';
 
 enum _Template {
   deepseek(
@@ -183,7 +184,7 @@ class _ProviderEditPageState extends ConsumerState<ProviderEditPage> {
   }
 
   void _snack(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    showAppToast(msg);
   }
 
   @override

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../core/diagnostics/diagnostic_log.dart';
+import '../../../core/ui/app_toast.dart';
 
 class DiagnosticLogPage extends StatefulWidget {
   const DiagnosticLogPage({super.key});
@@ -44,18 +45,14 @@ class _DiagnosticLogPageState extends State<DiagnosticLogPage> {
   Future<void> _copy() async {
     await Clipboard.setData(ClipboardData(text: _content));
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('日志已复制')));
+    showAppToast('日志已复制');
   }
 
   Future<void> _export() async {
     final path = await DiagnosticLog.exportTxt();
     if (!mounted) return;
     if (path == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('暂无日志')));
+      showAppToast('暂无日志');
       return;
     }
     await SharePlus.instance.share(

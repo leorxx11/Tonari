@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/diagnostics/diagnostic_log.dart';
-import '../../../core/ui/root_messenger.dart';
 import '../../browse/data/remote_models.dart';
 import '../../browse/presentation/remote_browser_page.dart';
 import '../../library/data/app_events.dart';
@@ -15,6 +14,7 @@ import '../data/p115_auth_service.dart';
 import '../data/p115_client.dart';
 import '../data/p115_cookie_store.dart';
 import '../data/p115_import_flow.dart';
+import '../../../core/ui/app_toast.dart';
 
 class P115BrowserPage extends ConsumerWidget {
   const P115BrowserPage({super.key, this.enableImport = false});
@@ -107,9 +107,7 @@ class P115BrowserPage extends ConsumerWidget {
     final taskController = ref.read(libraryTaskControllerProvider.notifier);
     final queue = ref.read(enrichmentQueueProvider.notifier);
     final sink = ref.read(appEventSinkProvider);
-    rootScaffoldMessengerKey.currentState?.showSnackBar(
-      SnackBar(content: Text('已在后台导入「${folder.name}」…')),
-    );
+    showAppToast('已在后台导入「${folder.name}」…');
     unawaited(_runImport(taskController, flow, queue, sink, auth, folder));
   }
 
@@ -121,7 +119,6 @@ class P115BrowserPage extends ConsumerWidget {
     P115AuthService auth,
     RemoteEntry folder,
   ) async {
-    final messenger = rootScaffoldMessengerKey.currentState;
     try {
       final summary = await taskController.run<ImportSummary>(
         kind: LibraryTaskKind.import,
@@ -154,17 +151,10 @@ class P115BrowserPage extends ConsumerWidget {
           ),
         );
       }
-      messenger?.showSnackBar(
-        SnackBar(
-          content: Text(
-            '「${folder.name}」导入完成：新增 ${summary.worksInserted}，'
+      showAppToast('「${folder.name}」导入完成：新增 ${summary.worksInserted}，'
             '已有 ${summary.worksSkipped} 跳过，共 ${summary.tracksTotal} 音轨。'
             '封面和元数据后台补全中。'
-            '${summary.incompleteWorks.isEmpty ? '' : '\n${summary.incompleteWorks.length} 个作品扫描失败（疑似风控），已跳过，可稍后重新导入。'}',
-          ),
-          duration: const Duration(seconds: 5),
-        ),
-      );
+            '${summary.incompleteWorks.isEmpty ? '' : '\n${summary.incompleteWorks.length} 个作品扫描失败（疑似风控），已跳过，可稍后重新导入。'}');
     } on P115AuthExpiredException catch (e) {
       await auth.clearCookie();
       unawaited(
@@ -176,9 +166,7 @@ class P115BrowserPage extends ConsumerWidget {
           actionKey: 'reauth',
         ),
       );
-      messenger?.showSnackBar(
-        SnackBar(content: Text('$e'), duration: const Duration(seconds: 6)),
-      );
+      showAppToast('$e');
     } catch (e) {
       unawaited(
         sink.log(
@@ -190,12 +178,7 @@ class P115BrowserPage extends ConsumerWidget {
           sourceName: folder.name,
         ),
       );
-      messenger?.showSnackBar(
-        SnackBar(
-          content: Text('「${folder.name}」导入失败：$e'),
-          duration: const Duration(seconds: 6),
-        ),
-      );
+      showAppToast('「${folder.name}」导入失败：$e');
     }
   }
 }

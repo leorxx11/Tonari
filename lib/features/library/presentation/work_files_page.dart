@@ -16,6 +16,7 @@ import '../data/track_duration_probe.dart';
 import '../data/work_media_source.dart';
 import '../data/work_tree.dart';
 import '../data/works_providers.dart';
+import '../../../core/ui/app_toast.dart';
 
 /// Teal highlight applied to the track row currently being played.
 const Color _kCurrentTrackBackground = Color(0xFF008B7D);
@@ -233,9 +234,7 @@ class _WorkFilesPageState extends ConsumerState<WorkFilesPage> {
     final cues = await ref.read(subtitlePreviewProvider(file.filePath).future);
     if (!mounted) return;
     if (cues == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('没有可预览的字幕文本')));
+      showAppToast('没有可预览的字幕文本');
       return;
     }
     await Navigator.of(context, rootNavigator: true).push(

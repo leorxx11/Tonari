@@ -9,7 +9,6 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/db/database.dart';
 import '../../../core/files/local_image_path.dart';
-import '../../../core/ui/root_messenger.dart';
 import '../../player/presentation/mini_player.dart';
 import '../../settings/presentation/translation_settings_page.dart';
 import '../../translation/data/llm_provider_repository.dart';
@@ -26,6 +25,7 @@ import 'widgets/collection_picker_sheet.dart';
 import 'widgets/library_task_status.dart';
 import 'widgets/sample_gallery.dart';
 import 'work_files_page.dart';
+import '../../../core/ui/app_toast.dart';
 
 class WorkDetailPage extends ConsumerWidget {
   const WorkDetailPage({super.key, required this.work});
@@ -185,14 +185,10 @@ class _WorkDetailViewState extends ConsumerState<_WorkDetailView> {
       final after = ref.read(workByIdProvider(productId)).value;
       if (after != null) _evictWorkImages(after);
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('元数据已刷新')));
+      showAppToast('元数据已刷新');
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('刷新失败：$e')));
+      showAppToast('刷新失败：$e');
     }
   }
 
@@ -225,14 +221,10 @@ class _WorkDetailViewState extends ConsumerState<_WorkDetailView> {
       final after = ref.read(workByIdProvider(productId)).value;
       if (after != null) _evictWorkImages(after);
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('图片已刷新')));
+      showAppToast('图片已刷新');
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('刷新图片失败：$e')));
+      showAppToast('刷新图片失败：$e');
     }
   }
 
@@ -275,9 +267,7 @@ class _WorkDetailViewState extends ConsumerState<_WorkDetailView> {
     await ref.read(removeWorkProvider)(productId);
     if (!mounted) return;
     Navigator.of(context).maybePop();
-    rootScaffoldMessengerKey.currentState?.showSnackBar(
-      const SnackBar(content: Text('已从媒体库移除')),
-    );
+    showAppToast('已从媒体库移除');
   }
 
   Future<void> rescanWork(Work work) async {
@@ -294,14 +284,10 @@ class _WorkDetailViewState extends ConsumerState<_WorkDetailView> {
         },
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('作品已重新扫描')));
+      showAppToast('作品已重新扫描');
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('重新扫描失败：$e')));
+      showAppToast('重新扫描失败：$e');
     }
   }
 }
@@ -1307,12 +1293,7 @@ class _TranslationButton extends ConsumerWidget {
               .read(translationViewModeProvider(work.productId).notifier)
               .show(true);
         } else if (s is TranslationFailed) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(s.message),
-              duration: const Duration(seconds: 2),
-            ),
-          );
+          showAppToast(s.message);
         }
       },
     );
@@ -1378,20 +1359,10 @@ class _TranslationButton extends ConsumerWidget {
   }
 
   void _promptConfigure(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('请先在设置中配置翻译 Provider'),
-        duration: const Duration(seconds: 2),
-        action: SnackBarAction(
-          label: '去设置',
-          onPressed: () {
-            Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const TranslationSettingsPage(),
-              ),
-            );
-          },
-        ),
+    showAppToast('请先在设置中配置翻译 Provider');
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const TranslationSettingsPage(),
       ),
     );
   }

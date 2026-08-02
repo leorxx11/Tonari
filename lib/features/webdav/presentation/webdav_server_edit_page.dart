@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/db/database.dart';
 import '../data/webdav_client.dart';
 import '../data/webdav_server_repository.dart';
+import '../../../core/ui/app_toast.dart';
 
 class WebdavServerEditPage extends ConsumerStatefulWidget {
   const WebdavServerEditPage({super.key, this.server});
@@ -162,7 +163,7 @@ class _WebdavServerEditPageState extends ConsumerState<WebdavServerEditPage> {
   }
 
   void _snack(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    showAppToast(msg);
   }
 
   @override

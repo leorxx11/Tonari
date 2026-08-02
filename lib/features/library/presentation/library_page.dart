@@ -23,6 +23,7 @@ import '../../webdav/presentation/webdav_settings_page.dart';
 import 'widgets/app_events_sheet.dart';
 import 'widgets/library_task_status.dart';
 import 'widgets/works_grid.dart';
+import '../../../core/ui/app_toast.dart';
 
 class LibraryPage extends ConsumerStatefulWidget {
   const LibraryPage({super.key});
@@ -235,7 +236,6 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     final folder = await ref.read(folderPickerServiceProvider).pickAndPersist();
     if (folder == null || !mounted) return;
 
-    final messenger = ScaffoldMessenger.of(context);
     final taskController = ref.read(libraryTaskControllerProvider.notifier);
     final flow = ref.read(importFlowProvider);
     try {
@@ -259,12 +259,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
         await ref.read(folderPickerServiceProvider).removeIfEmpty(folder.id);
       }
       unawaited(ref.read(enrichmentQueueProvider.notifier).runPending());
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(_importResultText(summary)),
-          duration: const Duration(seconds: 5),
-        ),
-      );
+      showAppToast(_importResultText(summary));
     } catch (e) {
       if (!mounted) return;
       unawaited(
@@ -272,16 +267,14 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
             .read(appEventSinkProvider)
             .log(category: 'import', title: '导入失败', detail: '$e'),
       );
-      messenger.showSnackBar(SnackBar(content: Text('导入失败：$e')));
+      showAppToast('导入失败：$e');
     }
   }
 
   Future<void> _onRemoveWork(Work work) async {
     await ref.read(removeWorkProvider).call(work.productId);
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('已移除 ${work.title}')));
+    showAppToast('已移除 ${work.title}');
   }
 
   void _closeSearch() {

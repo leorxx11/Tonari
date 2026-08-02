@@ -6,6 +6,7 @@ import '../../library/data/library_task_controller.dart';
 import '../../library/data/work_actions_provider.dart';
 import '../../library/data/work_reimport_provider.dart';
 import '../../library/data/works_providers.dart';
+import '../../../core/ui/app_toast.dart';
 
 class RemovedWorksPage extends ConsumerWidget {
   const RemovedWorksPage({super.key});
@@ -84,14 +85,10 @@ class _RemovedWorkTile extends ConsumerWidget {
         },
       );
       if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('已重新导入 ${work.title}')));
+      showAppToast('已重新导入 ${work.title}');
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('重新导入失败：$e')));
+      showAppToast('重新导入失败：$e');
     }
   }
 
@@ -116,8 +113,6 @@ class _RemovedWorkTile extends ConsumerWidget {
     if (confirmed != true || !context.mounted) return;
     await ref.read(deleteWorkPermanentlyProvider)(work.productId);
     if (!context.mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('已彻底移除 ${work.title}')));
+    showAppToast('已彻底移除 ${work.title}');
   }
 }

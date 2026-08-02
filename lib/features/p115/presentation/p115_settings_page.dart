@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/p115_auth_service.dart';
 import '../data/p115_cookie_store.dart';
 import 'p115_login_page.dart';
+import '../../../core/ui/app_toast.dart';
 
 class P115SettingsPage extends ConsumerWidget {
   const P115SettingsPage({super.key});
@@ -78,9 +79,7 @@ class P115SettingsPage extends ConsumerWidget {
     await ref.read(p115AuthServiceProvider).clearCookie();
     ref.invalidate(p115CookieProvider);
     if (context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('已退出 115 登录')));
+      showAppToast('已退出 115 登录');
     }
   }
 }

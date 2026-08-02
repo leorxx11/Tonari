@@ -6,6 +6,7 @@ import '../../../core/files/folder_picker_service.dart';
 import '../../library/data/enrichment_queue.dart';
 import '../../library/data/folder_reimport_provider.dart';
 import '../../library/data/library_task_controller.dart';
+import '../../../core/ui/app_toast.dart';
 
 class MediaSourcesPage extends ConsumerWidget {
   const MediaSourcesPage({super.key});
@@ -103,15 +104,9 @@ class _SourceTile extends ConsumerWidget {
     if (confirmed != true || !context.mounted) return;
     final removed = await ref.read(deleteSourceProvider)(folder.id);
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          removed > 0
+    showAppToast(removed > 0
               ? '已删除来源「${folder.displayName}」及 $removed 个作品'
-              : '已删除来源「${folder.displayName}」',
-        ),
-      ),
-    );
+              : '已删除来源「${folder.displayName}」');
   }
 
   IconData _iconFor(String type) {

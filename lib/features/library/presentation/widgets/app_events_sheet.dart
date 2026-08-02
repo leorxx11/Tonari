@@ -12,6 +12,7 @@ import '../../data/app_events.dart';
 import '../../data/enrichment_queue.dart';
 import '../../data/library_task_controller.dart';
 import '../../data/work_reimport_provider.dart';
+import '../../../../core/ui/app_toast.dart';
 
 class AppEventsAction extends ConsumerWidget {
   const AppEventsAction({super.key});
@@ -184,13 +185,12 @@ class _EventTile extends ConsumerWidget {
   }
 
   Future<void> _rescan(BuildContext context, WidgetRef ref) async {
-    final messenger = ScaffoldMessenger.of(context);
     final db = ref.read(databaseProvider);
     final work = await (db.select(
       db.works,
     )..where((row) => row.productId.equals(event.productId!))).getSingleOrNull();
     if (work == null) {
-      messenger.showSnackBar(const SnackBar(content: Text('作品已不存在')));
+      showAppToast('作品已不存在');
       return;
     }
     final taskController = ref.read(workTaskControllerProvider.notifier);
@@ -206,9 +206,9 @@ class _EventTile extends ConsumerWidget {
         },
       );
       await ref.read(appEventSinkProvider).dismiss(event.id);
-      messenger.showSnackBar(const SnackBar(content: Text('作品已重新扫描')));
+      showAppToast('作品已重新扫描');
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('重新扫描失败：$e')));
+      showAppToast('重新扫描失败：$e');
     }
   }
 }

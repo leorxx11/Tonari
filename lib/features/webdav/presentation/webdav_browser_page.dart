@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/db/database.dart';
 import '../../../core/scanner/file_classifier.dart';
-import '../../../core/ui/root_messenger.dart';
 import '../../browse/data/remote_models.dart';
 import '../../browse/presentation/remote_browser_page.dart';
 import '../../library/data/app_events.dart';
@@ -14,6 +13,7 @@ import '../../library/data/import_service.dart';
 import '../../library/data/library_task_controller.dart';
 import '../data/webdav_client.dart';
 import '../data/webdav_import_flow.dart';
+import '../../../core/ui/app_toast.dart';
 
 class WebdavBrowserPage extends ConsumerWidget {
   const WebdavBrowserPage({
@@ -104,9 +104,7 @@ class WebdavBrowserPage extends ConsumerWidget {
     final taskController = ref.read(libraryTaskControllerProvider.notifier);
     final queue = ref.read(enrichmentQueueProvider.notifier);
     final sink = ref.read(appEventSinkProvider);
-    rootScaffoldMessengerKey.currentState?.showSnackBar(
-      SnackBar(content: Text('已在后台导入「${folder.name}」…')),
-    );
+    showAppToast('已在后台导入「${folder.name}」…');
     unawaited(_runImport(taskController, flow, queue, sink, folder));
   }
 
@@ -117,7 +115,6 @@ class WebdavBrowserPage extends ConsumerWidget {
     AppEventSink sink,
     RemoteEntry folder,
   ) async {
-    final messenger = rootScaffoldMessengerKey.currentState;
     try {
       final summary = await taskController.run<ImportSummary>(
         kind: LibraryTaskKind.import,
@@ -152,17 +149,10 @@ class WebdavBrowserPage extends ConsumerWidget {
           ),
         );
       }
-      messenger?.showSnackBar(
-        SnackBar(
-          content: Text(
-            '「${folder.name}」导入完成：新增 ${summary.worksInserted}，'
+      showAppToast('「${folder.name}」导入完成：新增 ${summary.worksInserted}，'
             '已有 ${summary.worksSkipped} 跳过，共 ${summary.tracksTotal} 音轨。'
             '封面和元数据后台补全中。'
-            '${summary.incompleteWorks.isEmpty ? '' : '\n${summary.incompleteWorks.length} 个作品扫描失败，已跳过，可稍后重新导入。'}',
-          ),
-          duration: const Duration(seconds: 5),
-        ),
-      );
+            '${summary.incompleteWorks.isEmpty ? '' : '\n${summary.incompleteWorks.length} 个作品扫描失败，已跳过，可稍后重新导入。'}');
     } catch (e) {
       unawaited(
         sink.log(
@@ -172,12 +162,7 @@ class WebdavBrowserPage extends ConsumerWidget {
           sourceName: folder.name,
         ),
       );
-      messenger?.showSnackBar(
-        SnackBar(
-          content: Text('「${folder.name}」导入失败：$e'),
-          duration: const Duration(seconds: 6),
-        ),
-      );
+      showAppToast('「${folder.name}」导入失败：$e');
     }
   }
 
