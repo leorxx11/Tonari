@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/db/database.dart';
 import '../../../core/files/local_image_path.dart';
+import '../../../core/ui/app_toast.dart';
 import '../../library/presentation/widgets/collection_picker_sheet.dart';
 import '../data/video_cover_store.dart';
 import '../data/video_library_providers.dart';
@@ -253,6 +254,7 @@ class VideoCard extends ConsumerWidget {
           onRemoveFromCollection?.call();
         case _VideoCardAction.remove:
           await repo.remove(item.id);
+          showAppToast('已从视频库移除');
         case null:
           break;
       }

@@ -267,7 +267,6 @@ class _WorkDetailViewState extends ConsumerState<_WorkDetailView> {
     await ref.read(removeWorkProvider)(productId);
     if (!mounted) return;
     Navigator.of(context).maybePop();
-    showAppToast('已从媒体库移除');
   }
 
   Future<void> rescanWork(Work work) async {
