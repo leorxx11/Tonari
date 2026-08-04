@@ -40,6 +40,19 @@ class WorkTreeFolder extends WorkTreeNode {
     }
     return n;
   }
+
+  /// Sum of fileSizeBytes across every descendant audio track.
+  int get totalAudioBytes {
+    var n = 0;
+    for (final c in children) {
+      if (c is WorkTreeTrack) {
+        n += c.track.fileSizeBytes;
+      } else if (c is WorkTreeFolder) {
+        n += c.totalAudioBytes;
+      }
+    }
+    return n;
+  }
 }
 
 class WorkTreeTrack extends WorkTreeNode {
@@ -135,4 +148,38 @@ List<Track> flattenForPlayback(List<WorkTreeNode> nodes) {
     visit(n);
   }
   return out;
+}
+
+/// Initial folder path for the resource browser: descend while one child
+/// folder's subtree holds >60% of this level's audio bytes.
+///
+/// Bytes encode both "long" (本編 vs 特典 bonus clips) and "lossless"
+/// (WAV ≈ 10× MP3, ≈ 2× FLAC — hence 60%, so a WAV/FLAC pair at ~67%
+/// still descends into WAV). Parallel equal variants (SEあり/なし,
+/// Disc1/Disc2) split ~50/50 and stop the walk at their parent so the
+/// user picks by hand.
+List<String> autoPath(List<WorkTreeNode> nodes) {
+  final path = <String>[];
+  var cursor = nodes;
+  while (true) {
+    var total = 0;
+    WorkTreeFolder? best;
+    var bestBytes = 0;
+    for (final n in cursor) {
+      final bytes = switch (n) {
+        WorkTreeTrack(:final track) => track.fileSizeBytes,
+        WorkTreeFolder() => n.totalAudioBytes,
+        WorkTreeFile() => 0,
+      };
+      total += bytes;
+      if (n is WorkTreeFolder && bytes > bestBytes) {
+        best = n;
+        bestBytes = bytes;
+      }
+    }
+    if (best == null || bestBytes * 10 <= total * 6) break;
+    path.add(best.name);
+    cursor = best.children;
+  }
+  return path;
 }

@@ -33,6 +33,7 @@ class WorkFilesPage extends ConsumerStatefulWidget {
 class _WorkFilesPageState extends ConsumerState<WorkFilesPage> {
   final List<String> _path = [];
   bool _probeStarted = false;
+  bool _autoPathApplied = false;
 
   @override
   Widget build(BuildContext context) {
@@ -51,6 +52,11 @@ class _WorkFilesPageState extends ConsumerState<WorkFilesPage> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         ref.read(trackDurationProbeProvider).probe(toProbe);
       });
+    }
+
+    if (!_autoPathApplied && tracksAsync.hasValue) {
+      _autoPathApplied = true;
+      _path.addAll(autoPath(roots));
     }
 
     final currentChildren = _resolve(roots, _path);

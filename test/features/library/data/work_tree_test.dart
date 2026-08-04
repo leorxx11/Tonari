@@ -14,6 +14,7 @@ void main() {
     String relativePath,
     String format, {
     int durationMs = 0,
+    int sizeBytes = 0,
   }) {
     final now = DateTime(2026, 5, 26);
     final fileName = relativePath.split('/').last;
@@ -24,7 +25,7 @@ void main() {
       relativePath: relativePath,
       fileName: fileName,
       fileFormat: format,
-      fileSizeBytes: 0,
+      fileSizeBytes: sizeBytes,
       durationMs: durationMs,
       parentDirName: relativePath.contains('/')
           ? relativePath.substring(0, relativePath.lastIndexOf('/'))
@@ -205,5 +206,67 @@ void main() {
     final flat = flattenForPlayback(tree);
     expect(flat, hasLength(1));
     expect(flat.single.relativePath, '音声/01.wav');
+  });
+
+  group('autoPath', () {
+    const mb = 1024 * 1024;
+
+    test('descends into the dominant WAV folder over its MP3 sibling', () {
+      final tree = buildWorkTree([
+        makeTrack('RJ8', '01_WAV/01.wav', 'wav', sizeBytes: 900 * mb),
+        makeTrack('RJ8', '02_MP3/01.mp3', 'mp3', sizeBytes: 90 * mb),
+      ]);
+      expect(autoPath(tree), ['01_WAV']);
+    });
+
+    test('WAV vs FLAC at ~2:1 still descends into WAV', () {
+      final tree = buildWorkTree([
+        makeTrack('RJ9', 'WAV/01.wav', 'wav', sizeBytes: 400 * mb),
+        makeTrack('RJ9', 'FLAC/01.flac', 'flac', sizeBytes: 200 * mb),
+      ]);
+      expect(autoPath(tree), ['WAV']);
+    });
+
+    test('equal parallel variants stop at their parent', () {
+      final tree = buildWorkTree([
+        makeTrack('RJ10', '本編/SEあり/01.wav', 'wav', sizeBytes: 300 * mb),
+        makeTrack('RJ10', '本編/SEなし/01.wav', 'wav', sizeBytes: 300 * mb),
+      ]);
+      expect(autoPath(tree), ['本編']);
+    });
+
+    test('walks past a small bonus folder into the nested main audio', () {
+      final tree = buildWorkTree([
+        makeTrack('RJ11', '本編/WAV/01.wav', 'wav', sizeBytes: 800 * mb),
+        makeTrack('RJ11', '本編/MP3/01.mp3', 'mp3', sizeBytes: 80 * mb),
+        makeTrack('RJ11', '特典/おまけ.mp3', 'mp3', sizeBytes: 5 * mb),
+      ]);
+      expect(autoPath(tree), ['本編', 'WAV']);
+    });
+
+    test('stays at root when audio already sits there', () {
+      final tree = buildWorkTree([
+        makeTrack('RJ12', '01.wav', 'wav', sizeBytes: 500 * mb),
+        makeTrack('RJ12', '02.wav', 'wav', sizeBytes: 500 * mb),
+        makeTrack('RJ12', 'おまけ/宣伝.mp3', 'mp3', sizeBytes: 5 * mb),
+      ]);
+      expect(autoPath(tree), isEmpty);
+    });
+
+    test('ignores folders that only hold non-audio files', () {
+      final tree = buildWorkTree(
+        [makeTrack('RJ13', '音声/01.wav', 'wav', sizeBytes: 100 * mb)],
+        workFiles: [makeFile('RJ13', '画像/cover.jpg', 'image')],
+      );
+      expect(autoPath(tree), ['音声']);
+    });
+
+    test('returns empty when sizes are unknown', () {
+      final tree = buildWorkTree([
+        makeTrack('RJ14', 'WAV/01.wav', 'wav'),
+        makeTrack('RJ14', 'MP3/01.mp3', 'mp3'),
+      ]);
+      expect(autoPath(tree), isEmpty);
+    });
   });
 }
