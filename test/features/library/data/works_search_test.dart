@@ -43,6 +43,8 @@ void main() {
     List<String> genres = const [],
     List<String> voiceActors = const [],
     String? seriesName,
+    String? circleName,
+    List<String> userTags = const [],
   }) async {
     final now = DateTime.now();
     await db
@@ -58,6 +60,8 @@ void main() {
             titleZh: Value(titleZh),
             voiceActors: Value(voiceActors),
             seriesName: Value(seriesName),
+            circleName: Value(circleName),
+            userTags: Value(userTags),
             genresJson: Value(
               jsonEncode([
                 for (final g in genres) {'id': '0', 'name': g},
@@ -103,10 +107,26 @@ void main() {
     expect(await search('ささ'), ['RJ2']);
   });
 
-  test('plain query does not match genres', () async {
+  test('plain query matches CV, circle, series and user tags', () async {
+    await insertWork('RJ1', voiceActors: ['花玲', '柚木つばめ']);
+    await insertWork('RJ2', circleName: 'シロクマの嫁');
+    await insertWork('RJ3', seriesName: '耳元シリーズ');
+    await insertWork('RJ4', userTags: ['助眠神作']);
+
+    expect(await search('花玲'), ['RJ1']);
+    expect(await search('シロクマ'), ['RJ2']);
+    expect(await search('耳元'), ['RJ3']);
+    expect(await search('助眠'), ['RJ4']);
+  });
+
+  test('plain query matches genre names but not JSON scaffolding', () async {
     await insertWork('RJ1', genres: ['耳かき']);
 
-    expect(await search('耳かき'), isEmpty);
+    expect(await search('耳かき'), ['RJ1']);
+    // "name" and "id" only appear in the stored JSON structure, not in any
+    // user-facing field — they must not match everything.
+    expect(await search('name'), isEmpty);
+    expect(await search('id'), isEmpty);
   });
 
   test('chip filter matches exactly', () async {

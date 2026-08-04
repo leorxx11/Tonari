@@ -338,7 +338,7 @@ class _SearchField extends StatelessWidget {
               controller: controller,
               autofocus: chips.isEmpty,
               decoration: InputDecoration(
-                hintText: chips.isEmpty ? '搜索 RJ 编号、标题，#标签…' : null,
+                hintText: chips.isEmpty ? '搜索 RJ、标题、CV、社团，#标签…' : null,
                 border: InputBorder.none,
               ),
               onChanged: onQueryChanged,

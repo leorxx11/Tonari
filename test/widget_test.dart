@@ -770,7 +770,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(TextField), findsOneWidget);
-    expect(find.text('搜索 RJ 编号、标题，#标签…'), findsOneWidget);
+    expect(find.text('搜索 RJ、标题、CV、社团，#标签…'), findsOneWidget);
 
     await tester.tap(find.byTooltip('关闭搜索'));
     await tester.pumpAndSettle();

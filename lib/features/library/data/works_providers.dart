@@ -110,6 +110,7 @@ final allWorksProvider = StreamProvider<List<Work>>((ref) {
   final filter = ref.watch(workFilterProvider);
   final query = filter.searchQuery.trim().toLowerCase();
   final tagQuery = query.startsWith('#') ? query.substring(1).trim() : null;
+  final textQuery = tagQuery == null ? query : '';
 
   final stream =
       (db.select(db.works)
@@ -117,15 +118,6 @@ final allWorksProvider = StreamProvider<List<Work>>((ref) {
               var expr = w.isRemoved.equals(false);
               if (filter.favoritesOnly) {
                 expr = expr & w.isFavorite.equals(true);
-              }
-              if (tagQuery == null && query.isNotEmpty) {
-                final like = '%$query%';
-                expr =
-                    expr &
-                    (w.productId.lower().like(like) |
-                        w.title.lower().like(like) |
-                        w.titleZh.lower().like(like) |
-                        w.translatedTitle.lower().like(like));
               }
               if (filter.source != SourceFilter.all) {
                 final remoteIds = db.selectOnly(db.importedFolders)
@@ -146,7 +138,11 @@ final allWorksProvider = StreamProvider<List<Work>>((ref) {
           .watch();
 
   final chips = filter.chips;
-  if (chips.isEmpty && (tagQuery == null || tagQuery.isEmpty)) return stream;
+  if (chips.isEmpty &&
+      (tagQuery == null || tagQuery.isEmpty) &&
+      textQuery.isEmpty) {
+    return stream;
+  }
   return stream.map(
     (rows) => rows
         .where(
@@ -156,11 +152,37 @@ final allWorksProvider = StreamProvider<List<Work>>((ref) {
                   tagQuery.isEmpty ||
                   genreNamesOf(
                     w,
-                  ).any((n) => n.toLowerCase().contains(tagQuery))),
+                  ).any((n) => n.toLowerCase().contains(tagQuery))) &&
+              (textQuery.isEmpty || workMatchesText(w, textQuery)),
         )
         .toList(),
   );
 });
+
+/// Free-text search over every field a work is remembered by: RJ numbers,
+/// titles in all editions, circle, series, cast lists, tags and notes.
+/// Dart-side (not SQL LIKE) so list fields match on parsed values instead
+/// of their JSON encoding.
+bool workMatchesText(Work w, String query) {
+  bool has(String? s) => s != null && s.toLowerCase().contains(query);
+  bool hasAny(List<String> list) =>
+      list.any((s) => s.toLowerCase().contains(query));
+  return has(w.productId) ||
+      has(w.originalProductId) ||
+      has(w.title) ||
+      has(w.titleRomaji) ||
+      has(w.titleZh) ||
+      has(w.translatedTitle) ||
+      has(w.circleName) ||
+      has(w.seriesName) ||
+      has(w.notes) ||
+      hasAny(w.voiceActors) ||
+      hasAny(w.illustrators) ||
+      hasAny(w.scenarioWriters) ||
+      hasAny(w.musicians) ||
+      hasAny(w.userTags) ||
+      genreNamesOf(w).any((n) => n.toLowerCase().contains(query));
+}
 
 final remoteFolderIdsProvider = StreamProvider<Set<String>>((ref) {
   final db = ref.watch(databaseProvider);
