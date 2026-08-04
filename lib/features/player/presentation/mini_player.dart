@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +13,12 @@ import '../../video_library/data/video_library_providers.dart';
 import '../../video_library/presentation/video_library_page.dart';
 import '../data/playback_controller.dart';
 import 'player_page.dart';
+
+/// Full home-indicator SafeArea reads as a dead strip below the bar; keep
+/// the controls clear of the indicator but let it overlap the padding.
+EdgeInsets _bottomInsetPadding(BuildContext context) => EdgeInsets.only(
+  bottom: math.max(0, MediaQuery.paddingOf(context).bottom - 16),
+);
 
 class MiniPlayer extends ConsumerWidget {
   const MiniPlayer({super.key});
@@ -40,90 +48,96 @@ class MiniPlayer extends ConsumerWidget {
       tag: 'tonari-mini-player',
       child: Material(
         color: theme.colorScheme.surfaceContainerHigh,
-        child: InkWell(
-          onTap: () => Navigator.of(context, rootNavigator: true).push(
-            CupertinoSheetRoute<void>(
-              scrollableBuilder: (_, _) => const PlayerPage(),
-              showDragHandle: true,
+        child: Padding(
+          padding: _bottomInsetPadding(context),
+          child: InkWell(
+            onTap: () => Navigator.of(context, rootNavigator: true).push(
+              CupertinoSheetRoute<void>(
+                scrollableBuilder: (_, _) => const PlayerPage(),
+                showDragHandle: true,
+              ),
             ),
-          ),
-          child: SizedBox(
-            height: 72,
-            child: Stack(
-              children: [
-                Row(
-                  children: [
-                    const SizedBox(width: 12),
-                    SizedBox(
-                      width: 52,
-                      height: 52,
-                      child: work == null
-                          ? DecoratedBox(
-                              decoration: BoxDecoration(
-                                color:
-                                    theme.colorScheme.surfaceContainerHighest,
+            child: SizedBox(
+              height: 72,
+              child: Stack(
+                children: [
+                  Row(
+                    children: [
+                      const SizedBox(width: 12),
+                      SizedBox(
+                        width: 52,
+                        height: 52,
+                        child: work == null
+                            ? DecoratedBox(
+                                decoration: BoxDecoration(
+                                  color:
+                                      theme.colorScheme.surfaceContainerHighest,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  Icons.cloud_queue_rounded,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              )
+                            : WorkCover(
+                                work: work,
                                 borderRadius: BorderRadius.circular(8),
+                                iconSize: 24,
                               ),
-                              child: Icon(
-                                Icons.cloud_queue_rounded,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.bodyMedium,
+                            ),
+                            Text(
+                              subtitle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.bodySmall?.copyWith(
                                 color: theme.colorScheme.onSurfaceVariant,
                               ),
-                            )
-                          : WorkCover(
-                              work: work,
-                              borderRadius: BorderRadius.circular(8),
-                              iconSize: 24,
                             ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodyMedium,
-                          ),
-                          Text(
-                            subtitle,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                    StreamBuilder<bool>(
-                      stream: controller.player.playingStream,
-                      initialData: controller.player.playing,
-                      builder: (context, snapshot) {
-                        final playing = snapshot.data ?? false;
-                        return IconButton(
-                          icon: Icon(playing ? Icons.pause : Icons.play_arrow),
-                          onPressed: () =>
-                              playing ? controller.pause() : controller.play(),
-                        );
-                      },
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.skip_next),
-                      onPressed: state.hasNext ? controller.next : null,
-                    ),
-                    const SizedBox(width: 4),
-                  ],
-                ),
-                const Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: IgnorePointer(child: _MiniPlayerProgress()),
-                ),
-              ],
+                      StreamBuilder<bool>(
+                        stream: controller.player.playingStream,
+                        initialData: controller.player.playing,
+                        builder: (context, snapshot) {
+                          final playing = snapshot.data ?? false;
+                          return IconButton(
+                            icon: Icon(
+                              playing ? Icons.pause : Icons.play_arrow,
+                            ),
+                            onPressed: () => playing
+                                ? controller.pause()
+                                : controller.play(),
+                          );
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.skip_next),
+                        onPressed: state.hasNext ? controller.next : null,
+                      ),
+                      const SizedBox(width: 4),
+                    ],
+                  ),
+                  const Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: IgnorePointer(child: _MiniPlayerProgress()),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -147,163 +161,168 @@ class _VideoMiniBar extends ConsumerWidget {
     final isLoading = vpc == null && !state.dormant && state.error == null;
     return Material(
       color: theme.colorScheme.surfaceContainerHigh,
-      child: InkWell(
-        // Ready → expand to full screen. Dormant/error → tap loads + resumes.
-        // Loading → ignore taps.
-        onTap: isReady
-            ? () {
-                DiagnosticLog.write('video_player', 'mini_tap_open_page', {
-                  'itemId': item.id,
-                  'sourceKind': item.sourceKind.name,
-                  'resolverSource': item.resolverSource,
-                });
-                Navigator.of(context, rootNavigator: true).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const VideoPlayerPage(),
-                  ),
-                );
-              }
-            : isLoading
-            ? null
-            : () {
-                DiagnosticLog.write('video_player', 'mini_tap_resume', {
-                  'itemId': item.id,
-                  'sourceKind': item.sourceKind.name,
-                  'resolverSource': item.resolverSource,
-                  'stateDormant': state.dormant,
-                  'stateHasError': state.error != null,
-                });
-                notifier.resume();
-              },
-        child: SizedBox(
-          height: 72,
-          child: Stack(
-            children: [
-              Row(
-                children: [
-                  const SizedBox(width: 12),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: SizedBox(
-                      width: 52,
-                      height: 52,
-                      child: VideoCover(
-                        coverPath: ref
-                            .watch(videoItemByIdProvider(item.stableId))
-                            .value
-                            ?.coverPath,
-                        iconSize: 26,
+      child: Padding(
+        padding: _bottomInsetPadding(context),
+        child: InkWell(
+          // Ready → expand to full screen. Dormant/error → tap loads + resumes.
+          // Loading → ignore taps.
+          onTap: isReady
+              ? () {
+                  DiagnosticLog.write('video_player', 'mini_tap_open_page', {
+                    'itemId': item.id,
+                    'sourceKind': item.sourceKind.name,
+                    'resolverSource': item.resolverSource,
+                  });
+                  Navigator.of(context, rootNavigator: true).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const VideoPlayerPage(),
+                    ),
+                  );
+                }
+              : isLoading
+              ? null
+              : () {
+                  DiagnosticLog.write('video_player', 'mini_tap_resume', {
+                    'itemId': item.id,
+                    'sourceKind': item.sourceKind.name,
+                    'resolverSource': item.resolverSource,
+                    'stateDormant': state.dormant,
+                    'stateHasError': state.error != null,
+                  });
+                  notifier.resume();
+                },
+          child: SizedBox(
+            height: 72,
+            child: Stack(
+              children: [
+                Row(
+                  children: [
+                    const SizedBox(width: 12),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: SizedBox(
+                        width: 52,
+                        height: 52,
+                        child: VideoCover(
+                          coverPath: ref
+                              .watch(videoItemByIdProvider(item.stableId))
+                              .value
+                              ?.coverPath,
+                          iconSize: 26,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          item.fileName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodyMedium,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            item.fileName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodyMedium,
+                          ),
+                          Text(
+                            item.sourceName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (isReady)
+                      ValueListenableBuilder<VideoPlayerValue>(
+                        valueListenable: vpc,
+                        builder: (context, value, _) => IconButton(
+                          icon: Icon(
+                            value.isPlaying ? Icons.pause : Icons.play_arrow,
+                          ),
+                          onPressed: () {
+                            DiagnosticLog.write(
+                              'video_player',
+                              value.isPlaying
+                                  ? 'mini_button_pause'
+                                  : 'mini_button_play',
+                              {
+                                'itemId': item.id,
+                                'sourceKind': item.sourceKind.name,
+                                'resolverSource': item.resolverSource,
+                                'positionMs': value.position.inMilliseconds,
+                                'durationMs': value.duration.inMilliseconds,
+                                'hasError': value.hasError,
+                                'errorDescription': value.errorDescription,
+                              },
+                            );
+                            value.isPlaying
+                                ? notifier.pause()
+                                : notifier.play();
+                          },
                         ),
-                        Text(
-                          item.sourceName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
+                      )
+                    else if (isLoading)
+                      const SizedBox(
+                        width: 48,
+                        height: 48,
+                        child: Center(
+                          child: SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                  if (isReady)
-                    ValueListenableBuilder<VideoPlayerValue>(
-                      valueListenable: vpc,
-                      builder: (context, value, _) => IconButton(
-                        icon: Icon(
-                          value.isPlaying ? Icons.pause : Icons.play_arrow,
-                        ),
+                      )
+                    else
+                      IconButton(
+                        icon: const Icon(Icons.play_arrow),
                         onPressed: () {
                           DiagnosticLog.write(
                             'video_player',
-                            value.isPlaying
-                                ? 'mini_button_pause'
-                                : 'mini_button_play',
+                            'mini_button_resume',
                             {
                               'itemId': item.id,
                               'sourceKind': item.sourceKind.name,
                               'resolverSource': item.resolverSource,
-                              'positionMs': value.position.inMilliseconds,
-                              'durationMs': value.duration.inMilliseconds,
-                              'hasError': value.hasError,
-                              'errorDescription': value.errorDescription,
+                              'stateDormant': state.dormant,
+                              'stateHasError': state.error != null,
                             },
                           );
-                          value.isPlaying ? notifier.pause() : notifier.play();
+                          notifier.resume();
                         },
                       ),
-                    )
-                  else if (isLoading)
-                    const SizedBox(
-                      width: 48,
-                      height: 48,
-                      child: Center(
-                        child: SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
+                    const SizedBox(width: 4),
+                  ],
+                ),
+                if (isReady)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: IgnorePointer(
+                      child: ValueListenableBuilder<VideoPlayerValue>(
+                        valueListenable: vpc,
+                        builder: (context, value, _) {
+                          final durationMs = value.duration.inMilliseconds;
+                          final positionMs = value.position.inMilliseconds;
+                          final progress = durationMs <= 0
+                              ? 0.0
+                              : (positionMs / durationMs).clamp(0.0, 1.0);
+                          return LinearProgressIndicator(
+                            value: progress,
+                            minHeight: 2,
+                            backgroundColor: Colors.transparent,
+                            color: theme.colorScheme.primary,
+                          );
+                        },
                       ),
-                    )
-                  else
-                    IconButton(
-                      icon: const Icon(Icons.play_arrow),
-                      onPressed: () {
-                        DiagnosticLog.write(
-                          'video_player',
-                          'mini_button_resume',
-                          {
-                            'itemId': item.id,
-                            'sourceKind': item.sourceKind.name,
-                            'resolverSource': item.resolverSource,
-                            'stateDormant': state.dormant,
-                            'stateHasError': state.error != null,
-                          },
-                        );
-                        notifier.resume();
-                      },
-                    ),
-                  const SizedBox(width: 4),
-                ],
-              ),
-              if (isReady)
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: IgnorePointer(
-                    child: ValueListenableBuilder<VideoPlayerValue>(
-                      valueListenable: vpc,
-                      builder: (context, value, _) {
-                        final durationMs = value.duration.inMilliseconds;
-                        final positionMs = value.position.inMilliseconds;
-                        final progress = durationMs <= 0
-                            ? 0.0
-                            : (positionMs / durationMs).clamp(0.0, 1.0);
-                        return LinearProgressIndicator(
-                          value: progress,
-                          minHeight: 2,
-                          backgroundColor: Colors.transparent,
-                          color: theme.colorScheme.primary,
-                        );
-                      },
                     ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

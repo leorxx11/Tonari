@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/db/database.dart';
+import '../../../shared/widgets/app_drawer.dart';
 import '../../p115/data/p115_cookie_store.dart';
 import '../../p115/presentation/p115_browser_page.dart';
 import '../../p115/presentation/p115_login_page.dart';
@@ -20,7 +21,10 @@ class BrowsePage extends ConsumerWidget {
     final webdavServers = ref.watch(webdavServersStreamProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('浏览')),
+      appBar: AppBar(
+        leading: const DrawerMenuButton(),
+        title: const Text('浏览'),
+      ),
       body: ListView(
         children: [
           p115Cookie.when(

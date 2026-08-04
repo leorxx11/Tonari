@@ -88,6 +88,83 @@ class CollectionDetailPage extends ConsumerWidget {
   }
 }
 
+class FavoritesDetailPage extends ConsumerWidget {
+  const FavoritesDetailPage({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final works = ref.watch(favoriteWorksProvider).value;
+    final allVideos = ref.watch(videoItemsProvider).value;
+    final videos = allVideos?.where((v) => v.isFavorite).toList();
+    final loading = works == null || videos == null;
+    final empty = !loading && works.isEmpty && videos.isEmpty;
+    return Scaffold(
+      appBar: AppBar(title: const Text('全部收藏')),
+      body: loading
+          ? const Center(child: CircularProgressIndicator())
+          : empty
+          ? const _EmptyFavorites()
+          : CustomScrollView(
+              slivers: [
+                if (works.isNotEmpty) ...[
+                  if (videos.isNotEmpty) const _SectionHeader('音声'),
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(10, 10, 10, 16),
+                    sliver: SliverGrid(
+                      gridDelegate: workGridDelegate,
+                      delegate: SliverChildBuilderDelegate(
+                        (ctx, i) => WorkGridCard(work: works[i]),
+                        childCount: works.length,
+                      ),
+                    ),
+                  ),
+                ],
+                if (videos.isNotEmpty) ...[
+                  if (works.isNotEmpty) const _SectionHeader('视频'),
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(10, 10, 10, 16),
+                    sliver: SliverGrid(
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            mainAxisSpacing: 10,
+                            crossAxisSpacing: 10,
+                            childAspectRatio: 1.15,
+                          ),
+                      delegate: SliverChildBuilderDelegate(
+                        (ctx, i) => VideoCard(item: videos[i]),
+                        childCount: videos.length,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+    );
+  }
+}
+
+class _EmptyFavorites extends StatelessWidget {
+  const _EmptyFavorites();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Text(
+          '还没有收藏\n点作品卡片右下角或详情页的红心即可加入',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
+  }
+}
+
 class _SectionHeader extends StatelessWidget {
   const _SectionHeader(this.title);
 

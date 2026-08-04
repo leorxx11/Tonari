@@ -3,14 +3,19 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../features/browse/presentation/browse_page.dart';
+import '../../features/history/presentation/play_history_page.dart';
 import '../../features/library/data/enrichment_queue.dart';
 import '../../features/library/data/rescan_service.dart';
-import '../../features/browse/presentation/browse_page.dart';
 import '../../features/library/presentation/collections_page.dart';
-import '../../features/library/presentation/media_library_tab.dart';
+import '../../features/library/presentation/library_page.dart';
+import '../../features/player/data/playback_controller.dart';
 import '../../features/player/presentation/mini_player.dart';
 import '../../features/settings/presentation/settings_page.dart';
-import '../providers/selected_tab_index.dart';
+import '../../features/video/data/video_controller.dart';
+import '../../features/video_library/presentation/video_library_page.dart';
+import '../providers/selected_section.dart';
+import 'app_drawer.dart';
 
 class RootTabView extends ConsumerStatefulWidget {
   const RootTabView({super.key});
@@ -37,50 +42,40 @@ class _RootTabViewState extends ConsumerState<RootTabView> {
 
   @override
   Widget build(BuildContext context) {
-    final index = ref.watch(selectedTabIndexProvider);
+    final section = ref.watch(selectedSectionProvider);
+    final hasMiniPlayer =
+        ref.watch(videoControllerProvider.select((v) => v.hasVideo)) ||
+        ref.watch(
+          playbackControllerProvider.select(
+            (s) => s.currentTrack != null || s.currentBrowseItem != null,
+          ),
+        );
     return Scaffold(
+      key: rootScaffoldKey,
+      drawer: const AppDrawer(),
       body: Column(
         children: [
           Expanded(
-            child: IndexedStack(
-              index: index,
-              children: const [
-                MediaLibraryTab(),
-                CollectionsPage(),
-                BrowsePage(),
-                SettingsPage(),
-              ],
+            // While the mini player is visible it owns the home-indicator
+            // inset; the wrapper stays unconditionally so IndexedStack
+            // children never re-parent and lose state.
+            child: MediaQuery.removePadding(
+              context: context,
+              removeBottom: hasMiniPlayer,
+              child: IndexedStack(
+                index: section.index,
+                children: const [
+                  LibraryPage(),
+                  VideoLibraryPage(),
+                  CollectionsPage(),
+                  PlayHistoryPage(),
+                  BrowsePage(),
+                  SettingsPage(),
+                ],
+              ),
             ),
           ),
           const MiniPlayer(),
-        ],
-      ),
-      bottomNavigationBar: NavigationBar(
-        height: 64,
-        selectedIndex: index,
-        onDestinationSelected: (i) =>
-            ref.read(selectedTabIndexProvider.notifier).set(i),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.library_music_outlined),
-            selectedIcon: Icon(Icons.library_music),
-            label: '媒体库',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.collections_bookmark_outlined),
-            selectedIcon: Icon(Icons.collections_bookmark),
-            label: '书架',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.folder_open_outlined),
-            selectedIcon: Icon(Icons.folder_open),
-            label: '浏览',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
-            selectedIcon: Icon(Icons.settings),
-            label: '设置',
-          ),
         ],
       ),
     );

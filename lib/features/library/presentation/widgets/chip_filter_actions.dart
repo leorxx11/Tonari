@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../shared/providers/selected_tab_index.dart';
+import '../../../../shared/providers/selected_section.dart';
 import '../../data/works_providers.dart';
 
 void applyChipFilter(
@@ -10,6 +10,6 @@ void applyChipFilter(
   WorkChipFilter filter,
 ) {
   ref.read(workFilterProvider.notifier).addChip(filter);
-  ref.read(selectedTabIndexProvider.notifier).set(0);
+  ref.read(selectedSectionProvider.notifier).set(AppSection.audioLibrary);
   Navigator.of(context, rootNavigator: true).popUntil((r) => r.isFirst);
 }

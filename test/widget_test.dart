@@ -60,9 +60,12 @@ Widget testApp({
     collectionsProvider.overrideWith(
       (ref) => Stream.value(const <Collection>[]),
     ),
-    videoItemsProvider.overrideWith(
-      (ref) => Stream.value(const <VideoItem>[]),
+    favoriteWorksProvider.overrideWith(
+      (ref) => Stream.value(
+        works.where((w) => w.isFavorite && !w.isRemoved).toList(),
+      ),
     ),
+    videoItemsProvider.overrideWith((ref) => Stream.value(const <VideoItem>[])),
     collectionVideosProvider.overrideWith(
       (ref, collectionId) => Stream.value(const <VideoItem>[]),
     ),
@@ -268,14 +271,36 @@ void main() {
     _testPrefs = await SharedPreferences.getInstance();
   });
 
-  testWidgets('root renders 4 navigation tabs', (tester) async {
+  // IndexedStack keeps every section (and its hamburger) in the tree, so
+  // finders must be narrowed to the visible one with hitTestable.
+  Future<void> openDrawer(WidgetTester tester) async {
+    await tester.tap(find.byTooltip('菜单').hitTestable());
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> openSection(WidgetTester tester, String label) async {
+    await openDrawer(tester);
+    await tester.tap(find.text(label).hitTestable());
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('drawer lists all sections and actions', (tester) async {
     await tester.pumpWidget(testApp());
     await tester.pumpAndSettle();
 
-    expect(find.text('媒体库'), findsWidgets);
-    expect(find.text('书架'), findsWidgets);
-    expect(find.text('浏览'), findsWidgets);
-    expect(find.text('设置'), findsWidgets);
+    await openDrawer(tester);
+
+    for (final label in [
+      '音声库',
+      '视频库',
+      '收藏',
+      '播放历史',
+      '浏览',
+      '设置',
+      '消息',
+    ]) {
+      expect(find.text(label).hitTestable(), findsOneWidget, reason: label);
+    }
   });
 
   testWidgets('library tab shows empty state when no works', (tester) async {
@@ -285,9 +310,7 @@ void main() {
     expect(find.text('媒体库还是空的'), findsOneWidget);
   });
 
-  testWidgets('message bell shows unread badge and opens sheet', (
-    tester,
-  ) async {
+  testWidgets('drawer 消息 shows unread badge and opens sheet', (tester) async {
     await tester.pumpWidget(
       testApp(
         appEvents: [_event(title: '资料补全失败', actionKey: 'enrich')],
@@ -295,12 +318,12 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byTooltip('1 条未读消息'), findsOneWidget);
+    await openDrawer(tester);
+    expect(find.text('1'), findsOneWidget);
 
-    await tester.tap(find.byTooltip('1 条未读消息'));
+    await tester.tap(find.text('消息').hitTestable());
     await tester.pumpAndSettle();
 
-    expect(find.text('消息'), findsOneWidget);
     expect(find.text('资料补全失败'), findsOneWidget);
     expect(find.text('补全资料'), findsOneWidget);
   });
@@ -309,8 +332,8 @@ void main() {
     await tester.pumpWidget(testApp());
     await tester.pumpAndSettle();
 
-    expect(find.byTooltip('消息'), findsOneWidget);
-    await tester.tap(find.byTooltip('消息'));
+    await openDrawer(tester);
+    await tester.tap(find.text('消息').hitTestable());
     await tester.pumpAndSettle();
 
     expect(find.text('暂无消息'), findsOneWidget);
@@ -334,8 +357,6 @@ void main() {
   testWidgets('tapping a CV chip adds a removable AND filter token', (
     tester,
   ) async {
-    // The segment bar above the library grid pushes the first card's tag row
-    // just below the default 600px viewport — use a taller surface.
     await tester.binding.setSurfaceSize(const Size(800, 1000));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(
@@ -362,14 +383,16 @@ void main() {
     expect(find.text('Other Work'), findsOneWidget);
   });
 
-  testWidgets('shelf tab shows empty state', (tester) async {
+  testWidgets('favorites section shows 全部收藏 entry and groups hint', (
+    tester,
+  ) async {
     await tester.pumpWidget(testApp());
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('书架'));
-    await tester.pumpAndSettle();
+    await openSection(tester, '收藏');
 
-    expect(find.text('书架还是空的'), findsOneWidget);
+    expect(find.text('全部收藏'), findsOneWidget);
+    expect(find.textContaining('还没有分组'), findsOneWidget);
   });
 
   testWidgets('long press menu includes 加入分组 and opens picker', (tester) async {
@@ -432,8 +455,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('设置'));
-    await tester.pumpAndSettle();
+    await openSection(tester, '设置');
     await tester.tap(find.text('数据管理'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('已移除作品'));
@@ -464,8 +486,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('设置'));
-    await tester.pumpAndSettle();
+    await openSection(tester, '设置');
     await tester.tap(find.text('数据管理'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('已移除作品'));
@@ -779,12 +800,11 @@ void main() {
     expect(find.text('最近播放'), findsOneWidget);
   });
 
-  testWidgets('tapping a tab switches the page', (tester) async {
+  testWidgets('drawer switches sections', (tester) async {
     await tester.pumpWidget(testApp());
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('设置'));
-    await tester.pumpAndSettle();
+    await openSection(tester, '设置');
 
     expect(find.text('外观'), findsOneWidget);
   });

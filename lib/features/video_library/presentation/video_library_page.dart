@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/db/database.dart';
 import '../../../core/files/local_image_path.dart';
 import '../../../core/ui/app_toast.dart';
+import '../../../shared/widgets/app_drawer.dart';
 import '../../library/presentation/widgets/collection_picker_sheet.dart';
 import '../data/video_cover_store.dart';
 import '../data/video_library_providers.dart';
@@ -26,6 +27,7 @@ class _VideoLibraryPageState extends ConsumerState<VideoLibraryPage> {
     final itemsAsync = ref.watch(videoItemsProvider);
     return Scaffold(
       appBar: AppBar(
+        leading: const DrawerMenuButton(),
         title: const Text('视频库'),
         actions: [
           IconButton(

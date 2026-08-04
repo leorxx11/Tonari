@@ -14,6 +14,14 @@ final collectionsProvider = StreamProvider<List<Collection>>((ref) {
       .watch();
 });
 
+final favoriteWorksProvider = StreamProvider<List<Work>>((ref) {
+  final db = ref.watch(databaseProvider);
+  return (db.select(db.works)
+        ..where((w) => w.isFavorite.equals(true) & w.isRemoved.equals(false))
+        ..orderBy([(w) => OrderingTerm.desc(w.localImportedAt)]))
+      .watch();
+});
+
 final collectionWorksProvider = StreamProvider.family<List<Work>, String>((
   ref,
   collectionId,

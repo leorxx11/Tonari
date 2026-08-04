@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../shared/widgets/app_drawer.dart';
 import 'appearance_settings_page.dart';
 import 'data_settings_page.dart';
 import 'diagnostic_log_page.dart';
@@ -12,7 +13,10 @@ class SettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('设置')),
+      appBar: AppBar(
+        leading: const DrawerMenuButton(),
+        title: const Text('设置'),
+      ),
       body: ListView(
         children: const [
           _Entry(

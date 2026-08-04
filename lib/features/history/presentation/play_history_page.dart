@@ -11,6 +11,7 @@ import '../../video_library/presentation/video_library_page.dart';
 import '../data/history_playback.dart';
 import '../data/play_history_repository.dart';
 import '../../../core/ui/app_toast.dart';
+import '../../../shared/widgets/app_drawer.dart';
 
 class PlayHistoryPage extends ConsumerWidget {
   const PlayHistoryPage({super.key});
@@ -20,6 +21,7 @@ class PlayHistoryPage extends ConsumerWidget {
     final historyAsync = ref.watch(playHistoryProvider);
     return Scaffold(
       appBar: AppBar(
+        leading: const DrawerMenuButton(),
         title: const Text('播放历史'),
         actions: [
           IconButton(

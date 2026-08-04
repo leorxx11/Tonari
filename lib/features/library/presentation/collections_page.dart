@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/db/database.dart';
+import '../../../shared/widgets/app_drawer.dart';
 import '../../video_library/data/video_library_providers.dart';
 import '../../video_library/presentation/video_library_page.dart';
 import '../data/collections_providers.dart';
@@ -14,10 +15,12 @@ class CollectionsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
     final collectionsAsync = ref.watch(collectionsProvider);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('书架'),
+        leading: const DrawerMenuButton(),
+        title: const Text('收藏'),
         actions: [
           IconButton(
             tooltip: '新建分组',
@@ -33,14 +36,70 @@ class CollectionsPage extends ConsumerWidget {
       body: collectionsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('加载失败：$e')),
-        data: (collections) => collections.isEmpty
-            ? const _EmptyShelf()
-            : ListView.builder(
-                itemCount: collections.length,
-                itemBuilder: (ctx, i) =>
-                    _CollectionTile(collection: collections[i]),
+        data: (collections) => ListView(
+          children: [
+            const _AllFavoritesTile(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 18, 16, 4),
+              child: Text(
+                '分组',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
+            ),
+            if (collections.isEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: Text(
+                  '还没有分组，点右上角新建，或在媒体库长按作品加入分组',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              )
+            else
+              for (final c in collections) _CollectionTile(collection: c),
+          ],
+        ),
       ),
+    );
+  }
+}
+
+class _AllFavoritesTile extends ConsumerWidget {
+  const _AllFavoritesTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final works = ref.watch(favoriteWorksProvider).value ?? const [];
+    final videos = (ref.watch(videoItemsProvider).value ?? const <VideoItem>[])
+        .where((v) => v.isFavorite)
+        .toList();
+    final counts = [
+      if (works.isNotEmpty || videos.isEmpty) '${works.length} 个作品',
+      if (videos.isNotEmpty) '${videos.length} 个视频',
+    ].join(' · ');
+    return ListTile(
+      leading: SizedBox(
+        width: 52,
+        height: 52,
+        child: Container(
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(Icons.favorite, color: theme.colorScheme.primary),
+        ),
+      ),
+      title: const Text('全部收藏'),
+      subtitle: Text(counts),
+      onTap: () {
+        Navigator.of(context, rootNavigator: true).push(
+          MaterialPageRoute<void>(builder: (_) => const FavoritesDetailPage()),
+        );
+      },
     );
   }
 }
@@ -163,37 +222,3 @@ class _CollectionTile extends ConsumerWidget {
 }
 
 enum _CollectionAction { rename, delete }
-
-class _EmptyShelf extends StatelessWidget {
-  const _EmptyShelf();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.collections_bookmark_outlined,
-              size: 64,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(height: 16),
-            Text('书架还是空的', style: theme.textTheme.titleMedium),
-            const SizedBox(height: 8),
-            Text(
-              '点右上角新建分组，或在媒体库长按作品加入分组',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}

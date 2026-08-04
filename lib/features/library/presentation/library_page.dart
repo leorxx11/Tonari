@@ -20,7 +20,7 @@ import '../../webdav/data/webdav_client.dart';
 import '../../webdav/data/webdav_server_repository.dart';
 import '../../webdav/presentation/webdav_browser_page.dart';
 import '../../webdav/presentation/webdav_settings_page.dart';
-import 'widgets/app_events_sheet.dart';
+import '../../../shared/widgets/app_drawer.dart';
 import 'widgets/library_task_status.dart';
 import 'widgets/works_grid.dart';
 import '../../../core/ui/app_toast.dart';
@@ -56,13 +56,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     final searching = _searching || filter.chips.isNotEmpty;
     return Scaffold(
       appBar: AppBar(
-        leading: searching
-            ? IconButton(
-                tooltip: '关闭搜索',
-                icon: const Icon(Icons.arrow_back),
-                onPressed: _closeSearch,
-              )
-            : null,
+        leading: const DrawerMenuButton(),
         title: searching
             ? _SearchField(
                 controller: _searchController,
@@ -78,7 +72,13 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                     ref.read(workFilterProvider.notifier).setSource(s),
               ),
         actions: [
-          if (!searching) ...[
+          if (searching)
+            IconButton(
+              tooltip: '关闭搜索',
+              icon: const Icon(Icons.close),
+              onPressed: _closeSearch,
+            )
+          else ...[
             IconButton(
               tooltip: '搜索',
               icon: const Icon(Icons.search),
@@ -115,7 +115,6 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                 ),
             ],
           ),
-          const AppEventsAction(),
           const EnrichmentStatusAction(),
           LibraryTaskStatusButton(
             idleTooltip: '导入文件夹',
@@ -457,11 +456,11 @@ class _EmptyState extends StatelessWidget {
         filter.searchQuery.trim().isNotEmpty ||
         filter.chips.isNotEmpty ||
         filter.source != SourceFilter.all;
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      children: [
-        SizedBox(
-          height: MediaQuery.of(context).size.height * 0.6,
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
           child: Center(
             child: Padding(
               padding: const EdgeInsets.all(32),
@@ -493,7 +492,7 @@ class _EmptyState extends StatelessWidget {
             ),
           ),
         ),
-      ],
+      ),
     );
   }
 }

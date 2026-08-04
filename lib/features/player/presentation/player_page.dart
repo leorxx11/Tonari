@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 
 import '../../library/presentation/widgets/work_cover.dart';
+import '../../library/presentation/work_detail_page.dart';
 import '../../settings/data/player_prefs.dart';
 import '../../subtitle/data/subtitle_overlay_prefs.dart';
 import '../../subtitle/data/subtitle_providers.dart';
@@ -262,6 +263,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
   }
 
   Future<void> _showMore(BuildContext context) async {
+    final work = ref.read(playbackControllerProvider).work;
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
@@ -297,6 +299,25 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                       ),
                   ],
                 ),
+                if (work != null) ...[
+                  const SizedBox(height: 12),
+                  const Divider(height: 1),
+                  ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                    leading: const Icon(CupertinoIcons.info_circle),
+                    title: const Text('查看作品详情'),
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      final nav = Navigator.of(context, rootNavigator: true);
+                      nav.pop();
+                      nav.push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => WorkDetailPage(work: work),
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ],
             ),
           ),
@@ -524,9 +545,7 @@ class _BottomActions extends ConsumerWidget {
     final subtitleMode = ref.watch(
       subtitleOverlayPrefsProvider.select((p) => p.mode),
     );
-    final sleepActive = ref.watch(
-      sleepTimerProvider.select((s) => s.isActive),
-    );
+    final sleepActive = ref.watch(sleepTimerProvider.select((s) => s.isActive));
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -555,7 +574,9 @@ class _BottomActions extends ConsumerWidget {
           tooltip: '睡眠定时',
           iconSize: 22,
           icon: Icon(
-            sleepActive ? CupertinoIcons.moon_zzz_fill : CupertinoIcons.moon_zzz,
+            sleepActive
+                ? CupertinoIcons.moon_zzz_fill
+                : CupertinoIcons.moon_zzz,
             color: sleepActive ? _kPlayerAccent : color,
           ),
           onPressed: onSleepTimer,
