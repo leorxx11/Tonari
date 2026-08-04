@@ -773,6 +773,31 @@ void main() {
     expect(find.byType(TextField), findsNothing);
   });
 
+  testWidgets('grid keeps its height while the keyboard is open in search', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      testApp(works: [_work('RJ01560714', title: 'Test Work')]),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('搜索'));
+    await tester.pumpAndSettle();
+
+    // 900 physical / DPR 3 = 300 logical keyboard. Surface is 600 tall and
+    // the root scaffold already resizes for the keyboard, so the grid should
+    // keep 600-300-56(app bar) ≈ 244. The stale-context removePadding bug
+    // re-exposed viewInsets to the inner scaffold, which subtracted the
+    // keyboard AGAIN and squeezed the grid to 0 (finders alone can't catch
+    // this — cacheExtent still builds the first row into a 0-height viewport).
+    tester.view.viewInsets = const FakeViewPadding(bottom: 900);
+    addTearDown(tester.view.reset);
+    await tester.pumpAndSettle();
+
+    final gridHeight = tester.getSize(find.byType(GridView)).height;
+    expect(gridHeight, greaterThan(200));
+  });
+
   testWidgets('favorite filter button toggles its tooltip', (tester) async {
     await tester.pumpWidget(testApp());
     await tester.pumpAndSettle();

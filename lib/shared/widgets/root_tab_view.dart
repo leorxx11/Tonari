@@ -58,20 +58,26 @@ class _RootTabViewState extends ConsumerState<RootTabView> {
           Expanded(
             // While the mini player is visible it owns the home-indicator
             // inset; the wrapper stays unconditionally so IndexedStack
-            // children never re-parent and lose state.
-            child: MediaQuery.removePadding(
-              context: context,
-              removeBottom: hasMiniPlayer,
-              child: IndexedStack(
-                index: section.index,
-                children: const [
-                  LibraryPage(),
-                  VideoLibraryPage(),
-                  CollectionsPage(),
-                  PlayHistoryPage(),
-                  BrowsePage(),
-                  SettingsPage(),
-                ],
+            // children never re-parent and lose state. The Builder matters:
+            // removePadding must read the MediaQuery INSIDE the scaffold
+            // body (keyboard insets already consumed) — cloning from this
+            // State's context re-exposed viewInsets and made the inner
+            // scaffolds subtract the keyboard a second time.
+            child: Builder(
+              builder: (context) => MediaQuery.removePadding(
+                context: context,
+                removeBottom: hasMiniPlayer,
+                child: IndexedStack(
+                  index: section.index,
+                  children: const [
+                    LibraryPage(),
+                    VideoLibraryPage(),
+                    CollectionsPage(),
+                    PlayHistoryPage(),
+                    BrowsePage(),
+                    SettingsPage(),
+                  ],
+                ),
               ),
             ),
           ),
