@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../p115/presentation/p115_settings_page.dart';
 import '../../webdav/presentation/webdav_settings_page.dart';
+import 'backup_page.dart';
 import 'media_sources_page.dart';
 import 'removed_works_page.dart';
 
@@ -26,6 +27,14 @@ class DataSettingsPage extends StatelessWidget {
             title: const Text('已移除作品'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => _push(context, const RemovedWorksPage()),
+          ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.save_alt_outlined),
+            title: const Text('备份与恢复'),
+            subtitle: const Text('导出媒体库数据，换机 / 换证书用'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => _push(context, const BackupPage()),
           ),
           const Divider(),
           ListTile(

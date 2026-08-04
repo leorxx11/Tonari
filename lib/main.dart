@@ -8,6 +8,7 @@ import 'app.dart';
 import 'core/diagnostics/diagnostic_log.dart';
 import 'core/files/local_image_path.dart';
 import 'core/prefs/shared_prefs_provider.dart';
+import 'features/settings/data/backup_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,6 +16,9 @@ Future<void> main() async {
   // Route video_player through FFmpeg/libmpv so codecs AVPlayer can't decode
   // (10-bit H.264, hev1 HEVC, etc.) still play. iOS tries VideoToolbox first.
   fvp.registerWith();
+
+  // Must run before anything opens the database or resolves image paths.
+  await BackupService.applyPendingRestore();
 
   await LocalImagePath.init();
   final prefs = await SharedPreferences.getInstance();
