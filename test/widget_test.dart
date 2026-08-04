@@ -377,6 +377,11 @@ void main() {
     expect(find.text('Other Work'), findsNothing);
 
     await tester.tap(find.byIcon(Icons.cancel));
+    // One frame after the filter change the provider is reloading; the grid
+    // must keep showing previous data instead of flashing a spinner.
+    await tester.pump();
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.text('With CV'), findsOneWidget);
     await tester.pumpAndSettle();
 
     expect(find.text('CV：花玲'), findsNothing);

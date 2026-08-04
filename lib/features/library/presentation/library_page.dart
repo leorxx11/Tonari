@@ -124,6 +124,9 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
         ],
       ),
       body: worksAsync.when(
+        // Filter/sort tweaks rebuild the works stream; keep the previous
+        // grid on screen during the reload instead of flashing a spinner.
+        skipLoadingOnReload: true,
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('加载失败：$e')),
         data: (works) => works.isEmpty
