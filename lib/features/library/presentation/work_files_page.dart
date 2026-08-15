@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/db/database.dart';
 import '../../../core/diagnostics/diagnostic_log.dart';
 import '../../../core/subtitle/subtitle_cue.dart';
+import '../../../core/subtitle/subtitle_parser.dart';
 import '../../browse/data/remote_models.dart';
 import '../../p115/data/p115_auth_service.dart';
 import '../../p115/data/p115_client.dart';
@@ -12,8 +13,10 @@ import '../../p115/data/p115_cookie_store.dart';
 import '../../player/data/playback_controller.dart';
 import '../../subtitle/data/subtitle_providers.dart';
 import '../../video/data/video_controller.dart';
+import '../data/library_task_controller.dart';
 import '../data/track_duration_probe.dart';
 import '../data/work_media_source.dart';
+import '../data/work_reimport_provider.dart';
 import '../data/work_tree.dart';
 import '../data/works_providers.dart';
 import '../../../core/ui/app_toast.dart';
@@ -41,6 +44,9 @@ class _WorkFilesPageState extends ConsumerState<WorkFilesPage> {
     final filesAsync = ref.watch(
       workFilesByWorkProvider(widget.work.productId),
     );
+    final ingestedSubs = ref
+        .watch(ingestedSubtitlePathsProvider(widget.work.productId))
+        .value;
     final tracks = tracksAsync.value ?? const <Track>[];
     final files = filesAsync.value ?? const <WorkFile>[];
     final roots = buildWorkTree(tracks, workFiles: files);
@@ -110,6 +116,7 @@ class _WorkFilesPageState extends ConsumerState<WorkFilesPage> {
                       ),
                       itemBuilder: (context, i) => _NodeRow(
                         node: currentChildren[i],
+                        ingestedSubtitlePaths: ingestedSubs,
                         onTapFolder: (name) => setState(() => _path.add(name)),
                         onPlayTrack: (t) => _play(t, playQueue),
                         onPlayVideo: _playVideo,
@@ -239,17 +246,61 @@ class _WorkFilesPageState extends ConsumerState<WorkFilesPage> {
   Future<void> _openSubtitlePreview(WorkFile file) async {
     final cues = await ref.read(subtitlePreviewProvider(file.filePath).future);
     if (!mounted) return;
-    if (cues == null) {
-      showAppToast('没有可预览的字幕文本');
+    if (cues != null) {
+      await Navigator.of(context, rootNavigator: true).push(
+        CupertinoSheetRoute<void>(
+          scrollableBuilder: (_, _) =>
+              _SubtitlePreviewPage(fileName: file.fileName, cues: cues),
+          showDragHandle: true,
+        ),
+      );
       return;
     }
-    await Navigator.of(context, rootNavigator: true).push(
-      CupertinoSheetRoute<void>(
-        scrollableBuilder: (_, _) =>
-            _SubtitlePreviewPage(fileName: file.fileName, cues: cues),
-        showDragHandle: true,
+    final ext = _extension(file.fileName);
+    if (!SubtitleParser.supports(ext)) {
+      showAppToast('暂不支持 .$ext 字幕');
+      return;
+    }
+    final rescan = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('字幕未入库'),
+        content: const Text('该字幕还未下载，或未匹配到同目录下的同名音频。重新扫描此作品可尝试补齐。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('重新扫描'),
+          ),
+        ],
       ),
     );
+    if (rescan != true || !mounted) return;
+    await _rescanWork();
+  }
+
+  Future<void> _rescanWork() async {
+    final taskController = ref.read(workTaskControllerProvider.notifier);
+    final reimport = ref.read(reimportWorkProvider);
+    try {
+      await taskController.run<void>(
+        productId: widget.work.productId,
+        kind: LibraryTaskKind.import,
+        title: '重新扫描作品',
+        initialStage: '扫描文件',
+        action: (task) async {
+          await reimport(widget.work, task: task);
+        },
+      );
+      if (!mounted) return;
+      showAppToast('作品已重新扫描');
+    } catch (e) {
+      if (!mounted) return;
+      showAppToast('重新扫描失败：$e');
+    }
   }
 
   /// Walks [roots] following [path], returning the children at that depth.
@@ -397,6 +448,7 @@ class _FooterStats extends StatelessWidget {
 class _NodeRow extends ConsumerWidget {
   const _NodeRow({
     required this.node,
+    required this.ingestedSubtitlePaths,
     required this.onTapFolder,
     required this.onPlayTrack,
     required this.onPlayVideo,
@@ -404,6 +456,9 @@ class _NodeRow extends ConsumerWidget {
   });
 
   final WorkTreeNode node;
+
+  /// null while the subtitle set is still loading — rows render undimmed.
+  final Set<String>? ingestedSubtitlePaths;
   final void Function(String name) onTapFolder;
   final void Function(Track track) onPlayTrack;
   final void Function(WorkFile file) onPlayVideo;
@@ -494,21 +549,36 @@ class _NodeRow extends ConsumerWidget {
     }
     final f = (n as WorkTreeFile).file;
     final (icon, color) = _iconForKind(f.fileKind, context);
+    final previewable = switch (f.fileKind) {
+      'subtitle' => ingestedSubtitlePaths?.contains(f.filePath) ?? true,
+      'video' => true,
+      _ => false,
+    };
     return ListTile(
       contentPadding: rowPadding,
-      leading: Icon(icon, color: color, size: 44),
+      leading: Icon(
+        icon,
+        color: previewable
+            ? color
+            : CupertinoColors.systemGrey3.resolveFrom(context),
+        size: 44,
+      ),
       title: Text(
         f.fileName,
         maxLines: 5,
         overflow: TextOverflow.ellipsis,
         style: theme.textTheme.bodyLarge?.copyWith(
-          color: iosLabel,
+          color: previewable ? iosLabel : iosSecondary,
           fontWeight: FontWeight.w500,
         ),
       ),
       subtitle: Text(
         _formatBytes(f.fileSizeBytes),
-        style: theme.textTheme.bodySmall?.copyWith(color: iosSecondary),
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: previewable
+              ? iosSecondary
+              : CupertinoColors.tertiaryLabel.resolveFrom(context),
+        ),
       ),
       onTap: switch (f.fileKind) {
         'video' => () => onPlayVideo(f),

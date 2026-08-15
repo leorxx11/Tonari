@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:drift/drift.dart' show Value;
+import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/db/database.dart';
@@ -41,6 +41,21 @@ final subtitlePreviewProvider = FutureProvider.autoDispose
       )..where((s) => s.filePath.equals(filePath))).getSingleOrNull();
       if (row == null) return null;
       return decodeSubtitleCues(row.originalLinesJson);
+    });
+
+/// File paths of subtitles already ingested for [workId]'s tracks. The
+/// resource browser uses this to tell previewable subtitle rows from ones
+/// that never made it into the pipeline.
+final ingestedSubtitlePathsProvider = StreamProvider.autoDispose
+    .family<Set<String>, String>((ref, workId) {
+      final db = ref.watch(databaseProvider);
+      final query = db.select(db.subtitles).join([
+        innerJoin(db.tracks, db.tracks.id.equalsExp(db.subtitles.trackId)),
+      ])..where(db.tracks.workId.equals(workId));
+      return query.watch().map(
+        (rows) =>
+            rows.map((r) => r.readTable(db.subtitles).filePath).toSet(),
+      );
     });
 
 List<SubtitleCue> decodeSubtitleCues(String rawJson) {
