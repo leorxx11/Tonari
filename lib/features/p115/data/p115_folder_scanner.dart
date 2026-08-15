@@ -80,27 +80,15 @@ class P115FolderScanner {
                 ),
               );
             case FileKind.subtitle:
-              final ext = FileClassifier.extOf(name);
-              if (ext == '.vtt' || ext == '.lrc') {
-                subtitles.add(
-                  DetectedSubtitle(
-                    path: pickcode,
-                    relativePath: rel,
-                    fileName: name,
-                    format: ext.substring(1),
-                    sizeBytes: size,
-                  ),
-                );
-              } else {
-                others.add(
-                  DetectedFile(
-                    path: pickcode,
-                    relativePath: rel,
-                    fileName: name,
-                    sizeBytes: size,
-                  ),
-                );
-              }
+              subtitles.add(
+                DetectedSubtitle(
+                  path: pickcode,
+                  relativePath: rel,
+                  fileName: name,
+                  format: _ext(name),
+                  sizeBytes: size,
+                ),
+              );
             case FileKind.video:
               videos.add(
                 DetectedFile(

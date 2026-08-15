@@ -417,8 +417,14 @@ class ImportService {
     return i < 0 ? fileName : fileName.substring(0, i);
   }
 
+  static String _dirOf(String relativePath) {
+    final i = relativePath.lastIndexOf('/');
+    return i < 0 ? '' : relativePath.substring(0, i);
+  }
+
   /// Returns parsed-and-hashed subtitles for every work in [scan], matched
-  /// to their corresponding audio. Two naming conventions are accepted:
+  /// to their corresponding audio **in the same directory**. Two naming
+  /// conventions are accepted:
   ///   - `track.wav.vtt` (DLsite style — subtitle name minus one ext == audio name)
   ///   - `track.srt`     (generic style — both files share a stem)
   /// First match wins. Unreadable or empty subtitles are silently skipped.
@@ -432,9 +438,13 @@ class ImportService {
       if (skip.contains(w.productId)) continue;
       if (w.subtitles.isEmpty || w.audios.isEmpty) continue;
       for (final sub in w.subtitles) {
+        if (!SubtitleParser.supports(sub.format)) continue;
         final stem = _stripExt(sub.fileName);
+        final subDir = _dirOf(sub.relativePath);
         final match = w.audios.firstWhere(
-          (a) => a.fileName == stem || _stripExt(a.fileName) == stem,
+          (a) =>
+              _dirOf(a.relativePath) == subDir &&
+              (a.fileName == stem || _stripExt(a.fileName) == stem),
           orElse: () => _noAudio,
         );
         if (identical(match, _noAudio)) continue;

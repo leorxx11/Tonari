@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import '../../../core/db/database.dart';
 import '../../../core/db/providers.dart';
 import '../../../core/scanner/scan_models.dart';
+import '../../../core/subtitle/subtitle_parser.dart';
 import '../../browse/data/remote_models.dart';
 import '../../library/data/import_service.dart';
 import '../../library/data/metadata_enrichment.dart';
@@ -77,6 +78,9 @@ class P115ImportFlow {
     return summary;
   }
 
+  /// Downloads subtitle bytes for formats the parser can ingest. A single
+  /// failed download is skipped; auth-expiry and rate-limit blocks abort the
+  /// import (every later request would fail the same way — let the user retry).
   Future<Map<String, List<int>>> _downloadSubtitles(
     ScanResult scan,
     P115ImportProgress? onProgress, {
@@ -85,13 +89,27 @@ class P115ImportFlow {
     final out = <String, List<int>>{};
     final total = scan.works
         .where((w) => !w.incomplete && !skip.contains(w.productId))
-        .fold<int>(0, (a, w) => a + w.subtitles.length);
+        .fold<int>(
+          0,
+          (a, w) =>
+              a +
+              w.subtitles.where((s) => SubtitleParser.supports(s.format)).length,
+        );
     if (total == 0) return out;
     var done = 0;
     for (final work in scan.works) {
       if (work.incomplete || skip.contains(work.productId)) continue;
       for (final sub in work.subtitles) {
-        out[sub.path] = await client.getBytesByPickcode(sub.path);
+        if (!SubtitleParser.supports(sub.format)) continue;
+        try {
+          out[sub.path] = await client.getBytesByPickcode(sub.path);
+        } on P115AuthExpiredException {
+          rethrow;
+        } on P115BlockedException {
+          rethrow;
+        } catch (_) {
+          // skip unreadable subtitle; import proceeds without it
+        }
         done++;
         onProgress?.call(scan.works.length, '下载字幕 $done/$total');
       }

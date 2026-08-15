@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import '../../../core/db/database.dart';
 import '../../../core/db/providers.dart';
 import '../../../core/scanner/scan_models.dart';
+import '../../../core/subtitle/subtitle_parser.dart';
 import '../../library/data/import_service.dart';
 import '../../library/data/metadata_enrichment.dart';
 import 'remote_folder_scanner.dart';
@@ -103,7 +104,8 @@ class WebdavImportFlow {
   }
 
   /// Downloads subtitle file bytes so [ImportService] can parse them without
-  /// touching the (remote) filesystem. Audio is streamed, never downloaded.
+  /// touching the (remote) filesystem. Only formats the parser can ingest are
+  /// fetched. Audio is streamed, never downloaded.
   Future<Map<String, List<int>>> _downloadSubtitles(
     WebdavConfig config,
     ScanResult scan,
@@ -113,12 +115,18 @@ class WebdavImportFlow {
     final out = <String, List<int>>{};
     final total = scan.works
         .where((w) => !w.incomplete && !skip.contains(w.productId))
-        .fold<int>(0, (a, w) => a + w.subtitles.length);
+        .fold<int>(
+          0,
+          (a, w) =>
+              a +
+              w.subtitles.where((s) => SubtitleParser.supports(s.format)).length,
+        );
     if (total == 0) return out;
     var done = 0;
     for (final w in scan.works) {
       if (w.incomplete || skip.contains(w.productId)) continue;
       for (final sub in w.subtitles) {
+        if (!SubtitleParser.supports(sub.format)) continue;
         try {
           out[sub.path] = await client.getBytes(config, sub.path);
         } catch (_) {

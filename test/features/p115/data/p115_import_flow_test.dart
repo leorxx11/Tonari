@@ -42,9 +42,10 @@ void main() {
       expect(work.audios.single.relativePath, '音声/01.wav');
       expect(work.videos.single.path, 'pc-video');
       expect(work.videos.single.relativePath, '音声/movie.mp4');
-      expect(work.subtitles.single.path, 'pc-vtt');
-      expect(work.subtitles.single.relativePath, '音声/01.wav.vtt');
-      expect(work.others.map((f) => f.fileName), contains('01.srt'));
+      expect(work.subtitles.map((s) => s.path), ['pc-vtt', 'pc-srt']);
+      expect(work.subtitles.first.relativePath, '音声/01.wav.vtt');
+      expect(work.subtitles.last.format, 'srt');
+      expect(work.others, isEmpty);
     },
   );
 
@@ -208,6 +209,62 @@ void main() {
       expect(await db.select(db.subtitles).get(), isEmpty);
     },
   );
+
+  test('unsupported subtitle format stays visible but is never fetched', () async {
+    final db = TonariDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final client = _FakeP115Client({
+      'rj': [
+        _file('audio-1', '01.wav', RemoteEntryKind.audio, 'pc-audio'),
+        _file('sub-1', '01.ass', RemoteEntryKind.subtitle, 'pc-ass'),
+      ],
+    });
+    final flow = P115ImportFlow(
+      db: db,
+      client: client,
+      importer: ImportService(db),
+      enrichment: _NoopEnrichment(),
+    );
+
+    final summary = await flow.importFolder(folder: _folder('rj', 'RJ999996'));
+
+    expect(summary.worksInserted, 1);
+    expect(client.requestedPickcodes, isEmpty);
+    final file = await (db.select(
+      db.workFiles,
+    )..where((f) => f.fileKind.equals('subtitle'))).getSingle();
+    expect(file.fileName, '01.ass');
+    expect(await db.select(db.subtitles).get(), isEmpty);
+  });
+
+  test('a single failed subtitle download does not abort the import', () async {
+    final db = TonariDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final client = _FakeP115Client(
+      {
+        'rj': [
+          _file('audio-1', '01.wav', RemoteEntryKind.audio, 'pc-audio'),
+          _file('sub-1', '01.wav.vtt', RemoteEntryKind.subtitle, 'pc-vtt'),
+        ],
+      },
+      byteErrors: {'pc-vtt': Exception('network hiccup')},
+    );
+    final flow = P115ImportFlow(
+      db: db,
+      client: client,
+      importer: ImportService(db),
+      enrichment: _NoopEnrichment(),
+    );
+
+    final summary = await flow.importFolder(folder: _folder('rj', 'RJ999995'));
+
+    expect(summary.worksInserted, 1);
+    expect(await db.select(db.subtitles).get(), isEmpty);
+    final file = await (db.select(
+      db.workFiles,
+    )..where((f) => f.fileKind.equals('subtitle'))).getSingle();
+    expect(file.fileName, '01.wav.vtt');
+  });
 }
 
 const _vtt = '''
@@ -256,12 +313,14 @@ class _FakeP115Client extends P115Client {
   final Map<String, List<RemoteEntry>> rows;
   final Map<String, List<int>> bytes;
   final Map<String, Object> byteErrors;
+  final requestedPickcodes = <String>[];
 
   @override
   Future<List<RemoteEntry>> list(String cid) async => rows[cid] ?? const [];
 
   @override
   Future<List<int>> getBytesByPickcode(String pickcode) async {
+    requestedPickcodes.add(pickcode);
     final error = byteErrors[pickcode];
     if (error != null) throw error;
     return bytes[pickcode]!;

@@ -11,6 +11,11 @@ class SubtitleParseException implements Exception {
 class SubtitleParser {
   SubtitleParser._();
 
+  static const supportedFormats = {'srt', 'vtt', 'lrc'};
+
+  static bool supports(String format) =>
+      supportedFormats.contains(format.toLowerCase());
+
   /// Parses [content] of the given [format] ('srt' / 'vtt' / 'lrc').
   /// Returns cues in chronological order. Unparseable cues are skipped
   /// rather than aborting the whole file.

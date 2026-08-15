@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -66,6 +68,26 @@ DetectedFile _file({
   fileName: fileName,
   sizeBytes: size,
 );
+
+DetectedSubtitle _subtitle({
+  required String path,
+  required String fileName,
+  required String relativePath,
+  String format = 'srt',
+  int size = 10,
+}) => DetectedSubtitle(
+  path: path,
+  relativePath: relativePath,
+  fileName: fileName,
+  format: format,
+  sizeBytes: size,
+);
+
+const _srt = '''
+1
+00:00:00,000 --> 00:00:01,000
+hello
+''';
 
 void main() {
   late TonariDatabase db;
@@ -493,5 +515,151 @@ void main() {
       db.works,
     )..where((w) => w.productId.equals('RJ_FLAG'))).getSingle();
     expect(flagged.needsRescan, isFalse);
+  });
+
+  test('subtitle only matches audio in its own directory', () async {
+    await service.applyScanResult(
+      ScanResult(
+        rootPath: '/scan',
+        filesScanned: 3,
+        unrecognizedDirs: const [],
+        works: [
+          _work(
+            rj: 'RJ200001',
+            rootPath: '/scan/RJ200001',
+            audios: [
+              _audio(
+                path: '/scan/RJ200001/bonus/01.mp3',
+                fileName: '01.mp3',
+                format: 'mp3',
+                parentDir: 'bonus',
+              ),
+              _audio(
+                path: '/scan/RJ200001/main/01.mp3',
+                fileName: '01.mp3',
+                format: 'mp3',
+                parentDir: 'main',
+              ),
+            ],
+            subtitles: [
+              _subtitle(
+                path: 'sub-main',
+                fileName: '01.srt',
+                relativePath: 'main/01.srt',
+              ),
+            ],
+          ),
+        ],
+      ),
+      remoteSubtitleBytes: {'sub-main': utf8.encode(_srt)},
+    );
+
+    final sub = await db.select(db.subtitles).getSingle();
+    expect(sub.trackId, ImportService.trackIdFor('RJ200001', 'main/01.mp3'));
+  });
+
+  test('subtitle with a same-stem audio only in another directory is not '
+      'ingested', () async {
+    await service.applyScanResult(
+      ScanResult(
+        rootPath: '/scan',
+        filesScanned: 2,
+        unrecognizedDirs: const [],
+        works: [
+          _work(
+            rj: 'RJ200002',
+            rootPath: '/scan/RJ200002',
+            audios: [
+              _audio(
+                path: '/scan/RJ200002/bonus/01.mp3',
+                fileName: '01.mp3',
+                format: 'mp3',
+                parentDir: 'bonus',
+              ),
+            ],
+            subtitles: [
+              _subtitle(
+                path: 'sub-main',
+                fileName: '01.srt',
+                relativePath: 'main/01.srt',
+              ),
+            ],
+          ),
+        ],
+      ),
+      remoteSubtitleBytes: {'sub-main': utf8.encode(_srt)},
+    );
+
+    expect(await db.select(db.subtitles).get(), isEmpty);
+  });
+
+  test('root-level subtitle matches root-level audio (DLsite double-ext '
+      'convention)', () async {
+    await service.applyScanResult(
+      ScanResult(
+        rootPath: '/scan',
+        filesScanned: 2,
+        unrecognizedDirs: const [],
+        works: [
+          _work(
+            rj: 'RJ200003',
+            rootPath: '/scan/RJ200003',
+            audios: [
+              _audio(
+                path: '/scan/RJ200003/01.wav',
+                fileName: '01.wav',
+                format: 'wav',
+                relativePath: '01.wav',
+              ),
+            ],
+            subtitles: [
+              _subtitle(
+                path: 'sub-root',
+                fileName: '01.wav.srt',
+                relativePath: '01.wav.srt',
+              ),
+            ],
+          ),
+        ],
+      ),
+      remoteSubtitleBytes: {'sub-root': utf8.encode(_srt)},
+    );
+
+    final sub = await db.select(db.subtitles).getSingle();
+    expect(sub.trackId, ImportService.trackIdFor('RJ200003', '01.wav'));
+  });
+
+  test('unsupported subtitle format is not ingested even with bytes', () async {
+    await service.applyScanResult(
+      ScanResult(
+        rootPath: '/scan',
+        filesScanned: 2,
+        unrecognizedDirs: const [],
+        works: [
+          _work(
+            rj: 'RJ200004',
+            rootPath: '/scan/RJ200004',
+            audios: [
+              _audio(
+                path: '/scan/RJ200004/d/01.mp3',
+                fileName: '01.mp3',
+                format: 'mp3',
+              ),
+            ],
+            subtitles: [
+              _subtitle(
+                path: 'sub-ass',
+                fileName: '01.ass',
+                relativePath: 'd/01.ass',
+                format: 'ass',
+              ),
+            ],
+          ),
+        ],
+      ),
+      remoteSubtitleBytes: {'sub-ass': utf8.encode(_srt)},
+    );
+
+    expect(await db.select(db.subtitles).get(), isEmpty);
   });
 }
