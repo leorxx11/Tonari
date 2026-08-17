@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../data/privacy_prefs.dart';
 import '../data/theme_prefs.dart';
 
 class AppearanceSettingsPage extends ConsumerWidget {
@@ -39,6 +40,15 @@ class AppearanceSettingsPage extends ConsumerWidget {
                 ),
               ],
             ),
+          ),
+          const Divider(),
+          SwitchListTile(
+            value: ref.watch(privacyBlurProvider),
+            onChanged: (on) =>
+                ref.read(privacyBlurProvider.notifier).setEnabled(on),
+            title: const Text('后台模糊'),
+            subtitle: const Text('切到后台时模糊画面，多任务切换器中不显示内容'),
+            secondary: const Icon(Icons.blur_on),
           ),
         ],
       ),

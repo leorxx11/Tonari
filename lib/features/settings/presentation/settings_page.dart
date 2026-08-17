@@ -22,7 +22,7 @@ class SettingsPage extends StatelessWidget {
           _Entry(
             icon: Icons.palette_outlined,
             title: '外观',
-            subtitle: '主题模式',
+            subtitle: '主题模式、后台模糊',
             page: AppearanceSettingsPage(),
           ),
           _Entry(

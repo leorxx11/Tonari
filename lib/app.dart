@@ -6,6 +6,7 @@ import 'core/ui/app_toast.dart';
 import 'features/settings/data/theme_prefs.dart';
 import 'features/subtitle/presentation/pip_sync.dart';
 import 'features/subtitle/presentation/subtitle_overlay.dart';
+import 'shared/widgets/privacy_blur.dart';
 import 'shared/widgets/root_tab_view.dart';
 
 class TonariApp extends ConsumerWidget {
@@ -27,6 +28,7 @@ class TonariApp extends ConsumerWidget {
           const PipSync(),
           const SubtitleOverlay(),
           const AppToastHost(),
+          const PrivacyBlur(),
         ],
       ),
       home: const RootTabView(),
