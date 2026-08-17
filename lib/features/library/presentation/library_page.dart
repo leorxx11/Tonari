@@ -1,26 +1,11 @@
-import 'dart:async';
-
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/db/database.dart';
-import '../../../core/files/folder_picker_service.dart';
-import '../data/app_events.dart';
-import '../data/enrichment_queue.dart';
-import '../data/import_flow.dart';
-import '../data/import_service.dart';
-import '../data/library_task_controller.dart';
 import '../data/work_actions_provider.dart';
 import '../data/works_providers.dart';
-import '../../p115/data/p115_cookie_store.dart';
-import '../../p115/presentation/p115_browser_page.dart';
-import '../../p115/presentation/p115_login_page.dart';
-import '../../webdav/data/webdav_client.dart';
-import '../../webdav/data/webdav_server_repository.dart';
-import '../../webdav/presentation/webdav_browser_page.dart';
-import '../../webdav/presentation/webdav_settings_page.dart';
 import '../../../shared/widgets/app_drawer.dart';
+import 'import_entry.dart';
 import 'widgets/library_task_status.dart';
 import 'widgets/works_grid.dart';
 import '../../../core/ui/app_toast.dart';
@@ -116,11 +101,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
             ],
           ),
           const EnrichmentStatusAction(),
-          LibraryTaskStatusButton(
-            idleTooltip: '导入文件夹',
-            idleIcon: const Icon(Icons.create_new_folder_outlined),
-            onIdlePressed: _onImportMenu,
-          ),
+          const LibraryTaskStatusButton(showWhenIdle: false),
         ],
       ),
       body: worksAsync.when(
@@ -130,147 +111,13 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('加载失败：$e')),
         data: (works) => works.isEmpty
-            ? _EmptyState(filter: filter)
+            ? _EmptyState(
+                filter: filter,
+                onImport: () => showImportSourcesSheet(context, ref),
+              )
             : WorksGrid(works: works, onRemove: _onRemoveWork),
       ),
     );
-  }
-
-  Future<void> _onImportMenu() async {
-    final servers = await ref.read(webdavServerRepositoryProvider).listAll();
-    final p115Cookie = await ref.read(p115CookieProvider.future);
-    if (!mounted) return;
-    showModalBottomSheet<void>(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.folder_open_outlined),
-              title: const Text('本地文件夹'),
-              onTap: () {
-                Navigator.of(ctx).pop();
-                _onImportLocal();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.cloud_queue_outlined),
-              title: const Text('115 网盘'),
-              subtitle: Text(p115Cookie == null ? '未登录，先登录' : '已登录'),
-              onTap: () {
-                Navigator.of(ctx).pop();
-                _openP115ImportBrowser(loginRequired: p115Cookie == null);
-              },
-            ),
-            if (servers.isEmpty)
-              ListTile(
-                leading: const Icon(Icons.cloud_off_outlined),
-                title: const Text('未配置 WebDAV'),
-                subtitle: const Text('点此添加服务器'),
-                onTap: () {
-                  Navigator.of(ctx).pop();
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const WebdavSettingsPage(),
-                    ),
-                  );
-                },
-              ),
-            for (final s in servers)
-              ListTile(
-                leading: const Icon(Icons.cloud_outlined),
-                title: Text(s.name),
-                subtitle: const Text('WebDAV'),
-                onTap: () {
-                  Navigator.of(ctx).pop();
-                  _openWebdavBrowser(s);
-                },
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _openP115ImportBrowser({required bool loginRequired}) async {
-    if (loginRequired) {
-      final loggedIn = await Navigator.of(
-        context,
-      ).push<bool>(MaterialPageRoute(builder: (_) => const P115LoginPage()));
-      if (loggedIn != true || !mounted) return;
-    }
-    if (!mounted) return;
-    Navigator.of(context, rootNavigator: true).push(
-      CupertinoSheetRoute<void>(
-        scrollableBuilder: (_, _) => const P115BrowserPage(enableImport: true),
-        showDragHandle: true,
-      ),
-    );
-  }
-
-  Future<void> _openWebdavBrowser(WebdavServer server) async {
-    final password = await ref
-        .read(webdavServerRepositoryProvider)
-        .readPassword(server.id);
-    final config = WebdavConfig(
-      scheme: server.scheme,
-      host: server.host,
-      port: server.port,
-      basePath: server.basePath,
-      username: server.username,
-      password: password,
-    );
-    if (!mounted) return;
-    Navigator.of(context, rootNavigator: true).push(
-      CupertinoSheetRoute<void>(
-        scrollableBuilder: (_, _) => WebdavBrowserPage(
-          server: server,
-          config: config,
-          enableImport: true,
-        ),
-        showDragHandle: true,
-      ),
-    );
-  }
-
-  Future<void> _onImportLocal() async {
-    final folder = await ref.read(folderPickerServiceProvider).pickAndPersist();
-    if (folder == null || !mounted) return;
-
-    final taskController = ref.read(libraryTaskControllerProvider.notifier);
-    final flow = ref.read(importFlowProvider);
-    try {
-      final summary = await taskController.run<ImportSummary>(
-        kind: LibraryTaskKind.import,
-        title: '导入本地文件夹',
-        initialStage: '扫描文件',
-        action: (task) async {
-          task.update(stage: '扫描文件', message: folder.displayName);
-          final summary = await flow.importFromFolder(
-            folder,
-            enrich: false,
-            skipExisting: true,
-          );
-          task.update(stage: '写入媒体库', message: '${summary.workIds.length} 个作品');
-          return summary;
-        },
-      );
-      if (!mounted) return;
-      if (summary.workIds.isEmpty) {
-        await ref.read(folderPickerServiceProvider).removeIfEmpty(folder.id);
-      }
-      unawaited(ref.read(enrichmentQueueProvider.notifier).runPending());
-      showAppToast(_importResultText(summary));
-    } catch (e) {
-      if (!mounted) return;
-      unawaited(
-        ref
-            .read(appEventSinkProvider)
-            .log(category: 'import', title: '导入失败', detail: '$e'),
-      );
-      showAppToast('导入失败：$e');
-    }
   }
 
   Future<void> _onRemoveWork(Work work) async {
@@ -284,15 +131,6 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     _searchController.clear();
     ref.read(workFilterProvider.notifier).clearSearch();
   }
-}
-
-String _importResultText(ImportSummary summary) {
-  final incomplete = summary.incompleteWorks.isEmpty
-      ? ''
-      : '\n${summary.incompleteWorks.length} 个作品扫描失败，已跳过，可稍后重新导入。';
-  return '导入完成：新增 ${summary.worksInserted}，'
-      '已有 ${summary.worksSkipped} 跳过，共 ${summary.tracksTotal} 音轨。'
-      '封面和元数据后台补全中。$incomplete';
 }
 
 class _SearchField extends StatelessWidget {
@@ -447,9 +285,10 @@ extension on SourceFilter {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.filter});
+  const _EmptyState({required this.filter, required this.onImport});
 
   final WorkFilter filter;
+  final VoidCallback onImport;
 
   @override
   Widget build(BuildContext context) {
@@ -484,12 +323,20 @@ class _EmptyState extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    isFiltered ? '换个搜索词，或者关掉"只看收藏"过滤' : '点右上角导入一个包含 RJ 编号的文件夹',
+                    isFiltered ? '换个搜索词，或者关掉"只看收藏"过滤' : '导入一个包含 RJ 编号的文件夹开始使用',
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
                     textAlign: TextAlign.center,
                   ),
+                  if (!isFiltered) ...[
+                    const SizedBox(height: 20),
+                    FilledButton.tonalIcon(
+                      onPressed: onImport,
+                      icon: const Icon(Icons.create_new_folder_outlined),
+                      label: const Text('导入'),
+                    ),
+                  ],
                 ],
               ),
             ),

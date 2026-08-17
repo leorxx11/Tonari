@@ -1,20 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../library/presentation/import_entry.dart';
 import '../../p115/presentation/p115_settings_page.dart';
 import '../../webdav/presentation/webdav_settings_page.dart';
 import 'backup_page.dart';
 import 'media_sources_page.dart';
 import 'removed_works_page.dart';
 
-class DataSettingsPage extends StatelessWidget {
+class DataSettingsPage extends ConsumerWidget {
   const DataSettingsPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       appBar: AppBar(title: const Text('数据管理')),
       body: ListView(
         children: [
+          ListTile(
+            leading: const Icon(Icons.create_new_folder_outlined),
+            title: const Text('导入'),
+            subtitle: const Text('本地文件夹、115 网盘、WebDAV'),
+            onTap: () => showImportSourcesSheet(context, ref),
+          ),
           ListTile(
             leading: const Icon(Icons.folder_copy_outlined),
             title: const Text('媒体来源'),

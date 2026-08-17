@@ -40,7 +40,7 @@ class SettingsPage extends StatelessWidget {
           _Entry(
             icon: Icons.storage_outlined,
             title: '数据管理',
-            subtitle: '导入文件夹、云存储、已移除作品',
+            subtitle: '导入、备份、云存储、已移除作品',
             page: DataSettingsPage(),
           ),
           _Entry(
