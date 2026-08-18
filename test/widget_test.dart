@@ -559,14 +559,15 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.dragUntilVisible(
-      find.text('文件'),
+      find.textContaining('文件 ·'),
       find.byType(CustomScrollView),
       const Offset(0, -200),
     );
     await tester.pumpAndSettle();
 
     expect(find.text('RJ01560714'), findsOneWidget);
-    expect(find.text('文件'), findsOneWidget);
+    expect(find.text('播放'), findsOneWidget);
+    expect(find.textContaining('文件 ·'), findsOneWidget);
     // Track list lives on the WorkFilesPage now, not the detail page.
     expect(find.text('track01.wav'), findsNothing);
   });
@@ -594,13 +595,13 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.dragUntilVisible(
-      find.text('文件'),
+      find.textContaining('文件 ·'),
       find.byType(CustomScrollView),
       const Offset(0, -200),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('文件'), findsOneWidget);
+    expect(find.textContaining('文件 ·'), findsOneWidget);
     for (final label in ['媒体库', '设置']) {
       expect(find.text(label), findsNothing);
     }
@@ -638,34 +639,33 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.dragUntilVisible(
-      find.text('文件'),
+      find.textContaining('文件 ·'),
       find.byType(CustomScrollView),
       const Offset(0, -200),
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('文件'));
+    await tester.tap(find.textContaining('文件 ·'));
     await tester.pumpAndSettle();
 
     // Resource page is now in front; root level shows both folders.
     expect(find.text('01_FLAC'), findsOneWidget);
     expect(find.text('02_MP3'), findsOneWidget);
-    // RJ id is the breadcrumb root.
+    // RJ id shows in the sheet nav bar and the breadcrumb root.
     expect(find.text('RJ01560714'), findsWidgets);
 
     // Drill into the FLAC folder.
-    await tester.tap(find.text('01_FLAC'));
+    await tester.tap(find.text('01_FLAC').hitTestable().first);
     await tester.pumpAndSettle();
 
     expect(find.text('flac-track.flac'), findsOneWidget);
     expect(find.text('mp3-track.mp3'), findsNothing);
 
-    // Tap RJ id in the breadcrumb → back to root listing. Use `hitTestable`
-    // to ignore the same RJ id rendered on the obscured detail page below.
-    await tester.tap(find.text('RJ01560714').hitTestable());
+    // Tap the breadcrumb root pill → back to root listing.
+    await tester.tap(find.byKey(const ValueKey('crumb-root')));
     await tester.pumpAndSettle();
 
-    expect(find.text('01_FLAC'), findsOneWidget);
+    expect(find.text('01_FLAC'), findsWidgets);
     expect(find.text('02_MP3'), findsOneWidget);
     expect(find.text('flac-track.flac'), findsNothing);
   });
@@ -706,12 +706,12 @@ void main() {
     await tester.tap(find.text('Test Work'));
     await tester.pumpAndSettle();
     await tester.dragUntilVisible(
-      find.text('文件'),
+      find.textContaining('文件 ·'),
       find.byType(CustomScrollView),
       const Offset(0, -200),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('文件'));
+    await tester.tap(find.textContaining('文件 ·'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('track01.wav.lrc'));
     await tester.pumpAndSettle();

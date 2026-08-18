@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:math' as math;
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +9,7 @@ import '../../../core/db/database.dart';
 import '../../../core/diagnostics/diagnostic_log.dart';
 import '../../../core/subtitle/subtitle_cue.dart';
 import '../../../core/subtitle/subtitle_parser.dart';
+import '../../../shared/providers/selected_section.dart';
 import '../../browse/data/remote_models.dart';
 import '../../p115/data/p115_auth_service.dart';
 import '../../p115/data/p115_client.dart';
@@ -16,13 +20,20 @@ import '../../video/data/video_controller.dart';
 import '../data/library_task_controller.dart';
 import '../data/track_duration_probe.dart';
 import '../data/work_media_source.dart';
+import '../data/work_playback.dart';
 import '../data/work_reimport_provider.dart';
 import '../data/work_tree.dart';
 import '../data/works_providers.dart';
 import '../../../core/ui/app_toast.dart';
 
-/// Teal highlight applied to the track row currently being played.
-const Color _kCurrentTrackBackground = Color(0xFF008B7D);
+/// Accent for the currently-playing track row (tint + text + eq bars).
+const Color _kAccent = Color(0xFF008B7D);
+
+Color _accentText(BuildContext context) {
+  return Theme.of(context).brightness == Brightness.dark
+      ? const Color(0xFF3CB5A6)
+      : const Color(0xFF0B6D62);
+}
 
 class WorkFilesPage extends ConsumerStatefulWidget {
   const WorkFilesPage({super.key, required this.work});
@@ -68,6 +79,12 @@ class _WorkFilesPageState extends ConsumerState<WorkFilesPage> {
     final currentChildren = _resolve(roots, _path);
     final theme = Theme.of(context);
     final titleText = _path.isEmpty ? '资源' : _path.last;
+    final groupedBg = CupertinoColors.systemGroupedBackground.resolveFrom(
+      context,
+    );
+    final cardBg = CupertinoColors.secondarySystemGroupedBackground.resolveFrom(
+      context,
+    );
 
     return PopScope(
       canPop: _path.isEmpty,
@@ -78,9 +95,37 @@ class _WorkFilesPageState extends ConsumerState<WorkFilesPage> {
         }
       },
       child: Scaffold(
+        backgroundColor: groupedBg,
         appBar: AppBar(
+          backgroundColor: groupedBg,
           leading: BackButton(onPressed: _onBack),
-          title: Text(titleText, maxLines: 1, overflow: TextOverflow.ellipsis),
+          centerTitle: true,
+          title: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                widget.work.productId,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: CupertinoColors.secondaryLabel.resolveFrom(context),
+                ),
+              ),
+              Text(
+                titleText,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            IconButton(
+              tooltip: '回到媒体库',
+              icon: const Icon(CupertinoIcons.house, size: 21),
+              onPressed: _goLibraryHome,
+            ),
+          ],
         ),
         body: Column(
           children: [
@@ -88,11 +133,6 @@ class _WorkFilesPageState extends ConsumerState<WorkFilesPage> {
               workId: widget.work.productId,
               path: _path,
               onTapSegment: _onTapBreadcrumb,
-            ),
-            Divider(
-              height: 0.5,
-              thickness: 0.5,
-              color: CupertinoColors.separator.resolveFrom(context),
             ),
             Expanded(
               child: currentChildren.isEmpty
@@ -106,21 +146,40 @@ class _WorkFilesPageState extends ConsumerState<WorkFilesPage> {
                         ),
                       ),
                     )
-                  : ListView.separated(
-                      itemCount: currentChildren.length,
-                      separatorBuilder: (_, _) => Divider(
-                        height: 0.5,
-                        thickness: 0.5,
-                        indent: 72,
-                        color: CupertinoColors.separator.resolveFrom(context),
-                      ),
-                      itemBuilder: (context, i) => _NodeRow(
-                        node: currentChildren[i],
-                        ingestedSubtitlePaths: ingestedSubs,
-                        onTapFolder: (name) => setState(() => _path.add(name)),
-                        onPlayTrack: (t) => _play(t, playQueue),
-                        onPlayVideo: _playVideo,
-                        onOpenSubtitle: _openSubtitlePreview,
+                  : SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(14, 8, 14, 12),
+                      child: Material(
+                        color: cardBg,
+                        borderRadius: BorderRadius.circular(14),
+                        clipBehavior: Clip.antiAlias,
+                        child: Column(
+                          children: [
+                            for (
+                              var i = 0;
+                              i < currentChildren.length;
+                              i++
+                            ) ...[
+                              if (i > 0)
+                                Divider(
+                                  height: 0.5,
+                                  thickness: 0.5,
+                                  indent: 62,
+                                  color: CupertinoColors.separator.resolveFrom(
+                                    context,
+                                  ),
+                                ),
+                              _NodeRow(
+                                node: currentChildren[i],
+                                ingestedSubtitlePaths: ingestedSubs,
+                                onTapFolder: (name) =>
+                                    setState(() => _path.add(name)),
+                                onPlayTrack: (t) => _play(t, playQueue),
+                                onPlayVideo: _playVideo,
+                                onOpenSubtitle: _openSubtitlePreview,
+                              ),
+                            ],
+                          ],
+                        ),
                       ),
                     ),
             ),
@@ -130,6 +189,11 @@ class _WorkFilesPageState extends ConsumerState<WorkFilesPage> {
         ),
       ),
     );
+  }
+
+  void _goLibraryHome() {
+    ref.read(selectedSectionProvider.notifier).set(AppSection.audioLibrary);
+    Navigator.of(context, rootNavigator: true).popUntil((r) => r.isFirst);
   }
 
   void _onBack() {
@@ -154,24 +218,9 @@ class _WorkFilesPageState extends ConsumerState<WorkFilesPage> {
   Future<void> _play(Track track, List<Track> playQueue) async {
     final index = playQueue.indexWhere((t) => t.id == track.id);
     if (index < 0) return;
-    final source = await ref
-        .read(workMediaSourceProvider)
-        .sourceForWork(widget.work);
-    final bookmark = source.kind == RemoteSourceKind.local
-        ? await ref.read(bookmarkForWorkProvider(widget.work.productId).future)
-        : null;
     await ref
-        .read(playbackControllerProvider.notifier)
-        .startWork(
-          work: widget.work,
-          tracks: playQueue,
-          initialIndex: index,
-          bookmarkBase64: bookmark,
-          remoteKind: source.kind == RemoteSourceKind.local
-              ? null
-              : source.kind,
-          remoteConfig: source.webdavConfig,
-        );
+        .read(workPlaybackProvider)
+        .start(work: widget.work, queue: playQueue, initialIndex: index);
   }
 
   Future<void> _playVideo(WorkFile file) async {
@@ -334,55 +383,53 @@ class _Breadcrumbs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final iosBlue = CupertinoColors.systemBlue.resolveFrom(context);
-    final iosLabel = CupertinoColors.label.resolveFrom(context);
+    final accent = _accentText(context);
+    final pillBg = CupertinoColors.tertiarySystemFill.resolveFrom(context);
     final iosTertiary = CupertinoColors.tertiaryLabel.resolveFrom(context);
 
     Widget crumb({
+      Key? key,
       required String label,
       required bool current,
       VoidCallback? onTap,
     }) {
-      final color = current ? iosLabel : iosBlue;
-      return InkWell(
+      return GestureDetector(
+        key: key,
         onTap: onTap,
-        borderRadius: BorderRadius.circular(6),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.folder_rounded, color: color, size: 22),
-              const SizedBox(width: 4),
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  color: color,
-                  fontWeight: current ? FontWeight.w600 : FontWeight.w500,
-                ),
-              ),
-            ],
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 4),
+          decoration: BoxDecoration(
+            color: current ? _kAccent : pillBg,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: current ? Colors.white : accent,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ),
       );
     }
 
     final sep = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 5),
       child: Text(
-        '/',
-        style: theme.textTheme.titleSmall?.copyWith(color: iosTertiary),
+        '›',
+        style: theme.textTheme.labelMedium?.copyWith(color: iosTertiary),
       ),
     );
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
       child: Row(
         children: [
           crumb(
+            key: const ValueKey('crumb-root'),
             label: workId,
             current: path.isEmpty,
             onTap: path.isEmpty ? null : () => onTapSegment(-1),
@@ -427,19 +474,14 @@ class _FooterStats extends StatelessWidget {
       if (totalDurMs > 0) _formatTotalDuration(totalDurMs),
     ];
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
       alignment: Alignment.center,
-      decoration: BoxDecoration(
-        border: Border(
-          top: BorderSide(
-            color: CupertinoColors.separator.resolveFrom(context),
-            width: 0.5,
-          ),
-        ),
-      ),
       child: Text(
         parts.join(' · '),
-        style: theme.textTheme.bodySmall?.copyWith(color: iosSecondary),
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: iosSecondary,
+          fontFeatures: const [FontFeature.tabularFigures()],
+        ),
       ),
     );
   }
@@ -467,10 +509,14 @@ class _NodeRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final iosBlue = CupertinoColors.systemBlue.resolveFrom(context);
     final iosLabel = CupertinoColors.label.resolveFrom(context);
     final iosSecondary = CupertinoColors.secondaryLabel.resolveFrom(context);
-    const rowPadding = EdgeInsets.symmetric(horizontal: 14, vertical: 6);
+    const rowPadding = EdgeInsets.symmetric(horizontal: 12, vertical: 4);
+    final chevron = Icon(
+      CupertinoIcons.chevron_right,
+      size: 14,
+      color: CupertinoColors.tertiaryLabel.resolveFrom(context),
+    );
     final n = node;
     if (n is WorkTreeFolder) {
       final parts = <String>[
@@ -479,25 +525,24 @@ class _NodeRow extends ConsumerWidget {
       ];
       return ListTile(
         contentPadding: rowPadding,
-        leading: Icon(Icons.folder_rounded, color: iosBlue, size: 44),
+        leading: _IconSquare(
+          icon: CupertinoIcons.folder_fill,
+          color: CupertinoColors.systemBlue.resolveFrom(context),
+        ),
         title: Text(
           n.name,
           maxLines: 5,
           overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.bodyLarge?.copyWith(
+          style: theme.textTheme.bodyMedium?.copyWith(
             color: iosLabel,
             fontWeight: FontWeight.w500,
           ),
         ),
         subtitle: Text(
-          parts.join(', '),
+          parts.join(' · '),
           style: theme.textTheme.bodySmall?.copyWith(color: iosSecondary),
         ),
-        trailing: Icon(
-          CupertinoIcons.chevron_right,
-          size: 14,
-          color: iosSecondary,
-        ),
+        trailing: chevron,
         onTap: () => onTapFolder(n.name),
       );
     }
@@ -506,31 +551,31 @@ class _NodeRow extends ConsumerWidget {
       final playback = ref.watch(playbackControllerProvider);
       final controller = ref.read(playbackControllerProvider.notifier);
       final isCurrent = playback.currentTrack?.id == t.id;
-      final titleColor = isCurrent ? Colors.white : iosLabel;
-      final subtitleColor = isCurrent
-          ? Colors.white.withValues(alpha: 0.78)
-          : iosSecondary;
+      final accent = _accentText(context);
       return ListTile(
         contentPadding: rowPadding,
-        tileColor: isCurrent ? _kCurrentTrackBackground : null,
-        leading: _TrackLeading(
-          isCurrent: isCurrent,
-          playingStream: isCurrent ? controller.player.playingStream : null,
-        ),
+        tileColor: isCurrent ? _kAccent.withValues(alpha: 0.10) : null,
+        leading: isCurrent
+            ? _EqBars(playingStream: controller.player.playingStream)
+            : _IconSquare(
+                icon: CupertinoIcons.music_note_2,
+                color: CupertinoColors.systemGrey.resolveFrom(context),
+              ),
         title: Text(
           t.fileName,
           maxLines: 5,
           overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.bodyLarge?.copyWith(
-            color: titleColor,
-            fontWeight: FontWeight.w500,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: isCurrent ? accent : iosLabel,
+            fontWeight: isCurrent ? FontWeight.w600 : FontWeight.w500,
           ),
         ),
-        subtitle: t.durationMs > 0
+        trailing: t.durationMs > 0
             ? Text(
                 _formatTrackDuration(t.durationMs),
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: subtitleColor,
+                  color: isCurrent ? accent : iosSecondary,
+                  fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               )
             : null,
@@ -554,20 +599,18 @@ class _NodeRow extends ConsumerWidget {
       'video' => true,
       _ => false,
     };
+    final tappable = switch (f.fileKind) {
+      'video' || 'subtitle' => true,
+      _ => false,
+    };
     return ListTile(
       contentPadding: rowPadding,
-      leading: Icon(
-        icon,
-        color: previewable
-            ? color
-            : CupertinoColors.systemGrey3.resolveFrom(context),
-        size: 44,
-      ),
+      leading: _IconSquare(icon: icon, color: color, dimmed: !previewable),
       title: Text(
         f.fileName,
         maxLines: 5,
         overflow: TextOverflow.ellipsis,
-        style: theme.textTheme.bodyLarge?.copyWith(
+        style: theme.textTheme.bodyMedium?.copyWith(
           color: previewable ? iosLabel : iosSecondary,
           fontWeight: FontWeight.w500,
         ),
@@ -580,6 +623,7 @@ class _NodeRow extends ConsumerWidget {
               : CupertinoColors.tertiaryLabel.resolveFrom(context),
         ),
       ),
+      trailing: tappable && previewable ? chevron : null,
       onTap: switch (f.fileKind) {
         'video' => () => onPlayVideo(f),
         'subtitle' => () => onOpenSubtitle(f),
@@ -629,44 +673,110 @@ String _formatCueTime(int ms) {
       '${millis.toString().padLeft(3, '0')}';
 }
 
-class _TrackLeading extends StatelessWidget {
-  const _TrackLeading({required this.isCurrent, this.playingStream});
+class _IconSquare extends StatelessWidget {
+  const _IconSquare({
+    required this.icon,
+    required this.color,
+    this.dimmed = false,
+  });
 
-  final bool isCurrent;
-  final Stream<bool>? playingStream;
+  final IconData icon;
+  final Color color;
+  final bool dimmed;
 
   @override
   Widget build(BuildContext context) {
-    if (!isCurrent || playingStream == null) {
-      return const _PlayCircle(playing: false);
-    }
-    return StreamBuilder<bool>(
-      stream: playingStream,
-      initialData: false,
-      builder: (context, snapshot) =>
-          _PlayCircle(playing: snapshot.data ?? false),
+    final c = dimmed ? CupertinoColors.systemGrey3.resolveFrom(context) : color;
+    return Container(
+      width: 34,
+      height: 34,
+      decoration: BoxDecoration(
+        color: c.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(9),
+      ),
+      child: Icon(icon, size: 18, color: c),
     );
   }
 }
 
-class _PlayCircle extends StatelessWidget {
-  const _PlayCircle({required this.playing});
+/// Three-bar equalizer marking the current track; animates while playing,
+/// freezes when paused.
+class _EqBars extends StatefulWidget {
+  const _EqBars({required this.playingStream});
 
-  final bool playing;
+  final Stream<bool> playingStream;
+
+  @override
+  State<_EqBars> createState() => _EqBarsState();
+}
+
+class _EqBarsState extends State<_EqBars> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  );
+  StreamSubscription<bool>? _sub;
+
+  static const _baseHeights = [0.55, 0.95, 0.7];
+  static const _phases = [0.0, 0.3, 0.6];
+
+  @override
+  void initState() {
+    super.initState();
+    _sub = widget.playingStream.listen((playing) {
+      if (playing) {
+        _controller.repeat();
+      } else {
+        _controller.stop();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final iosBlue = CupertinoColors.systemBlue.resolveFrom(context);
-    return Container(
-      width: 44,
-      height: 44,
-      decoration: BoxDecoration(color: iosBlue, shape: BoxShape.circle),
-      child: Icon(
-        playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
-        color: Colors.white,
-        size: 30,
+    return SizedBox(
+      width: 34,
+      height: 34,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, _) => Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              for (var i = 0; i < 3; i++) ...[
+                if (i > 0) const SizedBox(width: 2.5),
+                Expanded(
+                  child: FractionallySizedBox(
+                    heightFactor: _barHeight(i),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: _kAccent,
+                        borderRadius: BorderRadius.circular(1.5),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
+  }
+
+  double _barHeight(int i) {
+    if (!_controller.isAnimating) return _baseHeights[i];
+    final t = _controller.value + _phases[i];
+    final wave = 0.5 + 0.5 * math.sin(t * 2 * math.pi);
+    return 0.3 + (_baseHeights[i] - 0.3 + 0.35) * wave;
   }
 }
 

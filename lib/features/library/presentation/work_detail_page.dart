@@ -18,7 +18,9 @@ import '../data/enrichment_queue.dart';
 import '../data/metadata_enrichment.dart';
 import '../data/work_actions_provider.dart';
 import '../data/work_genres.dart';
+import '../data/work_playback.dart';
 import '../data/work_reimport_provider.dart';
+import '../data/work_tree.dart';
 import '../data/works_providers.dart';
 import 'widgets/chip_filter_actions.dart';
 import 'widgets/collection_picker_sheet.dart';
@@ -135,17 +137,17 @@ class _WorkDetailViewState extends ConsumerState<_WorkDetailView> {
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
           SliverToBoxAdapter(child: _HeaderSection(work: work)),
-          SliverToBoxAdapter(child: _StatsSection(work: work)),
-          SliverToBoxAdapter(child: _CreditsSection(work: work)),
-          SliverToBoxAdapter(child: _GenresSection(work: work)),
-          SliverToBoxAdapter(child: _FileInfoLine(work: work)),
           SliverToBoxAdapter(
-            child: _FilesEntry(
+            child: _ActionRow(
               work: work,
               tracksAsync: tracksAsync,
               filesAsync: filesAsync,
             ),
           ),
+          SliverToBoxAdapter(child: _StatsSection(work: work)),
+          SliverToBoxAdapter(child: _CreditsSection(work: work)),
+          SliverToBoxAdapter(child: _GenresSection(work: work)),
+          SliverToBoxAdapter(child: _FileInfoLine(work: work)),
           SliverToBoxAdapter(child: _DescriptionSection(work: work)),
           const SliverToBoxAdapter(child: SizedBox(height: 24)),
         ],
@@ -960,10 +962,10 @@ class _MetaBadge extends StatelessWidget {
   }
 }
 
-// ---------- Files entry: opens a drill-in WorkFilesPage ----------
+// ---------- Action row: play + files entry, first-screen reachable ----------
 
-class _FilesEntry extends StatelessWidget {
-  const _FilesEntry({
+class _ActionRow extends ConsumerWidget {
+  const _ActionRow({
     required this.work,
     required this.tracksAsync,
     required this.filesAsync,
@@ -974,61 +976,66 @@ class _FilesEntry extends StatelessWidget {
   final AsyncValue<List<WorkFile>> filesAsync;
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+  Widget build(BuildContext context, WidgetRef ref) {
     final tracks = tracksAsync.value ?? const <Track>[];
     final files = filesAsync.value ?? const <WorkFile>[];
     final loading = tracksAsync.isLoading || filesAsync.isLoading;
     final empty = !loading && tracks.isEmpty && files.isEmpty;
+    final queue = flattenForPlayback(buildWorkTree(tracks, workFiles: files));
 
-    final summary = _summary(tracks, files);
+    final buttonShape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(12),
+    );
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      child: Material(
-        color: theme.colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(12),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: empty
-              ? null
-              : () => Navigator.of(context, rootNavigator: true).push(
-                  CupertinoSheetRoute<void>(
-                    scrollableBuilder: (_, _) => WorkFilesPage(work: work),
-                    showDragHandle: true,
-                  ),
-                ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            child: Row(
-              children: [
-                const Icon(Icons.folder, color: Color(0xFFFFC857), size: 28),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('文件', style: theme.textTheme.titleSmall),
-                      const SizedBox(height: 2),
-                      Text(
-                        loading ? '加载中…' : (empty ? '没有可显示的文件' : summary),
-                        style: theme.textTheme.labelMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (!empty)
-                  Icon(
-                    Icons.chevron_right,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-              ],
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: FilledButton.icon(
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(44),
+                shape: buttonShape,
+              ),
+              onPressed: queue.isEmpty ? null : () => _play(ref, queue),
+              icon: const Icon(Icons.play_arrow_rounded),
+              label: const Text('播放'),
             ),
           ),
-        ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: FilledButton.tonalIcon(
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(44),
+                shape: buttonShape,
+              ),
+              onPressed: empty
+                  ? null
+                  : () => Navigator.of(context, rootNavigator: true).push(
+                      CupertinoSheetRoute<void>(
+                        scrollableBuilder: (_, _) => WorkFilesPage(work: work),
+                        showDragHandle: true,
+                      ),
+                    ),
+              icon: const Icon(Icons.folder_outlined, size: 20),
+              label: Text(
+                loading || empty ? '文件' : '文件 · ${_summary(tracks, files)}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
+        ],
       ),
     );
+  }
+
+  /// Resumes the last-played track of this work, or starts from the first.
+  Future<void> _play(WidgetRef ref, List<Track> queue) async {
+    var index = queue.indexWhere((t) => t.id == work.lastPlayedTrackId);
+    if (index < 0) index = 0;
+    await ref
+        .read(workPlaybackProvider)
+        .start(work: work, queue: queue, initialIndex: index);
   }
 
   String _summary(List<Track> tracks, List<WorkFile> files) {
@@ -1038,7 +1045,7 @@ class _FilesEntry extends StatelessWidget {
       '$totalItems 项',
       if (totalDuration > 0) _formatTotalDuration(totalDuration),
     ];
-    return parts.join(', ');
+    return parts.join(' · ');
   }
 }
 
