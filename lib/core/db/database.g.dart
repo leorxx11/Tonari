@@ -3127,6 +3127,17 @@ class $TracksTable extends Tracks with TableInfo<$TracksTable, Track> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _titleZhMeta = const VerificationMeta(
+    'titleZh',
+  );
+  @override
+  late final GeneratedColumn<String> titleZh = GeneratedColumn<String>(
+    'title_zh',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _alternateQualityPathsJsonMeta =
       const VerificationMeta('alternateQualityPathsJson');
   @override
@@ -3202,6 +3213,7 @@ class $TracksTable extends Tracks with TableInfo<$TracksTable, Track> {
     parentDirName,
     trackNumber,
     title,
+    titleZh,
     alternateQualityPathsJson,
     lastPositionMs,
     playCount,
@@ -3343,6 +3355,12 @@ class $TracksTable extends Tracks with TableInfo<$TracksTable, Track> {
     } else if (isInserting) {
       context.missing(_titleMeta);
     }
+    if (data.containsKey('title_zh')) {
+      context.handle(
+        _titleZhMeta,
+        titleZh.isAcceptableOrUnknown(data['title_zh']!, _titleZhMeta),
+      );
+    }
     if (data.containsKey('alternate_quality_paths_json')) {
       context.handle(
         _alternateQualityPathsJsonMeta,
@@ -3452,6 +3470,10 @@ class $TracksTable extends Tracks with TableInfo<$TracksTable, Track> {
         DriftSqlType.string,
         data['${effectivePrefix}title'],
       )!,
+      titleZh: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title_zh'],
+      ),
       alternateQualityPathsJson: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}alternate_quality_paths_json'],
@@ -3497,6 +3519,10 @@ class Track extends DataClass implements Insertable<Track> {
   final String parentDirName;
   final int? trackNumber;
   final String title;
+
+  /// Cached Chinese translation of [title]; survives rescans because the
+  /// import upsert never writes it.
+  final String? titleZh;
   final String alternateQualityPathsJson;
   final int lastPositionMs;
   final int playCount;
@@ -3518,6 +3544,7 @@ class Track extends DataClass implements Insertable<Track> {
     required this.parentDirName,
     this.trackNumber,
     required this.title,
+    this.titleZh,
     required this.alternateQualityPathsJson,
     required this.lastPositionMs,
     required this.playCount,
@@ -3552,6 +3579,9 @@ class Track extends DataClass implements Insertable<Track> {
       map['track_number'] = Variable<int>(trackNumber);
     }
     map['title'] = Variable<String>(title);
+    if (!nullToAbsent || titleZh != null) {
+      map['title_zh'] = Variable<String>(titleZh);
+    }
     map['alternate_quality_paths_json'] = Variable<String>(
       alternateQualityPathsJson,
     );
@@ -3589,6 +3619,9 @@ class Track extends DataClass implements Insertable<Track> {
           ? const Value.absent()
           : Value(trackNumber),
       title: Value(title),
+      titleZh: titleZh == null && nullToAbsent
+          ? const Value.absent()
+          : Value(titleZh),
       alternateQualityPathsJson: Value(alternateQualityPathsJson),
       lastPositionMs: Value(lastPositionMs),
       playCount: Value(playCount),
@@ -3618,6 +3651,7 @@ class Track extends DataClass implements Insertable<Track> {
       parentDirName: serializer.fromJson<String>(json['parentDirName']),
       trackNumber: serializer.fromJson<int?>(json['trackNumber']),
       title: serializer.fromJson<String>(json['title']),
+      titleZh: serializer.fromJson<String?>(json['titleZh']),
       alternateQualityPathsJson: serializer.fromJson<String>(
         json['alternateQualityPathsJson'],
       ),
@@ -3646,6 +3680,7 @@ class Track extends DataClass implements Insertable<Track> {
       'parentDirName': serializer.toJson<String>(parentDirName),
       'trackNumber': serializer.toJson<int?>(trackNumber),
       'title': serializer.toJson<String>(title),
+      'titleZh': serializer.toJson<String?>(titleZh),
       'alternateQualityPathsJson': serializer.toJson<String>(
         alternateQualityPathsJson,
       ),
@@ -3672,6 +3707,7 @@ class Track extends DataClass implements Insertable<Track> {
     String? parentDirName,
     Value<int?> trackNumber = const Value.absent(),
     String? title,
+    Value<String?> titleZh = const Value.absent(),
     String? alternateQualityPathsJson,
     int? lastPositionMs,
     int? playCount,
@@ -3693,6 +3729,7 @@ class Track extends DataClass implements Insertable<Track> {
     parentDirName: parentDirName ?? this.parentDirName,
     trackNumber: trackNumber.present ? trackNumber.value : this.trackNumber,
     title: title ?? this.title,
+    titleZh: titleZh.present ? titleZh.value : this.titleZh,
     alternateQualityPathsJson:
         alternateQualityPathsJson ?? this.alternateQualityPathsJson,
     lastPositionMs: lastPositionMs ?? this.lastPositionMs,
@@ -3735,6 +3772,7 @@ class Track extends DataClass implements Insertable<Track> {
           ? data.trackNumber.value
           : this.trackNumber,
       title: data.title.present ? data.title.value : this.title,
+      titleZh: data.titleZh.present ? data.titleZh.value : this.titleZh,
       alternateQualityPathsJson: data.alternateQualityPathsJson.present
           ? data.alternateQualityPathsJson.value
           : this.alternateQualityPathsJson,
@@ -3765,6 +3803,7 @@ class Track extends DataClass implements Insertable<Track> {
           ..write('parentDirName: $parentDirName, ')
           ..write('trackNumber: $trackNumber, ')
           ..write('title: $title, ')
+          ..write('titleZh: $titleZh, ')
           ..write('alternateQualityPathsJson: $alternateQualityPathsJson, ')
           ..write('lastPositionMs: $lastPositionMs, ')
           ..write('playCount: $playCount, ')
@@ -3775,7 +3814,7 @@ class Track extends DataClass implements Insertable<Track> {
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     workId,
     filePath,
@@ -3791,12 +3830,13 @@ class Track extends DataClass implements Insertable<Track> {
     parentDirName,
     trackNumber,
     title,
+    titleZh,
     alternateQualityPathsJson,
     lastPositionMs,
     playCount,
     createdAt,
     updatedAt,
-  );
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -3816,6 +3856,7 @@ class Track extends DataClass implements Insertable<Track> {
           other.parentDirName == this.parentDirName &&
           other.trackNumber == this.trackNumber &&
           other.title == this.title &&
+          other.titleZh == this.titleZh &&
           other.alternateQualityPathsJson == this.alternateQualityPathsJson &&
           other.lastPositionMs == this.lastPositionMs &&
           other.playCount == this.playCount &&
@@ -3839,6 +3880,7 @@ class TracksCompanion extends UpdateCompanion<Track> {
   final Value<String> parentDirName;
   final Value<int?> trackNumber;
   final Value<String> title;
+  final Value<String?> titleZh;
   final Value<String> alternateQualityPathsJson;
   final Value<int> lastPositionMs;
   final Value<int> playCount;
@@ -3861,6 +3903,7 @@ class TracksCompanion extends UpdateCompanion<Track> {
     this.parentDirName = const Value.absent(),
     this.trackNumber = const Value.absent(),
     this.title = const Value.absent(),
+    this.titleZh = const Value.absent(),
     this.alternateQualityPathsJson = const Value.absent(),
     this.lastPositionMs = const Value.absent(),
     this.playCount = const Value.absent(),
@@ -3884,6 +3927,7 @@ class TracksCompanion extends UpdateCompanion<Track> {
     required String parentDirName,
     this.trackNumber = const Value.absent(),
     required String title,
+    this.titleZh = const Value.absent(),
     this.alternateQualityPathsJson = const Value.absent(),
     this.lastPositionMs = const Value.absent(),
     this.playCount = const Value.absent(),
@@ -3917,6 +3961,7 @@ class TracksCompanion extends UpdateCompanion<Track> {
     Expression<String>? parentDirName,
     Expression<int>? trackNumber,
     Expression<String>? title,
+    Expression<String>? titleZh,
     Expression<String>? alternateQualityPathsJson,
     Expression<int>? lastPositionMs,
     Expression<int>? playCount,
@@ -3940,6 +3985,7 @@ class TracksCompanion extends UpdateCompanion<Track> {
       if (parentDirName != null) 'parent_dir_name': parentDirName,
       if (trackNumber != null) 'track_number': trackNumber,
       if (title != null) 'title': title,
+      if (titleZh != null) 'title_zh': titleZh,
       if (alternateQualityPathsJson != null)
         'alternate_quality_paths_json': alternateQualityPathsJson,
       if (lastPositionMs != null) 'last_position_ms': lastPositionMs,
@@ -3966,6 +4012,7 @@ class TracksCompanion extends UpdateCompanion<Track> {
     Value<String>? parentDirName,
     Value<int?>? trackNumber,
     Value<String>? title,
+    Value<String?>? titleZh,
     Value<String>? alternateQualityPathsJson,
     Value<int>? lastPositionMs,
     Value<int>? playCount,
@@ -3989,6 +4036,7 @@ class TracksCompanion extends UpdateCompanion<Track> {
       parentDirName: parentDirName ?? this.parentDirName,
       trackNumber: trackNumber ?? this.trackNumber,
       title: title ?? this.title,
+      titleZh: titleZh ?? this.titleZh,
       alternateQualityPathsJson:
           alternateQualityPathsJson ?? this.alternateQualityPathsJson,
       lastPositionMs: lastPositionMs ?? this.lastPositionMs,
@@ -4047,6 +4095,9 @@ class TracksCompanion extends UpdateCompanion<Track> {
     if (title.present) {
       map['title'] = Variable<String>(title.value);
     }
+    if (titleZh.present) {
+      map['title_zh'] = Variable<String>(titleZh.value);
+    }
     if (alternateQualityPathsJson.present) {
       map['alternate_quality_paths_json'] = Variable<String>(
         alternateQualityPathsJson.value,
@@ -4088,6 +4139,7 @@ class TracksCompanion extends UpdateCompanion<Track> {
           ..write('parentDirName: $parentDirName, ')
           ..write('trackNumber: $trackNumber, ')
           ..write('title: $title, ')
+          ..write('titleZh: $titleZh, ')
           ..write('alternateQualityPathsJson: $alternateQualityPathsJson, ')
           ..write('lastPositionMs: $lastPositionMs, ')
           ..write('playCount: $playCount, ')
@@ -11692,6 +11744,7 @@ typedef $$TracksTableCreateCompanionBuilder =
       required String parentDirName,
       Value<int?> trackNumber,
       required String title,
+      Value<String?> titleZh,
       Value<String> alternateQualityPathsJson,
       Value<int> lastPositionMs,
       Value<int> playCount,
@@ -11716,6 +11769,7 @@ typedef $$TracksTableUpdateCompanionBuilder =
       Value<String> parentDirName,
       Value<int?> trackNumber,
       Value<String> title,
+      Value<String?> titleZh,
       Value<String> alternateQualityPathsJson,
       Value<int> lastPositionMs,
       Value<int> playCount,
@@ -11841,6 +11895,11 @@ class $$TracksTableFilterComposer
 
   ColumnFilters<String> get title => $composableBuilder(
     column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get titleZh => $composableBuilder(
+    column: $table.titleZh,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -11997,6 +12056,11 @@ class $$TracksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get titleZh => $composableBuilder(
+    column: $table.titleZh,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get alternateQualityPathsJson => $composableBuilder(
     column: $table.alternateQualityPathsJson,
     builder: (column) => ColumnOrderings(column),
@@ -12115,6 +12179,9 @@ class $$TracksTableAnnotationComposer
   GeneratedColumn<String> get title =>
       $composableBuilder(column: $table.title, builder: (column) => column);
 
+  GeneratedColumn<String> get titleZh =>
+      $composableBuilder(column: $table.titleZh, builder: (column) => column);
+
   GeneratedColumn<String> get alternateQualityPathsJson => $composableBuilder(
     column: $table.alternateQualityPathsJson,
     builder: (column) => column,
@@ -12226,6 +12293,7 @@ class $$TracksTableTableManager
                 Value<String> parentDirName = const Value.absent(),
                 Value<int?> trackNumber = const Value.absent(),
                 Value<String> title = const Value.absent(),
+                Value<String?> titleZh = const Value.absent(),
                 Value<String> alternateQualityPathsJson = const Value.absent(),
                 Value<int> lastPositionMs = const Value.absent(),
                 Value<int> playCount = const Value.absent(),
@@ -12248,6 +12316,7 @@ class $$TracksTableTableManager
                 parentDirName: parentDirName,
                 trackNumber: trackNumber,
                 title: title,
+                titleZh: titleZh,
                 alternateQualityPathsJson: alternateQualityPathsJson,
                 lastPositionMs: lastPositionMs,
                 playCount: playCount,
@@ -12272,6 +12341,7 @@ class $$TracksTableTableManager
                 required String parentDirName,
                 Value<int?> trackNumber = const Value.absent(),
                 required String title,
+                Value<String?> titleZh = const Value.absent(),
                 Value<String> alternateQualityPathsJson = const Value.absent(),
                 Value<int> lastPositionMs = const Value.absent(),
                 Value<int> playCount = const Value.absent(),
@@ -12294,6 +12364,7 @@ class $$TracksTableTableManager
                 parentDirName: parentDirName,
                 trackNumber: trackNumber,
                 title: title,
+                titleZh: titleZh,
                 alternateQualityPathsJson: alternateQualityPathsJson,
                 lastPositionMs: lastPositionMs,
                 playCount: playCount,

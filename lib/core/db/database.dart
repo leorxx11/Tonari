@@ -42,7 +42,7 @@ class TonariDatabase extends _$TonariDatabase {
   TonariDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 15;
+  int get schemaVersion => 16;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -116,6 +116,9 @@ class TonariDatabase extends _$TonariDatabase {
         await m.createTable(playHistoryEntries);
         await m.createTable(videoItems);
         await m.createTable(collectionVideos);
+      }
+      if (from < 16) {
+        await m.addColumn(tracks, tracks.titleZh);
       }
     },
   );

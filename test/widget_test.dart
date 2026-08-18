@@ -219,6 +219,7 @@ Track _track({
   required String fileName,
   required String fileFormat,
   String relativeDir = '本編',
+  String? titleZh,
 }) {
   final now = DateTime(2026, 5, 24, 14, 30);
   final relPath = relativeDir == '.' ? fileName : '$relativeDir/$fileName';
@@ -234,6 +235,7 @@ Track _track({
     durationMs: 0,
     parentDirName: relativeDir == '.' ? workId : relativeDir.split('/').last,
     title: title,
+    titleZh: titleZh,
     alternateQualityPathsJson: '{}',
     lastPositionMs: 0,
     playCount: 0,
@@ -719,6 +721,42 @@ void main() {
     expect(find.textContaining('hello'), findsOneWidget);
     expect(find.textContaining('00:01.500 - 00:06.500'), findsOneWidget);
     expect(find.textContaining('world'), findsOneWidget);
+  });
+
+  testWidgets('track row shows cached translated title as subtitle', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      testApp(
+        works: [_work('RJ01560714', title: 'Test Work')],
+        tracks: [
+          _track(
+            id: 't1',
+            workId: 'RJ01560714',
+            title: '01. ご挨拶と施術のご説明',
+            fileName: '01. ご挨拶と施術のご説明.wav',
+            fileFormat: 'wav',
+            relativeDir: '.',
+            titleZh: '01. 问候与施术说明',
+          ),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Test Work'));
+    await tester.pumpAndSettle();
+    await tester.dragUntilVisible(
+      find.byKey(const Key('files-entry')),
+      find.byType(CustomScrollView),
+      const Offset(0, -200),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('files-entry')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('01. ご挨拶と施術のご説明.wav'), findsOneWidget);
+    expect(find.text('01. 问候与施术说明'), findsOneWidget);
   });
 
   testWidgets('favorite work shows heart icon on card', (tester) async {

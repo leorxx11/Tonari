@@ -20,6 +20,10 @@ class Tracks extends Table {
   TextColumn get parentDirName => text()();
   IntColumn get trackNumber => integer().nullable()();
   TextColumn get title => text()();
+
+  /// Cached Chinese translation of [title]; survives rescans because the
+  /// import upsert never writes it.
+  TextColumn get titleZh => text().nullable()();
   TextColumn get alternateQualityPathsJson =>
       text().withDefault(const Constant('{}'))();
 

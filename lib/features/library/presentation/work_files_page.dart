@@ -16,7 +16,11 @@ import '../../p115/data/p115_client.dart';
 import '../../p115/data/p115_cookie_store.dart';
 import '../../player/data/playback_controller.dart';
 import '../../player/presentation/mini_player.dart';
+import '../../settings/presentation/translation_settings_page.dart';
 import '../../subtitle/data/subtitle_providers.dart';
+import '../../translation/data/llm_provider_repository.dart';
+import '../../translation/data/track_translation_controller.dart';
+import '../../translation/data/translation_controller.dart';
 import '../../video/data/video_controller.dart';
 import '../data/library_task_controller.dart';
 import '../data/track_duration_probe.dart';
@@ -106,6 +110,10 @@ class _WorkFilesPageState extends ConsumerState<WorkFilesPage> {
                     icon: const Icon(CupertinoIcons.chevron_left, size: 24),
                   ),
                   const Spacer(),
+                  _TrackTranslateButton(
+                    workId: widget.work.productId,
+                    hasZh: tracks.any((t) => t.titleZh?.isNotEmpty ?? false),
+                  ),
                   IconButton(
                     tooltip: '回到媒体库',
                     icon: const Icon(CupertinoIcons.house, size: 21),
@@ -611,6 +619,8 @@ class _NodeRow extends ConsumerWidget {
       final controller = ref.read(playbackControllerProvider.notifier);
       final isCurrent = playback.currentTrack?.id == t.id;
       final accent = _accentText(context);
+      final showZh = ref.watch(trackTranslationViewProvider(t.workId)) ?? true;
+      final titleZh = t.titleZh;
       return ListTile(
         contentPadding: rowPadding,
         tileColor: isCurrent ? _kAccent.withValues(alpha: 0.10) : null,
@@ -626,6 +636,18 @@ class _NodeRow extends ConsumerWidget {
             fontWeight: isCurrent ? FontWeight.w600 : FontWeight.w500,
           ),
         ),
+        subtitle: showZh && (titleZh?.isNotEmpty ?? false)
+            ? Text(
+                titleZh!,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: isCurrent
+                      ? accent.withValues(alpha: 0.8)
+                      : iosSecondary,
+                ),
+              )
+            : null,
         trailing: t.durationMs > 0
             ? Text(
                 _formatTrackDuration(t.durationMs),
@@ -922,4 +944,99 @@ String _extension(String name) {
   final dot = name.lastIndexOf('.');
   if (dot < 0 || dot == name.length - 1) return '';
   return name.substring(dot + 1).toLowerCase();
+}
+
+/// Translate/toggle button for track titles, mirroring the detail page's
+/// translation button: tap translates (or toggles once cached), long-press
+/// force-retranslates everything.
+class _TrackTranslateButton extends ConsumerWidget {
+  const _TrackTranslateButton({required this.workId, required this.hasZh});
+
+  final String workId;
+  final bool hasZh;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final defaultProvider = ref.watch(defaultLlmProviderProvider);
+    final stateAsync = ref.watch(trackTranslationControllerProvider(workId));
+    final showZh = ref.watch(trackTranslationViewProvider(workId)) ?? true;
+
+    ref.listen<AsyncValue<TranslationState>>(
+      trackTranslationControllerProvider(workId),
+      (prev, next) {
+        final s = next.value;
+        if (s is TranslationDone) {
+          ref.read(trackTranslationViewProvider(workId).notifier).show(true);
+        } else if (s is TranslationFailed) {
+          showAppToast(s.message);
+        }
+      },
+    );
+
+    final state = stateAsync.value ?? const TranslationIdle();
+    if (state is TranslationLoading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 14),
+        child: Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
+    if (state is TranslationFailed) {
+      return IconButton(
+        tooltip: '翻译失败 · 点击重试',
+        icon: Icon(Icons.error_outline, color: theme.colorScheme.error),
+        onPressed: () {
+          final controller = ref.read(
+            trackTranslationControllerProvider(workId).notifier,
+          );
+          controller.clearFailure();
+          controller.translate();
+        },
+      );
+    }
+    if (defaultProvider == null) {
+      return IconButton(
+        tooltip: '翻译音轨名（未配置 Provider）',
+        icon: Icon(Icons.translate_outlined, color: theme.disabledColor),
+        onPressed: () {
+          showAppToast('请先在设置中配置翻译 Provider');
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => const TranslationSettingsPage(),
+            ),
+          );
+        },
+      );
+    }
+    return GestureDetector(
+      onLongPress: () => ref
+          .read(trackTranslationControllerProvider(workId).notifier)
+          .translate(force: true),
+      child: IconButton(
+        tooltip: hasZh ? (showZh ? '隐藏译名' : '显示译名') : '翻译音轨名',
+        icon: Icon(
+          hasZh && showZh ? Icons.translate : Icons.translate_outlined,
+          size: 21,
+          color: hasZh && showZh ? _accentText(context) : null,
+        ),
+        onPressed: () {
+          if (hasZh) {
+            ref
+                .read(trackTranslationViewProvider(workId).notifier)
+                .toggleFrom(showZh);
+          } else {
+            ref
+                .read(trackTranslationControllerProvider(workId).notifier)
+                .translate();
+          }
+        },
+      ),
+    );
+  }
 }

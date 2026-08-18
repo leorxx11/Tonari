@@ -42,6 +42,12 @@ class TranslationService {
       '请把每个元素翻译为自然流畅的中文，保持数组长度与顺序完全一致。'
       '直接输出 JSON 字符串数组，不要包裹 markdown 代码块，不要任何解释。';
 
+  static const _trackNamePrompt =
+      '你是 DLsite 音声作品的音轨名翻译助手。输入是一个 JSON 字符串数组，每个元素是一条日文音轨名。'
+      '请把每条翻译为简洁自然的中文，严格保留开头的编号或序号前缀（如 "#6B."、"01."、"track02_"）'
+      '以及原有的括号、波浪号等符号风格，保持数组长度与顺序完全一致。'
+      '直接输出 JSON 字符串数组，不要包裹 markdown 代码块，不要任何解释。';
+
   Future<String> translateTitle(
     LlmProviderConfig provider,
     String title, {
@@ -75,6 +81,7 @@ class TranslationService {
       final batch = segs.texts.sublist(start, end);
       final part = await _translateBatch(
         provider,
+        _descPrompt,
         batch,
         cancelToken: cancelToken,
       );
@@ -83,8 +90,31 @@ class TranslationService {
     return HtmlSegmenter.fill(segs, translated);
   }
 
+  /// Translates track titles, preserving numbering prefixes. Returns a list
+  /// the same length and order as [names].
+  Future<List<String>> translateTrackNames(
+    LlmProviderConfig provider,
+    List<String> names, {
+    CancelToken? cancelToken,
+  }) async {
+    final translated = <String>[];
+    for (var start = 0; start < names.length; start += batchSize) {
+      final end = math.min(start + batchSize, names.length);
+      final batch = names.sublist(start, end);
+      final part = await _translateBatch(
+        provider,
+        _trackNamePrompt,
+        batch,
+        cancelToken: cancelToken,
+      );
+      translated.addAll(part);
+    }
+    return translated;
+  }
+
   Future<List<String>> _translateBatch(
     LlmProviderConfig provider,
+    String prompt,
     List<String> batch, {
     CancelToken? cancelToken,
   }) async {
@@ -92,7 +122,7 @@ class TranslationService {
       () => _chat(provider, [
         {
           'role': 'system',
-          'content': _composeSystemPrompt(_descPrompt, provider.systemPrompt),
+          'content': _composeSystemPrompt(prompt, provider.systemPrompt),
         },
         {'role': 'user', 'content': jsonEncode(batch)},
       ], cancelToken: cancelToken),
