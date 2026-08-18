@@ -135,14 +135,14 @@ class _WorkDetailViewState extends ConsumerState<_WorkDetailView> {
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
           SliverToBoxAdapter(child: _HeaderSection(work: work)),
-          SliverToBoxAdapter(child: _StatsSection(work: work)),
           SliverToBoxAdapter(
-            child: _CreditsSection(
+            child: _StatsSection(
               work: work,
               tracksAsync: tracksAsync,
               filesAsync: filesAsync,
             ),
           ),
+          SliverToBoxAdapter(child: _CreditsSection(work: work)),
           SliverToBoxAdapter(child: _GenresSection(work: work)),
           SliverToBoxAdapter(child: _FileInfoLine(work: work)),
           SliverToBoxAdapter(child: _DescriptionSection(work: work)),
@@ -422,9 +422,15 @@ class _HeaderSection extends ConsumerWidget {
 }
 
 class _StatsSection extends StatelessWidget {
-  const _StatsSection({required this.work});
+  const _StatsSection({
+    required this.work,
+    required this.tracksAsync,
+    required this.filesAsync,
+  });
 
   final Work work;
+  final AsyncValue<List<Track>> tracksAsync;
+  final AsyncValue<List<WorkFile>> filesAsync;
 
   @override
   Widget build(BuildContext context) {
@@ -442,8 +448,17 @@ class _StatsSection extends StatelessWidget {
     final hasRanks = rankDay != null || rankWeek != null || rankMonth != null;
     final hasRatingRow = rating != null || dlCount != null || wishlist != null;
     final hasPriceRow = price != null;
+    final tile = _FilesTile(
+      work: work,
+      tracksAsync: tracksAsync,
+      filesAsync: filesAsync,
+    );
     if (!hasRanks && !hasRatingRow && !hasPriceRow) {
-      return const SizedBox.shrink();
+      // Unscraped works have no stats; keep the files entry in place.
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+        child: Align(alignment: Alignment.centerRight, child: tile),
+      );
     }
 
     final divider = Padding(
@@ -459,114 +474,124 @@ class _StatsSection extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          if (hasRanks)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Wrap(
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (hasRanks)
                   Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: Icon(
-                      Icons.emoji_events_outlined,
-                      size: 16,
-                      color: theme.colorScheme.onSurfaceVariant,
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: Icon(
+                            Icons.emoji_events_outlined,
+                            size: 16,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        for (var i = 0; i < rankSpans.length; i++) ...[
+                          if (i > 0) divider,
+                          rankSpans[i],
+                        ],
+                      ],
                     ),
                   ),
-                  for (var i = 0; i < rankSpans.length; i++) ...[
-                    if (i > 0) divider,
-                    rankSpans[i],
-                  ],
-                ],
-              ),
-            ),
-          if (hasRatingRow)
-            Wrap(
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                if (rating != null) ...[
-                  _StarRow(rating: rating),
-                  const SizedBox(width: 8),
-                  Text(
-                    rating.toStringAsFixed(2),
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+                if (hasRatingRow)
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      if (rating != null) ...[
+                        _StarRow(rating: rating),
+                        const SizedBox(width: 8),
+                        Text(
+                          rating.toStringAsFixed(2),
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (work.ratingCount != null) ...[
+                          const SizedBox(width: 4),
+                          Text(
+                            '(${work.ratingCount})',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ],
+                      if (rating != null && dlCount != null) divider,
+                      if (dlCount != null)
+                        Text(
+                          '售出 ${_compact(dlCount)}',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      if ((rating != null || dlCount != null) &&
+                          wishlist != null)
+                        divider,
+                      if (wishlist != null)
+                        Text(
+                          '收藏 ${_compact(wishlist)}',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                    ],
                   ),
-                  if (work.ratingCount != null) ...[
-                    const SizedBox(width: 4),
-                    Text(
-                      '(${work.ratingCount})',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+                if (hasRatingRow && hasPriceRow) const SizedBox(height: 8),
+                if (price != null)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Text(
+                        '¥${_compact(price)}',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-                  ],
-                ],
-                if (rating != null && dlCount != null) divider,
-                if (dlCount != null)
-                  Text(
-                    '售出 ${_compact(dlCount)}',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                if ((rating != null || dlCount != null) && wishlist != null)
-                  divider,
-                if (wishlist != null)
-                  Text(
-                    '收藏 ${_compact(wishlist)}',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
+                      if (discount > 0 && official != null) ...[
+                        const SizedBox(width: 8),
+                        Text(
+                          '¥${_compact(official)}',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            decoration: TextDecoration.lineThrough,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.errorContainer,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            '-$discount%',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.onErrorContainer,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
               ],
             ),
-          if (hasRatingRow && hasPriceRow) const SizedBox(height: 8),
-          if (price != null)
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: [
-                Text(
-                  '¥${_compact(price)}',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                if (discount > 0 && official != null) ...[
-                  const SizedBox(width: 8),
-                  Text(
-                    '¥${_compact(official)}',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                      decoration: TextDecoration.lineThrough,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.errorContainer,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      '-$discount%',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.onErrorContainer,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
+          ),
+          const SizedBox(width: 12),
+          tile,
         ],
       ),
     );
@@ -640,15 +665,9 @@ class _StarRow extends StatelessWidget {
 }
 
 class _CreditsSection extends StatelessWidget {
-  const _CreditsSection({
-    required this.work,
-    required this.tracksAsync,
-    required this.filesAsync,
-  });
+  const _CreditsSection({required this.work});
 
   final Work work;
-  final AsyncValue<List<Track>> tracksAsync;
-  final AsyncValue<List<WorkFile>> filesAsync;
 
   @override
   Widget build(BuildContext context) {
@@ -658,57 +677,37 @@ class _CreditsSection extends StatelessWidget {
       ('插画', work.illustrators),
       ('音乐', work.musicians),
     ].where((r) => r.$2.isNotEmpty).toList();
-    final tile = _FilesTile(
-      work: work,
-      tracksAsync: tracksAsync,
-      filesAsync: filesAsync,
-    );
-    if (rows.isEmpty) {
-      // No credits: keep the files entry reachable on its own row.
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-        child: Align(alignment: Alignment.centerRight, child: tile),
-      );
-    }
+    if (rows.isEmpty) return const SizedBox.shrink();
 
     final theme = Theme.of(context);
     return _Section(
       title: '演职员',
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
         children: [
-          Expanded(
-            child: Column(
-              children: [
-                for (final row in rows)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SizedBox(
-                          width: 72,
-                          child: Text(
-                            row.$1,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: Text(
-                            row.$2.join('、'),
-                            style: theme.textTheme.bodyMedium,
-                          ),
-                        ),
-                      ],
+          for (final row in rows)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 72,
+                    child: Text(
+                      row.$1,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ),
-              ],
+                  Expanded(
+                    child: Text(
+                      row.$2.join('、'),
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(width: 12),
-          tile,
         ],
       ),
     );
