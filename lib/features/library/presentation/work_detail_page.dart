@@ -714,7 +714,41 @@ class _FilesTile extends ConsumerWidget {
       onTap: () => Navigator.of(context, rootNavigator: true).push(
         CupertinoPageRoute<void>(builder: (_) => WorkFilesPage(work: work)),
       ),
-      child: Image.asset('assets/icons/files_seal.png', width: 56, height: 56),
+      child: SizedBox(
+        width: 64,
+        height: 64,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Shadow sits behind the seal's visible bounds (the PNG has a
+            // transparent margin), peeking out at the edges for depth.
+            Container(
+              width: 54,
+              height: 54,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(13),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.40),
+                    blurRadius: 14,
+                    offset: const Offset(0, 6),
+                  ),
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.28),
+                    blurRadius: 3,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+            ),
+            Image.asset(
+              'assets/icons/files_seal.png',
+              width: 64,
+              height: 64,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
