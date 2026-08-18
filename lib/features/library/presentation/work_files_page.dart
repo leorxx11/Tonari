@@ -121,6 +121,13 @@ class _WorkFilesPageState extends ConsumerState<WorkFilesPage> {
           ),
           actions: [
             IconButton(
+              tooltip: '返回作品',
+              icon: const Icon(CupertinoIcons.xmark, size: 20),
+              // Unconditional pop: bypasses the PopScope folder-up handling
+              // so any depth returns to the detail page in one tap.
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            IconButton(
               tooltip: '回到媒体库',
               icon: const Icon(CupertinoIcons.house, size: 21),
               onPressed: _goLibraryHome,

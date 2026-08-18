@@ -18,9 +18,7 @@ import '../data/enrichment_queue.dart';
 import '../data/metadata_enrichment.dart';
 import '../data/work_actions_provider.dart';
 import '../data/work_genres.dart';
-import '../data/work_playback.dart';
 import '../data/work_reimport_provider.dart';
-import '../data/work_tree.dart';
 import '../data/works_providers.dart';
 import 'widgets/chip_filter_actions.dart';
 import 'widgets/collection_picker_sheet.dart';
@@ -137,15 +135,14 @@ class _WorkDetailViewState extends ConsumerState<_WorkDetailView> {
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
           SliverToBoxAdapter(child: _HeaderSection(work: work)),
+          SliverToBoxAdapter(child: _StatsSection(work: work)),
           SliverToBoxAdapter(
-            child: _ActionRow(
+            child: _CreditsSection(
               work: work,
               tracksAsync: tracksAsync,
               filesAsync: filesAsync,
             ),
           ),
-          SliverToBoxAdapter(child: _StatsSection(work: work)),
-          SliverToBoxAdapter(child: _CreditsSection(work: work)),
           SliverToBoxAdapter(child: _GenresSection(work: work)),
           SliverToBoxAdapter(child: _FileInfoLine(work: work)),
           SliverToBoxAdapter(child: _DescriptionSection(work: work)),
@@ -643,9 +640,15 @@ class _StarRow extends StatelessWidget {
 }
 
 class _CreditsSection extends StatelessWidget {
-  const _CreditsSection({required this.work});
+  const _CreditsSection({
+    required this.work,
+    required this.tracksAsync,
+    required this.filesAsync,
+  });
 
   final Work work;
+  final AsyncValue<List<Track>> tracksAsync;
+  final AsyncValue<List<WorkFile>> filesAsync;
 
   @override
   Widget build(BuildContext context) {
@@ -655,38 +658,131 @@ class _CreditsSection extends StatelessWidget {
       ('插画', work.illustrators),
       ('音乐', work.musicians),
     ].where((r) => r.$2.isNotEmpty).toList();
-    if (rows.isEmpty) return const SizedBox.shrink();
+    final tile = _FilesTile(
+      work: work,
+      tracksAsync: tracksAsync,
+      filesAsync: filesAsync,
+    );
+    if (rows.isEmpty) {
+      // No credits: keep the files entry reachable on its own row.
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+        child: Align(alignment: Alignment.centerRight, child: tile),
+      );
+    }
 
     final theme = Theme.of(context);
     return _Section(
       title: '演职员',
-      child: Column(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          for (final row in rows)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    width: 72,
-                    child: Text(
-                      row.$1,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
+          Expanded(
+            child: Column(
+              children: [
+                for (final row in rows)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(
+                          width: 72,
+                          child: Text(
+                            row.$1,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: Text(
+                            row.$2.join('、'),
+                            style: theme.textTheme.bodyMedium,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  Expanded(
-                    child: Text(
-                      row.$2.join('、'),
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                  ),
-                ],
-              ),
+              ],
             ),
+          ),
+          const SizedBox(width: 12),
+          tile,
         ],
+      ),
+    );
+  }
+}
+
+/// Compact entry into the work's file browser, docked beside the credits.
+class _FilesTile extends StatelessWidget {
+  const _FilesTile({
+    required this.work,
+    required this.tracksAsync,
+    required this.filesAsync,
+  });
+
+  final Work work;
+  final AsyncValue<List<Track>> tracksAsync;
+  final AsyncValue<List<WorkFile>> filesAsync;
+
+  @override
+  Widget build(BuildContext context) {
+    final tracks = tracksAsync.value ?? const <Track>[];
+    final files = filesAsync.value ?? const <WorkFile>[];
+    final loading = tracksAsync.isLoading || filesAsync.isLoading;
+    final count = tracks.length + files.length;
+    if (!loading && count == 0) return const SizedBox.shrink();
+
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return Material(
+      color: cs.surfaceContainerHigh,
+      borderRadius: BorderRadius.circular(16),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => Navigator.of(context, rootNavigator: true).push(
+          CupertinoPageRoute<void>(builder: (_) => WorkFilesPage(work: work)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 12, 18, 10),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [cs.primary, cs.secondary],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  CupertinoIcons.folder_fill,
+                  size: 21,
+                  color: cs.onPrimary,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '文件',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Text(
+                loading ? '…' : '$count 项',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -960,108 +1056,6 @@ class _MetaBadge extends StatelessWidget {
       ),
     );
   }
-}
-
-// ---------- Action row: play + files entry, first-screen reachable ----------
-
-class _ActionRow extends ConsumerWidget {
-  const _ActionRow({
-    required this.work,
-    required this.tracksAsync,
-    required this.filesAsync,
-  });
-
-  final Work work;
-  final AsyncValue<List<Track>> tracksAsync;
-  final AsyncValue<List<WorkFile>> filesAsync;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final tracks = tracksAsync.value ?? const <Track>[];
-    final files = filesAsync.value ?? const <WorkFile>[];
-    final loading = tracksAsync.isLoading || filesAsync.isLoading;
-    final empty = !loading && tracks.isEmpty && files.isEmpty;
-    final queue = flattenForPlayback(buildWorkTree(tracks, workFiles: files));
-
-    final buttonShape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(12),
-    );
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-      child: Row(
-        children: [
-          Expanded(
-            child: FilledButton.icon(
-              style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(44),
-                shape: buttonShape,
-              ),
-              onPressed: queue.isEmpty ? null : () => _play(ref, queue),
-              icon: const Icon(Icons.play_arrow_rounded),
-              label: const Text('播放'),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: FilledButton.tonalIcon(
-              style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(44),
-                shape: buttonShape,
-              ),
-              onPressed: empty
-                  ? null
-                  : () => Navigator.of(context, rootNavigator: true).push(
-                      CupertinoSheetRoute<void>(
-                        scrollableBuilder: (_, _) => WorkFilesPage(work: work),
-                        showDragHandle: true,
-                      ),
-                    ),
-              icon: const Icon(Icons.folder_outlined, size: 20),
-              label: Text(
-                loading || empty ? '文件' : '文件 · ${_summary(tracks, files)}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Resumes the last-played track of this work, or starts from the first.
-  Future<void> _play(WidgetRef ref, List<Track> queue) async {
-    var index = queue.indexWhere((t) => t.id == work.lastPlayedTrackId);
-    if (index < 0) index = 0;
-    await ref
-        .read(workPlaybackProvider)
-        .start(work: work, queue: queue, initialIndex: index);
-  }
-
-  String _summary(List<Track> tracks, List<WorkFile> files) {
-    final totalItems = tracks.length + files.length;
-    final totalDuration = tracks.fold<int>(0, (a, t) => a + t.durationMs);
-    final parts = <String>[
-      '$totalItems 项',
-      if (totalDuration > 0) _formatTotalDuration(totalDuration),
-    ];
-    return parts.join(' · ');
-  }
-}
-
-String _formatTotalDuration(int ms) {
-  if (ms <= 0) return '0s';
-  final totalMinutes = ms ~/ 60000;
-  if (totalMinutes >= 60) {
-    final halfHours = (totalMinutes / 30).round();
-    final hours = halfHours / 2;
-    final text = hours == hours.truncate()
-        ? hours.toStringAsFixed(0)
-        : hours.toStringAsFixed(1);
-    return '${text}hr';
-  }
-  if (totalMinutes > 0) return '${totalMinutes}min';
-  return '${(ms / 1000).round()}s';
 }
 
 class _HeaderCarousel extends StatefulWidget {
@@ -1367,9 +1361,7 @@ class _TranslationButton extends ConsumerWidget {
   void _promptConfigure(BuildContext context) {
     showAppToast('请先在设置中配置翻译 Provider');
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => const TranslationSettingsPage(),
-      ),
+      MaterialPageRoute<void>(builder: (_) => const TranslationSettingsPage()),
     );
   }
 }

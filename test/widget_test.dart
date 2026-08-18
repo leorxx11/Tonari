@@ -559,15 +559,15 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.dragUntilVisible(
-      find.textContaining('文件 ·'),
+      find.text('文件'),
       find.byType(CustomScrollView),
       const Offset(0, -200),
     );
     await tester.pumpAndSettle();
 
     expect(find.text('RJ01560714'), findsOneWidget);
-    expect(find.text('播放'), findsOneWidget);
-    expect(find.textContaining('文件 ·'), findsOneWidget);
+    expect(find.text('文件'), findsOneWidget);
+    expect(find.text('1 项'), findsOneWidget);
     // Track list lives on the WorkFilesPage now, not the detail page.
     expect(find.text('track01.wav'), findsNothing);
   });
@@ -595,13 +595,13 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.dragUntilVisible(
-      find.textContaining('文件 ·'),
+      find.text('文件'),
       find.byType(CustomScrollView),
       const Offset(0, -200),
     );
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('文件 ·'), findsOneWidget);
+    expect(find.text('文件'), findsOneWidget);
     for (final label in ['媒体库', '设置']) {
       expect(find.text(label), findsNothing);
     }
@@ -639,13 +639,13 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.dragUntilVisible(
-      find.textContaining('文件 ·'),
+      find.text('文件'),
       find.byType(CustomScrollView),
       const Offset(0, -200),
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.textContaining('文件 ·'));
+    await tester.tap(find.text('文件'));
     await tester.pumpAndSettle();
 
     // Resource page is now in front; root level shows both folders.
@@ -706,12 +706,12 @@ void main() {
     await tester.tap(find.text('Test Work'));
     await tester.pumpAndSettle();
     await tester.dragUntilVisible(
-      find.textContaining('文件 ·'),
+      find.text('文件'),
       find.byType(CustomScrollView),
       const Offset(0, -200),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.textContaining('文件 ·'));
+    await tester.tap(find.text('文件'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('track01.wav.lrc'));
     await tester.pumpAndSettle();
