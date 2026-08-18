@@ -714,7 +714,7 @@ class _CreditsSection extends StatelessWidget {
   }
 }
 
-/// Compact entry into the work's file browser, docked beside the credits.
+/// Red-seal entry into the work's file browser, docked beside the stats.
 class _FilesTile extends StatelessWidget {
   const _FilesTile({
     required this.work,
@@ -734,55 +734,13 @@ class _FilesTile extends StatelessWidget {
     final count = tracks.length + files.length;
     if (!loading && count == 0) return const SizedBox.shrink();
 
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    return Material(
-      color: cs.surfaceContainerHigh,
-      borderRadius: BorderRadius.circular(16),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => Navigator.of(context, rootNavigator: true).push(
-          CupertinoPageRoute<void>(builder: (_) => WorkFilesPage(work: work)),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 12, 18, 10),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [cs.primary, cs.secondary],
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  CupertinoIcons.folder_fill,
-                  size: 21,
-                  color: cs.onPrimary,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                '文件',
-                style: theme.textTheme.labelMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              Text(
-                loading ? '…' : '$count 项',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: cs.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ),
+    return GestureDetector(
+      key: const Key('files-entry'),
+      behavior: HitTestBehavior.opaque,
+      onTap: () => Navigator.of(context, rootNavigator: true).push(
+        CupertinoPageRoute<void>(builder: (_) => WorkFilesPage(work: work)),
       ),
+      child: Image.asset('assets/icons/files_seal.png', width: 64, height: 64),
     );
   }
 }
