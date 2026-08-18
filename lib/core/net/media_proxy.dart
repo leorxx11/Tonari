@@ -90,7 +90,12 @@ class MediaProxy {
       await _probeLoopback(id);
     }
     return MediaProxyRegistration._(
-      Uri.parse('http://127.0.0.1:${_server!.port}/$id/$name'),
+      Uri(
+        scheme: 'http',
+        host: '127.0.0.1',
+        port: _server!.port,
+        pathSegments: [id, name],
+      ),
       () {
         final removed = _entries.remove(id);
         removed?.close();

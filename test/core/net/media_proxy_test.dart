@@ -382,6 +382,34 @@ void main() {
     expect(upstream.remotePorts.whereType<int>().toSet(), hasLength(2));
   });
 
+  test('proxy URL keeps a #-prefixed filename as an encoded path segment', () async {
+    // 115 filenames like "#4.foo.wav" arrive percent-encoded in the upstream
+    // URL; naive string interpolation of the decoded name turned everything
+    // after '#' into a URL fragment, so AVPlayer saw a path with no extension
+    // and failed with -11828 Cannot Open.
+    final data = Uint8List.fromList(List.generate(100, (i) => i));
+    final upstream = await _serveBuffer(data);
+    addTearDown(() => upstream.server.close(force: true));
+
+    final registration = await MediaProxy.instance.wrapAudio(
+      Uri.parse('http://127.0.0.1:${upstream.server.port}/%234.foo.wav'),
+      const {},
+    );
+    addTearDown(registration.release);
+
+    expect(registration.url.fragment, isEmpty);
+    expect(registration.url.pathSegments.last, '#4.foo.wav');
+
+    final client = HttpClient();
+    addTearDown(() => client.close());
+    final req = await client.getUrl(registration.url);
+    req.headers.set(HttpHeaders.rangeHeader, 'bytes=0-${data.length - 1}');
+    final res = await req.close();
+    final body = await res.fold<List<int>>(<int>[], (a, b) => a..addAll(b));
+    expect(res.statusCode, HttpStatus.partialContent);
+    expect(body, data);
+  });
+
   test('audio proxy serves an in-block slice', () async {
     final data = Uint8List.fromList(List.generate(100, (i) => i));
     final upstream = await _serveBuffer(data);
