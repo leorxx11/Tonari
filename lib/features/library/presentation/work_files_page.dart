@@ -15,6 +15,7 @@ import '../../p115/data/p115_auth_service.dart';
 import '../../p115/data/p115_client.dart';
 import '../../p115/data/p115_cookie_store.dart';
 import '../../player/data/playback_controller.dart';
+import '../../player/presentation/mini_player.dart';
 import '../../subtitle/data/subtitle_providers.dart';
 import '../../video/data/video_controller.dart';
 import '../data/library_task_controller.dart';
@@ -85,6 +86,7 @@ class _WorkFilesPageState extends ConsumerState<WorkFilesPage> {
     final cardBg = CupertinoColors.secondarySystemGroupedBackground.resolveFrom(
       context,
     );
+    final separator = CupertinoColors.separator.resolveFrom(context);
 
     return PopScope(
       canPop: _path.isEmpty,
@@ -96,104 +98,119 @@ class _WorkFilesPageState extends ConsumerState<WorkFilesPage> {
       },
       child: Scaffold(
         backgroundColor: groupedBg,
-        appBar: AppBar(
-          backgroundColor: groupedBg,
-          leading: BackButton(onPressed: _onBack),
-          centerTitle: true,
-          title: Column(
-            mainAxisSize: MainAxisSize.min,
+        body: SafeArea(
+          bottom: false,
+          child: Column(
             children: [
-              Text(
-                widget.work.productId,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: CupertinoColors.secondaryLabel.resolveFrom(context),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                child: Row(
+                  children: [
+                    IconButton(
+                      onPressed: _onBack,
+                      icon: const Icon(CupertinoIcons.chevron_left, size: 24),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      tooltip: '返回作品',
+                      icon: const Icon(CupertinoIcons.xmark, size: 20),
+                      // Unconditional pop: bypasses the PopScope folder-up
+                      // handling so any depth returns to the detail page.
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                    IconButton(
+                      tooltip: '回到媒体库',
+                      icon: const Icon(CupertinoIcons.house, size: 21),
+                      onPressed: _goLibraryHome,
+                    ),
+                  ],
                 ),
               ),
-              Text(
-                titleText,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _FilesHeader(
+                        title: titleText,
+                        workId: widget.work.productId,
+                        children: currentChildren,
+                      ),
+                      if (_path.isNotEmpty)
+                        _Breadcrumbs(
+                          workId: widget.work.productId,
+                          path: _path,
+                          onTapSegment: _onTapBreadcrumb,
+                        ),
+                      if (currentChildren.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 80),
+                          child: Center(
+                            child: Text(
+                              '此目录为空',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: CupertinoColors.secondaryLabel
+                                    .resolveFrom(context),
+                              ),
+                            ),
+                          ),
+                        )
+                      else
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 10, 16, 28),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(color: separator, width: 0.5),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.04),
+                                  blurRadius: 14,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                            child: Material(
+                              color: cardBg,
+                              borderRadius: BorderRadius.circular(18),
+                              clipBehavior: Clip.antiAlias,
+                              child: Column(
+                                children: [
+                                  for (
+                                    var i = 0;
+                                    i < currentChildren.length;
+                                    i++
+                                  ) ...[
+                                    if (i > 0)
+                                      Divider(
+                                        height: 0.5,
+                                        thickness: 0.5,
+                                        indent: 70,
+                                        color: separator,
+                                      ),
+                                    _NodeRow(
+                                      node: currentChildren[i],
+                                      ingestedSubtitlePaths: ingestedSubs,
+                                      onTapFolder: (name) =>
+                                          setState(() => _path.add(name)),
+                                      onPlayTrack: (t) => _play(t, playQueue),
+                                      onPlayVideo: _playVideo,
+                                      onOpenSubtitle: _openSubtitlePreview,
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ],
           ),
-          actions: [
-            IconButton(
-              tooltip: '返回作品',
-              icon: const Icon(CupertinoIcons.xmark, size: 20),
-              // Unconditional pop: bypasses the PopScope folder-up handling
-              // so any depth returns to the detail page in one tap.
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-            IconButton(
-              tooltip: '回到媒体库',
-              icon: const Icon(CupertinoIcons.house, size: 21),
-              onPressed: _goLibraryHome,
-            ),
-          ],
         ),
-        body: Column(
-          children: [
-            _Breadcrumbs(
-              workId: widget.work.productId,
-              path: _path,
-              onTapSegment: _onTapBreadcrumb,
-            ),
-            Expanded(
-              child: currentChildren.isEmpty
-                  ? Center(
-                      child: Text(
-                        '此目录为空',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: CupertinoColors.secondaryLabel.resolveFrom(
-                            context,
-                          ),
-                        ),
-                      ),
-                    )
-                  : SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(14, 8, 14, 12),
-                      child: Material(
-                        color: cardBg,
-                        borderRadius: BorderRadius.circular(14),
-                        clipBehavior: Clip.antiAlias,
-                        child: Column(
-                          children: [
-                            for (
-                              var i = 0;
-                              i < currentChildren.length;
-                              i++
-                            ) ...[
-                              if (i > 0)
-                                Divider(
-                                  height: 0.5,
-                                  thickness: 0.5,
-                                  indent: 62,
-                                  color: CupertinoColors.separator.resolveFrom(
-                                    context,
-                                  ),
-                                ),
-                              _NodeRow(
-                                node: currentChildren[i],
-                                ingestedSubtitlePaths: ingestedSubs,
-                                onTapFolder: (name) =>
-                                    setState(() => _path.add(name)),
-                                onPlayTrack: (t) => _play(t, playQueue),
-                                onPlayVideo: _playVideo,
-                                onOpenSubtitle: _openSubtitlePreview,
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
-            ),
-            if (currentChildren.isNotEmpty)
-              _FooterStats(children: currentChildren),
-          ],
-        ),
+        bottomNavigationBar: const MiniPlayer(),
       ),
     );
   }
@@ -391,7 +408,7 @@ class _Breadcrumbs extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final accent = _accentText(context);
-    final pillBg = CupertinoColors.tertiarySystemFill.resolveFrom(context);
+    final iosSecondary = CupertinoColors.secondaryLabel.resolveFrom(context);
     final iosTertiary = CupertinoColors.tertiaryLabel.resolveFrom(context);
 
     Widget crumb({
@@ -403,19 +420,16 @@ class _Breadcrumbs extends StatelessWidget {
       return GestureDetector(
         key: key,
         onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 4),
-          decoration: BoxDecoration(
-            color: current ? _kAccent : pillBg,
-            borderRadius: BorderRadius.circular(999),
-          ),
+        behavior: HitTestBehavior.opaque,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
           child: Text(
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: theme.textTheme.labelMedium?.copyWith(
-              color: current ? Colors.white : accent,
-              fontWeight: FontWeight.w500,
+              color: current ? iosSecondary : accent,
+              fontWeight: current ? FontWeight.w500 : FontWeight.w600,
             ),
           ),
         ),
@@ -423,7 +437,7 @@ class _Breadcrumbs extends StatelessWidget {
     }
 
     final sep = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 6),
       child: Text(
         '›',
         style: theme.textTheme.labelMedium?.copyWith(color: iosTertiary),
@@ -432,14 +446,14 @@ class _Breadcrumbs extends StatelessWidget {
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 2),
       child: Row(
         children: [
           crumb(
             key: const ValueKey('crumb-root'),
             label: workId,
-            current: path.isEmpty,
-            onTap: path.isEmpty ? null : () => onTapSegment(-1),
+            current: false,
+            onTap: () => onTapSegment(-1),
           ),
           for (var i = 0; i < path.length; i++) ...[
             sep,
@@ -455,13 +469,23 @@ class _Breadcrumbs extends StatelessWidget {
   }
 }
 
-class _FooterStats extends StatelessWidget {
-  const _FooterStats({required this.children});
+/// Left-aligned page header: current folder as the title, work id chip and
+/// aggregate stats of the visible level below it.
+class _FilesHeader extends StatelessWidget {
+  const _FilesHeader({
+    required this.title,
+    required this.workId,
+    required this.children,
+  });
 
+  final String title;
+  final String workId;
   final List<WorkTreeNode> children;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final accent = _accentText(context);
     var totalDurMs = 0;
     var audioCount = 0;
     for (final c in children) {
@@ -473,22 +497,62 @@ class _FooterStats extends StatelessWidget {
         audioCount += c.audioCount;
       }
     }
-    final theme = Theme.of(context);
-    final iosSecondary = CupertinoColors.secondaryLabel.resolveFrom(context);
     final parts = <String>[
       '${children.length} 项',
       if (audioCount > 0) '$audioCount 音频',
       if (totalDurMs > 0) _formatTotalDuration(totalDurMs),
     ];
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-      alignment: Alignment.center,
-      child: Text(
-        parts.join(' · '),
-        style: theme.textTheme.bodySmall?.copyWith(
-          color: iosSecondary,
-          fontFeatures: const [FontFeature.tabularFigures()],
-        ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+              height: 1.2,
+              letterSpacing: -0.5,
+            ),
+          ),
+          const SizedBox(height: 9),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: _kAccent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  workId,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: accent,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  parts.join(' · '),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: CupertinoColors.secondaryLabel.resolveFrom(context),
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -518,7 +582,7 @@ class _NodeRow extends ConsumerWidget {
     final theme = Theme.of(context);
     final iosLabel = CupertinoColors.label.resolveFrom(context);
     final iosSecondary = CupertinoColors.secondaryLabel.resolveFrom(context);
-    const rowPadding = EdgeInsets.symmetric(horizontal: 12, vertical: 4);
+    const rowPadding = EdgeInsets.symmetric(horizontal: 14, vertical: 4);
     final chevron = Icon(
       CupertinoIcons.chevron_right,
       size: 14,
@@ -563,11 +627,8 @@ class _NodeRow extends ConsumerWidget {
         contentPadding: rowPadding,
         tileColor: isCurrent ? _kAccent.withValues(alpha: 0.10) : null,
         leading: isCurrent
-            ? _EqBars(playingStream: controller.player.playingStream)
-            : _IconSquare(
-                icon: CupertinoIcons.music_note_2,
-                color: CupertinoColors.systemGrey.resolveFrom(context),
-              ),
+            ? _PlayingCircle(playingStream: controller.player.playingStream)
+            : const _PlayTintCircle(),
         title: Text(
           t.fileName,
           maxLines: 5,
@@ -695,29 +756,53 @@ class _IconSquare extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = dimmed ? CupertinoColors.systemGrey3.resolveFrom(context) : color;
     return Container(
-      width: 34,
-      height: 34,
+      width: 40,
+      height: 40,
       decoration: BoxDecoration(
         color: c.withValues(alpha: 0.16),
-        borderRadius: BorderRadius.circular(9),
+        borderRadius: BorderRadius.circular(11),
       ),
-      child: Icon(icon, size: 18, color: c),
+      child: Icon(icon, size: 19, color: c),
     );
   }
 }
 
-/// Three-bar equalizer marking the current track; animates while playing,
-/// freezes when paused.
-class _EqBars extends StatefulWidget {
-  const _EqBars({required this.playingStream});
+/// Tinted circular play affordance for non-current tracks — reads as
+/// "tap to play" without needing a legend.
+class _PlayTintCircle extends StatelessWidget {
+  const _PlayTintCircle();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: _kAccent.withValues(alpha: 0.12),
+        shape: BoxShape.circle,
+      ),
+      child: Icon(
+        Icons.play_arrow_rounded,
+        size: 24,
+        color: _accentText(context),
+      ),
+    );
+  }
+}
+
+/// Solid accent circle with three white equalizer bars marking the current
+/// track; animates while playing, freezes when paused.
+class _PlayingCircle extends StatefulWidget {
+  const _PlayingCircle({required this.playingStream});
 
   final Stream<bool> playingStream;
 
   @override
-  State<_EqBars> createState() => _EqBarsState();
+  State<_PlayingCircle> createState() => _PlayingCircleState();
 }
 
-class _EqBarsState extends State<_EqBars> with SingleTickerProviderStateMixin {
+class _PlayingCircleState extends State<_PlayingCircle>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1100),
@@ -748,11 +833,12 @@ class _EqBarsState extends State<_EqBars> with SingleTickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 34,
-      height: 34,
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: const BoxDecoration(color: _kAccent, shape: BoxShape.circle),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
         child: AnimatedBuilder(
           animation: _controller,
           builder: (context, _) => Row(
@@ -765,7 +851,7 @@ class _EqBarsState extends State<_EqBars> with SingleTickerProviderStateMixin {
                     heightFactor: _barHeight(i),
                     child: DecoratedBox(
                       decoration: BoxDecoration(
-                        color: _kAccent,
+                        color: Colors.white,
                         borderRadius: BorderRadius.circular(1.5),
                       ),
                     ),
