@@ -102,8 +102,6 @@ class _WorkDetailViewState extends ConsumerState<_WorkDetailView> {
   Widget build(BuildContext context) {
     final liveWork = ref.watch(workByIdProvider(widget.work.productId)).value;
     final work = liveWork ?? widget.work;
-    final tracksAsync = ref.watch(tracksByWorkProvider(work.productId));
-    final filesAsync = ref.watch(workFilesByWorkProvider(work.productId));
     return Scaffold(
       appBar: AppBar(
         title: Text(work.productId),
@@ -135,13 +133,7 @@ class _WorkDetailViewState extends ConsumerState<_WorkDetailView> {
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
           SliverToBoxAdapter(child: _HeaderSection(work: work)),
-          SliverToBoxAdapter(
-            child: _StatsSection(
-              work: work,
-              tracksAsync: tracksAsync,
-              filesAsync: filesAsync,
-            ),
-          ),
+          SliverToBoxAdapter(child: _StatsSection(work: work)),
           SliverToBoxAdapter(child: _CreditsSection(work: work)),
           SliverToBoxAdapter(child: _GenresSection(work: work)),
           SliverToBoxAdapter(child: _FileInfoLine(work: work)),
@@ -333,7 +325,17 @@ class _HeaderSection extends ConsumerWidget {
                       ),
                     ],
                   ),
-                  child: _HeaderCarousel(work: work),
+                  child: Stack(
+                    children: [
+                      Positioned.fill(child: _HeaderCarousel(work: work)),
+                      // 落款印: the files entry, stamped on the cover corner.
+                      Positioned(
+                        right: 10,
+                        bottom: 10,
+                        child: _FilesTile(work: work),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -422,15 +424,9 @@ class _HeaderSection extends ConsumerWidget {
 }
 
 class _StatsSection extends StatelessWidget {
-  const _StatsSection({
-    required this.work,
-    required this.tracksAsync,
-    required this.filesAsync,
-  });
+  const _StatsSection({required this.work});
 
   final Work work;
-  final AsyncValue<List<Track>> tracksAsync;
-  final AsyncValue<List<WorkFile>> filesAsync;
 
   @override
   Widget build(BuildContext context) {
@@ -448,17 +444,8 @@ class _StatsSection extends StatelessWidget {
     final hasRanks = rankDay != null || rankWeek != null || rankMonth != null;
     final hasRatingRow = rating != null || dlCount != null || wishlist != null;
     final hasPriceRow = price != null;
-    final tile = _FilesTile(
-      work: work,
-      tracksAsync: tracksAsync,
-      filesAsync: filesAsync,
-    );
     if (!hasRanks && !hasRatingRow && !hasPriceRow) {
-      // Unscraped works have no stats; keep the files entry in place.
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-        child: Align(alignment: Alignment.centerRight, child: tile),
-      );
+      return const SizedBox.shrink();
     }
 
     final divider = Padding(
@@ -474,124 +461,114 @@ class _StatsSection extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (hasRanks)
+          if (hasRanks)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: Wrap(
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.only(right: 6),
-                          child: Icon(
-                            Icons.emoji_events_outlined,
-                            size: 16,
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        for (var i = 0; i < rankSpans.length; i++) ...[
-                          if (i > 0) divider,
-                          rankSpans[i],
-                        ],
-                      ],
+                    padding: const EdgeInsets.only(right: 6),
+                    child: Icon(
+                      Icons.emoji_events_outlined,
+                      size: 16,
+                      color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
-                if (hasRatingRow)
-                  Wrap(
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      if (rating != null) ...[
-                        _StarRow(rating: rating),
-                        const SizedBox(width: 8),
-                        Text(
-                          rating.toStringAsFixed(2),
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        if (work.ratingCount != null) ...[
-                          const SizedBox(width: 4),
-                          Text(
-                            '(${work.ratingCount})',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ],
-                      if (rating != null && dlCount != null) divider,
-                      if (dlCount != null)
-                        Text(
-                          '售出 ${_compact(dlCount)}',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      if ((rating != null || dlCount != null) &&
-                          wishlist != null)
-                        divider,
-                      if (wishlist != null)
-                        Text(
-                          '收藏 ${_compact(wishlist)}',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                    ],
+                  for (var i = 0; i < rankSpans.length; i++) ...[
+                    if (i > 0) divider,
+                    rankSpans[i],
+                  ],
+                ],
+              ),
+            ),
+          if (hasRatingRow)
+            Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                if (rating != null) ...[
+                  _StarRow(rating: rating),
+                  const SizedBox(width: 8),
+                  Text(
+                    rating.toStringAsFixed(2),
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                if (hasRatingRow && hasPriceRow) const SizedBox(height: 8),
-                if (price != null)
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                    textBaseline: TextBaseline.alphabetic,
-                    children: [
-                      Text(
-                        '¥${_compact(price)}',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
+                  if (work.ratingCount != null) ...[
+                    const SizedBox(width: 4),
+                    Text(
+                      '(${work.ratingCount})',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
                       ),
-                      if (discount > 0 && official != null) ...[
-                        const SizedBox(width: 8),
-                        Text(
-                          '¥${_compact(official)}',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                            decoration: TextDecoration.lineThrough,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.errorContainer,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            '-$discount%',
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: theme.colorScheme.onErrorContainer,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
+                    ),
+                  ],
+                ],
+                if (rating != null && dlCount != null) divider,
+                if (dlCount != null)
+                  Text(
+                    '售出 ${_compact(dlCount)}',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                if ((rating != null || dlCount != null) && wishlist != null)
+                  divider,
+                if (wishlist != null)
+                  Text(
+                    '收藏 ${_compact(wishlist)}',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
                   ),
               ],
             ),
-          ),
-          const SizedBox(width: 12),
-          tile,
+          if (hasRatingRow && hasPriceRow) const SizedBox(height: 8),
+          if (price != null)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(
+                  '¥${_compact(price)}',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (discount > 0 && official != null) ...[
+                  const SizedBox(width: 8),
+                  Text(
+                    '¥${_compact(official)}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      decoration: TextDecoration.lineThrough,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.errorContainer,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      '-$discount%',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onErrorContainer,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
         ],
       ),
     );
@@ -714,20 +691,17 @@ class _CreditsSection extends StatelessWidget {
   }
 }
 
-/// Red-seal entry into the work's file browser, docked beside the stats.
-class _FilesTile extends StatelessWidget {
-  const _FilesTile({
-    required this.work,
-    required this.tracksAsync,
-    required this.filesAsync,
-  });
+/// Red-seal entry into the work's file browser, stamped on the cover like a
+/// collector's mark (落款印).
+class _FilesTile extends ConsumerWidget {
+  const _FilesTile({required this.work});
 
   final Work work;
-  final AsyncValue<List<Track>> tracksAsync;
-  final AsyncValue<List<WorkFile>> filesAsync;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tracksAsync = ref.watch(tracksByWorkProvider(work.productId));
+    final filesAsync = ref.watch(workFilesByWorkProvider(work.productId));
     final tracks = tracksAsync.value ?? const <Track>[];
     final files = filesAsync.value ?? const <WorkFile>[];
     final loading = tracksAsync.isLoading || filesAsync.isLoading;
@@ -740,7 +714,7 @@ class _FilesTile extends StatelessWidget {
       onTap: () => Navigator.of(context, rootNavigator: true).push(
         CupertinoPageRoute<void>(builder: (_) => WorkFilesPage(work: work)),
       ),
-      child: Image.asset('assets/icons/files_seal.png', width: 64, height: 64),
+      child: Image.asset('assets/icons/files_seal.png', width: 56, height: 56),
     );
   }
 }
