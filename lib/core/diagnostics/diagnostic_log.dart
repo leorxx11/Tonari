@@ -40,6 +40,15 @@ class DiagnosticLog {
     write('diagnostic', 'session_start', {'sessionId': _session});
   }
 
+  /// Re-enables collection under the previous session id without clearing
+  /// the log, so a stopped session can keep accumulating.
+  static Future<void> resumeSession() async {
+    if (_session.isEmpty) return startSession();
+    _enabled = true;
+    await _prefs!.setBool(_enabledKey, true);
+    write('diagnostic', 'session_resume', {'sessionId': _session});
+  }
+
   static Future<void> stopSession() async {
     write('diagnostic', 'session_stop', {'sessionId': _session});
     await _pending;

@@ -33,12 +33,18 @@ class _DiagnosticLogPageState extends State<DiagnosticLogPage> {
     });
   }
 
-  Future<void> _toggleSession() async {
-    if (_active) {
-      await DiagnosticLog.stopSession();
-    } else {
-      await DiagnosticLog.startSession();
-    }
+  Future<void> _stop() async {
+    await DiagnosticLog.stopSession();
+    await _refresh();
+  }
+
+  Future<void> _resume() async {
+    await DiagnosticLog.resumeSession();
+    await _refresh();
+  }
+
+  Future<void> _startNew() async {
+    await DiagnosticLog.startSession();
     await _refresh();
   }
 
@@ -73,14 +79,28 @@ class _DiagnosticLogPageState extends State<DiagnosticLogPage> {
       appBar: AppBar(title: const Text('诊断日志')),
       body: ListView(
         children: [
-          ListTile(
-            leading: Icon(
-              _active ? Icons.stop_circle_outlined : Icons.play_circle_outline,
+          if (_active)
+            ListTile(
+              leading: const Icon(Icons.stop_circle_outlined),
+              title: const Text('停止采集'),
+              subtitle: Text('会话 $_session'),
+              onTap: _stop,
+            )
+          else ...[
+            if (_session.isNotEmpty)
+              ListTile(
+                leading: const Icon(Icons.play_circle_outline),
+                title: const Text('继续采集'),
+                subtitle: Text('沿用会话 $_session，不清空日志'),
+                onTap: _resume,
+              ),
+            ListTile(
+              leading: const Icon(Icons.restart_alt),
+              title: const Text('开始新会话'),
+              subtitle: const Text('清空旧日志并开始新的诊断会话'),
+              onTap: _startNew,
             ),
-            title: Text(_active ? '停止采集' : '开始采集'),
-            subtitle: Text(_active ? '会话 $_session' : '清空旧日志并开始新的诊断会话'),
-            onTap: _toggleSession,
-          ),
+          ],
           const Divider(height: 0.5),
           ListTile(
             leading: const Icon(Icons.copy_outlined),

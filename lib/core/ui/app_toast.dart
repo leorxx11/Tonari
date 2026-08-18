@@ -12,7 +12,8 @@ class _ToastData {
 
 final ValueNotifier<_ToastData?> _current = ValueNotifier(null);
 
-/// App-wide notification pill, shown from the top and auto-dismissed.
+/// App-wide notification pill, shown from the top, auto-dismissed, and
+/// dismissable early with an upward swipe.
 /// Replaces Material SnackBars: never covers the tab bar, matches the app's
 /// iOS look, and needs no BuildContext (works from controllers too).
 void showAppToast(String message, {Duration? duration}) {
@@ -74,6 +75,15 @@ class _ToastViewState extends State<_ToastView>
     if (_current.value?.seq == widget.data.seq) _current.value = null;
   }
 
+  /// Swipe-up dismissal; the pending auto-dismiss timer doubles as the
+  /// "not already dismissing" guard.
+  void _dismissEarly() {
+    final timer = _dismissTimer;
+    if (timer == null) return;
+    timer.cancel();
+    _dismiss();
+  }
+
   @override
   void dispose() {
     _dismissTimer?.cancel();
@@ -88,19 +98,25 @@ class _ToastViewState extends State<_ToastView>
       curve: Curves.easeOutCubic,
       reverseCurve: Curves.easeInCubic,
     );
-    return IgnorePointer(
-      child: SafeArea(
-        child: Align(
-          alignment: Alignment.topCenter,
-          child: SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(0, -1.6),
-              end: Offset.zero,
-            ).animate(curved),
-            child: FadeTransition(
-              opacity: curved,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(32, 8, 32, 0),
+    // Only the pill itself is hit-testable; taps elsewhere pass through to
+    // the app as before.
+    return SafeArea(
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0, -1.6),
+            end: Offset.zero,
+          ).animate(curved),
+          child: FadeTransition(
+            opacity: curved,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(32, 8, 32, 0),
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onVerticalDragUpdate: (details) {
+                  if (details.delta.dy < 0) _dismissEarly();
+                },
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     color: const Color(0xE61C1C1E),

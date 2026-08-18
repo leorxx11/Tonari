@@ -431,13 +431,9 @@ private final class PipSubtitleController: NSObject {
         self.pendingStart = true
         return
       }
-      // PiP refuses to start until at least one frame has been enqueued.
-      // Render a visible placeholder so a broken render pipeline shows up
-      // immediately (rather than a mysterious black window).
-      let bootstrap = self.lastRenderedText.isEmpty
-        ? "字幕加载中…"
-        : self.lastRenderedText
-      self.renderText(bootstrap)
+      // PiP refuses to start until at least one frame has been enqueued;
+      // an empty cue renders as a blank black frame, which still counts.
+      self.renderText(self.lastRenderedText)
       self.startWhenPossible(pip)
     }
   }
@@ -475,11 +471,13 @@ private final class PipSubtitleController: NSObject {
   }
 
   func update(text: String) {
-    let display = text.isEmpty ? "字幕加载中…" : text
-    if display == lastRenderedText && hasEnqueuedAtLeastOneFrame { return }
-    lastRenderedText = display
+    // Empty means "no cue right now" (e.g. before a track's first line) —
+    // render a blank frame, not a loading placeholder: the subtitle itself
+    // loads from the local DB in milliseconds.
+    if text == lastRenderedText && hasEnqueuedAtLeastOneFrame { return }
+    lastRenderedText = text
     DispatchQueue.main.async { [weak self] in
-      self?.renderText(display)
+      self?.renderText(text)
     }
   }
 
@@ -543,8 +541,8 @@ private final class PipSubtitleController: NSObject {
       )
     else { return }
 
-    // Solid white background.
-    context.setFillColor(red: 1, green: 1, blue: 1, alpha: 1.0)
+    // Solid black background.
+    context.setFillColor(red: 0, green: 0, blue: 0, alpha: 1.0)
     context.fill(CGRect(x: 0, y: 0, width: width, height: height))
 
     // Draw the text using UIKit's NSAttributedString in a flipped context
@@ -563,7 +561,7 @@ private final class PipSubtitleController: NSObject {
       string: text,
       attributes: [
         .font: UIFont.systemFont(ofSize: 32, weight: .semibold),
-        .foregroundColor: UIColor.black,
+        .foregroundColor: UIColor.white,
         .paragraphStyle: paragraph,
       ]
     )
