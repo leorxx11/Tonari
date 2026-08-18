@@ -88,130 +88,118 @@ class _WorkFilesPageState extends ConsumerState<WorkFilesPage> {
     );
     final separator = CupertinoColors.separator.resolveFrom(context);
 
-    return PopScope(
-      canPop: _path.isEmpty,
-      onPopInvokedWithResult: (didPop, _) {
-        if (didPop) return;
-        if (_path.isNotEmpty) {
-          setState(() => _path.removeLast());
-        }
-      },
-      child: Scaffold(
-        backgroundColor: groupedBg,
-        body: SafeArea(
-          bottom: false,
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                child: Row(
+    // No PopScope: the edge-swipe / system back always pops the whole page
+    // back to the work detail — the highest-frequency exit. Folder-up is the
+    // ‹ button and the breadcrumbs.
+    return Scaffold(
+      backgroundColor: groupedBg,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              child: Row(
+                children: [
+                  IconButton(
+                    onPressed: _onBack,
+                    icon: const Icon(CupertinoIcons.chevron_left, size: 24),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    tooltip: '回到媒体库',
+                    icon: const Icon(CupertinoIcons.house, size: 21),
+                    onPressed: _goLibraryHome,
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    IconButton(
-                      onPressed: _onBack,
-                      icon: const Icon(CupertinoIcons.chevron_left, size: 24),
+                    _FilesHeader(
+                      title: titleText,
+                      workId: widget.work.productId,
+                      children: currentChildren,
                     ),
-                    const Spacer(),
-                    IconButton(
-                      tooltip: '返回作品',
-                      icon: const Icon(CupertinoIcons.xmark, size: 20),
-                      // Unconditional pop: bypasses the PopScope folder-up
-                      // handling so any depth returns to the detail page.
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                    IconButton(
-                      tooltip: '回到媒体库',
-                      icon: const Icon(CupertinoIcons.house, size: 21),
-                      onPressed: _goLibraryHome,
-                    ),
+                    if (_path.isNotEmpty)
+                      _Breadcrumbs(
+                        workId: widget.work.productId,
+                        path: _path,
+                        onTapSegment: _onTapBreadcrumb,
+                      ),
+                    if (currentChildren.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 80),
+                        child: Center(
+                          child: Text(
+                            '此目录为空',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: CupertinoColors.secondaryLabel.resolveFrom(
+                                context,
+                              ),
+                            ),
+                          ),
+                        ),
+                      )
+                    else
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 10, 16, 28),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(color: separator, width: 0.5),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.04),
+                                blurRadius: 14,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: Material(
+                            color: cardBg,
+                            borderRadius: BorderRadius.circular(18),
+                            clipBehavior: Clip.antiAlias,
+                            child: Column(
+                              children: [
+                                for (
+                                  var i = 0;
+                                  i < currentChildren.length;
+                                  i++
+                                ) ...[
+                                  if (i > 0)
+                                    Divider(
+                                      height: 0.5,
+                                      thickness: 0.5,
+                                      indent: 70,
+                                      color: separator,
+                                    ),
+                                  _NodeRow(
+                                    node: currentChildren[i],
+                                    ingestedSubtitlePaths: ingestedSubs,
+                                    onTapFolder: (name) =>
+                                        setState(() => _path.add(name)),
+                                    onPlayTrack: (t) => _play(t, playQueue),
+                                    onPlayVideo: _playVideo,
+                                    onOpenSubtitle: _openSubtitlePreview,
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _FilesHeader(
-                        title: titleText,
-                        workId: widget.work.productId,
-                        children: currentChildren,
-                      ),
-                      if (_path.isNotEmpty)
-                        _Breadcrumbs(
-                          workId: widget.work.productId,
-                          path: _path,
-                          onTapSegment: _onTapBreadcrumb,
-                        ),
-                      if (currentChildren.isEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 80),
-                          child: Center(
-                            child: Text(
-                              '此目录为空',
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: CupertinoColors.secondaryLabel
-                                    .resolveFrom(context),
-                              ),
-                            ),
-                          ),
-                        )
-                      else
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 10, 16, 28),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(18),
-                              border: Border.all(color: separator, width: 0.5),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.04),
-                                  blurRadius: 14,
-                                  offset: const Offset(0, 3),
-                                ),
-                              ],
-                            ),
-                            child: Material(
-                              color: cardBg,
-                              borderRadius: BorderRadius.circular(18),
-                              clipBehavior: Clip.antiAlias,
-                              child: Column(
-                                children: [
-                                  for (
-                                    var i = 0;
-                                    i < currentChildren.length;
-                                    i++
-                                  ) ...[
-                                    if (i > 0)
-                                      Divider(
-                                        height: 0.5,
-                                        thickness: 0.5,
-                                        indent: 70,
-                                        color: separator,
-                                      ),
-                                    _NodeRow(
-                                      node: currentChildren[i],
-                                      ingestedSubtitlePaths: ingestedSubs,
-                                      onTapFolder: (name) =>
-                                          setState(() => _path.add(name)),
-                                      onPlayTrack: (t) => _play(t, playQueue),
-                                      onPlayVideo: _playVideo,
-                                      onOpenSubtitle: _openSubtitlePreview,
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
-        bottomNavigationBar: const MiniPlayer(),
       ),
+      bottomNavigationBar: const MiniPlayer(),
     );
   }
 
