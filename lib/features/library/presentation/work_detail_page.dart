@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/db/database.dart';
 import '../../../core/files/local_image_path.dart';
 import '../../player/presentation/mini_player.dart';
+import '../../settings/data/file_entry_prefs.dart';
 import '../../settings/presentation/translation_settings_page.dart';
 import '../../translation/data/llm_provider_repository.dart';
 import '../../translation/data/translation_controller.dart';
@@ -298,6 +299,7 @@ class _HeaderSection extends ConsumerWidget {
     final displayTitle = showZh && hasZh ? work.titleZh! : work.title;
     final releaseDate = work.releaseDate;
     final dateText = releaseDate == null ? null : _formatDate(releaseDate);
+    final fileEntryPosition = ref.watch(fileEntryPositionProvider);
     final subline = <String>[
       if (work.circleName != null && work.circleName!.isNotEmpty)
         work.circleName!,
@@ -330,7 +332,13 @@ class _HeaderSection extends ConsumerWidget {
                       Positioned.fill(child: _HeaderCarousel(work: work)),
                       // 落款印: the files entry, stamped on the cover corner.
                       Positioned(
-                        right: 10,
+                        left: fileEntryPosition == FileEntryPosition.bottomLeft
+                            ? 10
+                            : null,
+                        right:
+                            fileEntryPosition == FileEntryPosition.bottomRight
+                            ? 10
+                            : null,
                         bottom: 10,
                         child: _FilesTile(work: work),
                       ),

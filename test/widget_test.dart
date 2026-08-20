@@ -876,4 +876,43 @@ void main() {
 
     expect(find.text('外观'), findsOneWidget);
   });
+
+  testWidgets('file entry position can move to the bottom left', (
+    tester,
+  ) async {
+    addTearDown(() => _testPrefs.remove('appearance.fileEntryPosition'));
+    await tester.pumpWidget(
+      testApp(
+        works: [_work('RJ01560714', title: 'Test Work')],
+        tracks: [
+          _track(
+            id: 'track-1',
+            workId: 'RJ01560714',
+            title: 'track01',
+            fileName: 'track01.wav',
+            fileFormat: 'wav',
+          ),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await openSection(tester, '设置');
+    await tester.tap(find.text('外观'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('左下角'));
+    await tester.pumpAndSettle();
+    expect(
+      _testPrefs.getString('appearance.fileEntryPosition'),
+      'bottomLeft',
+    );
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await openSection(tester, '音声库');
+    await tester.tap(find.text('Test Work'));
+    await tester.pumpAndSettle();
+
+    final entryCenter = tester.getCenter(find.byKey(const Key('files-entry')));
+    expect(entryCenter.dx, lessThan(400));
+  });
 }
