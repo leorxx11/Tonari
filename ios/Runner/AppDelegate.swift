@@ -35,19 +35,31 @@ import UIKit
 private enum IosSelectableTextPlugin {
   static func register(with registrar: FlutterPluginRegistrar) {
     registrar.register(
-      IosSelectableTextFactory(),
+      IosSelectableTextFactory(messenger: registrar.messenger()),
       withId: "tonari/ios_selectable_text"
     )
   }
 }
 
 private final class IosSelectableTextFactory: NSObject, FlutterPlatformViewFactory {
+  private let messenger: FlutterBinaryMessenger
+
+  init(messenger: FlutterBinaryMessenger) {
+    self.messenger = messenger
+    super.init()
+  }
+
   func create(
     withFrame frame: CGRect,
     viewIdentifier viewId: Int64,
     arguments args: Any?
   ) -> FlutterPlatformView {
-    return IosSelectableTextView(frame: frame, arguments: args)
+    return IosSelectableTextView(
+      frame: frame,
+      viewIdentifier: viewId,
+      arguments: args,
+      messenger: messenger
+    )
   }
 
   func createArgsCodec() -> FlutterMessageCodec & NSObjectProtocol {
@@ -55,10 +67,16 @@ private final class IosSelectableTextFactory: NSObject, FlutterPlatformViewFacto
   }
 }
 
-private final class IosSelectableTextView: NSObject, FlutterPlatformView {
+private final class IosSelectableTextView: NSObject, FlutterPlatformView, UITextViewDelegate {
   private let textView: UITextView
+  private let channel: FlutterMethodChannel
 
-  init(frame: CGRect, arguments: Any?) {
+  init(
+    frame: CGRect,
+    viewIdentifier viewId: Int64,
+    arguments: Any?,
+    messenger: FlutterBinaryMessenger
+  ) {
     let args = arguments as! [String: Any]
     let text = args["text"] as! String
     let fontSize = CGFloat(args["fontSize"] as! Double)
@@ -68,6 +86,10 @@ private final class IosSelectableTextView: NSObject, FlutterPlatformView {
     let textDirection = args["textDirection"] as! String
 
     textView = UITextView(frame: frame)
+    channel = FlutterMethodChannel(
+      name: "tonari/ios_selectable_text/\(viewId)",
+      binaryMessenger: messenger
+    )
     super.init()
 
     textView.backgroundColor = .clear
@@ -100,10 +122,37 @@ private final class IosSelectableTextView: NSObject, FlutterPlatformView {
       attributes[.kern] = letterSpacing
     }
     textView.attributedText = NSAttributedString(string: text, attributes: attributes)
+    textView.delegate = self
+
+    channel.setMethodCallHandler { [weak self] call, result in
+      switch call.method {
+      case "deactivate":
+        self?.deactivate()
+        result(nil)
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
+  }
+
+  deinit {
+    channel.setMethodCallHandler(nil)
   }
 
   func view() -> UIView {
     return textView
+  }
+
+  func textViewDidChangeSelection(_ textView: UITextView) {
+    channel.invokeMethod(
+      "selectionChanged",
+      arguments: textView.selectedRange.length > 0
+    )
+  }
+
+  private func deactivate() {
+    textView.selectedRange = NSRange(location: 0, length: 0)
+    textView.resignFirstResponder()
   }
 
   private static func alignment(_ value: String, direction: String) -> NSTextAlignment {
