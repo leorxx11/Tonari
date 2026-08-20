@@ -107,7 +107,7 @@ class _WorkDetailViewState extends ConsumerState<_WorkDetailView> {
     final liveWork = ref.watch(workByIdProvider(widget.work.productId)).value;
     final work = liveWork ?? widget.work;
     return RightEdgeSwipeDetector(
-      onSwipe: () => _openWorkFiles(context, work),
+      pageBuilder: (_) => WorkFilesPage(work: work),
       child: Scaffold(
         appBar: AppBar(
           title: Text(work.productId),

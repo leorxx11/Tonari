@@ -8,7 +8,7 @@ import '../data/work_actions_provider.dart';
 import '../data/works_providers.dart';
 import '../../../shared/widgets/app_drawer.dart';
 import 'import_entry.dart';
-import 'open_work_detail.dart';
+import 'work_detail_page.dart';
 import 'widgets/library_task_status.dart';
 import 'widgets/works_grid.dart';
 import '../../../core/ui/app_toast.dart';
@@ -44,9 +44,14 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     final forwardWork = ref.watch(libraryForwardWorkProvider);
     final searching = _searching || filter.chips.isNotEmpty;
     return RightEdgeSwipeDetector(
-      onSwipe: forwardWork == null
+      pageBuilder: forwardWork == null
           ? null
-          : () => openWorkDetail(context, ref, forwardWork),
+          : (_) => WorkDetailPage(work: forwardWork),
+      onNavigationCommitted: forwardWork == null
+          ? null
+          : () => ref
+                .read(lastOpenedWorkIdProvider.notifier)
+                .set(forwardWork.productId),
       child: Scaffold(
         appBar: AppBar(
           leading: const DrawerMenuButton(),
