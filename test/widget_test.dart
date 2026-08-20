@@ -20,9 +20,11 @@ import 'package:tonari/features/library/data/work_reimport_provider.dart';
 import 'package:tonari/features/library/data/works_providers.dart';
 import 'package:tonari/features/p115/data/p115_cookie_store.dart';
 import 'package:tonari/features/player/data/playback_controller.dart';
+import 'package:tonari/features/player/presentation/mini_player.dart';
 import 'package:tonari/features/subtitle/data/subtitle_providers.dart';
 import 'package:tonari/features/video_library/data/video_library_providers.dart';
 import 'package:tonari/features/webdav/data/webdav_server_repository.dart';
+import 'package:tonari/shared/widgets/right_edge_swipe_detector.dart';
 
 late SharedPreferences _testPrefs;
 
@@ -1031,6 +1033,23 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('files-entry')), findsOneWidget);
+  });
+
+  testWidgets('library forward swipe includes the global mini player', (
+    tester,
+  ) async {
+    final playing = _work('RJ01560714', title: 'Now Playing');
+    await tester.pumpWidget(testApp(works: [playing], playingWork: playing));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(RightEdgeSwipeDetector), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(RightEdgeSwipeDetector),
+        matching: find.byType(MiniPlayer),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('work detail right-edge swipe opens the files page', (
