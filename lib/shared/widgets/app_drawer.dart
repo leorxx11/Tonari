@@ -39,8 +39,25 @@ class AppDrawer extends ConsumerWidget {
       unreadEventCountProvider.select((v) => v.value ?? 0),
     );
     return NavigationDrawer(
-      selectedIndex: section.index,
+      selectedIndex: section == AppSection.settings ? -1 : section.index,
       onDestinationSelected: (i) => _onSelected(context, ref, i),
+      footer: SafeArea(
+        top: false,
+        minimum: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Divider(),
+            ),
+            _SettingsDestination(
+              selected: section == AppSection.settings,
+              onTap: () => _selectSection(context, ref, AppSection.settings),
+            ),
+          ],
+        ),
+      ),
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(28, 20, 16, 12),
@@ -70,11 +87,6 @@ class AppDrawer extends ConsumerWidget {
           selectedIcon: Icon(Icons.folder_open),
           label: Text('浏览'),
         ),
-        const NavigationDrawerDestination(
-          icon: Icon(Icons.settings_outlined),
-          selectedIcon: Icon(Icons.settings),
-          label: Text('设置'),
-        ),
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 28, vertical: 8),
           child: Divider(),
@@ -92,16 +104,65 @@ class AppDrawer extends ConsumerWidget {
   }
 
   void _onSelected(BuildContext context, WidgetRef ref, int index) {
-    Navigator.of(context).pop();
-    final sections = AppSection.values;
-    if (index < sections.length) {
-      ref.read(selectedSectionProvider.notifier).set(sections[index]);
+    if (index < AppSection.settings.index) {
+      _selectSection(context, ref, AppSection.values[index]);
       return;
     }
+    Navigator.of(context).pop();
     // The drawer context dies with the pop; the sheet needs the root context.
     final rootContext = rootScaffoldKey.currentContext;
     if (rootContext == null) return;
     ref.read(appEventSinkProvider).markAllRead();
     showAppEventsSheet(rootContext);
+  }
+
+  void _selectSection(BuildContext context, WidgetRef ref, AppSection section) {
+    Navigator.of(context).pop();
+    ref.read(selectedSectionProvider.notifier).set(section);
+  }
+}
+
+class _SettingsDestination extends StatelessWidget {
+  const _SettingsDestination({required this.selected, required this.onTap});
+
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Material(
+      color: selected ? colors.secondaryContainer : Colors.transparent,
+      shape: const StadiumBorder(),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: SizedBox(
+          height: 56,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Icon(
+                  selected ? Icons.settings : Icons.settings_outlined,
+                  color: selected
+                      ? colors.onSecondaryContainer
+                      : colors.onSurfaceVariant,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  '设置',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: selected
+                        ? colors.onSecondaryContainer
+                        : colors.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

@@ -303,6 +303,10 @@ void main() {
     ]) {
       expect(find.text(label).hitTestable(), findsOneWidget, reason: label);
     }
+    expect(
+      tester.getCenter(find.text('设置').hitTestable()).dy,
+      greaterThan(tester.getCenter(find.text('消息').hitTestable()).dy),
+    );
   });
 
   testWidgets('library tab shows empty state when no works', (tester) async {
