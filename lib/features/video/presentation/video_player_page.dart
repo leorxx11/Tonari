@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
 
+import '../../../shared/widgets/library_home_button.dart';
 import '../../player/data/sleep_timer.dart';
 import '../../player/presentation/sleep_timer_sheet.dart';
 import '../../video_library/data/frame_capture.dart';
@@ -149,7 +150,7 @@ class _VideoPlayerPageState extends ConsumerState<VideoPlayerPage> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-              actions: const [_VideoMoreMenu()],
+              actions: const [_VideoMoreMenu(), LibraryHomeButton()],
             ),
       body: state.error != null
           ? Center(

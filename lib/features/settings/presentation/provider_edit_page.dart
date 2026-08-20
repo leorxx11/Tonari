@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/db/database.dart';
+import '../../../shared/widgets/library_home_button.dart';
 import '../../translation/data/llm_provider_repository.dart';
 import '../../translation/data/translation_service.dart';
 import '../../../core/ui/app_toast.dart';
@@ -198,6 +199,7 @@ class _ProviderEditPageState extends ConsumerState<ProviderEditPage> {
             onPressed: _canSave && !_saving ? _save : null,
             child: const Text('保存'),
           ),
+          const LibraryHomeButton(),
         ],
       ),
       body: ListView(

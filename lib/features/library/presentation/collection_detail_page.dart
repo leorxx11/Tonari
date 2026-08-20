@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../shared/widgets/library_home_button.dart';
 import '../../video_library/data/video_library_providers.dart';
 import '../../video_library/presentation/video_library_page.dart';
 import '../data/collections_providers.dart';
@@ -25,7 +26,10 @@ class CollectionDetailPage extends ConsumerWidget {
     final loading = works == null || videos == null;
     final empty = !loading && works.isEmpty && videos.isEmpty;
     return Scaffold(
-      appBar: AppBar(title: Text(collection.name)),
+      appBar: AppBar(
+        title: Text(collection.name),
+        actions: const [LibraryHomeButton()],
+      ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
           : empty
@@ -99,7 +103,10 @@ class FavoritesDetailPage extends ConsumerWidget {
     final loading = works == null || videos == null;
     final empty = !loading && works.isEmpty && videos.isEmpty;
     return Scaffold(
-      appBar: AppBar(title: const Text('全部收藏')),
+      appBar: AppBar(
+        title: const Text('全部收藏'),
+        actions: const [LibraryHomeButton()],
+      ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
           : empty

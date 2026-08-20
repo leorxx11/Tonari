@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../shared/widgets/library_home_button.dart';
 import '../../../core/db/database.dart';
 import '../../library/data/library_task_controller.dart';
 import '../../library/data/work_actions_provider.dart';
@@ -15,7 +16,10 @@ class RemovedWorksPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final worksAsync = ref.watch(removedWorksProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('已移除作品')),
+      appBar: AppBar(
+        title: const Text('已移除作品'),
+        actions: const [LibraryHomeButton()],
+      ),
       body: worksAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('加载失败：$e')),

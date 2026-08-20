@@ -8,6 +8,7 @@ import '../../../core/db/database.dart';
 import '../../../core/files/local_image_path.dart';
 import '../../../core/ui/app_toast.dart';
 import '../../../shared/widgets/app_drawer.dart';
+import '../../../shared/widgets/library_home_button.dart';
 import '../../library/presentation/widgets/collection_picker_sheet.dart';
 import '../data/video_cover_store.dart';
 import '../data/video_library_providers.dart';
@@ -37,6 +38,7 @@ class _VideoLibraryPageState extends ConsumerState<VideoLibraryPage> {
             ),
             onPressed: () => setState(() => _favoritesOnly = !_favoritesOnly),
           ),
+          const LibraryHomeButton(),
         ],
       ),
       body: itemsAsync.when(

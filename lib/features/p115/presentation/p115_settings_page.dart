@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../shared/widgets/library_home_button.dart';
 import '../data/p115_auth_service.dart';
 import '../data/p115_cookie_store.dart';
 import 'p115_login_page.dart';
@@ -12,7 +13,10 @@ class P115SettingsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final cookie = ref.watch(p115CookieProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('115 网盘')),
+      appBar: AppBar(
+        title: const Text('115 网盘'),
+        actions: const [LibraryHomeButton()],
+      ),
       body: cookie.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('$e')),

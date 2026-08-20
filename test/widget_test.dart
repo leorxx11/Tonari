@@ -910,6 +910,23 @@ void main() {
     expect(find.text('诊断日志'), findsOneWidget);
   });
 
+  testWidgets('global home button clears routes and returns to audio library', (
+    tester,
+  ) async {
+    await tester.pumpWidget(testApp());
+    await tester.pumpAndSettle();
+
+    await openSection(tester, '设置');
+    await tester.tap(find.text('外观'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('回到音频媒体库'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('媒体库还是空的'), findsOneWidget);
+    expect(find.text('外观'), findsNothing);
+  });
+
   testWidgets('file entry position can move to the bottom left', (
     tester,
   ) async {

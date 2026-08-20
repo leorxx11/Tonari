@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../shared/widgets/library_home_button.dart';
 import '../../../core/files/folder_bookmark.dart';
 import '../../../core/ui/app_toast.dart';
 import '../data/backup_service.dart';
@@ -29,7 +30,10 @@ class _BackupPageState extends ConsumerState<BackupPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('备份与恢复')),
+      appBar: AppBar(
+        title: const Text('备份与恢复'),
+        actions: const [LibraryHomeButton()],
+      ),
       body: ListView(
         children: [
           Padding(

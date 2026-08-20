@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/db/database.dart';
+import '../../../shared/widgets/library_home_button.dart';
 import '../data/webdav_client.dart';
 import '../data/webdav_server_repository.dart';
 import '../../../core/ui/app_toast.dart';
@@ -176,6 +177,7 @@ class _WebdavServerEditPageState extends ConsumerState<WebdavServerEditPage> {
             onPressed: _canSave && !_saving ? _save : null,
             child: const Text('保存'),
           ),
+          const LibraryHomeButton(),
         ],
       ),
       body: ListView(

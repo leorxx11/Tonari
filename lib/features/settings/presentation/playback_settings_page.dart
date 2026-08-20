@@ -5,6 +5,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../shared/widgets/library_home_button.dart';
 import '../../../core/files/local_image_path.dart';
 import '../../video_library/data/video_cover_store.dart';
 import '../data/player_prefs.dart';
@@ -19,7 +20,10 @@ class PlaybackSettingsPage extends ConsumerWidget {
     final playerNotifier = ref.read(playerPrefsProvider.notifier);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('播放')),
+      appBar: AppBar(
+        title: const Text('播放'),
+        actions: const [LibraryHomeButton()],
+      ),
       body: ListView(
         children: [
           _SeekStepSelector(

@@ -12,6 +12,7 @@ import '../data/history_playback.dart';
 import '../data/play_history_repository.dart';
 import '../../../core/ui/app_toast.dart';
 import '../../../shared/widgets/app_drawer.dart';
+import '../../../shared/widgets/library_home_button.dart';
 
 class PlayHistoryPage extends ConsumerWidget {
   const PlayHistoryPage({super.key});
@@ -29,6 +30,7 @@ class PlayHistoryPage extends ConsumerWidget {
             icon: const Icon(Icons.delete_sweep_outlined),
             onPressed: () => _confirmClear(context, ref),
           ),
+          const LibraryHomeButton(),
         ],
       ),
       body: historyAsync.when(

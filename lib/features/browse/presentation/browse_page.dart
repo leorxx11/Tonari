@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/db/database.dart';
 import '../../../shared/widgets/app_drawer.dart';
+import '../../../shared/widgets/library_home_button.dart';
 import '../../p115/data/p115_cookie_store.dart';
 import '../../p115/presentation/p115_browser_page.dart';
 import '../../p115/presentation/p115_login_page.dart';
@@ -24,6 +25,7 @@ class BrowsePage extends ConsumerWidget {
       appBar: AppBar(
         leading: const DrawerMenuButton(),
         title: const Text('浏览'),
+        actions: const [LibraryHomeButton()],
       ),
       body: ListView(
         children: [

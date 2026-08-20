@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/widgets/app_drawer.dart';
+import '../../../shared/widgets/library_home_button.dart';
 import '../../library/presentation/import_entry.dart';
 import 'appearance_settings_page.dart';
 import 'backup_page.dart';
@@ -20,6 +21,7 @@ class SettingsPage extends ConsumerWidget {
       appBar: AppBar(
         leading: const DrawerMenuButton(),
         title: const Text('设置'),
+        actions: const [LibraryHomeButton()],
       ),
       body: ListView(
         children: [

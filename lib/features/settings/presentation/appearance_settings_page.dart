@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../shared/widgets/library_home_button.dart';
 import '../data/file_entry_prefs.dart';
 import '../data/privacy_prefs.dart';
 import '../data/theme_prefs.dart';
@@ -15,7 +16,10 @@ class AppearanceSettingsPage extends ConsumerWidget {
     final themeNotifier = ref.read(themePrefsProvider.notifier);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('外观')),
+      appBar: AppBar(
+        title: const Text('外观'),
+        actions: const [LibraryHomeButton()],
+      ),
       body: ListView(
         children: [
           RadioGroup<ThemeMode>(

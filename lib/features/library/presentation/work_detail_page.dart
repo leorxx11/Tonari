@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/db/database.dart';
 import '../../../core/files/local_image_path.dart';
+import '../../../shared/widgets/library_home_button.dart';
 import '../../player/presentation/mini_player.dart';
 import '../../settings/data/file_entry_prefs.dart';
 import '../../settings/presentation/translation_settings_page.dart';
@@ -128,6 +129,7 @@ class _WorkDetailViewState extends ConsumerState<_WorkDetailView> {
           _TranslationButton(work: work),
           WorkTaskStatusButton(productId: work.productId),
           _MoreMenu(work: work, state: this),
+          const LibraryHomeButton(),
         ],
       ),
       body: CustomScrollView(

@@ -9,7 +9,7 @@ import '../../../core/db/database.dart';
 import '../../../core/diagnostics/diagnostic_log.dart';
 import '../../../core/subtitle/subtitle_cue.dart';
 import '../../../core/subtitle/subtitle_parser.dart';
-import '../../../shared/providers/selected_section.dart';
+import '../../../shared/widgets/library_home_button.dart';
 import '../../browse/data/remote_models.dart';
 import '../../p115/data/p115_auth_service.dart';
 import '../../p115/data/p115_client.dart';
@@ -114,11 +114,7 @@ class _WorkFilesPageState extends ConsumerState<WorkFilesPage> {
                     workId: widget.work.productId,
                     hasZh: tracks.any((t) => t.titleZh?.isNotEmpty ?? false),
                   ),
-                  IconButton(
-                    tooltip: '回到媒体库',
-                    icon: const Icon(CupertinoIcons.house, size: 21),
-                    onPressed: _goLibraryHome,
-                  ),
+                  const LibraryHomeButton(),
                 ],
               ),
             ),
@@ -209,11 +205,6 @@ class _WorkFilesPageState extends ConsumerState<WorkFilesPage> {
       ),
       bottomNavigationBar: const MiniPlayer(),
     );
-  }
-
-  void _goLibraryHome() {
-    ref.read(selectedSectionProvider.notifier).set(AppSection.audioLibrary);
-    Navigator.of(context, rootNavigator: true).popUntil((r) => r.isFirst);
   }
 
   void _onBack() {

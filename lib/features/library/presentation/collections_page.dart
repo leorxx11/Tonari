@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/db/database.dart';
 import '../../../shared/widgets/app_drawer.dart';
+import '../../../shared/widgets/library_home_button.dart';
 import '../../video_library/data/video_library_providers.dart';
 import '../../video_library/presentation/video_library_page.dart';
 import '../data/collections_providers.dart';
@@ -31,6 +32,7 @@ class CollectionsPage extends ConsumerWidget {
               await ref.read(collectionRepositoryProvider).create(name);
             },
           ),
+          const LibraryHomeButton(),
         ],
       ),
       body: collectionsAsync.when(

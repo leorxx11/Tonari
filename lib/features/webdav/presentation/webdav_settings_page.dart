@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/db/database.dart';
+import '../../../shared/widgets/library_home_button.dart';
 import '../data/webdav_server_repository.dart';
 import 'webdav_server_edit_page.dart';
 
@@ -22,6 +23,7 @@ class WebdavSettingsPage extends ConsumerWidget {
             icon: const Icon(Icons.add),
             onPressed: () => _openCreate(context),
           ),
+          const LibraryHomeButton(),
         ],
       ),
       body: serversAsync.when(

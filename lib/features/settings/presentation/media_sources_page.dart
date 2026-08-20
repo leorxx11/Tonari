@@ -7,6 +7,7 @@ import '../../library/data/enrichment_queue.dart';
 import '../../library/data/folder_reimport_provider.dart';
 import '../../library/data/library_task_controller.dart';
 import '../../../core/ui/app_toast.dart';
+import '../../../shared/widgets/library_home_button.dart';
 
 class MediaSourcesPage extends ConsumerWidget {
   const MediaSourcesPage({super.key});
@@ -15,7 +16,10 @@ class MediaSourcesPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final foldersAsync = ref.watch(importedFoldersProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('媒体来源')),
+      appBar: AppBar(
+        title: const Text('媒体来源'),
+        actions: const [LibraryHomeButton()],
+      ),
       body: foldersAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('加载失败：$e')),

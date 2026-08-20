@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../shared/widgets/library_home_button.dart';
 import '../../../core/db/database.dart';
 import '../../translation/data/llm_provider_repository.dart';
 import 'provider_edit_page.dart';
@@ -22,6 +23,7 @@ class TranslationSettingsPage extends ConsumerWidget {
             icon: const Icon(Icons.add),
             onPressed: () => _openCreate(context),
           ),
+          const LibraryHomeButton(),
         ],
       ),
       body: providersAsync.when(

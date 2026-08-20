@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../shared/widgets/library_home_button.dart';
 import '../../p115/presentation/p115_settings_page.dart';
 import '../../webdav/presentation/webdav_settings_page.dart';
 import 'media_sources_page.dart';
@@ -10,7 +11,10 @@ class MediaSourceSettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('媒体来源')),
+      appBar: AppBar(
+        title: const Text('媒体来源'),
+        actions: const [LibraryHomeButton()],
+      ),
       body: ListView(
         children: const [
           _Entry(

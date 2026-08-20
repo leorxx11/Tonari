@@ -4,6 +4,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../../core/diagnostics/diagnostic_log.dart';
 import '../../../core/ui/app_toast.dart';
+import '../../../shared/widgets/library_home_button.dart';
 
 class DiagnosticLogPage extends StatefulWidget {
   const DiagnosticLogPage({super.key});
@@ -76,7 +77,10 @@ class _DiagnosticLogPageState extends State<DiagnosticLogPage> {
     final theme = Theme.of(context);
     final secondary = theme.colorScheme.onSurfaceVariant;
     return Scaffold(
-      appBar: AppBar(title: const Text('诊断日志')),
+      appBar: AppBar(
+        title: const Text('诊断日志'),
+        actions: const [LibraryHomeButton()],
+      ),
       body: ListView(
         children: [
           if (_active)
