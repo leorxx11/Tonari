@@ -723,7 +723,7 @@ void main() {
     expect(find.textContaining('world'), findsOneWidget);
   });
 
-  testWidgets('track row shows cached translated title as subtitle', (
+  testWidgets('track row replaces filename with cached translated title', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -755,8 +755,8 @@ void main() {
     await tester.tap(find.byKey(const Key('files-entry')));
     await tester.pumpAndSettle();
 
-    expect(find.text('01. ご挨拶と施術のご説明.wav'), findsOneWidget);
     expect(find.text('01. 问候与施术说明'), findsOneWidget);
+    expect(find.text('01. ご挨拶と施術のご説明.wav'), findsNothing);
   });
 
   testWidgets('favorite work shows heart icon on card', (tester) async {

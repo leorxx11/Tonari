@@ -621,6 +621,9 @@ class _NodeRow extends ConsumerWidget {
       final accent = _accentText(context);
       final showZh = ref.watch(trackTranslationViewProvider(t.workId)) ?? true;
       final titleZh = t.titleZh;
+      final displayTitle = showZh && (titleZh?.isNotEmpty ?? false)
+          ? titleZh!
+          : t.fileName;
       return ListTile(
         contentPadding: rowPadding,
         tileColor: isCurrent ? _kAccent.withValues(alpha: 0.10) : null,
@@ -628,7 +631,7 @@ class _NodeRow extends ConsumerWidget {
             ? _PlayingCircle(playingStream: controller.player.playingStream)
             : const _PlayTintCircle(),
         title: Text(
-          t.fileName,
+          displayTitle,
           maxLines: 5,
           overflow: TextOverflow.ellipsis,
           style: theme.textTheme.bodyMedium?.copyWith(
@@ -636,18 +639,6 @@ class _NodeRow extends ConsumerWidget {
             fontWeight: isCurrent ? FontWeight.w600 : FontWeight.w500,
           ),
         ),
-        subtitle: showZh && (titleZh?.isNotEmpty ?? false)
-            ? Text(
-                titleZh!,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: isCurrent
-                      ? accent.withValues(alpha: 0.8)
-                      : iosSecondary,
-                ),
-              )
-            : null,
         trailing: t.durationMs > 0
             ? Text(
                 _formatTrackDuration(t.durationMs),
