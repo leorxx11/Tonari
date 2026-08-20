@@ -144,10 +144,30 @@ private final class IosSelectableTextView: NSObject, FlutterPlatformView, UIText
   }
 
   func textViewDidChangeSelection(_ textView: UITextView) {
-    channel.invokeMethod(
-      "selectionChanged",
-      arguments: textView.selectedRange.length > 0
-    )
+    let range = textView.selectedRange
+    let active = range.length > 0
+    if !active {
+      channel.invokeMethod("selectionChanged", arguments: ["active": false])
+      return
+    }
+
+    let startPosition = textView.position(
+      from: textView.beginningOfDocument,
+      offset: range.location
+    )!
+    let endPosition = textView.position(
+      from: textView.beginningOfDocument,
+      offset: range.location + range.length
+    )!
+    let startRect = textView.caretRect(for: startPosition)
+    let endRect = textView.caretRect(for: endPosition)
+    channel.invokeMethod("selectionChanged", arguments: [
+      "active": true,
+      "startX": startRect.midX,
+      "startY": startRect.midY,
+      "endX": endRect.midX,
+      "endY": endRect.midY,
+    ])
   }
 
   private func deactivate() {
