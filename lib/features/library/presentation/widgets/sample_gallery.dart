@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 class SampleSource {
@@ -116,13 +117,8 @@ class _GalleryViewState extends State<_GalleryView> {
             controller: _controller,
             itemCount: widget.samples.length,
             onPageChanged: (i) => setState(() => _page = i),
-            itemBuilder: (context, i) {
-              return InteractiveViewer(
-                minScale: 1,
-                maxScale: 4,
-                child: Center(child: SampleImage(sample: widget.samples[i])),
-              );
-            },
+            itemBuilder: (context, i) =>
+                _GalleryPage(sample: widget.samples[i]),
           ),
           SafeArea(
             child: Padding(
@@ -155,5 +151,87 @@ class _GalleryViewState extends State<_GalleryView> {
         ],
       ),
     );
+  }
+}
+
+class _GalleryPage extends StatefulWidget {
+  const _GalleryPage({required this.sample});
+
+  final SampleSource sample;
+
+  @override
+  State<_GalleryPage> createState() => _GalleryPageState();
+}
+
+class _GalleryPageState extends State<_GalleryPage> {
+  final _imageKey = GlobalKey();
+  int? _primaryPointer;
+  Offset? _pointerDown;
+  var _pointerCount = 0;
+  var _moved = false;
+  var _multiTouch = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Listener(
+      behavior: HitTestBehavior.opaque,
+      onPointerDown: _onPointerDown,
+      onPointerMove: _onPointerMove,
+      onPointerUp: _onPointerUp,
+      onPointerCancel: _onPointerCancel,
+      child: InteractiveViewer(
+        minScale: 1,
+        maxScale: 4,
+        child: Center(
+          child: SampleImage(key: _imageKey, sample: widget.sample),
+        ),
+      ),
+    );
+  }
+
+  void _onPointerDown(PointerDownEvent event) {
+    _pointerCount += 1;
+    if (_pointerCount == 1) {
+      _primaryPointer = event.pointer;
+      _pointerDown = event.position;
+      _moved = false;
+      _multiTouch = false;
+    } else {
+      _multiTouch = true;
+    }
+  }
+
+  void _onPointerMove(PointerMoveEvent event) {
+    if (event.pointer != _primaryPointer) return;
+    if ((event.position - _pointerDown!).distance > kTouchSlop) {
+      _moved = true;
+    }
+  }
+
+  void _onPointerUp(PointerUpEvent event) {
+    final dismiss =
+        event.pointer == _primaryPointer &&
+        !_moved &&
+        !_multiTouch &&
+        !_imageRect.contains(event.position);
+    _pointerCount -= 1;
+    if (_pointerCount == 0) {
+      _primaryPointer = null;
+      _pointerDown = null;
+    }
+    if (dismiss) Navigator.of(context).pop();
+  }
+
+  void _onPointerCancel(PointerCancelEvent event) {
+    _pointerCount -= 1;
+    if (_pointerCount == 0) {
+      _primaryPointer = null;
+      _pointerDown = null;
+    }
+  }
+
+  Rect get _imageRect {
+    final box = _imageKey.currentContext!.findRenderObject()! as RenderBox;
+    return box.localToGlobal(Offset.zero) & box.size;
   }
 }
