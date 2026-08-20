@@ -58,7 +58,7 @@ void main() {
 
     final width = tester.getSize(find.byKey(const Key('source'))).width;
     final gesture = await tester.startGesture(Offset(width - 2, 300));
-    await gesture.moveBy(Offset(-width * 0.1, 0));
+    await gesture.moveBy(Offset(-width * 0.05, 0));
     await tester.pump(const Duration(milliseconds: 500));
     await gesture.moveBy(const Offset(-1, 0));
     await tester.pump(const Duration(milliseconds: 500));

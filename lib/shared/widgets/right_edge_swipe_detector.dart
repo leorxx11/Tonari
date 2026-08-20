@@ -20,6 +20,7 @@ class RightEdgeSwipeDetector extends StatefulWidget {
 class _RightEdgeSwipeDetectorState extends State<RightEdgeSwipeDetector>
     with SingleTickerProviderStateMixin {
   static const _edgeWidth = 24.0;
+  static const _minimumCommitDistance = 72.0;
   static const _settleDuration = Duration(milliseconds: 350);
 
   late final HorizontalDragGestureRecognizer _recognizer;
@@ -32,6 +33,7 @@ class _RightEdgeSwipeDetectorState extends State<RightEdgeSwipeDetector>
     super.initState();
     _controller = AnimationController(vsync: this, duration: _settleDuration);
     _recognizer = HorizontalDragGestureRecognizer(debugOwner: this)
+      ..dragStartBehavior = DragStartBehavior.down
       ..onStart = _handleDragStart
       ..onUpdate = _handleDragUpdate
       ..onEnd = _handleDragEnd
@@ -123,7 +125,7 @@ class _RightEdgeSwipeDetectorState extends State<RightEdgeSwipeDetector>
     const minimumFlingVelocity = 1.0;
     final committed = velocity.abs() >= minimumFlingVelocity
         ? velocity > 0
-        : _controller.value > 0.5;
+        : _controller.value * context.size!.width >= _minimumCommitDistance;
     _settling = true;
     if (committed) {
       widget.onNavigationCommitted?.call();
