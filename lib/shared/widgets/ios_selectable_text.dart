@@ -103,11 +103,9 @@ class _IosSelectableTextState extends State<IosSelectableText> {
                 creationParamsCodec: const StandardMessageCodec(),
                 gestureRecognizers: {
                   if (_selectionActive)
-                    Factory<OneSequenceGestureRecognizer>(
-                      EagerGestureRecognizer.new,
-                    )
+                    Factory<EagerGestureRecognizer>(EagerGestureRecognizer.new)
                   else
-                    Factory<OneSequenceGestureRecognizer>(
+                    Factory<LongPressGestureRecognizer>(
                       LongPressGestureRecognizer.new,
                     ),
                 },

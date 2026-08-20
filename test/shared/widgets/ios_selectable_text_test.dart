@@ -63,7 +63,7 @@ void main() {
       return null;
     });
 
-    expect(_recognizerType(tester), LongPressGestureRecognizer);
+    expect(_recognizerFactoryType(tester), LongPressGestureRecognizer);
 
     final gesture = await tester.startGesture(
       tester.getCenter(find.byType(UiKitView)),
@@ -76,16 +76,16 @@ void main() {
       (ByteData? _) {},
     );
     await tester.pump();
-    expect(_recognizerType(tester), LongPressGestureRecognizer);
+    expect(_recognizerFactoryType(tester), LongPressGestureRecognizer);
 
     await gesture.up();
     await tester.pump();
-    expect(_recognizerType(tester), EagerGestureRecognizer);
+    expect(_recognizerFactoryType(tester), EagerGestureRecognizer);
 
     await tester.tap(find.byKey(const Key('outside')));
     await tester.pump();
     expect(deactivated, isTrue);
-    expect(_recognizerType(tester), LongPressGestureRecognizer);
+    expect(_recognizerFactoryType(tester), LongPressGestureRecognizer);
 
     messenger.setMockMethodCallHandler(textChannel, null);
     messenger.setMockMethodCallHandler(SystemChannels.platform_views, null);
@@ -93,10 +93,7 @@ void main() {
   });
 }
 
-Type _recognizerType(WidgetTester tester) {
+Type _recognizerFactoryType(WidgetTester tester) {
   final view = tester.widget<UiKitView>(find.byType(UiKitView));
-  final recognizer = view.gestureRecognizers!.single.constructor();
-  final type = recognizer.runtimeType;
-  recognizer.dispose();
-  return type;
+  return view.gestureRecognizers!.single.type;
 }
