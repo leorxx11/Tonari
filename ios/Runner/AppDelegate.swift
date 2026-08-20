@@ -24,6 +24,119 @@ import UIKit
     PipPlugin.register(
       with: engineBridge.pluginRegistry.registrar(forPlugin: "PipPlugin")!
     )
+    IosSelectableTextPlugin.register(
+      with: engineBridge.pluginRegistry.registrar(forPlugin: "IosSelectableTextPlugin")!
+    )
+  }
+}
+
+// MARK: - Native selectable text
+
+private enum IosSelectableTextPlugin {
+  static func register(with registrar: FlutterPluginRegistrar) {
+    registrar.register(
+      IosSelectableTextFactory(),
+      withId: "tonari/ios_selectable_text"
+    )
+  }
+}
+
+private final class IosSelectableTextFactory: NSObject, FlutterPlatformViewFactory {
+  func create(
+    withFrame frame: CGRect,
+    viewIdentifier viewId: Int64,
+    arguments args: Any?
+  ) -> FlutterPlatformView {
+    return IosSelectableTextView(frame: frame, arguments: args)
+  }
+
+  func createArgsCodec() -> FlutterMessageCodec & NSObjectProtocol {
+    return FlutterStandardMessageCodec.sharedInstance()
+  }
+}
+
+private final class IosSelectableTextView: NSObject, FlutterPlatformView {
+  private let textView: UITextView
+
+  init(frame: CGRect, arguments: Any?) {
+    let args = arguments as! [String: Any]
+    let text = args["text"] as! String
+    let fontSize = CGFloat(args["fontSize"] as! Double)
+    let fontWeight = args["fontWeight"] as! Int
+    let color = args["color"] as! Int
+    let textAlign = args["textAlign"] as! String
+    let textDirection = args["textDirection"] as! String
+
+    textView = UITextView(frame: frame)
+    super.init()
+
+    textView.backgroundColor = .clear
+    textView.isOpaque = false
+    textView.isEditable = false
+    textView.isSelectable = true
+    textView.isScrollEnabled = false
+    textView.textContainerInset = .zero
+    textView.textContainer.lineFragmentPadding = 0
+    textView.textContainer.lineBreakMode = .byWordWrapping
+    textView.contentInset = .zero
+    textView.adjustsFontForContentSizeCategory = false
+
+    let paragraph = NSMutableParagraphStyle()
+    paragraph.alignment = Self.alignment(textAlign, direction: textDirection)
+    paragraph.baseWritingDirection = textDirection == "rtl" ? .rightToLeft : .leftToRight
+    paragraph.lineBreakMode = .byWordWrapping
+    if let factor = args["lineHeightFactor"] as? Double {
+      let lineHeight = fontSize * CGFloat(factor)
+      paragraph.minimumLineHeight = lineHeight
+      paragraph.maximumLineHeight = lineHeight
+    }
+
+    var attributes: [NSAttributedString.Key: Any] = [
+      .font: UIFont.systemFont(ofSize: fontSize, weight: Self.weight(fontWeight)),
+      .foregroundColor: Self.color(color),
+      .paragraphStyle: paragraph,
+    ]
+    if let letterSpacing = args["letterSpacing"] as? Double {
+      attributes[.kern] = letterSpacing
+    }
+    textView.attributedText = NSAttributedString(string: text, attributes: attributes)
+  }
+
+  func view() -> UIView {
+    return textView
+  }
+
+  private static func alignment(_ value: String, direction: String) -> NSTextAlignment {
+    switch value {
+    case "center": return .center
+    case "right": return .right
+    case "justify": return .justified
+    case "end": return direction == "rtl" ? .left : .right
+    default: return direction == "rtl" ? .right : .left
+    }
+  }
+
+  private static func weight(_ value: Int) -> UIFont.Weight {
+    switch value {
+    case ...150: return .ultraLight
+    case ...250: return .thin
+    case ...350: return .light
+    case ...450: return .regular
+    case ...550: return .medium
+    case ...650: return .semibold
+    case ...750: return .bold
+    case ...850: return .heavy
+    default: return .black
+    }
+  }
+
+  private static func color(_ value: Int) -> UIColor {
+    return UIColor(
+      red: CGFloat((value >> 16) & 0xff) / 255,
+      green: CGFloat((value >> 8) & 0xff) / 255,
+      blue: CGFloat(value & 0xff) / 255,
+      alpha: CGFloat((value >> 24) & 0xff) / 255
+    )
   }
 }
 

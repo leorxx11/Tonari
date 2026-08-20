@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/db/database.dart';
 import '../../../core/files/local_image_path.dart';
+import '../../../shared/widgets/ios_selectable_text.dart';
 import '../../../shared/widgets/library_home_button.dart';
 import '../../../shared/widgets/right_edge_swipe_detector.dart';
 import '../../player/presentation/mini_player.dart';
@@ -355,18 +356,19 @@ class _HeaderSection extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 20),
-          Text(
+          IosSelectableText(
             displayTitle,
-            style: theme.textTheme.titleLarge?.copyWith(
+            key: const Key('selectable-work-title'),
+            style: theme.textTheme.titleLarge!.copyWith(
               fontWeight: FontWeight.w600,
               height: 1.3,
             ),
           ),
           if (subline.isNotEmpty) ...[
             const SizedBox(height: 6),
-            Text(
+            IosSelectableText(
               subline,
-              style: theme.textTheme.bodyMedium?.copyWith(
+              style: theme.textTheme.bodyMedium!.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
@@ -683,17 +685,17 @@ class _CreditsSection extends StatelessWidget {
                 children: [
                   SizedBox(
                     width: 72,
-                    child: Text(
+                    child: IosSelectableText(
                       row.$1,
-                      style: theme.textTheme.bodyMedium?.copyWith(
+                      style: theme.textTheme.bodyMedium!.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ),
                   Expanded(
-                    child: Text(
+                    child: IosSelectableText(
                       row.$2.join('、'),
-                      style: theme.textTheme.bodyMedium,
+                      style: theme.textTheme.bodyMedium!,
                     ),
                   ),
                 ],
@@ -867,9 +869,9 @@ class _DescriptionSection extends ConsumerWidget {
           switch (block) {
             _DescHeading(text: final t) => Padding(
               padding: const EdgeInsets.only(top: 14, bottom: 8),
-              child: Text(
+              child: IosSelectableText(
                 t,
-                style: theme.textTheme.titleSmall?.copyWith(
+                style: theme.textTheme.titleSmall!.copyWith(
                   fontWeight: FontWeight.w700,
                   height: 1.4,
                 ),
@@ -877,9 +879,9 @@ class _DescriptionSection extends ConsumerWidget {
             ),
             _DescParagraph(text: final t) => Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Text(
+              child: IosSelectableText(
                 t,
-                style: theme.textTheme.bodyMedium?.copyWith(height: 1.6),
+                style: theme.textTheme.bodyMedium!.copyWith(height: 1.6),
               ),
             ),
             _DescImage(url: final u) => Padding(

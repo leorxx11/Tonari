@@ -591,6 +591,23 @@ void main() {
     expect(find.text('track01.wav'), findsNothing);
   });
 
+  testWidgets('work detail title is selectable', (tester) async {
+    await tester.pumpWidget(
+      testApp(works: [_work('RJ01560714', title: 'Selectable Title')]),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Selectable Title'));
+    await tester.pumpAndSettle();
+
+    final title = find.byKey(const Key('selectable-work-title'));
+    expect(title, findsOneWidget);
+    expect(
+      find.descendant(of: title, matching: find.byType(SelectableText)),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('detail page hides the tab bar (full-screen detail)', (
     tester,
   ) async {
