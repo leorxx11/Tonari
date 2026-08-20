@@ -467,8 +467,6 @@ void main() {
     await tester.pumpAndSettle();
 
     await openSection(tester, '设置');
-    await tester.tap(find.text('数据管理'));
-    await tester.pumpAndSettle();
     await tester.tap(find.text('已移除作品'));
     await tester.pumpAndSettle();
 
@@ -498,8 +496,6 @@ void main() {
     await tester.pumpAndSettle();
 
     await openSection(tester, '设置');
-    await tester.tap(find.text('数据管理'));
-    await tester.pumpAndSettle();
     await tester.tap(find.text('已移除作品'));
     await tester.pumpAndSettle();
 
@@ -879,6 +875,39 @@ void main() {
     await openSection(tester, '设置');
 
     expect(find.text('外观'), findsOneWidget);
+  });
+
+  testWidgets('settings separates content preferences data and support', (
+    tester,
+  ) async {
+    await tester.pumpWidget(testApp());
+    await tester.pumpAndSettle();
+
+    await openSection(tester, '设置');
+
+    for (final section in ['内容', '偏好', '数据']) {
+      expect(find.text(section), findsOneWidget);
+    }
+    expect(find.text('导入'), findsOneWidget);
+    expect(find.text('数据管理'), findsNothing);
+
+    await tester.tap(find.text('媒体来源'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('已导入来源'), findsOneWidget);
+    expect(find.text('WebDAV'), findsOneWidget);
+    expect(find.text('115 网盘'), findsOneWidget);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tester.drag(
+      find.byType(ListView).hitTestable(),
+      const Offset(0, -500),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('支持'), findsOneWidget);
+    expect(find.text('诊断日志'), findsOneWidget);
   });
 
   testWidgets('file entry position can move to the bottom left', (

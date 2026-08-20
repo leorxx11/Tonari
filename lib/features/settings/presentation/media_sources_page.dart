@@ -21,7 +21,7 @@ class MediaSourcesPage extends ConsumerWidget {
         error: (e, _) => Center(child: Text('加载失败：$e')),
         data: (folders) {
           if (folders.isEmpty) {
-            return const Center(child: Text('还没有导入任何来源，去媒体库右上角导入'));
+            return const Center(child: Text('还没有导入任何来源'));
           }
           return ListView.separated(
             itemCount: folders.length,
