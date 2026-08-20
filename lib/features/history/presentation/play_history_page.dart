@@ -4,8 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/db/database.dart';
 import '../../library/data/works_providers.dart';
+import '../../library/presentation/open_work_detail.dart';
 import '../../library/presentation/widgets/work_cover.dart';
-import '../../library/presentation/work_detail_page.dart';
 import '../../video_library/data/video_library_providers.dart';
 import '../../video_library/presentation/video_library_page.dart';
 import '../data/history_playback.dart';
@@ -150,9 +150,7 @@ class _HistoryRow extends ConsumerWidget {
         showAppToast('该作品已不在媒体库中');
         return;
       }
-      await Navigator.of(
-        context,
-      ).push(MaterialPageRoute<void>(builder: (_) => WorkDetailPage(work: work)));
+      await openWorkDetail(context, ref, work);
       return;
     }
     await ref.read(historyPlaybackProvider).play(entry);

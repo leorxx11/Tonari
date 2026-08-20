@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/db/database.dart';
 import '../../data/work_actions_provider.dart';
 import '../../data/works_providers.dart';
-import '../work_detail_page.dart';
+import '../open_work_detail.dart';
 import 'collection_picker_sheet.dart';
 import 'work_card.dart';
 
@@ -76,11 +76,7 @@ class WorkGridCard extends ConsumerWidget {
           ref.read(toggleFavoriteProvider)(work.productId, !work.isFavorite),
       onAddToCollection: () => showCollectionPicker(context, work),
       onRemoveFromCollection: onRemoveFromCollection,
-      onTap: () {
-        Navigator.of(context, rootNavigator: true).push(
-          MaterialPageRoute<void>(builder: (_) => WorkDetailPage(work: work)),
-        );
-      },
+      onTap: () => openWorkDetail(context, ref, work),
     );
   }
 }

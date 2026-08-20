@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 
+import '../../library/presentation/open_work_detail.dart';
 import '../../library/presentation/widgets/work_cover.dart';
-import '../../library/presentation/work_detail_page.dart';
 import '../../settings/data/player_prefs.dart';
 import '../../subtitle/data/subtitle_overlay_prefs.dart';
 import '../../subtitle/data/subtitle_providers.dart';
@@ -308,12 +308,11 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                     title: const Text('查看作品详情'),
                     onTap: () {
                       Navigator.of(ctx).pop();
-                      final nav = Navigator.of(context, rootNavigator: true);
-                      nav.pop();
-                      nav.push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => WorkDetailPage(work: work),
-                        ),
+                      openWorkDetail(
+                        context,
+                        ref,
+                        work,
+                        closeCurrentRoute: true,
                       );
                     },
                   ),

@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/db/database.dart';
 import '../../../core/files/local_image_path.dart';
 import '../../../shared/widgets/library_home_button.dart';
+import '../../../shared/widgets/right_edge_swipe_detector.dart';
 import '../../player/presentation/mini_player.dart';
 import '../../settings/data/file_entry_prefs.dart';
 import '../../settings/presentation/translation_settings_page.dart';
@@ -104,47 +105,50 @@ class _WorkDetailViewState extends ConsumerState<_WorkDetailView> {
   Widget build(BuildContext context) {
     final liveWork = ref.watch(workByIdProvider(widget.work.productId)).value;
     final work = liveWork ?? widget.work;
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(work.productId),
-        actions: [
-          IconButton(
-            tooltip: work.isFavorite ? '取消收藏' : '添加收藏',
-            icon: Icon(
-              work.isFavorite ? Icons.favorite : Icons.favorite_outline,
-              color: work.isFavorite
-                  ? Theme.of(context).colorScheme.primary
-                  : null,
+    return RightEdgeSwipeDetector(
+      onSwipe: () => _openWorkFiles(context, work),
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(work.productId),
+          actions: [
+            IconButton(
+              tooltip: work.isFavorite ? '取消收藏' : '添加收藏',
+              icon: Icon(
+                work.isFavorite ? Icons.favorite : Icons.favorite_outline,
+                color: work.isFavorite
+                    ? Theme.of(context).colorScheme.primary
+                    : null,
+              ),
+              onPressed: () async {
+                final toggle = ref.read(toggleFavoriteProvider);
+                await toggle(work.productId, !work.isFavorite);
+              },
             ),
-            onPressed: () async {
-              final toggle = ref.read(toggleFavoriteProvider);
-              await toggle(work.productId, !work.isFavorite);
-            },
-          ),
-          IconButton(
-            tooltip: '在 DLsite 中打开',
-            icon: const Icon(Icons.open_in_new),
-            onPressed: () => _openOnDlsite(work.productId),
-          ),
-          _TranslationButton(work: work),
-          WorkTaskStatusButton(productId: work.productId),
-          _MoreMenu(work: work, state: this),
-          const LibraryHomeButton(),
-        ],
+            IconButton(
+              tooltip: '在 DLsite 中打开',
+              icon: const Icon(Icons.open_in_new),
+              onPressed: () => _openOnDlsite(work.productId),
+            ),
+            _TranslationButton(work: work),
+            WorkTaskStatusButton(productId: work.productId),
+            _MoreMenu(work: work, state: this),
+            const LibraryHomeButton(),
+          ],
+        ),
+        body: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverToBoxAdapter(child: _HeaderSection(work: work)),
+            SliverToBoxAdapter(child: _StatsSection(work: work)),
+            SliverToBoxAdapter(child: _CreditsSection(work: work)),
+            SliverToBoxAdapter(child: _GenresSection(work: work)),
+            SliverToBoxAdapter(child: _FileInfoLine(work: work)),
+            SliverToBoxAdapter(child: _DescriptionSection(work: work)),
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
+          ],
+        ),
+        bottomNavigationBar: const MiniPlayer(),
       ),
-      body: CustomScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        slivers: [
-          SliverToBoxAdapter(child: _HeaderSection(work: work)),
-          SliverToBoxAdapter(child: _StatsSection(work: work)),
-          SliverToBoxAdapter(child: _CreditsSection(work: work)),
-          SliverToBoxAdapter(child: _GenresSection(work: work)),
-          SliverToBoxAdapter(child: _FileInfoLine(work: work)),
-          SliverToBoxAdapter(child: _DescriptionSection(work: work)),
-          const SliverToBoxAdapter(child: SizedBox(height: 24)),
-        ],
-      ),
-      bottomNavigationBar: const MiniPlayer(),
     );
   }
 
@@ -721,9 +725,7 @@ class _FilesTile extends ConsumerWidget {
     return GestureDetector(
       key: const Key('files-entry'),
       behavior: HitTestBehavior.opaque,
-      onTap: () => Navigator.of(context, rootNavigator: true).push(
-        CupertinoPageRoute<void>(builder: (_) => WorkFilesPage(work: work)),
-      ),
+      onTap: () => _openWorkFiles(context, work),
       child: SizedBox(
         width: 64,
         height: 64,
@@ -761,6 +763,13 @@ class _FilesTile extends ConsumerWidget {
       ),
     );
   }
+}
+
+void _openWorkFiles(BuildContext context, Work work) {
+  Navigator.of(
+    context,
+    rootNavigator: true,
+  ).push(CupertinoPageRoute<void>(builder: (_) => WorkFilesPage(work: work)));
 }
 
 class _GenresSection extends ConsumerWidget {

@@ -19,6 +19,7 @@ import 'package:tonari/features/library/data/work_image_cache.dart';
 import 'package:tonari/features/library/data/work_reimport_provider.dart';
 import 'package:tonari/features/library/data/works_providers.dart';
 import 'package:tonari/features/p115/data/p115_cookie_store.dart';
+import 'package:tonari/features/player/data/playback_controller.dart';
 import 'package:tonari/features/subtitle/data/subtitle_providers.dart';
 import 'package:tonari/features/video_library/data/video_library_providers.dart';
 import 'package:tonari/features/webdav/data/webdav_server_repository.dart';
@@ -35,6 +36,7 @@ Widget testApp({
   ReimportWork? reimportWork,
   ToggleFavorite? toggleFavorite,
   ImportFlow? importFlow,
+  Work? playingWork,
   List<AppEvent> appEvents = const [],
   Map<String, List<SubtitleCue>> subtitlePreviews = const {},
 }) => ProviderScope(
@@ -84,6 +86,13 @@ Widget testApp({
     workFilesByWorkProvider.overrideWith((ref, workId) {
       return Stream.value(workFiles.where((f) => f.workId == workId).toList());
     }),
+    workByIdProvider.overrideWith((ref, workId) {
+      final matches = works.where((work) => work.productId == workId).toList();
+      return Stream.value(matches.isEmpty ? null : matches.single);
+    }),
+    playbackControllerProvider.overrideWith(
+      () => _TestPlaybackController(playingWork),
+    ),
     p115CookieProvider.overrideWith((ref) => Future.value(null)),
     webdavServersStreamProvider.overrideWith((ref) => Stream.value(const [])),
     if (removeWork != null) removeWorkProvider.overrideWithValue(removeWork),
@@ -103,6 +112,15 @@ Widget testApp({
   ],
   child: const TonariApp(),
 );
+
+class _TestPlaybackController extends PlaybackController {
+  _TestPlaybackController(this.work);
+
+  final Work? work;
+
+  @override
+  PlaybackState build() => PlaybackState(work: work);
+}
 
 class _FakeEventSink implements AppEventSink {
   @override
@@ -964,5 +982,94 @@ void main() {
 
     final entryCenter = tester.getCenter(find.byKey(const Key('files-entry')));
     expect(entryCenter.dx, lessThan(400));
+  });
+
+  testWidgets('library right-edge swipe reopens the last viewed work', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      testApp(
+        works: [_work('RJ01560714', title: 'Test Work')],
+        tracks: [
+          _track(
+            id: 'track-1',
+            workId: 'RJ01560714',
+            title: 'track01',
+            fileName: 'track01.wav',
+            fileFormat: 'wav',
+          ),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Test Work'));
+    await tester.pumpAndSettle();
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    final width =
+        tester.view.physicalSize.width / tester.view.devicePixelRatio;
+    await tester.dragFrom(Offset(width - 2, 300), const Offset(-140, 0));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('files-entry')), findsOneWidget);
+  });
+
+  testWidgets('work detail right-edge swipe opens the files page', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      testApp(
+        works: [_work('RJ01560714', title: 'Test Work')],
+        tracks: [
+          _track(
+            id: 'track-1',
+            workId: 'RJ01560714',
+            title: 'track01',
+            fileName: 'track01.wav',
+            fileFormat: 'wav',
+            relativeDir: '.',
+          ),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Test Work'));
+    await tester.pumpAndSettle();
+
+    final width =
+        tester.view.physicalSize.width / tester.view.devicePixelRatio;
+    await tester.dragFrom(Offset(width - 2, 300), const Offset(-140, 0));
+    await tester.pumpAndSettle();
+
+    expect(find.text('track01.wav'), findsOneWidget);
+    expect(find.byKey(const Key('files-entry')), findsNothing);
+  });
+
+  testWidgets('library right-edge swipe prefers the playing work', (
+    tester,
+  ) async {
+    final lastOpened = _work('RJ01560714', title: 'Last Opened');
+    final playing = _work('RJ01560715', title: 'Now Playing');
+    await tester.pumpWidget(
+      testApp(works: [lastOpened, playing], playingWork: playing),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Last Opened'));
+    await tester.pumpAndSettle();
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    final width =
+        tester.view.physicalSize.width / tester.view.devicePixelRatio;
+    await tester.dragFrom(Offset(width - 2, 300), const Offset(-140, 0));
+    await tester.pumpAndSettle();
+
+    expect(find.text('RJ01560715'), findsOneWidget);
+    expect(find.text('Now Playing'), findsOneWidget);
+    expect(find.text('Last Opened'), findsNothing);
   });
 }
