@@ -721,6 +721,7 @@ void main() {
     expect(find.textContaining('hello'), findsOneWidget);
     expect(find.textContaining('00:01.500 - 00:06.500'), findsOneWidget);
     expect(find.textContaining('world'), findsOneWidget);
+    expect(find.byType(BackButton), findsNothing);
   });
 
   testWidgets('track row replaces filename with cached translated title', (

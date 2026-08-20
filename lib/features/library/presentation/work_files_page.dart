@@ -713,7 +713,7 @@ class _SubtitlePreviewPage extends StatelessWidget {
     final theme = Theme.of(context);
     final text = cues.map(_formatCue).join('\n\n');
     return Scaffold(
-      appBar: AppBar(title: Text(fileName)),
+      appBar: AppBar(automaticallyImplyLeading: false, title: Text(fileName)),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
