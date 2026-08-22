@@ -194,6 +194,121 @@ void main() {
     messenger.setMockMethodCallHandler(SystemChannels.platform_views, null);
     debugDefaultTargetPlatformOverride = null;
   });
+
+  testWidgets('outside pointer up without a matching down is ignored', (
+    tester,
+  ) async {
+    final harness = await _boot(tester);
+
+    // Selection turns active while a finger is already down outside the text,
+    // so TapRegion only ever reports the pointer up.
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byKey(const Key('outside'))),
+    );
+    await _sendSelection(
+      tester.binding.defaultBinaryMessenger,
+      harness.channel,
+      start: const Offset(10, 10),
+      end: const Offset(80, 10),
+    );
+    await tester.pump();
+    await gesture.up();
+    await tester.pump();
+
+    expect(harness.deactivated, isFalse);
+    expect(
+      _recognizerFactoryType(tester).toString(),
+      '_SelectionHandleGestureRecognizer',
+    );
+
+    debugDefaultTargetPlatformOverride = null;
+  });
+
+  testWidgets('extra pointer is ignored while selection coords are stale', (
+    tester,
+  ) async {
+    final harness = await _boot(tester);
+    final messenger = tester.binding.defaultBinaryMessenger;
+
+    await _sendSelection(
+      messenger,
+      harness.channel,
+      start: const Offset(10, 10),
+      end: const Offset(80, 10),
+    );
+    await tester.pump();
+
+    final center = tester.getCenter(find.byType(UiKitView));
+    final first = await tester.startGesture(center);
+    // Coordinates clear immediately, but the state change waits for the
+    // pointer to lift, so the handle recognizer is still installed.
+    await _sendSelectionCleared(messenger, harness.channel);
+    await tester.pump();
+
+    final second = await tester.startGesture(center + const Offset(20, 0));
+    await tester.pump();
+    await second.up();
+    await first.up();
+    await tester.pump();
+
+    expect(_recognizerFactoryType(tester), LongPressGestureRecognizer);
+
+    debugDefaultTargetPlatformOverride = null;
+  });
+}
+
+class _Harness {
+  late MethodChannel channel;
+  var deactivated = false;
+}
+
+Future<_Harness> _boot(WidgetTester tester) async {
+  debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+  final messenger = tester.binding.defaultBinaryMessenger;
+  final harness = _Harness();
+  late int viewId;
+
+  messenger.setMockMethodCallHandler(SystemChannels.platform_views, (
+    call,
+  ) async {
+    if (call.method == 'create') {
+      viewId = (call.arguments as Map<Object?, Object?>)['id']! as int;
+    }
+    return null;
+  });
+  addTearDown(() {
+    messenger.setMockMethodCallHandler(SystemChannels.platform_views, null);
+    debugDefaultTargetPlatformOverride = null;
+  });
+
+  await tester.pumpWidget(
+    const MaterialApp(
+      home: Scaffold(
+        body: Column(
+          children: [
+            SizedBox(
+              width: 240,
+              height: 100,
+              child: IosSelectableText(
+                'Select this text',
+                style: TextStyle(fontSize: 16, color: Colors.black),
+              ),
+            ),
+            SizedBox(key: Key('outside'), width: 240, height: 200),
+          ],
+        ),
+      ),
+    ),
+  );
+  await tester.pump();
+
+  harness.channel = MethodChannel('tonari/ios_selectable_text/$viewId');
+  messenger.setMockMethodCallHandler(harness.channel, (call) async {
+    if (call.method == 'deactivate') harness.deactivated = true;
+    return null;
+  });
+  addTearDown(() => messenger.setMockMethodCallHandler(harness.channel, null));
+  return harness;
 }
 
 Type _recognizerFactoryType(WidgetTester tester) {
@@ -217,6 +332,19 @@ Future<void> _sendSelection(
         'endX': end.dx,
         'endY': end.dy,
       }),
+    ),
+    (ByteData? _) {},
+  );
+}
+
+Future<void> _sendSelectionCleared(
+  TestDefaultBinaryMessenger messenger,
+  MethodChannel channel,
+) {
+  return messenger.handlePlatformMessage(
+    channel.name,
+    const StandardMethodCodec().encodeMethodCall(
+      const MethodCall('selectionChanged', {'active': false}),
     ),
     (ByteData? _) {},
   );

@@ -25,7 +25,7 @@ class _IosSelectableTextState extends State<IosSelectableText> {
   static const _selectionHandleRadius = 28.0;
 
   bool _selectionActive = false;
-  bool _pointerDown = false;
+  int _pointersDown = 0;
   bool? _pendingSelectionActive;
   Offset? _selectionStart;
   Offset? _selectionEnd;
@@ -92,7 +92,7 @@ class _IosSelectableTextState extends State<IosSelectableText> {
           Positioned.fill(
             child: Listener(
               key: _gestureRegionKey,
-              onPointerDown: (_) => _pointerDown = true,
+              onPointerDown: (_) => _pointersDown++,
               onPointerUp: (_) => _finishPointer(),
               onPointerCancel: (_) => _finishPointer(),
               child: UiKitView(
@@ -155,7 +155,7 @@ class _IosSelectableTextState extends State<IosSelectableText> {
       _selectionStart = null;
       _selectionEnd = null;
     }
-    if (_pointerDown) {
+    if (_pointersDown > 0) {
       _pendingSelectionActive = active;
       return;
     }
@@ -164,7 +164,8 @@ class _IosSelectableTextState extends State<IosSelectableText> {
   }
 
   void _finishPointer() {
-    _pointerDown = false;
+    if (_pointersDown > 0) _pointersDown--;
+    if (_pointersDown > 0) return;
     final active = _pendingSelectionActive;
     _pendingSelectionActive = null;
     if (active != null && _selectionActive != active) {
@@ -173,17 +174,20 @@ class _IosSelectableTextState extends State<IosSelectableText> {
   }
 
   bool _isSelectionHandle(Offset globalPosition) {
+    final start = _selectionStart;
+    final end = _selectionEnd;
+    if (start == null || end == null) return false;
     final renderBox =
         _gestureRegionKey.currentContext!.findRenderObject()! as RenderBox;
     final localPosition = renderBox.globalToLocal(globalPosition);
-    return (localPosition - _selectionStart!).distance <=
-            _selectionHandleRadius ||
-        (localPosition - _selectionEnd!).distance <= _selectionHandleRadius;
+    return (localPosition - start).distance <= _selectionHandleRadius ||
+        (localPosition - end).distance <= _selectionHandleRadius;
   }
 
   void _handleTapUpOutside(PointerUpEvent event) {
-    final down = _outsidePointerDown!;
+    final down = _outsidePointerDown;
     _outsidePointerDown = null;
+    if (down == null) return;
     if ((event.position - down.position).distance <= kTouchSlop) {
       _deactivateSelection();
     }
