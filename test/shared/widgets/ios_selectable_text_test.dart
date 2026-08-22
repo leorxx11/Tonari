@@ -30,7 +30,7 @@ void main() {
     });
 
     await tester.pumpWidget(
-      const MaterialApp(
+      MaterialApp(
         home: Scaffold(
           body: Column(
             children: [
@@ -38,10 +38,10 @@ void main() {
                 width: 240,
                 child: IosSelectableText(
                   'Select this text',
-                  style: TextStyle(fontSize: 16, color: Colors.black),
+                  style: const TextStyle(fontSize: 16, color: Colors.black),
                 ),
               ),
-              SizedBox(
+              const SizedBox(
                 width: 240,
                 height: 120,
                 child: ColoredBox(
@@ -126,12 +126,12 @@ void main() {
               controller: scrollController,
               child: Column(
                 children: [
-                  const SizedBox(
+                  SizedBox(
                     width: 240,
                     height: 100,
                     child: IosSelectableText(
                       'Select this text across multiple lines',
-                      style: TextStyle(fontSize: 16, color: Colors.black),
+                      style: const TextStyle(fontSize: 16, color: Colors.black),
                     ),
                   ),
                   const SizedBox(key: Key('outside'), width: 240, height: 600),

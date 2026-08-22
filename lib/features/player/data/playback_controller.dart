@@ -522,9 +522,7 @@ class PlaybackController extends Notifier<PlaybackState>
       _proxyStale = false;
       _logSourceSet(resolved.url, 'load_browse');
       await previousRelease?.call();
-      unawaited(
-        ref.read(playHistoryRepositoryProvider).recordItem(browseItem),
-      );
+      unawaited(ref.read(playHistoryRepositoryProvider).recordItem(browseItem));
       await player.play();
       await _publishNowPlaying();
       return;

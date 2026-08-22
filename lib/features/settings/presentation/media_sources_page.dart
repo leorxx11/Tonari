@@ -108,9 +108,11 @@ class _SourceTile extends ConsumerWidget {
     if (confirmed != true || !context.mounted) return;
     final removed = await ref.read(deleteSourceProvider)(folder.id);
     if (!context.mounted) return;
-    showAppToast(removed > 0
-              ? '已删除来源「${folder.displayName}」及 $removed 个作品'
-              : '已删除来源「${folder.displayName}」');
+    showAppToast(
+      removed > 0
+          ? '已删除来源「${folder.displayName}」及 $removed 个作品'
+          : '已删除来源「${folder.displayName}」',
+    );
   }
 
   IconData _iconFor(String type) {

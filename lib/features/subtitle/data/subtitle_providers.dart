@@ -53,8 +53,7 @@ final ingestedSubtitlePathsProvider = StreamProvider.autoDispose
         innerJoin(db.tracks, db.tracks.id.equalsExp(db.subtitles.trackId)),
       ])..where(db.tracks.workId.equals(workId));
       return query.watch().map(
-        (rows) =>
-            rows.map((r) => r.readTable(db.subtitles).filePath).toSet(),
+        (rows) => rows.map((r) => r.readTable(db.subtitles).filePath).toSet(),
       );
     });
 

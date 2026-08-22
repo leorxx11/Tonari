@@ -119,7 +119,9 @@ class WebdavImportFlow {
           0,
           (a, w) =>
               a +
-              w.subtitles.where((s) => SubtitleParser.supports(s.format)).length,
+              w.subtitles
+                  .where((s) => SubtitleParser.supports(s.format))
+                  .length,
         );
     if (total == 0) return out;
     var done = 0;

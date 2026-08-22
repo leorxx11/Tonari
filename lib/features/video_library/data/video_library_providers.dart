@@ -19,9 +19,9 @@ final videoItemsProvider = StreamProvider<List<VideoItem>>((ref) {
 /// Whether this stable id is already in the video library.
 final videoInLibraryProvider = StreamProvider.family<bool, String>((ref, id) {
   final db = ref.watch(databaseProvider);
-  return (db.select(db.videoItems)..where((v) => v.id.equals(id)))
-      .watch()
-      .map((rows) => rows.isNotEmpty);
+  return (db.select(
+    db.videoItems,
+  )..where((v) => v.id.equals(id))).watch().map((rows) => rows.isNotEmpty);
 });
 
 final videoItemByIdProvider = StreamProvider.family<VideoItem?, String>((

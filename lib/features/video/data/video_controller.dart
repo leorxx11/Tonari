@@ -491,7 +491,11 @@ class VideoController extends Notifier<VideoPlaybackState>
       ref
           .read(videoResumeStoreProvider)
           .write(
-            _slotFor(item, positionMs: positionMs, lastPlayedAt: DateTime.now()),
+            _slotFor(
+              item,
+              positionMs: positionMs,
+              lastPlayedAt: DateTime.now(),
+            ),
           ),
     );
     unawaited(
@@ -709,8 +713,6 @@ class VideoController extends Notifier<VideoPlaybackState>
       resolve: resolver,
     );
   }
-
-
 
   VideoResumeSlot _slotFor(
     PlayableItem item, {

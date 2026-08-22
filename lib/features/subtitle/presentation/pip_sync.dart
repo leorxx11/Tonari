@@ -24,17 +24,17 @@ final _pipSubtitleTextProvider = Provider.autoDispose<String>((ref) {
 /// widget builds), but the provider graph keeps updating off the position
 /// stream, which is what PiP mode exists to survive.
 final pipSubtitleSyncProvider = Provider.autoDispose<void>((ref) {
-  ref.listen<SubtitleMode>(
-    subtitleOverlayPrefsProvider.select((p) => p.mode),
-    (prev, next) {
-      if (prev == next) return;
-      if (next == SubtitleMode.pip) {
-        PipBridge.start();
-      } else if (prev == SubtitleMode.pip) {
-        PipBridge.stop();
-      }
-    },
-  );
+  ref.listen<SubtitleMode>(subtitleOverlayPrefsProvider.select((p) => p.mode), (
+    prev,
+    next,
+  ) {
+    if (prev == next) return;
+    if (next == SubtitleMode.pip) {
+      PipBridge.start();
+    } else if (prev == SubtitleMode.pip) {
+      PipBridge.stop();
+    }
+  });
 
   ref.listen<String>(_pipSubtitleTextProvider, (prev, next) {
     if (prev == next) return;

@@ -113,8 +113,7 @@ Future<void> showSleepTimerSheet(
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        for (final n
-                            in SleepTimerController.presetTrackCounts)
+                        for (final n in SleepTimerController.presetTrackCounts)
                           ChoiceChip(
                             label: Text(n == 1 ? '播完本曲' : '播完 $n 曲'),
                             selected: false,

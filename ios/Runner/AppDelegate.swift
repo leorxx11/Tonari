@@ -110,10 +110,7 @@ private final class IosSelectableTextView: NSObject, FlutterPlatformView, UIText
     messenger: FlutterBinaryMessenger
   ) {
     let args = arguments as! [String: Any]
-    let text = args["text"] as! String
-    let fontSize = CGFloat(args["fontSize"] as! Double)
-    let fontWeight = args["fontWeight"] as! Int
-    let color = args["color"] as! Int
+    let runs = args["runs"] as! [[String: Any]]
     let textAlign = args["textAlign"] as! String
     let textDirection = args["textDirection"] as! String
 
@@ -135,29 +132,46 @@ private final class IosSelectableTextView: NSObject, FlutterPlatformView, UIText
     textView.contentInset = .zero
     textView.adjustsFontForContentSizeCategory = false
 
-    let paragraph = NSMutableParagraphStyle()
-    paragraph.alignment = Self.alignment(textAlign, direction: textDirection)
-    paragraph.baseWritingDirection = textDirection == "rtl" ? .rightToLeft : .leftToRight
-    paragraph.lineBreakMode = .byWordWrapping
-    if let factor = args["lineHeightFactor"] as? Double {
-      let lineHeight = fontSize * CGFloat(factor)
-      paragraph.minimumLineHeight = lineHeight
-      paragraph.maximumLineHeight = lineHeight
-    }
+    let attributed = NSMutableAttributedString()
+    for (index, run) in runs.enumerated() {
+      let fontSize = CGFloat(run["fontSize"] as! Double)
 
-    var attributes: [NSAttributedString.Key: Any] = [
-      .font: Self.font(
-        family: args["fontFamily"] as? String,
-        size: fontSize,
-        weight: Self.weight(fontWeight)
-      ),
-      .foregroundColor: Self.color(color),
-      .paragraphStyle: paragraph,
-    ]
-    if let letterSpacing = args["letterSpacing"] as? Double {
-      attributes[.kern] = letterSpacing
+      let paragraph = NSMutableParagraphStyle()
+      paragraph.alignment = Self.alignment(textAlign, direction: textDirection)
+      paragraph.baseWritingDirection = textDirection == "rtl" ? .rightToLeft : .leftToRight
+      paragraph.lineBreakMode = .byWordWrapping
+      paragraph.paragraphSpacingBefore = CGFloat(run["spacingBefore"] as! Double)
+      paragraph.paragraphSpacing = CGFloat(run["spacingAfter"] as! Double)
+      if let factor = run["lineHeightFactor"] as? Double {
+        let lineHeight = fontSize * CGFloat(factor)
+        paragraph.minimumLineHeight = lineHeight
+        paragraph.maximumLineHeight = lineHeight
+      }
+
+      var attributes: [NSAttributedString.Key: Any] = [
+        .font: Self.font(
+          family: run["fontFamily"] as? String,
+          size: fontSize,
+          weight: Self.weight(run["fontWeight"] as! Int)
+        ),
+        .foregroundColor: Self.color(run["color"] as! Int),
+        .paragraphStyle: paragraph,
+      ]
+      if let letterSpacing = run["letterSpacing"] as? Double {
+        attributes[.kern] = letterSpacing
+      }
+
+      // The separator carries the following run's style so its spacingBefore
+      // applies to the paragraph it introduces.
+      let body = run["text"] as! String
+      attributed.append(
+        NSAttributedString(
+          string: index == 0 ? body : "\n" + body,
+          attributes: attributes
+        )
+      )
     }
-    textView.attributedText = NSAttributedString(string: text, attributes: attributes)
+    textView.attributedText = attributed
     textView.delegate = self
     textView.onMeasured = { [weak self] height in
       self?.channel.invokeMethod("measured", arguments: ["height": height])

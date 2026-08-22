@@ -150,9 +150,7 @@ class _RemoteBrowserPageState extends ConsumerState<RemoteBrowserPage> {
           children: [
             ListTile(
               leading: Icon(
-                inLibrary
-                    ? Icons.video_library
-                    : Icons.video_library_outlined,
+                inLibrary ? Icons.video_library : Icons.video_library_outlined,
               ),
               title: Text(inLibrary ? '从视频库移除' : '加入视频库'),
               onTap: () => Navigator.of(ctx).pop(true),

@@ -43,15 +43,16 @@ class AppEventSink {
               ..limit(1))
             .getSingleOrNull();
     if (existing != null) {
-      await (_db.update(_db.appEvents)..where((e) => e.id.equals(existing.id)))
-          .write(
-            AppEventsCompanion(
-              detail: Value(detail),
-              lastAt: Value(now),
-              count: Value(existing.count + 1),
-              read: const Value(false),
-            ),
-          );
+      await (_db.update(
+        _db.appEvents,
+      )..where((e) => e.id.equals(existing.id))).write(
+        AppEventsCompanion(
+          detail: Value(detail),
+          lastAt: Value(now),
+          count: Value(existing.count + 1),
+          read: const Value(false),
+        ),
+      );
       return;
     }
     await _db
@@ -105,9 +106,9 @@ final appEventSinkProvider = Provider<AppEventSink>((ref) {
 
 final appEventsProvider = StreamProvider<List<AppEvent>>((ref) {
   final db = ref.watch(databaseProvider);
-  return (db.select(db.appEvents)
-        ..orderBy([(e) => OrderingTerm.desc(e.lastAt)]))
-      .watch();
+  return (db.select(
+    db.appEvents,
+  )..orderBy([(e) => OrderingTerm.desc(e.lastAt)])).watch();
 });
 
 final unreadEventCountProvider = StreamProvider<int>((ref) {

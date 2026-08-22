@@ -44,7 +44,11 @@ class P115ImportFlow {
     final scan = await P115FolderScanner(
       client,
     ).scan(folder, onProgress: onProgress, skipProductIds: skip);
-    final subtitleBytes = await _downloadSubtitles(scan, onProgress, skip: skip);
+    final subtitleBytes = await _downloadSubtitles(
+      scan,
+      onProgress,
+      skip: skip,
+    );
     final summary = await importer.applyScanResult(
       scan,
       sourceFolderId: folderId,
@@ -93,7 +97,9 @@ class P115ImportFlow {
           0,
           (a, w) =>
               a +
-              w.subtitles.where((s) => SubtitleParser.supports(s.format)).length,
+              w.subtitles
+                  .where((s) => SubtitleParser.supports(s.format))
+                  .length,
         );
     if (total == 0) return out;
     var done = 0;

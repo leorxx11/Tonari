@@ -81,9 +81,7 @@ class PlayerPrefsNotifier extends Notifier<PlayerPrefs> {
 
   Future<void> setSleepFinishCurrentTrack(bool on) async {
     state = state.copyWith(sleepFinishCurrentTrack: on);
-    await ref
-        .read(sharedPreferencesProvider)
-        .setBool(_kSleepFinishTrack, on);
+    await ref.read(sharedPreferencesProvider).setBool(_kSleepFinishTrack, on);
   }
 
   Future<void> setSeekStep(int seconds) async {

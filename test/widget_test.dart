@@ -7,6 +7,7 @@ import 'package:tonari/core/db/database.dart';
 import 'package:tonari/core/files/folder_picker_service.dart';
 import 'package:tonari/core/subtitle/subtitle_cue.dart';
 import 'package:tonari/core/prefs/shared_prefs_provider.dart';
+import 'package:tonari/shared/widgets/ios_selectable_text.dart';
 import 'package:tonari/features/history/data/play_history_repository.dart';
 import 'package:tonari/features/library/data/app_events.dart';
 import 'package:tonari/features/library/data/collections_providers.dart';
@@ -185,6 +186,7 @@ class _NoopRescan implements RescanService {
 Work _work(
   String rj, {
   String? title,
+  String? descriptionHtml,
   bool isRemoved = false,
   bool isFavorite = false,
   List<String> voiceActors = const [],
@@ -200,6 +202,7 @@ Work _work(
     fileFormats: const [],
     supportedLanguages: const [],
     genresJson: '[]',
+    descriptionHtml: descriptionHtml,
     sampleImageUrls: const [],
     sampleImageLocalPaths: const [],
     descriptionImageLocalPaths: const [],
@@ -312,15 +315,7 @@ void main() {
 
     await openDrawer(tester);
 
-    for (final label in [
-      '音声库',
-      '视频库',
-      '收藏',
-      '播放历史',
-      '浏览',
-      '设置',
-      '消息',
-    ]) {
+    for (final label in ['音声库', '视频库', '收藏', '播放历史', '浏览', '设置', '消息']) {
       expect(find.text(label).hitTestable(), findsOneWidget, reason: label);
     }
     expect(
@@ -605,10 +600,44 @@ void main() {
     final title = find.byKey(const Key('selectable-work-title'));
     expect(title, findsOneWidget);
     expect(
-      find.descendant(of: title, matching: find.byType(SelectableText)),
+      find.descendant(of: title, matching: find.text('Selectable Title')),
       findsOneWidget,
     );
   });
+
+  testWidgets(
+    'description paragraphs share a selectable block up to an image',
+    (tester) async {
+      await tester.pumpWidget(
+        testApp(
+          works: [
+            _work(
+              'RJ01560714',
+              title: 'Described',
+              descriptionHtml:
+                  '<p>alpha</p><p>beta</p>'
+                  '<img src="https://example.invalid/1.jpg">'
+                  '<p>gamma</p>',
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Described'));
+      await tester.pumpAndSettle();
+
+      IosSelectableText hostOf(String text) => tester.widget<IosSelectableText>(
+        find.ancestor(
+          of: find.text(text),
+          matching: find.byType(IosSelectableText),
+        ),
+      );
+
+      expect(hostOf('alpha'), same(hostOf('beta')));
+      expect(hostOf('alpha'), isNot(same(hostOf('gamma'))));
+    },
+  );
 
   testWidgets('detail page hides the tab bar (full-screen detail)', (
     tester,
@@ -989,10 +1018,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('左下角'));
     await tester.pumpAndSettle();
-    expect(
-      _testPrefs.getString('appearance.fileEntryPosition'),
-      'bottomLeft',
-    );
+    expect(_testPrefs.getString('appearance.fileEntryPosition'), 'bottomLeft');
     await tester.pageBack();
     await tester.pumpAndSettle();
     await openSection(tester, '音声库');
@@ -1027,8 +1053,7 @@ void main() {
     await tester.pageBack();
     await tester.pumpAndSettle();
 
-    final width =
-        tester.view.physicalSize.width / tester.view.devicePixelRatio;
+    final width = tester.view.physicalSize.width / tester.view.devicePixelRatio;
     await tester.dragFrom(Offset(width - 2, 300), const Offset(-140, 0));
     await tester.pumpAndSettle();
 
@@ -1075,8 +1100,7 @@ void main() {
     await tester.tap(find.text('Test Work'));
     await tester.pumpAndSettle();
 
-    final width =
-        tester.view.physicalSize.width / tester.view.devicePixelRatio;
+    final width = tester.view.physicalSize.width / tester.view.devicePixelRatio;
     await tester.dragFrom(Offset(width - 2, 300), const Offset(-140, 0));
     await tester.pumpAndSettle();
 
@@ -1099,8 +1123,7 @@ void main() {
     await tester.pageBack();
     await tester.pumpAndSettle();
 
-    final width =
-        tester.view.physicalSize.width / tester.view.devicePixelRatio;
+    final width = tester.view.physicalSize.width / tester.view.devicePixelRatio;
     await tester.dragFrom(Offset(width - 2, 300), const Offset(-140, 0));
     await tester.pumpAndSettle();
 

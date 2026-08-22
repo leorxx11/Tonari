@@ -3,16 +3,33 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-class IosSelectableText extends StatefulWidget {
-  const IosSelectableText(
-    this.data, {
-    super.key,
+/// One paragraph of a selectable block. Consecutive runs share a single native
+/// view so a selection can span them.
+class SelectableTextRun {
+  const SelectableTextRun(
+    this.text, {
     required this.style,
-    this.textAlign,
+    this.spacingBefore = 0,
+    this.spacingAfter = 0,
   });
 
-  final String data;
+  final String text;
   final TextStyle style;
+  final double spacingBefore;
+  final double spacingAfter;
+}
+
+class IosSelectableText extends StatefulWidget {
+  IosSelectableText(
+    String data, {
+    super.key,
+    required TextStyle style,
+    this.textAlign,
+  }) : runs = [SelectableTextRun(data, style: style)];
+
+  const IosSelectableText.rich(this.runs, {super.key, this.textAlign});
+
+  final List<SelectableTextRun> runs;
   final TextAlign? textAlign;
 
   @override
@@ -45,30 +62,25 @@ class _IosSelectableTextState extends State<IosSelectableText> {
   @override
   Widget build(BuildContext context) {
     if (defaultTargetPlatform != TargetPlatform.iOS) {
-      return SelectableText(
-        widget.data,
-        style: widget.style,
-        textAlign: widget.textAlign,
+      return _stack(
+        (run) => SelectableText(
+          run.text,
+          style: run.style,
+          textAlign: widget.textAlign,
+        ),
       );
     }
 
     final defaultTextStyle = DefaultTextStyle.of(context);
-    final resolvedStyle = defaultTextStyle.style.merge(widget.style);
     final textScaler = MediaQuery.textScalerOf(context);
-    final fontSize = textScaler.scale(resolvedStyle.fontSize!);
-    final fontWeight = resolvedStyle.fontWeight ?? FontWeight.normal;
-    final color = resolvedStyle.color!;
     final alignment =
         widget.textAlign ?? defaultTextStyle.textAlign ?? TextAlign.start;
     final direction = Directionality.of(context);
     final creationParams = <String, Object?>{
-      'text': widget.data,
-      'fontSize': fontSize,
-      'fontWeight': fontWeight.value,
-      'fontFamily': resolvedStyle.fontFamily,
-      'color': color.toARGB32(),
-      'lineHeightFactor': resolvedStyle.height,
-      'letterSpacing': resolvedStyle.letterSpacing,
+      'runs': [
+        for (final run in widget.runs)
+          _encodeRun(run, defaultTextStyle.style, textScaler),
+      ],
       'textAlign': alignment.name,
       'textDirection': direction.name,
     };
@@ -95,10 +107,12 @@ class _IosSelectableTextState extends State<IosSelectableText> {
                   width: double.infinity,
                   child: Opacity(
                     opacity: 0,
-                    child: Text(
-                      widget.data,
-                      style: widget.style,
-                      textAlign: widget.textAlign,
+                    child: _stack(
+                      (run) => Text(
+                        run.text,
+                        style: run.style,
+                        textAlign: widget.textAlign,
+                      ),
                     ),
                   ),
                 ),
@@ -135,6 +149,41 @@ class _IosSelectableTextState extends State<IosSelectableText> {
         ],
       ),
     );
+  }
+
+  Widget _stack(Widget Function(SelectableTextRun run) build) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final run in widget.runs)
+          Padding(
+            padding: EdgeInsets.only(
+              top: run.spacingBefore,
+              bottom: run.spacingAfter,
+            ),
+            child: build(run),
+          ),
+      ],
+    );
+  }
+
+  Map<String, Object?> _encodeRun(
+    SelectableTextRun run,
+    TextStyle inherited,
+    TextScaler textScaler,
+  ) {
+    final style = inherited.merge(run.style);
+    return {
+      'text': run.text,
+      'fontSize': textScaler.scale(style.fontSize!),
+      'fontWeight': (style.fontWeight ?? FontWeight.normal).value,
+      'fontFamily': style.fontFamily,
+      'color': style.color!.toARGB32(),
+      'lineHeightFactor': style.height,
+      'letterSpacing': style.letterSpacing,
+      'spacingBefore': run.spacingBefore,
+      'spacingAfter': run.spacingAfter,
+    };
   }
 
   void _onPlatformViewCreated(int viewId) {

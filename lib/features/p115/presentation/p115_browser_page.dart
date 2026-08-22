@@ -151,10 +151,12 @@ class P115BrowserPage extends ConsumerWidget {
           ),
         );
       }
-      showAppToast('「${folder.name}」导入完成：新增 ${summary.worksInserted}，'
-            '已有 ${summary.worksSkipped} 跳过，共 ${summary.tracksTotal} 音轨。'
-            '封面和元数据后台补全中。'
-            '${summary.incompleteWorks.isEmpty ? '' : '\n${summary.incompleteWorks.length} 个作品扫描失败（疑似风控），已跳过，可稍后重新导入。'}');
+      showAppToast(
+        '「${folder.name}」导入完成：新增 ${summary.worksInserted}，'
+        '已有 ${summary.worksSkipped} 跳过，共 ${summary.tracksTotal} 音轨。'
+        '封面和元数据后台补全中。'
+        '${summary.incompleteWorks.isEmpty ? '' : '\n${summary.incompleteWorks.length} 个作品扫描失败（疑似风控），已跳过，可稍后重新导入。'}',
+      );
     } on P115AuthExpiredException catch (e) {
       await auth.clearCookie();
       unawaited(

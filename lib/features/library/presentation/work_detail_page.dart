@@ -755,11 +755,7 @@ class _FilesTile extends ConsumerWidget {
                 ],
               ),
             ),
-            Image.asset(
-              'assets/icons/files_seal.png',
-              width: 64,
-              height: 64,
-            ),
+            Image.asset('assets/icons/files_seal.png', width: 64, height: 64),
           ],
         ),
       ),
@@ -862,29 +858,46 @@ class _DescriptionSection extends ConsumerWidget {
       return _networkDescImage(url, theme);
     }
 
-    final content = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (final block in blocks)
-          switch (block) {
-            _DescHeading(text: final t) => Padding(
-              padding: const EdgeInsets.only(top: 14, bottom: 8),
-              child: IosSelectableText(
-                t,
-                style: theme.textTheme.titleSmall!.copyWith(
-                  fontWeight: FontWeight.w700,
-                  height: 1.4,
-                ),
-              ),
+    final headingStyle = theme.textTheme.titleSmall!.copyWith(
+      fontWeight: FontWeight.w700,
+      height: 1.4,
+    );
+    final paragraphStyle = theme.textTheme.bodyMedium!.copyWith(height: 1.6);
+
+    // Runs between two images share one native text view, so a selection can
+    // run across paragraphs instead of stopping at each block.
+    final children = <Widget>[];
+    var runs = <SelectableTextRun>[];
+    void flushRuns() {
+      if (runs.isEmpty) return;
+      children.add(IosSelectableText.rich(runs));
+      runs = [];
+    }
+
+    for (final block in blocks) {
+      switch (block) {
+        case _DescHeading(text: final t):
+          runs.add(
+            SelectableTextRun(
+              t,
+              style: headingStyle,
+              spacingBefore: 14,
+              spacingAfter: 8,
             ),
-            _DescParagraph(text: final t) => Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: IosSelectableText(
-                t,
-                style: theme.textTheme.bodyMedium!.copyWith(height: 1.6),
-              ),
+          );
+        case _DescParagraph(text: final t):
+          runs.add(
+            SelectableTextRun(
+              t,
+              style: paragraphStyle,
+              spacingBefore: 4,
+              spacingAfter: 4,
             ),
-            _DescImage(url: final u) => Padding(
+          );
+        case _DescImage(url: final u):
+          flushRuns();
+          children.add(
+            Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: GestureDetector(
                 onTap: () => SampleGallery.open(
@@ -898,11 +911,18 @@ class _DescriptionSection extends ConsumerWidget {
                 ),
               ),
             ),
-          },
-      ],
-    );
+          );
+      }
+    }
+    flushRuns();
 
-    return _Section(title: '简介', child: content);
+    return _Section(
+      title: '简介',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: children,
+      ),
+    );
   }
 }
 

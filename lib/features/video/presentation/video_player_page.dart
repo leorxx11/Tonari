@@ -84,13 +84,25 @@ class _VideoPlayerPageState extends ConsumerState<VideoPlayerPage> {
 
   void _onScrubStart(DragStartDetails _) {
     _scrubStartPos =
-        ref.read(videoControllerProvider).controller?.value.position.inMilliseconds ?? 0;
+        ref
+            .read(videoControllerProvider)
+            .controller
+            ?.value
+            .position
+            .inMilliseconds ??
+        0;
     _scrubDx = 0;
   }
 
   void _onScrubUpdate(DragUpdateDetails details) {
     final durationMs =
-        ref.read(videoControllerProvider).controller?.value.duration.inMilliseconds ?? 0;
+        ref
+            .read(videoControllerProvider)
+            .controller
+            ?.value
+            .duration
+            .inMilliseconds ??
+        0;
     if (durationMs == 0) return;
     _scrubDx += details.primaryDelta ?? 0;
     if (_scrubAnchorMs == null && _scrubDx.abs() < _scrubThresholdPx) return;
@@ -231,7 +243,9 @@ class _VideoPlayerPageState extends ConsumerState<VideoPlayerPage> {
                           ),
                           if (_scrubLabel != null)
                             IgnorePointer(
-                              child: Center(child: _ScrubBadge(label: _scrubLabel!)),
+                              child: Center(
+                                child: _ScrubBadge(label: _scrubLabel!),
+                              ),
                             ),
                         ],
                       ),
@@ -314,7 +328,9 @@ class _LandscapePlayer extends StatelessWidget {
           ),
         ),
         if (scrubLabel != null)
-          IgnorePointer(child: Center(child: _ScrubBadge(label: scrubLabel!))),
+          IgnorePointer(
+            child: Center(child: _ScrubBadge(label: scrubLabel!)),
+          ),
         if (controlsVisible) ...[
           Positioned(
             left: 0,
@@ -493,10 +509,8 @@ class _LandscapeControls extends ConsumerWidget {
                             ? CupertinoIcons.moon_zzz_fill
                             : CupertinoIcons.moon_zzz,
                       ),
-                      onPressed: () => showSleepTimerSheet(
-                        context,
-                        forVideo: true,
-                      ),
+                      onPressed: () =>
+                          showSleepTimerSheet(context, forVideo: true),
                     ),
                     PopupMenuButton<double>(
                       tooltip: '倍速',
@@ -651,10 +665,8 @@ class _Controls extends ConsumerWidget {
                                   ? CupertinoIcons.moon_zzz_fill
                                   : CupertinoIcons.moon_zzz,
                             ),
-                            onPressed: () => showSleepTimerSheet(
-                              context,
-                              forVideo: true,
-                            ),
+                            onPressed: () =>
+                                showSleepTimerSheet(context, forVideo: true),
                           ),
                           PopupMenuButton<double>(
                             tooltip: '倍速',
@@ -756,9 +768,7 @@ class _VideoMoreMenu extends ConsumerWidget {
           child: Row(
             children: [
               Icon(
-                inLibrary
-                    ? Icons.video_library
-                    : Icons.video_library_outlined,
+                inLibrary ? Icons.video_library : Icons.video_library_outlined,
               ),
               const SizedBox(width: 12),
               Text(inLibrary ? '从视频库移除' : '加入视频库'),
@@ -823,7 +833,8 @@ class _VideoMoreMenu extends ConsumerWidget {
 
 enum _VideoMenuAction { captureCover, toggleLibrary }
 
-class _ScrubBadge extends StatelessWidget {  const _ScrubBadge({required this.label});
+class _ScrubBadge extends StatelessWidget {
+  const _ScrubBadge({required this.label});
 
   final String label;
 

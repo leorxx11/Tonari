@@ -117,7 +117,9 @@ class _EventTile extends ConsumerWidget {
     final theme = Theme.of(context);
     final scanning = ref.watch(
       workTaskControllerProvider.select(
-        (tasks) => event.productId != null && (tasks[event.productId]?.active ?? false),
+        (tasks) =>
+            event.productId != null &&
+            (tasks[event.productId]?.active ?? false),
       ),
     );
     return Dismissible(
@@ -128,11 +130,16 @@ class _EventTile extends ConsumerWidget {
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
         color: theme.colorScheme.errorContainer,
-        child: Icon(Icons.delete_outline, color: theme.colorScheme.onErrorContainer),
+        child: Icon(
+          Icons.delete_outline,
+          color: theme.colorScheme.onErrorContainer,
+        ),
       ),
       child: ListTile(
         leading: _SeverityIcon(severity: event.severity),
-        title: Text(event.count > 1 ? '${event.title} ×${event.count}' : event.title),
+        title: Text(
+          event.count > 1 ? '${event.title} ×${event.count}' : event.title,
+        ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -186,9 +193,10 @@ class _EventTile extends ConsumerWidget {
 
   Future<void> _rescan(BuildContext context, WidgetRef ref) async {
     final db = ref.read(databaseProvider);
-    final work = await (db.select(
-      db.works,
-    )..where((row) => row.productId.equals(event.productId!))).getSingleOrNull();
+    final work =
+        await (db.select(db.works)
+              ..where((row) => row.productId.equals(event.productId!)))
+            .getSingleOrNull();
     if (work == null) {
       showAppToast('作品已不存在');
       return;

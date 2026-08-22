@@ -178,8 +178,9 @@ class _HistoryRow extends ConsumerWidget {
               ListTile(
                 leading: const Icon(Icons.video_library),
                 title: const Text('从视频库移除'),
-                onTap: () =>
-                    Navigator.of(ctx).pop(_HistoryAction.removeFromVideoLibrary),
+                onTap: () => Navigator.of(
+                  ctx,
+                ).pop(_HistoryAction.removeFromVideoLibrary),
               ),
             ListTile(
               leading: const Icon(Icons.delete_outline),
