@@ -255,6 +255,63 @@ void main() {
 
     debugDefaultTargetPlatformOverride = null;
   });
+
+  testWidgets('box height follows the native measurement', (tester) async {
+    final harness = await _boot(tester, height: null);
+    final estimated = tester.getSize(find.byType(UiKitView)).height;
+
+    await _sendMeasured(
+      tester.binding.defaultBinaryMessenger,
+      harness.channel,
+      240,
+    );
+    await tester.pump();
+
+    expect(estimated, isNot(240));
+    expect(tester.getSize(find.byType(UiKitView)).height, 240);
+
+    debugDefaultTargetPlatformOverride = null;
+  });
+
+  testWidgets('a measurement never outlives the text it measured', (
+    tester,
+  ) async {
+    final harness = await _boot(tester, text: 'first', height: null);
+    await _sendMeasured(
+      tester.binding.defaultBinaryMessenger,
+      harness.channel,
+      240,
+    );
+    await tester.pump();
+    expect(tester.getSize(find.byType(UiKitView)).height, 240);
+
+    await tester.pumpWidget(_app(text: 'second', height: null));
+    await tester.pump();
+
+    expect(tester.getSize(find.byType(UiKitView)).height, isNot(240));
+
+    debugDefaultTargetPlatformOverride = null;
+  });
+}
+
+Widget _app({required String text, required double? height}) {
+  return MaterialApp(
+    home: Scaffold(
+      body: Column(
+        children: [
+          SizedBox(
+            width: 240,
+            height: height,
+            child: IosSelectableText(
+              text,
+              style: const TextStyle(fontSize: 16, color: Colors.black),
+            ),
+          ),
+          const SizedBox(key: Key('outside'), width: 240, height: 200),
+        ],
+      ),
+    ),
+  );
 }
 
 class _Harness {
@@ -262,7 +319,11 @@ class _Harness {
   var deactivated = false;
 }
 
-Future<_Harness> _boot(WidgetTester tester) async {
+Future<_Harness> _boot(
+  WidgetTester tester, {
+  String text = 'Select this text',
+  double? height = 100,
+}) async {
   debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
   final messenger = tester.binding.defaultBinaryMessenger;
   final harness = _Harness();
@@ -281,25 +342,7 @@ Future<_Harness> _boot(WidgetTester tester) async {
     debugDefaultTargetPlatformOverride = null;
   });
 
-  await tester.pumpWidget(
-    const MaterialApp(
-      home: Scaffold(
-        body: Column(
-          children: [
-            SizedBox(
-              width: 240,
-              height: 100,
-              child: IosSelectableText(
-                'Select this text',
-                style: TextStyle(fontSize: 16, color: Colors.black),
-              ),
-            ),
-            SizedBox(key: Key('outside'), width: 240, height: 200),
-          ],
-        ),
-      ),
-    ),
-  );
+  await tester.pumpWidget(_app(text: text, height: height));
   await tester.pump();
 
   harness.channel = MethodChannel('tonari/ios_selectable_text/$viewId');
@@ -345,6 +388,20 @@ Future<void> _sendSelectionCleared(
     channel.name,
     const StandardMethodCodec().encodeMethodCall(
       const MethodCall('selectionChanged', {'active': false}),
+    ),
+    (ByteData? _) {},
+  );
+}
+
+Future<void> _sendMeasured(
+  TestDefaultBinaryMessenger messenger,
+  MethodChannel channel,
+  double height,
+) {
+  return messenger.handlePlatformMessage(
+    channel.name,
+    const StandardMethodCodec().encodeMethodCall(
+      MethodCall('measured', {'height': height}),
     ),
     (ByteData? _) {},
   );

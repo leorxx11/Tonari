@@ -67,8 +67,40 @@ private final class IosSelectableTextFactory: NSObject, FlutterPlatformViewFacto
   }
 }
 
+/// Reports the height TextKit needs for the current width, so the Flutter side
+/// can size the box from the same layout that draws it.
+private final class MeasuringTextView: UITextView {
+  var onMeasured: ((CGFloat) -> Void)?
+
+  private var lastWidth: CGFloat = 0
+  private var lastMeasuredHeight: CGFloat = 0
+
+  override func layoutSubviews() {
+    super.layoutSubviews()
+    guard bounds.width > 0 else { return }
+    if bounds.width != lastWidth {
+      lastWidth = bounds.width
+      lastMeasuredHeight = sizeThatFits(
+        CGSize(width: bounds.width, height: .greatestFiniteMagnitude)
+      ).height
+      onMeasured?(lastMeasuredHeight)
+      return
+    }
+    #if DEBUG
+      if lastMeasuredHeight - bounds.height > 1 {
+        NSLog(
+          "IosSelectableText: %.1fpt clipped (frame %.1f, needs %.1f)",
+          lastMeasuredHeight - bounds.height,
+          bounds.height,
+          lastMeasuredHeight
+        )
+      }
+    #endif
+  }
+}
+
 private final class IosSelectableTextView: NSObject, FlutterPlatformView, UITextViewDelegate {
-  private let textView: UITextView
+  private let textView: MeasuringTextView
   private let channel: FlutterMethodChannel
 
   init(
@@ -85,7 +117,7 @@ private final class IosSelectableTextView: NSObject, FlutterPlatformView, UIText
     let textAlign = args["textAlign"] as! String
     let textDirection = args["textDirection"] as! String
 
-    textView = UITextView(frame: frame)
+    textView = MeasuringTextView(frame: frame)
     channel = FlutterMethodChannel(
       name: "tonari/ios_selectable_text/\(viewId)",
       binaryMessenger: messenger
@@ -127,6 +159,9 @@ private final class IosSelectableTextView: NSObject, FlutterPlatformView, UIText
     }
     textView.attributedText = NSAttributedString(string: text, attributes: attributes)
     textView.delegate = self
+    textView.onMeasured = { [weak self] height in
+      self?.channel.invokeMethod("measured", arguments: ["height": height])
+    }
 
     channel.setMethodCallHandler { [weak self] call, result in
       switch call.method {

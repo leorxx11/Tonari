@@ -30,6 +30,9 @@ class _IosSelectableTextState extends State<IosSelectableText> {
   Offset? _selectionStart;
   Offset? _selectionEnd;
   PointerDownEvent? _outsidePointerDown;
+  double? _measuredHeight;
+  String? _measuredSignature;
+  String? _signature;
   MethodChannel? _channel;
   final _gestureRegionKey = GlobalKey();
 
@@ -69,6 +72,11 @@ class _IosSelectableTextState extends State<IosSelectableText> {
       'textAlign': alignment.name,
       'textDirection': direction.name,
     };
+    final signature = creationParams.toString();
+    _signature = signature;
+    final measuredHeight = _measuredSignature == signature
+        ? _measuredHeight
+        : null;
 
     return TapRegion(
       onTapOutside: _selectionActive
@@ -78,18 +86,24 @@ class _IosSelectableTextState extends State<IosSelectableText> {
       child: Stack(
         fit: StackFit.passthrough,
         children: [
-          ExcludeSemantics(
-            child: IgnorePointer(
-              child: Opacity(
-                opacity: 0,
-                child: Text(
-                  widget.data,
-                  style: widget.style,
-                  textAlign: widget.textAlign,
+          if (measuredHeight != null)
+            SizedBox(width: double.infinity, height: measuredHeight)
+          else
+            ExcludeSemantics(
+              child: IgnorePointer(
+                child: SizedBox(
+                  width: double.infinity,
+                  child: Opacity(
+                    opacity: 0,
+                    child: Text(
+                      widget.data,
+                      style: widget.style,
+                      textAlign: widget.textAlign,
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
           Positioned.fill(
             child: Listener(
               key: _gestureRegionKey,
@@ -97,17 +111,7 @@ class _IosSelectableTextState extends State<IosSelectableText> {
               onPointerUp: (_) => _finishPointer(),
               onPointerCancel: (_) => _finishPointer(),
               child: UiKitView(
-                key: ValueKey((
-                  widget.data,
-                  fontSize,
-                  fontWeight,
-                  resolvedStyle.fontFamily,
-                  color,
-                  resolvedStyle.height,
-                  resolvedStyle.letterSpacing,
-                  alignment,
-                  direction,
-                )),
+                key: ValueKey(signature),
                 viewType: _viewType,
                 layoutDirection: direction,
                 creationParams: creationParams,
@@ -138,7 +142,21 @@ class _IosSelectableTextState extends State<IosSelectableText> {
     final channel = MethodChannel('$_channelPrefix/$viewId');
     _channel = channel;
     channel.setMethodCallHandler((call) async {
-      _selectionChanged(call.arguments as Map<Object?, Object?>);
+      final args = call.arguments as Map<Object?, Object?>;
+      switch (call.method) {
+        case 'selectionChanged':
+          _selectionChanged(args);
+        case 'measured':
+          _measured((args['height']! as num).toDouble());
+      }
+    });
+  }
+
+  void _measured(double height) {
+    if (_measuredHeight == height && _measuredSignature == _signature) return;
+    setState(() {
+      _measuredHeight = height;
+      _measuredSignature = _signature;
     });
   }
 
