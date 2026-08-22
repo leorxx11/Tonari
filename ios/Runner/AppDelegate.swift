@@ -114,7 +114,11 @@ private final class IosSelectableTextView: NSObject, FlutterPlatformView, UIText
     }
 
     var attributes: [NSAttributedString.Key: Any] = [
-      .font: UIFont.systemFont(ofSize: fontSize, weight: Self.weight(fontWeight)),
+      .font: Self.font(
+        family: args["fontFamily"] as? String,
+        size: fontSize,
+        weight: Self.weight(fontWeight)
+      ),
       .foregroundColor: Self.color(color),
       .paragraphStyle: paragraph,
     ]
@@ -184,6 +188,22 @@ private final class IosSelectableTextView: NSObject, FlutterPlatformView, UIText
     case "end": return direction == "rtl" ? .left : .right
     default: return direction == "rtl" ? .right : .left
     }
+  }
+
+  /// Flutter reports the system font under private names such as ".SF UI Text",
+  /// which UIFont(name:) cannot resolve; those fall through to systemFont.
+  private static func font(
+    family: String?,
+    size: CGFloat,
+    weight: UIFont.Weight
+  ) -> UIFont {
+    guard let family, let base = UIFont(name: family, size: size) else {
+      return .systemFont(ofSize: size, weight: weight)
+    }
+    let descriptor = base.fontDescriptor.addingAttributes([
+      .traits: [UIFontDescriptor.TraitKey.weight: weight]
+    ])
+    return UIFont(descriptor: descriptor, size: size)
   }
 
   private static func weight(_ value: Int) -> UIFont.Weight {
