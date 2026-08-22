@@ -178,6 +178,7 @@ private final class IosSelectableTextView: NSObject, FlutterPlatformView, UIText
   private static func alignment(_ value: String, direction: String) -> NSTextAlignment {
     switch value {
     case "center": return .center
+    case "left": return .left
     case "right": return .right
     case "justify": return .justified
     case "end": return direction == "rtl" ? .left : .right
