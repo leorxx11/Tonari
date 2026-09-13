@@ -144,7 +144,7 @@ class _WorkDetailViewState extends ConsumerState<_WorkDetailView> {
             SliverToBoxAdapter(child: _CreditsSection(work: work)),
             SliverToBoxAdapter(child: _GenresSection(work: work)),
             SliverToBoxAdapter(child: _FileInfoLine(work: work)),
-            SliverToBoxAdapter(child: _DescriptionSection(work: work)),
+            _DescriptionSection(work: work),
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
           ],
         ),
@@ -817,35 +817,46 @@ class _GenresSection extends ConsumerWidget {
   }
 }
 
-class _DescriptionSection extends ConsumerWidget {
+class _DescriptionSection extends ConsumerStatefulWidget {
   const _DescriptionSection({required this.work});
 
   final Work work;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_DescriptionSection> createState() =>
+      _DescriptionSectionState();
+}
+
+class _DescriptionSectionState extends ConsumerState<_DescriptionSection> {
+  String? _html;
+  List<_DescItem> _items = const [];
+  List<String> _imageUrls = const [];
+
+  @override
+  Widget build(BuildContext context) {
+    final work = widget.work;
     final viewRaw = ref.watch(translationViewModeProvider(work.productId));
     final hasZh = (work.descriptionHtmlZh?.isNotEmpty ?? false);
     final showZh = viewRaw ?? hasZh;
     final html = showZh && hasZh
         ? work.descriptionHtmlZh!
         : work.descriptionHtml;
-    if (html == null || html.isEmpty) return const SizedBox.shrink();
-    final blocks = _parseDescriptionBlocks(html);
-    if (blocks.isEmpty) return const SizedBox.shrink();
+    if (_html != html) {
+      _html = html;
+      _items = html == null ? const [] : _parseDescriptionBlocks(html);
+      _imageUrls = [
+        for (final item in _items)
+          if (item is _DescImage) item.url,
+      ];
+    }
+    if (_items.isEmpty) return const SliverToBoxAdapter();
 
     final theme = Theme.of(context);
-    final imgUrls = [
-      for (final b in blocks)
-        if (b is _DescImage) b.url,
-    ];
     final localPaths = work.descriptionImageLocalPaths;
 
     Widget descImage(String url) {
-      final idx = imgUrls.indexOf(url);
-      final stored = (idx >= 0 && idx < localPaths.length)
-          ? localPaths[idx]
-          : '';
+      final idx = _imageUrls.indexOf(url);
+      final stored = idx < localPaths.length ? localPaths[idx] : '';
       final resolved = LocalImagePath.resolve(stored);
       if (resolved != null) {
         return Image.file(
@@ -864,64 +875,61 @@ class _DescriptionSection extends ConsumerWidget {
     );
     final paragraphStyle = theme.textTheme.bodyMedium!.copyWith(height: 1.6);
 
-    // Runs between two images share one native text view, so a selection can
-    // run across paragraphs instead of stopping at each block.
-    final children = <Widget>[];
-    var runs = <SelectableTextRun>[];
-    void flushRuns() {
-      if (runs.isEmpty) return;
-      children.add(IosSelectableText.rich(runs));
-      runs = [];
-    }
-
-    for (final block in blocks) {
-      switch (block) {
-        case _DescHeading(text: final t):
-          runs.add(
-            SelectableTextRun(
-              t,
-              style: headingStyle,
-              spacingBefore: 14,
-              spacingAfter: 8,
-            ),
-          );
-        case _DescParagraph(text: final t):
-          runs.add(
-            SelectableTextRun(
-              t,
-              style: paragraphStyle,
-              spacingBefore: 4,
-              spacingAfter: 4,
-            ),
-          );
-        case _DescImage(url: final u):
-          flushRuns();
-          children.add(
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: GestureDetector(
-                onTap: () => SampleGallery.open(
-                  context,
-                  samples: [for (final url in imgUrls) SampleSource(url: url)],
-                  initialIndex: imgUrls.indexOf(u),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: descImage(u),
-                ),
-              ),
-            ),
-          );
-      }
-    }
-    flushRuns();
-
-    return _Section(
-      title: '简介',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: children,
-      ),
+    return SliverMainAxisGroup(
+      slivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
+            child: Text('简介', style: theme.textTheme.titleMedium),
+          ),
+        ),
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          sliver: SliverList.builder(
+            key: ValueKey(html),
+            itemCount: _items.length,
+            itemBuilder: (context, index) {
+              switch (_items[index]) {
+                case _DescTextGroup(blocks: final blocks):
+                  return IosSelectableText.rich([
+                    for (final block in blocks)
+                      switch (block) {
+                        _DescHeading(text: final text) => SelectableTextRun(
+                          text,
+                          style: headingStyle,
+                          spacingBefore: 14,
+                          spacingAfter: 8,
+                        ),
+                        _DescParagraph(text: final text) => SelectableTextRun(
+                          text,
+                          style: paragraphStyle,
+                          spacingBefore: 4,
+                          spacingAfter: 4,
+                        ),
+                      },
+                  ]);
+                case _DescImage(url: final url):
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: GestureDetector(
+                      onTap: () => SampleGallery.open(
+                        context,
+                        samples: [
+                          for (final url in _imageUrls) SampleSource(url: url),
+                        ],
+                        initialIndex: _imageUrls.indexOf(url),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: descImage(url),
+                      ),
+                    ),
+                  );
+              }
+            },
+          ),
+        ),
+      ],
     );
   }
 }
@@ -951,6 +959,15 @@ Widget _networkDescImage(String url, ThemeData theme) {
   );
 }
 
+sealed class _DescItem {
+  const _DescItem();
+}
+
+class _DescTextGroup extends _DescItem {
+  const _DescTextGroup(this.blocks);
+  final List<_DescBlock> blocks;
+}
+
 sealed class _DescBlock {
   const _DescBlock();
 }
@@ -965,7 +982,7 @@ class _DescParagraph extends _DescBlock {
   final String text;
 }
 
-class _DescImage extends _DescBlock {
+class _DescImage extends _DescItem {
   const _DescImage(this.url);
   final String url;
 }
@@ -1189,9 +1206,17 @@ class _CarouselDots extends StatelessWidget {
 
 // ---------- Pure helpers ----------
 
-List<_DescBlock> _parseDescriptionBlocks(String html) {
+List<_DescItem> _parseDescriptionBlocks(String html) {
   final fragment = html_parser.parseFragment(html);
-  final out = <_DescBlock>[];
+  final out = <_DescItem>[];
+  var textBlocks = <_DescBlock>[];
+
+  void flushText() {
+    if (textBlocks.isEmpty) return;
+    out.add(_DescTextGroup(textBlocks));
+    textBlocks = [];
+  }
+
   final paraBuf = StringBuffer();
 
   void flushParagraph() {
@@ -1202,7 +1227,7 @@ List<_DescBlock> _parseDescriptionBlocks(String html) {
         .replaceAll(RegExp(r'\n{3,}'), '\n\n')
         .trim();
     paraBuf.clear();
-    if (cleaned.isNotEmpty) out.add(_DescParagraph(cleaned));
+    if (cleaned.isNotEmpty) textBlocks.add(_DescParagraph(cleaned));
   }
 
   void walk(dom.Node node) {
@@ -1221,12 +1246,13 @@ List<_DescBlock> _parseDescriptionBlocks(String html) {
       case 'h5':
         flushParagraph();
         final text = node.text.trim();
-        if (text.isNotEmpty) out.add(_DescHeading(text));
+        if (text.isNotEmpty) textBlocks.add(_DescHeading(text));
       case 'img':
         flushParagraph();
         var src = node.attributes['src'] ?? node.attributes['data-src'] ?? '';
         if (src.isEmpty) return;
         if (src.startsWith('//')) src = 'https:$src';
+        flushText();
         out.add(_DescImage(src));
       case 'p':
       case 'div':
@@ -1249,6 +1275,7 @@ List<_DescBlock> _parseDescriptionBlocks(String html) {
     walk(n);
   }
   flushParagraph();
+  flushText();
   return out;
 }
 

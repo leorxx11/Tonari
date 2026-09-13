@@ -292,6 +292,88 @@ void main() {
 
     debugDefaultTargetPlatformOverride = null;
   });
+  testWidgets(
+    'a selected native block survives leaving the sliver viewport',
+    (tester) async {
+      final messenger = tester.binding.defaultBinaryMessenger;
+      final created = <int>[];
+      final disposed = <int>[];
+      messenger.setMockMethodCallHandler(SystemChannels.platform_views, (
+        call,
+      ) async {
+        if (call.method == 'create') {
+          final args = call.arguments as Map<Object?, Object?>;
+          created.add(args['id']! as int);
+        }
+        if (call.method == 'dispose') disposed.add(call.arguments as int);
+        return null;
+      });
+      addTearDown(
+        () => messenger.setMockMethodCallHandler(
+          SystemChannels.platform_views,
+          null,
+        ),
+      );
+      final controller = ScrollController();
+      addTearDown(controller.dispose);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: CustomScrollView(
+              controller: controller,
+              slivers: [
+                SliverList.builder(
+                  itemCount: 20,
+                  itemBuilder: (_, index) => SizedBox(
+                    height: 400,
+                    child: IosSelectableText(
+                      'Block $index',
+                      style: const TextStyle(fontSize: 16, color: Colors.black),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final originalId = created.first;
+      final channel = MethodChannel('tonari/ios_selectable_text/$originalId');
+      await _sendSelection(
+        messenger,
+        channel,
+        start: const Offset(10, 10),
+        end: const Offset(80, 10),
+      );
+      await tester.pump();
+      controller.jumpTo(2000);
+      await tester.pumpAndSettle();
+      expect(disposed, isNot(contains(originalId)));
+      expect(created.length, lessThan(20));
+      expect(disposed, isNotEmpty);
+
+      controller.jumpTo(0);
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<UiKitView>(find.byType(UiKitView).first)
+            .gestureRecognizers!
+            .single
+            .type
+            .toString(),
+        '_SelectionHandleGestureRecognizer',
+      );
+      expect(disposed, isNot(contains(originalId)));
+
+      controller.jumpTo(2000);
+      await tester.pumpAndSettle();
+      await _sendSelectionCleared(messenger, channel);
+      await tester.pumpAndSettle();
+      expect(disposed, contains(originalId));
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.iOS),
+  );
 }
 
 Widget _app({required String text, required double? height}) {

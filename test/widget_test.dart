@@ -27,6 +27,7 @@ import 'package:tonari/features/subtitle/data/subtitle_providers.dart';
 import 'package:tonari/features/video_library/data/video_library_providers.dart';
 import 'package:tonari/features/webdav/data/webdav_server_repository.dart';
 import 'package:tonari/shared/widgets/right_edge_swipe_detector.dart';
+import 'package:tonari/features/translation/data/translation_controller.dart';
 
 late SharedPreferences _testPrefs;
 
@@ -188,6 +189,7 @@ Work _work(
   String rj, {
   String? title,
   String? descriptionHtml,
+  String? descriptionHtmlZh,
   bool isRemoved = false,
   bool isFavorite = false,
   List<String> voiceActors = const [],
@@ -204,6 +206,7 @@ Work _work(
     supportedLanguages: const [],
     genresJson: '[]',
     descriptionHtml: descriptionHtml,
+    descriptionHtmlZh: descriptionHtmlZh,
     sampleImageUrls: const [],
     sampleImageLocalPaths: const [],
     descriptionImageLocalPaths: const [],
@@ -635,10 +638,122 @@ void main() {
         ),
       );
 
-      expect(hostOf('alpha'), same(hostOf('beta')));
-      expect(hostOf('alpha'), isNot(same(hostOf('gamma'))));
+      final scrollable = find
+          .descendant(
+            of: find.byType(CustomScrollView),
+            matching: find.byType(Scrollable),
+          )
+          .first;
+      await tester.scrollUntilVisible(
+        find.text('alpha'),
+        200,
+        scrollable: scrollable,
+      );
+      final firstBlock = hostOf('alpha');
+      expect(firstBlock, same(hostOf('beta')));
+      await tester.scrollUntilVisible(
+        find.text('gamma'),
+        200,
+        scrollable: scrollable,
+      );
+      expect(firstBlock, isNot(same(hostOf('gamma'))));
     },
   );
+
+  testWidgets('long descriptions only mount text near the viewport', (
+    tester,
+  ) async {
+    final description = List.generate(
+      30,
+      (index) =>
+          '<h3>Section $index</h3><p>${List.filled(12, 'A long description paragraph with selectable text.').join(' ')}</p>'
+          '<img src="https://example.invalid/$index.jpg">',
+    ).join();
+    await tester.pumpWidget(
+      testApp(
+        works: [
+          _work(
+            'RJ01560714',
+            title: 'Long description',
+            descriptionHtml: description,
+          ),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Long description'));
+    await tester.pumpAndSettle();
+    expect(find.text('Section 29'), findsNothing);
+    expect(find.byType(IosSelectableText).evaluate().length, lessThan(12));
+
+    await tester.scrollUntilVisible(
+      find.text('Section 29'),
+      400,
+      scrollable: find
+          .descendant(
+            of: find.byType(CustomScrollView),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+      maxScrolls: 100,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Section 29'), findsOneWidget);
+    expect(find.text('Section 0'), findsNothing);
+    expect(find.byType(IosSelectableText).evaluate().length, lessThan(12));
+  });
+
+  testWidgets('description cache updates when the translation changes', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      testApp(
+        works: [
+          _work(
+            'RJ01560714',
+            title: 'Translated',
+            descriptionHtml: '<p>Original description</p>',
+            descriptionHtmlZh: '<p>翻译后的简介</p>',
+          ),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+    final container = ProviderScope.containerOf(
+      tester.element(find.text('Translated')),
+    );
+    final mode = container.read(
+      translationViewModeProvider('RJ01560714').notifier,
+    );
+    mode.show(false);
+    await tester.tap(find.text('Translated'));
+    await tester.pumpAndSettle();
+    final scrollable = find
+        .descendant(
+          of: find.byType(CustomScrollView),
+          matching: find.byType(Scrollable),
+        )
+        .first;
+    await tester.scrollUntilVisible(
+      find.text('Original description'),
+      200,
+      scrollable: scrollable,
+    );
+    expect(find.text('Original description'), findsOneWidget);
+    mode.show(true);
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('翻译后的简介'),
+      200,
+      scrollable: scrollable,
+    );
+    expect(find.text('翻译后的简介'), findsOneWidget);
+    expect(find.text('Original description'), findsNothing);
+    mode.show(false);
+    await tester.pumpAndSettle();
+    expect(find.text('Original description'), findsOneWidget);
+    expect(find.text('翻译后的简介'), findsNothing);
+  });
 
   testWidgets('detail page hides the tab bar (full-screen detail)', (
     tester,

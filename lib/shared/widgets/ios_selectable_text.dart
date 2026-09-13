@@ -36,7 +36,11 @@ class IosSelectableText extends StatefulWidget {
   State<IosSelectableText> createState() => _IosSelectableTextState();
 }
 
-class _IosSelectableTextState extends State<IosSelectableText> {
+class _IosSelectableTextState extends State<IosSelectableText>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => _selectionActive;
+
   static const _viewType = 'tonari/ios_selectable_text';
   static const _channelPrefix = 'tonari/ios_selectable_text';
   static const _selectionHandleRadius = 28.0;
@@ -61,6 +65,7 @@ class _IosSelectableTextState extends State<IosSelectableText> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     if (defaultTargetPlatform != TargetPlatform.iOS) {
       return _stack(
         (run) => SelectableText(
@@ -230,6 +235,7 @@ class _IosSelectableTextState extends State<IosSelectableText> {
     }
     if (_selectionActive == active) return;
     setState(() => _selectionActive = active);
+    updateKeepAlive();
   }
 
   void _finishPointer() {
@@ -239,6 +245,7 @@ class _IosSelectableTextState extends State<IosSelectableText> {
     _pendingSelectionActive = null;
     if (active != null && _selectionActive != active) {
       setState(() => _selectionActive = active);
+      updateKeepAlive();
     }
   }
 
@@ -268,6 +275,7 @@ class _IosSelectableTextState extends State<IosSelectableText> {
     _selectionStart = null;
     _selectionEnd = null;
     setState(() => _selectionActive = false);
+    updateKeepAlive();
   }
 }
 
