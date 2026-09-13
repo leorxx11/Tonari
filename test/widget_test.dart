@@ -1,3 +1,4 @@
+import 'support/forward_gesture.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -1053,8 +1054,8 @@ void main() {
     await tester.pageBack();
     await tester.pumpAndSettle();
 
-    final width = tester.view.physicalSize.width / tester.view.devicePixelRatio;
-    await tester.dragFrom(Offset(width - 2, 300), const Offset(-140, 0));
+    await sendForwardGesture(tester, 'began', progress: .4);
+    await sendForwardGesture(tester, 'ended', progress: .4);
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('files-entry')), findsOneWidget);
@@ -1100,8 +1101,8 @@ void main() {
     await tester.tap(find.text('Test Work'));
     await tester.pumpAndSettle();
 
-    final width = tester.view.physicalSize.width / tester.view.devicePixelRatio;
-    await tester.dragFrom(Offset(width - 2, 300), const Offset(-140, 0));
+    await sendForwardGesture(tester, 'began', progress: .4);
+    await sendForwardGesture(tester, 'ended', progress: .4);
     await tester.pumpAndSettle();
 
     expect(find.text('track01.wav'), findsOneWidget);
@@ -1123,8 +1124,8 @@ void main() {
     await tester.pageBack();
     await tester.pumpAndSettle();
 
-    final width = tester.view.physicalSize.width / tester.view.devicePixelRatio;
-    await tester.dragFrom(Offset(width - 2, 300), const Offset(-140, 0));
+    await sendForwardGesture(tester, 'began', progress: .4);
+    await sendForwardGesture(tester, 'ended', progress: .4);
     await tester.pumpAndSettle();
 
     expect(find.text('RJ01560715'), findsOneWidget);

@@ -27,6 +27,74 @@ import UIKit
     IosSelectableTextPlugin.register(
       with: engineBridge.pluginRegistry.registrar(forPlugin: "IosSelectableTextPlugin")!
     )
+    ForwardNavigationPlugin.register(
+      with: engineBridge.pluginRegistry.registrar(forPlugin: "ForwardNavigationPlugin")!
+    )
+  }
+}
+
+private final class ForwardNavigationPlugin: NSObject, FlutterPlugin, UIGestureRecognizerDelegate {
+  private let channel: FlutterMethodChannel
+  private let registrar: FlutterPluginRegistrar
+  private var canBegin = false
+  private lazy var gesture: UIScreenEdgePanGestureRecognizer = {
+    let gesture = UIScreenEdgePanGestureRecognizer(
+      target: self, action: #selector(handleGesture(_:))
+    )
+    gesture.edges = .right
+    gesture.delegate = self
+    // The implicit engine callback runs before its view controller is attached.
+    registrar.viewController!.view.addGestureRecognizer(gesture)
+    return gesture
+  }()
+
+  static func register(with registrar: FlutterPluginRegistrar) {
+    let plugin = ForwardNavigationPlugin(registrar: registrar)
+    registrar.addMethodCallDelegate(plugin, channel: plugin.channel)
+  }
+
+  init(registrar: FlutterPluginRegistrar) {
+    self.registrar = registrar
+    channel = FlutterMethodChannel(
+      name: "tonari/forward_navigation", binaryMessenger: registrar.messenger()
+    )
+    super.init()
+  }
+
+  func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+    switch call.method {
+    case "setEnabled":
+      _ = gesture
+      // Changing isEnabled would cancel the gesture when its destination is pushed.
+      canBegin = call.arguments as! Bool
+      result(nil)
+    default:
+      result(FlutterMethodNotImplemented)
+    }
+  }
+
+  func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+    let gesture = gestureRecognizer as! UIScreenEdgePanGestureRecognizer
+    let velocity = gesture.velocity(in: gesture.view)
+    return canBegin && velocity.x < 0 && abs(velocity.x) > abs(velocity.y)
+  }
+
+  @objc private func handleGesture(_ gesture: UIScreenEdgePanGestureRecognizer) {
+    let method: String
+    switch gesture.state {
+    case .began: method = "began"
+    case .changed: method = "changed"
+    case .ended: method = "ended"
+    case .cancelled: method = "cancelled"
+    default: return
+    }
+    let width = gesture.view!.bounds.width
+    let distance = -gesture.translation(in: gesture.view).x
+    channel.invokeMethod(method, arguments: [
+      "progress": min(1, max(0, distance / width)),
+      "distance": distance,
+      "velocity": -gesture.velocity(in: gesture.view).x / width,
+    ])
   }
 }
 

@@ -1,5 +1,117 @@
-import 'package:flutter/cupertino.dart';
-import 'package:flutter/gestures.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+/// UIKit owns the edge gesture because pushing a Flutter route cancels active
+/// Flutter pointers. The destination is a single route throughout the gesture.
+class ForwardNavigationObserver extends NavigatorObserver {
+  ForwardNavigationObserver() {
+    _channel.setMethodCallHandler(_handleGesture);
+  }
+
+  static const _channel = MethodChannel('tonari/forward_navigation');
+  final _pages = <ModalRoute<dynamic>, _RightEdgeSwipeDetectorState>{};
+  Route<dynamic>? _topRoute;
+  _InteractiveForwardRoute? _interactiveRoute;
+  VoidCallback? _onCommitted;
+  bool _settling = false;
+
+  void dispose() {
+    _channel.setMethodCallHandler(null);
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      _channel.invokeMethod<void>('setEnabled', false);
+    }
+  }
+
+  @override
+  void didChangeTop(Route<dynamic> topRoute, Route<dynamic>? previousTopRoute) {
+    _topRoute = topRoute;
+    _syncEnabled();
+  }
+
+  @override
+  void didStartUserGesture(
+    Route<dynamic> route,
+    Route<dynamic>? previousRoute,
+  ) {
+    _syncEnabled();
+  }
+
+  @override
+  void didStopUserGesture() {
+    _syncEnabled();
+  }
+
+  void _syncEnabled() {
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      _channel.invokeMethod<void>('setEnabled', _canBegin);
+    }
+  }
+
+  bool get _canBegin =>
+      _interactiveRoute == null &&
+      !(navigator?.userGestureInProgress ?? false) &&
+      _topRoute is PageRoute &&
+      !_topRoute!.willHandlePopInternally &&
+      (_topRoute! as PageRoute).animation!.isCompleted &&
+      _pages[_topRoute]?.widget.pageBuilder != null;
+
+  Future<void> _handleGesture(MethodCall call) async {
+    final args = call.arguments as Map<Object?, Object?>;
+    switch (call.method) {
+      case 'began':
+        if (!_canBegin) return;
+        final page = _pages[_topRoute]!;
+        final route = _InteractiveForwardRoute(
+          builder: page.widget.pageBuilder!,
+        );
+        _interactiveRoute = route;
+        _onCommitted = page.widget.onNavigationCommitted;
+        navigator!.didStartUserGesture();
+        navigator!.push(route);
+        route.progress = (args['progress']! as num).toDouble();
+        _syncEnabled();
+      case 'changed':
+        if (_interactiveRoute == null || _settling) return;
+        _interactiveRoute!.progress = (args['progress']! as num).toDouble();
+      case 'ended':
+      case 'cancelled':
+        if (_interactiveRoute == null || _settling) return;
+        final route = _interactiveRoute!;
+        route.progress = (args['progress']! as num).toDouble();
+        final velocity = (args['velocity']! as num).toDouble();
+        final distance = (args['distance']! as num).toDouble();
+        final committed =
+            call.method == 'ended' &&
+            (velocity.abs() >= 1 ? velocity > 0 : distance >= 72);
+        _settling = true;
+        if (committed) _onCommitted?.call();
+        final owner = navigator!;
+        if (!committed) owner.pop();
+        await route.settle(committed);
+        if (!owner.mounted) return;
+        owner.didStopUserGesture();
+        _interactiveRoute = null;
+        _onCommitted = null;
+        _settling = false;
+        _syncEnabled();
+    }
+  }
+}
+
+class ForwardNavigationScope extends InheritedWidget {
+  const ForwardNavigationScope({
+    super.key,
+    required this.observer,
+    required super.child,
+  });
+
+  final ForwardNavigationObserver observer;
+
+  @override
+  bool updateShouldNotify(ForwardNavigationScope oldWidget) =>
+      observer != oldWidget.observer;
+}
 
 class RightEdgeSwipeDetector extends StatefulWidget {
   const RightEdgeSwipeDetector({
@@ -17,156 +129,60 @@ class RightEdgeSwipeDetector extends StatefulWidget {
   State<RightEdgeSwipeDetector> createState() => _RightEdgeSwipeDetectorState();
 }
 
-class _RightEdgeSwipeDetectorState extends State<RightEdgeSwipeDetector>
-    with SingleTickerProviderStateMixin {
-  static const _edgeWidth = 24.0;
-  static const _minimumCommitDistance = 72.0;
-  static const _settleDuration = Duration(milliseconds: 350);
-
-  late final HorizontalDragGestureRecognizer _recognizer;
-  late final AnimationController _controller;
-  WidgetBuilder? _destinationBuilder;
-  bool _settling = false;
+class _RightEdgeSwipeDetectorState extends State<RightEdgeSwipeDetector> {
+  late ForwardNavigationObserver _observer;
+  ModalRoute<dynamic>? _route;
 
   @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(vsync: this, duration: _settleDuration);
-    _recognizer = HorizontalDragGestureRecognizer(debugOwner: this)
-      ..dragStartBehavior = DragStartBehavior.down
-      ..onStart = _handleDragStart
-      ..onUpdate = _handleDragUpdate
-      ..onEnd = _handleDragEnd
-      ..onCancel = _handleDragCancel;
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _route?.animation!.removeStatusListener(_animationChanged);
+    _observer = context
+        .dependOnInheritedWidgetOfExactType<ForwardNavigationScope>()!
+        .observer;
+    _route = ModalRoute.of(context)!;
+    _observer._pages[_route!] = this;
+    _observer._syncEnabled();
+    _route!.animation!.addStatusListener(_animationChanged);
+  }
+
+  void _animationChanged(AnimationStatus status) => _observer._syncEnabled();
+
+  @override
+  void didUpdateWidget(RightEdgeSwipeDetector oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _observer._syncEnabled();
   }
 
   @override
   void dispose() {
-    _recognizer.dispose();
-    _controller.dispose();
+    _route!.animation!.removeStatusListener(_animationChanged);
+    _observer._pages.remove(_route);
+    _observer._syncEnabled();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) {
-    if (widget.pageBuilder == null) return widget.child;
-    final dragAreaWidth = MediaQuery.paddingOf(context).right;
-    final destination = _destinationBuilder?.call(context);
-    return AnimatedBuilder(
-      animation: _controller,
-      child: destination,
-      builder: (context, destination) => Stack(
-        fit: StackFit.passthrough,
-        children: [
-          FractionalTranslation(
-            translation: Offset(-_controller.value / 3, 0),
-            transformHitTests: false,
-            child: widget.child,
-          ),
-          if (destination != null)
-            Positioned.fill(
-              child: IgnorePointer(
-                child: FractionalTranslation(
-                  translation: Offset(1 - _controller.value, 0),
-                  child: DecoratedBox(
-                    decoration: const BoxDecoration(
-                      boxShadow: [
-                        BoxShadow(
-                          color: Color(0x33000000),
-                          blurRadius: 12,
-                          offset: Offset(-3, 0),
-                        ),
-                      ],
-                    ),
-                    child: destination,
-                  ),
-                ),
-              ),
-            ),
-          Positioned(
-            top: 0,
-            right: 0,
-            bottom: 0,
-            width: dragAreaWidth > _edgeWidth ? dragAreaWidth : _edgeWidth,
-            child: Listener(
-              behavior: HitTestBehavior.translucent,
-              onPointerDown: (event) {
-                if (!_settling) _recognizer.addPointer(event);
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _handleDragStart(DragStartDetails details) {
-    _controller.value = 0;
-    setState(() => _destinationBuilder = widget.pageBuilder!);
-  }
-
-  void _handleDragUpdate(DragUpdateDetails details) {
-    _controller.value =
-        (_controller.value - details.primaryDelta! / context.size!.width).clamp(
-          0.0,
-          1.0,
-        );
-  }
-
-  void _handleDragEnd(DragEndDetails details) {
-    _finishDrag(-details.velocity.pixelsPerSecond.dx / context.size!.width);
-  }
-
-  void _handleDragCancel() {
-    if (_destinationBuilder != null) _finishDrag(0);
-  }
-
-  void _finishDrag(double velocity) {
-    const minimumFlingVelocity = 1.0;
-    final committed = velocity.abs() >= minimumFlingVelocity
-        ? velocity > 0
-        : _controller.value * context.size!.width >= _minimumCommitDistance;
-    _settling = true;
-    if (committed) {
-      widget.onNavigationCommitted?.call();
-      _controller
-          .animateTo(
-            1,
-            duration: _settleDuration,
-            curve: Curves.fastEaseInToSlowEaseOut,
-          )
-          .then((_) {
-            final builder = _destinationBuilder!;
-            Navigator.of(
-              context,
-              rootNavigator: true,
-            ).push(_CompletedCupertinoPageRoute(builder: builder));
-            _clearDestination();
-          });
-    } else {
-      _controller
-          .animateBack(
-            0,
-            duration: _settleDuration,
-            curve: Curves.fastEaseInToSlowEaseOut,
-          )
-          .then((_) => _clearDestination());
-    }
-  }
-
-  void _clearDestination() {
-    _controller.value = 0;
-    _settling = false;
-    setState(() => _destinationBuilder = null);
-  }
+  Widget build(BuildContext context) => widget.child;
 }
 
-class _CompletedCupertinoPageRoute extends CupertinoPageRoute<void> {
-  _CompletedCupertinoPageRoute({required super.builder});
+class _InteractiveForwardRoute extends MaterialPageRoute<void> {
+  _InteractiveForwardRoute({required super.builder});
 
   @override
-  Duration get transitionDuration => Duration.zero;
+  TickerFuture didPush() {
+    final ticker = super.didPush();
+    controller!.stop(canceled: false);
+    return ticker;
+  }
 
-  @override
-  Duration get reverseTransitionDuration => const Duration(milliseconds: 350);
+  set progress(double value) => controller!.value = value.clamp(0.0, 1.0);
+
+  Future<void> settle(bool committed) {
+    final remaining = committed ? 1 - controller!.value : controller!.value;
+    final duration = Duration(milliseconds: (350 * remaining).round());
+    return committed
+        ? controller!.animateTo(1, duration: duration, curve: Curves.easeOut)
+        : controller!.animateBack(0, duration: duration, curve: Curves.easeOut);
+  }
 }
