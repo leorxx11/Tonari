@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'support/forward_gesture.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,6 +23,7 @@ import 'package:tonari/features/library/data/work_actions_provider.dart';
 import 'package:tonari/features/library/data/work_image_cache.dart';
 import 'package:tonari/features/library/data/work_reimport_provider.dart';
 import 'package:tonari/features/library/data/works_providers.dart';
+import 'package:tonari/features/library/presentation/widgets/sample_gallery.dart';
 import 'package:tonari/features/p115/data/p115_cookie_store.dart';
 import 'package:tonari/features/player/data/playback_controller.dart';
 import 'package:tonari/features/player/presentation/mini_player.dart';
@@ -190,6 +194,10 @@ Work _work(
   String? title,
   String? descriptionHtml,
   String? descriptionHtmlZh,
+  String? mainImageLocalPath,
+  List<String> sampleImageUrls = const [],
+  List<String> sampleImageLocalPaths = const [],
+  List<String> descriptionImageLocalPaths = const [],
   bool isRemoved = false,
   bool isFavorite = false,
   List<String> voiceActors = const [],
@@ -207,9 +215,10 @@ Work _work(
     genresJson: '[]',
     descriptionHtml: descriptionHtml,
     descriptionHtmlZh: descriptionHtmlZh,
-    sampleImageUrls: const [],
-    sampleImageLocalPaths: const [],
-    descriptionImageLocalPaths: const [],
+    mainImageLocalPath: mainImageLocalPath,
+    sampleImageUrls: sampleImageUrls,
+    sampleImageLocalPaths: sampleImageLocalPaths,
+    descriptionImageLocalPaths: descriptionImageLocalPaths,
     localImportedAt: now,
     localFolderPath: '/imported/$rj',
     isFavorite: isFavorite,
@@ -218,6 +227,15 @@ Work _work(
     userTags: const [],
     createdAt: now,
     updatedAt: now,
+  );
+}
+
+File _writeTestImage(Directory directory, String name) {
+  return File('${directory.path}/$name.png')..writeAsBytesSync(
+    base64Decode(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwC'
+      'AAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+    ),
   );
 }
 
@@ -607,6 +625,148 @@ void main() {
       find.descendant(of: title, matching: find.text('Selectable Title')),
       findsOneWidget,
     );
+  });
+
+  testWidgets('work detail header carousel loops in both directions', (
+    tester,
+  ) async {
+    final directory = Directory.systemTemp.createTempSync(
+      'tonari-header-carousel-test-',
+    );
+    addTearDown(() => directory.deleteSync(recursive: true));
+    final main = _writeTestImage(directory, 'main');
+    final sampleOne = _writeTestImage(directory, 'sample-one');
+    final sampleTwo = _writeTestImage(directory, 'sample-two');
+
+    await tester.pumpWidget(
+      testApp(
+        works: [
+          _work(
+            'RJ_LOOP',
+            title: 'Looping images',
+            mainImageLocalPath: main.path,
+            sampleImageUrls: const [
+              'https://example.invalid/sample-one.png',
+              'https://example.invalid/sample-two.png',
+            ],
+            sampleImageLocalPaths: [sampleOne.path, sampleTwo.path],
+          ),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Looping images'));
+    await tester.pumpAndSettle();
+
+    final carousel = find.byKey(const Key('header-carousel'));
+    SampleImage visibleImage() => tester.widget<SampleImage>(
+      find.byType(SampleImage).hitTestable().first,
+    );
+
+    expect(visibleImage().sample.localPath, main.path);
+    expect(
+      tester.getSize(find.byKey(const Key('header-carousel-dot-0'))).width,
+      24,
+    );
+
+    await tester.drag(carousel, const Offset(300, 0));
+    await tester.pumpAndSettle();
+    expect(visibleImage().sample.localPath, sampleTwo.path);
+    expect(
+      tester.getSize(find.byKey(const Key('header-carousel-dot-2'))).width,
+      24,
+    );
+
+    await tester.tap(find.byType(SampleImage).hitTestable().first);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    expect(find.text('3 / 3'), findsOneWidget);
+    expect(
+      tester
+          .widget<Scaffold>(find.byKey(const Key('sample-gallery')))
+          .backgroundColor,
+      Colors.black,
+    );
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+
+    await tester.drag(carousel, const Offset(-300, 0));
+    await tester.pumpAndSettle();
+    expect(visibleImage().sample.localPath, main.path);
+    expect(
+      tester.getSize(find.byKey(const Key('header-carousel-dot-0'))).width,
+      24,
+    );
+  });
+
+  testWidgets('description gallery reuses the cached local image', (
+    tester,
+  ) async {
+    final directory = Directory.systemTemp.createTempSync(
+      'tonari-description-gallery-test-',
+    );
+    addTearDown(() => directory.deleteSync(recursive: true));
+    final descriptionImage = _writeTestImage(directory, 'description');
+
+    await tester.pumpWidget(const MaterialApp(home: Scaffold()));
+    await tester.runAsync(
+      () => precacheImage(
+        FileImage(descriptionImage),
+        tester.element(find.byType(Scaffold).first),
+      ),
+    );
+
+    await tester.pumpWidget(
+      testApp(
+        works: [
+          _work(
+            'RJ_LOCAL_IMAGE',
+            title: 'Cached description image',
+            descriptionHtml:
+                '<img src="https://example.invalid/description.png">',
+            descriptionImageLocalPaths: [descriptionImage.path],
+          ),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cached description image'));
+    await tester.pumpAndSettle();
+
+    final image = find.byKey(const Key('description-image-0'));
+    await tester.scrollUntilVisible(
+      image,
+      200,
+      scrollable: find
+          .descendant(
+            of: find.byType(CustomScrollView),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    await tester.pump();
+    final cachedImage = tester
+        .widget<RawImage>(
+          find.descendant(of: image, matching: find.byType(RawImage)),
+        )
+        .image!;
+    tester.widget<GestureDetector>(image).onTap!();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+
+    final galleryImage = tester.widget<RawImage>(
+      find.descendant(
+        of: find.byKey(const Key('sample-gallery')),
+        matching: find.byType(RawImage),
+      ),
+    );
+    expect(galleryImage.image!.isCloneOf(cachedImage), isTrue);
+    expect(find.byKey(const Key('gallery-loading-indicator')), findsNothing);
+    expect(find.text('1 / 1'), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
   });
 
   testWidgets(

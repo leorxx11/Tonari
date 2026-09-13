@@ -853,6 +853,15 @@ class _DescriptionSectionState extends ConsumerState<_DescriptionSection> {
 
     final theme = Theme.of(context);
     final localPaths = work.descriptionImageLocalPaths;
+    final gallerySamples = [
+      for (var i = 0; i < _imageUrls.length; i++)
+        SampleSource(
+          localPath: i < localPaths.length
+              ? LocalImagePath.resolve(localPaths[i])
+              : null,
+          url: _imageUrls[i],
+        ),
+    ];
 
     Widget descImage(String url) {
       final idx = _imageUrls.indexOf(url);
@@ -909,15 +918,15 @@ class _DescriptionSectionState extends ConsumerState<_DescriptionSection> {
                       },
                   ]);
                 case _DescImage(url: final url):
+                  final imageIndex = _imageUrls.indexOf(url);
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     child: GestureDetector(
+                      key: ValueKey('description-image-$imageIndex'),
                       onTap: () => SampleGallery.open(
                         context,
-                        samples: [
-                          for (final url in _imageUrls) SampleSource(url: url),
-                        ],
-                        initialIndex: _imageUrls.indexOf(url),
+                        samples: gallerySamples,
+                        initialIndex: imageIndex,
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(6),
@@ -1091,8 +1100,10 @@ class _HeaderCarousel extends StatefulWidget {
 }
 
 class _HeaderCarouselState extends State<_HeaderCarousel> {
-  final _controller = PageController();
-  int _page = 0;
+  static const _loopStartPage = 10000;
+
+  final _controller = PageController(initialPage: _loopStartPage);
+  int _physicalPage = _loopStartPage;
 
   @override
   void dispose() {
@@ -1149,10 +1160,14 @@ class _HeaderCarouselState extends State<_HeaderCarousel> {
         ClipRRect(
           borderRadius: radius,
           child: PageView.builder(
+            key: const Key('header-carousel'),
             controller: _controller,
-            itemCount: sources.length,
-            onPageChanged: (i) => setState(() => _page = i),
-            itemBuilder: (_, i) {
+            physics: sources.length == 1
+                ? const NeverScrollableScrollPhysics()
+                : null,
+            onPageChanged: (page) => setState(() => _physicalPage = page),
+            itemBuilder: (_, page) {
+              final i = _logicalPage(page, sources.length);
               return GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: () => SampleGallery.open(
@@ -1170,11 +1185,17 @@ class _HeaderCarouselState extends State<_HeaderCarousel> {
             bottom: 8,
             left: 0,
             right: 0,
-            child: _CarouselDots(count: sources.length, current: _page),
+            child: _CarouselDots(
+              count: sources.length,
+              current: _logicalPage(_physicalPage, sources.length),
+            ),
           ),
       ],
     );
   }
+
+  int _logicalPage(int page, int count) =>
+      ((page - _loopStartPage) % count + count) % count;
 }
 
 class _CarouselDots extends StatelessWidget {
@@ -1190,6 +1211,7 @@ class _CarouselDots extends StatelessWidget {
       children: [
         for (var i = 0; i < count; i++)
           AnimatedContainer(
+            key: ValueKey('header-carousel-dot-$i'),
             duration: const Duration(milliseconds: 180),
             margin: const EdgeInsets.symmetric(horizontal: 3),
             width: i == current ? 18 : 6,
