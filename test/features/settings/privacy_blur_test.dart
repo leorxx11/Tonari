@@ -1,49 +1,45 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tonari/core/prefs/shared_prefs_provider.dart';
-import 'package:tonari/shared/widgets/privacy_blur.dart';
+import 'package:tonari/features/settings/data/privacy_prefs.dart';
 
 void main() {
-  Future<void> pumpApp(WidgetTester tester, {required bool enabled}) async {
-    SharedPreferences.setMockInitialValues({
-      'privacy.blurOnBackground': enabled,
-    });
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  test('privacy is enabled for an unset preference', () async {
+    SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
-        child: const MaterialApp(
-          home: Stack(
-            fit: StackFit.expand,
-            children: [Text('content'), PrivacyBlur()],
-          ),
-        ),
-      ),
+    final container = ProviderContainer(
+      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
     );
-  }
-
-  testWidgets('blurs while not resumed, clears on resume', (tester) async {
-    await pumpApp(tester, enabled: true);
-    expect(find.byType(BackdropFilter), findsNothing);
-
-    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
-    await tester.pump();
-    expect(find.byType(BackdropFilter), findsOneWidget);
-
-    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
-    await tester.pump();
-    expect(find.byType(BackdropFilter), findsNothing);
+    addTearDown(container.dispose);
+    expect(container.read(privacyBlurProvider), isTrue);
   });
 
-  testWidgets('stays clear when disabled', (tester) async {
-    await pumpApp(tester, enabled: false);
+  test(
+    'privacy toggle persists the key consumed by the iOS scene delegate',
+    () async {
+      SharedPreferences.setMockInitialValues({
+        'flutter.privacy.blurOnBackground': false,
+      });
+      final prefs = await SharedPreferences.getInstance();
+      final container = ProviderContainer(
+        overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+      );
+      addTearDown(container.dispose);
+      expect(container.read(privacyBlurProvider), isFalse);
 
-    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
-    await tester.pump();
-    expect(find.byType(BackdropFilter), findsNothing);
-
-    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
-  });
+      for (final enabled in [true, false]) {
+        await container.read(privacyBlurProvider.notifier).setEnabled(enabled);
+        await prefs.reload();
+        expect(prefs.getBool('privacy.blurOnBackground'), enabled);
+        final reopened = ProviderContainer(
+          overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+        );
+        expect(reopened.read(privacyBlurProvider), enabled);
+        reopened.dispose();
+      }
+    },
+  );
 }
