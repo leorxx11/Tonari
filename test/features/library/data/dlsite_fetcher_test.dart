@@ -185,6 +185,13 @@ void main() {
       expect(ajax.isDiscount, isTrue);
     });
 
+    test('falls back to dl_count when dl_count_total is 0 (single edition)', () {
+      const body =
+          '{"RJ01465837":{"dl_count":4714,"dl_count_total":0,"dl_count_items":[]}}';
+      final ajax = DlsiteFetcher().parseAjaxJson(body, 'RJ01465837');
+      expect(ajax.dlCount, 4714);
+    });
+
     test('falls back to dl_count when dl_count_total is absent', () {
       const body = '{"RJ01560714":{"dl_count":42}}';
       final ajax = DlsiteFetcher().parseAjaxJson(body, 'RJ01560714');

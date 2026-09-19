@@ -225,9 +225,12 @@ class DlsiteFetcher {
         _tryGet(() => _parseRanks(node['rank'])) ?? const <String, int>{};
     return DlsiteAjaxData(
       productId: productId,
-      dlCount: _tryGet(
-        () => _asInt(node['dl_count_total']) ?? _asInt(node['dl_count']),
-      ),
+      // dl_count_total sums language editions and is 0 for single-edition
+      // works, where dl_count carries the real figure.
+      dlCount: _tryGet(() {
+        final total = _asInt(node['dl_count_total']);
+        return total != null && total > 0 ? total : _asInt(node['dl_count']);
+      }),
       wishlistCount: _tryGet(() => _asInt(node['wishlist_count'])),
       rateAverage: _tryGet(
         () =>
