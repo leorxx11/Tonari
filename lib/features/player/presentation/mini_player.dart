@@ -47,7 +47,9 @@ class MiniPlayer extends ConsumerWidget {
     return Hero(
       tag: 'tonari-mini-player',
       child: Material(
-        color: theme.colorScheme.surfaceContainerHigh,
+        color: theme.colorScheme.surface,
+        elevation: 8,
+        shadowColor: Colors.black54,
         child: Padding(
           padding: _bottomInsetPadding(context),
           child: InkWell(
@@ -63,10 +65,9 @@ class MiniPlayer extends ConsumerWidget {
                 children: [
                   Row(
                     children: [
-                      const SizedBox(width: 12),
                       SizedBox(
-                        width: 52,
-                        height: 52,
+                        width: 72,
+                        height: 72,
                         child: work == null
                             ? DecoratedBox(
                                 decoration: BoxDecoration(
@@ -79,11 +80,7 @@ class MiniPlayer extends ConsumerWidget {
                                   color: theme.colorScheme.onSurfaceVariant,
                                 ),
                               )
-                            : WorkCover(
-                                work: work,
-                                borderRadius: BorderRadius.circular(8),
-                                iconSize: 24,
-                              ),
+                            : WorkCover(work: work, iconSize: 24),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -95,7 +92,9 @@ class MiniPlayer extends ConsumerWidget {
                               title,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.bodyMedium,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                             Text(
                               subtitle,
@@ -114,6 +113,7 @@ class MiniPlayer extends ConsumerWidget {
                         builder: (context, snapshot) {
                           final playing = snapshot.data ?? false;
                           return IconButton(
+                            iconSize: 34,
                             icon: Icon(
                               playing ? Icons.pause : Icons.play_arrow,
                             ),

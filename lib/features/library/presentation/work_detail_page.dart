@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/db/database.dart';
 import '../../../core/files/local_image_path.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/ios_selectable_text.dart';
 import '../../../shared/widgets/library_home_button.dart';
 import '../../../shared/widgets/right_edge_swipe_detector.dart';
@@ -137,12 +138,29 @@ class _WorkDetailViewState extends ConsumerState<_WorkDetailView> {
         body: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
-            SliverToBoxAdapter(child: _HeaderSection(work: work)),
-            SliverToBoxAdapter(child: _StatsSection(work: work)),
+            SliverToBoxAdapter(
+              child: _DetailCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _HeaderSection(work: work),
+                    _StatsSection(work: work),
+                    _GenresSection(work: work),
+                    _FileInfoLine(work: work),
+                    const SizedBox(height: 14),
+                  ],
+                ),
+              ),
+            ),
+            SliverToBoxAdapter(child: _ActionRow(work: work)),
             SliverToBoxAdapter(child: _CreditsSection(work: work)),
-            SliverToBoxAdapter(child: _GenresSection(work: work)),
-            SliverToBoxAdapter(child: _FileInfoLine(work: work)),
-            _DescriptionSection(work: work),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(10, 10, 10, 0),
+              sliver: DecoratedSliver(
+                decoration: _cardDecoration(context),
+                sliver: _DescriptionSection(work: work),
+              ),
+            ),
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
           ],
         ),
@@ -325,116 +343,106 @@ class _HeaderSection extends ConsumerWidget {
       ?dateText,
     ].join(' · ');
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 360),
-              child: AspectRatio(
-                aspectRatio: 1,
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.18),
-                        blurRadius: 18,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AspectRatio(
+          // DLsite covers are 560×420.
+          aspectRatio: 4 / 3,
+          child: Stack(
+            children: [
+              Positioned.fill(child: _HeaderCarousel(work: work)),
+              // 落款印: the files entry, stamped on the cover corner.
+              Positioned(
+                left: fileEntryPosition == FileEntryPosition.bottomLeft
+                    ? 10
+                    : null,
+                right: fileEntryPosition == FileEntryPosition.bottomRight
+                    ? 10
+                    : null,
+                bottom: 10,
+                child: _FilesTile(work: work),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              IosSelectableText(
+                displayTitle,
+                key: const Key('selectable-work-title'),
+                style: theme.textTheme.titleLarge!.copyWith(
+                  fontWeight: FontWeight.w500,
+                  height: 1.35,
+                ),
+              ),
+              if (subline.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                IosSelectableText(
+                  subline,
+                  style: theme.textTheme.bodyMedium!.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
                   ),
-                  child: Stack(
+                ),
+              ],
+              if (work.originalProductId != null) ...[
+                const SizedBox(height: 4),
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => _openOnDlsite(work.originalProductId!),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Positioned.fill(child: _HeaderCarousel(work: work)),
-                      // 落款印: the files entry, stamped on the cover corner.
-                      Positioned(
-                        left: fileEntryPosition == FileEntryPosition.bottomLeft
-                            ? 10
-                            : null,
-                        right:
-                            fileEntryPosition == FileEntryPosition.bottomRight
-                            ? 10
-                            : null,
-                        bottom: 10,
-                        child: _FilesTile(work: work),
+                      Icon(
+                        Icons.translate,
+                        size: 14,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '翻译自 ${work.originalProductId}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                          decoration: TextDecoration.underline,
+                        ),
                       ),
                     ],
                   ),
                 ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          IosSelectableText(
-            displayTitle,
-            key: const Key('selectable-work-title'),
-            style: theme.textTheme.titleLarge!.copyWith(
-              fontWeight: FontWeight.w600,
-              height: 1.3,
-            ),
-          ),
-          if (subline.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            IosSelectableText(
-              subline,
-              style: theme.textTheme.bodyMedium!.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-          if (work.originalProductId != null) ...[
-            const SizedBox(height: 4),
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () => _openOnDlsite(work.originalProductId!),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.translate,
-                    size: 14,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '翻译自 ${work.originalProductId}',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                      decoration: TextDecoration.underline,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-          if (_hasBadges) ...[
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                if (work.ageRating != null && work.ageRating!.isNotEmpty)
-                  _MetaBadge(
-                    label: work.ageRating!,
-                    color: _isAdult ? theme.colorScheme.errorContainer : null,
-                    textColor: _isAdult
-                        ? theme.colorScheme.onErrorContainer
-                        : null,
-                  ),
-                if (work.workTypeName != null && work.workTypeName!.isNotEmpty)
-                  _MetaBadge(label: work.workTypeName!),
-                for (final lang in work.supportedLanguages)
-                  _MetaBadge(label: lang),
-                if (work.seriesName != null && work.seriesName!.isNotEmpty)
-                  _MetaBadge(label: '系列：${work.seriesName!}'),
               ],
-            ),
-          ],
-        ],
-      ),
+              if (_hasBadges) ...[
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    if (work.ageRating != null && work.ageRating!.isNotEmpty)
+                      _MetaBadge(
+                        label: work.ageRating!,
+                        color: _isAdult
+                            ? theme.colorScheme.errorContainer
+                            : null,
+                        textColor: _isAdult
+                            ? theme.colorScheme.onErrorContainer
+                            : null,
+                      ),
+                    if (work.workTypeName != null &&
+                        work.workTypeName!.isNotEmpty)
+                      _MetaBadge(label: work.workTypeName!),
+                    for (final lang in work.supportedLanguages)
+                      _MetaBadge(label: lang),
+                    if (work.seriesName != null && work.seriesName!.isNotEmpty)
+                      _MetaBadge(label: '系列：${work.seriesName!}'),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -451,14 +459,17 @@ class _HeaderSection extends ConsumerWidget {
   }
 }
 
-class _StatsSection extends StatelessWidget {
+class _StatsSection extends ConsumerWidget {
   const _StatsSection({required this.work});
 
   final Work work;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final durationMs = ref.watch(
+      workDurationsProvider.select((d) => d.value?[work.productId]),
+    );
     final rating = work.rating;
     final dlCount = work.dlCount;
     final wishlist = work.wishlistCount;
@@ -470,7 +481,11 @@ class _StatsSection extends StatelessWidget {
     final rankMonth = work.rankMonth;
 
     final hasRanks = rankDay != null || rankWeek != null || rankMonth != null;
-    final hasRatingRow = rating != null || dlCount != null || wishlist != null;
+    final hasRatingRow =
+        rating != null ||
+        dlCount != null ||
+        wishlist != null ||
+        (durationMs != null && durationMs > 0);
     final hasPriceRow = price != null;
     if (!hasRanks && !hasRatingRow && !hasPriceRow) {
       return const SizedBox.shrink();
@@ -488,7 +503,7 @@ class _StatsSection extends StatelessWidget {
     ];
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -523,6 +538,7 @@ class _StatsSection extends StatelessWidget {
                   Text(
                     rating.toStringAsFixed(2),
                     style: theme.textTheme.titleMedium?.copyWith(
+                      color: AppTheme.price,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -553,6 +569,21 @@ class _StatsSection extends StatelessWidget {
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
+                if (durationMs != null && durationMs > 0) ...[
+                  if (rating != null || dlCount != null || wishlist != null)
+                    divider,
+                  Icon(
+                    Icons.schedule,
+                    size: 15,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  Text(
+                    ' ${_formatClock(durationMs)}',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
               ],
             ),
           if (hasRatingRow && hasPriceRow) const SizedBox(height: 8),
@@ -562,15 +593,16 @@ class _StatsSection extends StatelessWidget {
               textBaseline: TextBaseline.alphabetic,
               children: [
                 Text(
-                  '¥${_compact(price)}',
-                  style: theme.textTheme.titleMedium?.copyWith(
+                  '$price JPY',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    color: AppTheme.price,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 if (discount > 0 && official != null) ...[
                   const SizedBox(width: 8),
                   Text(
-                    '¥${_compact(official)}',
+                    '$official JPY',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                       decoration: TextDecoration.lineThrough,
@@ -677,7 +709,6 @@ class _CreditsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final rows = <(String, List<String>)>[
-      ('声优', work.voiceActors),
       ('剧情', work.scenarioWriters),
       ('插画', work.illustrators),
       ('音乐', work.musicians),
@@ -789,35 +820,51 @@ class _GenresSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final names = genreNamesOf(work);
-    if (names.isEmpty) return const SizedBox.shrink();
-
     final theme = Theme.of(context);
-    return _Section(
-      title: '标签',
+    final series = work.seriesName;
+    final chips = <(String, WorkChipFilter, Color?, Color?)>[
+      for (final name in genreNamesOf(work))
+        (name, (kind: WorkChipKind.genre, value: name), null, null),
+      if (series != null && series.isNotEmpty)
+        (
+          series,
+          (kind: WorkChipKind.series, value: series),
+          const Color(0xFFFFA726),
+          Colors.white,
+        ),
+      for (final cv in work.voiceActors)
+        (
+          cv,
+          (kind: WorkChipKind.voiceActor, value: cv),
+          AppTheme.secondary,
+          Colors.white,
+        ),
+    ];
+    if (chips.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 0, 14, 4),
       child: Wrap(
         spacing: 6,
         runSpacing: 6,
         children: [
-          for (final name in names)
+          for (final (label, filter, bg, fg) in chips)
             Material(
-              color: theme.colorScheme.surfaceContainerHigh,
-              borderRadius: BorderRadius.circular(14),
+              color: bg ?? theme.colorScheme.surfaceContainerHighest,
+              shape: const StadiumBorder(),
               child: InkWell(
-                borderRadius: BorderRadius.circular(14),
-                onTap: () => applyChipFilter(context, ref, (
-                  kind: WorkChipKind.genre,
-                  value: name,
-                )),
+                customBorder: const StadiumBorder(),
+                onTap: () => applyChipFilter(context, ref, filter),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
+                    horizontal: 11,
                     vertical: 5,
                   ),
                   child: Text(
-                    name,
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: theme.colorScheme.onSurface,
+                    label,
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: fg ?? theme.colorScheme.onSurface,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),
@@ -900,12 +947,12 @@ class _DescriptionSectionState extends ConsumerState<_DescriptionSection> {
       slivers: [
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
             child: Text('简介', style: theme.textTheme.titleMedium),
           ),
         ),
         SliverPadding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
           sliver: SliverList.builder(
             key: ValueKey(html),
             itemCount: _items.length,
@@ -1024,7 +1071,7 @@ class _FileInfoLine extends StatelessWidget {
     if (parts.isEmpty) return const SizedBox.shrink();
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
       child: Row(
         children: [
           Icon(
@@ -1056,23 +1103,111 @@ class _Section extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    return _DetailCard(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 6),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(title, style: theme.textTheme.titleMedium),
+            const SizedBox(height: 10),
+            child,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+BoxDecoration _cardDecoration(BuildContext context) {
+  final theme = Theme.of(context);
+  return BoxDecoration(
+    color: theme.cardTheme.color,
+    borderRadius: BorderRadius.circular(4),
+    boxShadow: const [
+      BoxShadow(color: Colors.black26, blurRadius: 3, offset: Offset(0, 1)),
+    ],
+  );
+}
+
+class _DetailCard extends StatelessWidget {
+  const _DetailCard({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.fromLTRB(10, 10, 10, 0),
+      clipBehavior: Clip.antiAlias,
+      child: child,
+    );
+  }
+}
+
+/// Kikoeru's row of coloured action buttons under the info card.
+class _ActionRow extends ConsumerWidget {
+  const _ActionRow({required this.work});
+
+  final Work work;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    Widget button(
+      IconData icon,
+      String label,
+      Color color,
+      VoidCallback onPressed,
+    ) => FilledButton.icon(
+      style: FilledButton.styleFrom(
+        backgroundColor: color,
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+        elevation: 2,
+        visualDensity: VisualDensity.compact,
+      ),
+      onPressed: onPressed,
+      icon: Icon(icon, size: 18),
+      label: Text(label),
+    );
     return Padding(
-      padding: const EdgeInsets.only(top: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      padding: const EdgeInsets.fromLTRB(10, 12, 10, 2),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-            child: Text(title, style: theme.textTheme.titleMedium),
+          button(
+            Icons.folder_open,
+            '浏览文件',
+            AppTheme.primary,
+            () => _openWorkFiles(context, work),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-            child: child,
+          button(
+            Icons.playlist_add,
+            '加入分组',
+            AppTheme.secondary,
+            () => showCollectionPicker(context, work),
+          ),
+          button(
+            work.isFavorite ? Icons.favorite : Icons.favorite_border,
+            work.isFavorite ? '已收藏' : '收藏',
+            const Color(0xFFEC407A),
+            () => ref.read(toggleFavoriteProvider)(
+              work.productId,
+              !work.isFavorite,
+            ),
           ),
         ],
       ),
     );
   }
+}
+
+String _formatClock(int ms) {
+  final d = Duration(milliseconds: ms);
+  final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+  final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+  return '${d.inHours.toString().padLeft(2, '0')}:$m:$s';
 }
 
 class _MetaBadge extends StatelessWidget {
@@ -1149,7 +1284,7 @@ class _HeaderCarouselState extends State<_HeaderCarousel> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final sources = _sources();
-    final radius = BorderRadius.circular(12);
+    const radius = BorderRadius.zero;
 
     if (sources.isEmpty) {
       return ClipRRect(

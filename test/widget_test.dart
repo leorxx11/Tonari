@@ -831,7 +831,7 @@ void main() {
       24,
     );
 
-    await tester.drag(carousel, const Offset(300, 0));
+    await tester.drag(carousel, const Offset(500, 0));
     await tester.pumpAndSettle();
     expect(visibleImage().sample.localPath, sampleTwo.path);
     expect(
@@ -853,7 +853,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 350));
 
-    await tester.drag(carousel, const Offset(-300, 0));
+    await tester.drag(carousel, const Offset(-500, 0));
     await tester.pumpAndSettle();
     expect(visibleImage().sample.localPath, main.path);
     expect(
