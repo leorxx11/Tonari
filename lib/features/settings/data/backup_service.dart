@@ -10,40 +10,61 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/db/database.dart';
 import '../../../core/db/providers.dart';
 
+/// [done] and [total] are bytes for file copies, 0/1 for the small stages.
 typedef BackupProgress = void Function(String stage, int done, int total);
+
+/// Documents subdirectories a backup can carry. Everything else the app keeps
+/// in Documents is either the database itself or disposable.
+enum BackupDir {
+  images('images', '图片'),
+  videoCovers('video_covers', '视频封面');
+
+  const BackupDir(this.dirName, this.label);
+
+  final String dirName;
+  final String label;
+}
 
 class BackupManifest {
   const BackupManifest({
     required this.formatVersion,
     required this.schemaVersion,
     required this.createdAt,
-    required this.includesImages,
+    required this.dirs,
     required this.includesSecrets,
   });
 
   final int formatVersion;
   final int schemaVersion;
   final DateTime createdAt;
-  final bool includesImages;
+  final Set<BackupDir> dirs;
   final bool includesSecrets;
 
-  static const currentFormat = 1;
+  static const currentFormat = 2;
 
   Map<String, Object?> toJson() => {
     'formatVersion': formatVersion,
     'schemaVersion': schemaVersion,
     'createdAt': createdAt.toIso8601String(),
-    'includesImages': includesImages,
+    'dirs': [for (final d in dirs) d.name],
     'includesSecrets': includesSecrets,
   };
 
-  static BackupManifest fromJson(Map<String, Object?> json) => BackupManifest(
-    formatVersion: json['formatVersion'] as int,
-    schemaVersion: json['schemaVersion'] as int,
-    createdAt: DateTime.parse(json['createdAt'] as String),
-    includesImages: json['includesImages'] as bool,
-    includesSecrets: json['includesSecrets'] as bool,
-  );
+  static BackupManifest fromJson(Map<String, Object?> json) {
+    final formatVersion = json['formatVersion'] as int;
+    return BackupManifest(
+      formatVersion: formatVersion,
+      schemaVersion: json['schemaVersion'] as int,
+      createdAt: DateTime.parse(json['createdAt'] as String),
+      dirs: formatVersion < 2
+          ? {if (json['includesImages'] == true) BackupDir.images}
+          : {
+              for (final name in json['dirs'] as List)
+                ?BackupDir.values.asNameMap()[name],
+            },
+      includesSecrets: json['includesSecrets'] as bool,
+    );
+  }
 }
 
 /// Typed SharedPreferences dump. Types are tagged so restore writes each key
@@ -109,15 +130,10 @@ class BackupService {
 
   static Future<Directory> _docsDir() => getApplicationDocumentsDirectory();
 
-  Future<int> imagesSizeBytes() async {
+  Future<int> dirSizeBytes(BackupDir dir) async {
     final docs = await _docsDir();
-    final dir = Directory(p.join(docs.path, 'images'));
-    if (!dir.existsSync()) return 0;
-    var total = 0;
-    await for (final f in dir.list(recursive: true, followLinks: false)) {
-      if (f is File) total += f.lengthSync();
-    }
-    return total;
+    final files = await _filesUnder(Directory(p.join(docs.path, dir.dirName)));
+    return files.fold<int>(0, (sum, f) => sum + f.lengthSync());
   }
 
   /// Writes `Tonari备份_.../` under [targetDir] (an already security-scoped
@@ -125,7 +141,7 @@ class BackupService {
   /// so a half-copied folder is never mistaken for a valid backup.
   Future<String> export({
     required String targetDir,
-    required bool includeImages,
+    required Set<BackupDir> dirs,
     BackupProgress? onProgress,
   }) async {
     final docs = await _docsDir();
@@ -144,15 +160,12 @@ class BackupService {
     tmpDb.deleteSync();
     onProgress?.call('导出数据库', 1, 1);
 
-    if (includeImages) {
-      final imagesDir = Directory(p.join(docs.path, 'images'));
-      if (imagesDir.existsSync()) {
-        await _copyTree(
-          imagesDir,
-          Directory(p.join(out.path, 'images')),
-          (done, total) => onProgress?.call('导出图片', done, total),
-        );
-      }
+    for (final dir in dirs) {
+      await _copyTree(
+        Directory(p.join(docs.path, dir.dirName)),
+        Directory(p.join(out.path, dir.dirName)),
+        (done, total) => onProgress?.call('导出${dir.label}', done, total),
+      );
     }
 
     onProgress?.call('导出设置', 0, 1);
@@ -170,7 +183,7 @@ class BackupService {
       formatVersion: BackupManifest.currentFormat,
       schemaVersion: _db.schemaVersion,
       createdAt: now,
-      includesImages: includeImages,
+      dirs: dirs,
       includesSecrets: true,
     );
     File(
@@ -207,11 +220,16 @@ class BackupService {
     final docs = await _docsDir();
     final pending = Directory(p.join(docs.path, _pendingDirName));
     if (pending.existsSync()) pending.deleteSync(recursive: true);
+    // Manifest last: it is what marks the staged copy as complete.
     await _copyTree(
       Directory(backupDir),
       pending,
       (done, total) => onProgress?.call('复制备份', done, total),
+      exclude: manifestName,
     );
+    File(
+      p.join(backupDir, manifestName),
+    ).copySync(p.join(pending.path, manifestName));
   }
 
   static Future<void> applyPendingRestore() async {
@@ -251,11 +269,13 @@ class BackupService {
       await applySecrets(Map<String, String>.from(raw as Map));
     }
 
-    final pendingImages = Directory(p.join(pending.path, 'images'));
-    if (pendingImages.existsSync()) {
-      final liveImages = Directory(p.join(docs.path, 'images'));
-      if (liveImages.existsSync()) liveImages.deleteSync(recursive: true);
-      pendingImages.renameSync(liveImages.path);
+    // A directory the backup left out keeps its live copy.
+    for (final dir in BackupDir.values) {
+      final staged = Directory(p.join(pending.path, dir.dirName));
+      if (!staged.existsSync()) continue;
+      final live = Directory(p.join(docs.path, dir.dirName));
+      if (live.existsSync()) live.deleteSync(recursive: true);
+      staged.renameSync(live.path);
     }
 
     final pendingDb = File(p.join(pending.path, _dbSnapshotName));
@@ -270,28 +290,36 @@ class BackupService {
     pending.deleteSync(recursive: true);
   }
 
+  static Future<List<File>> _filesUnder(Directory dir) async {
+    if (!dir.existsSync()) return const [];
+    return [
+      await for (final f in dir.list(recursive: true, followLinks: false))
+        if (f is File) f,
+    ];
+  }
+
+  /// Async copies so big image caches don't freeze the progress dialog.
   static Future<void> _copyTree(
     Directory from,
     Directory to,
-    void Function(int done, int total) onProgress,
-  ) async {
-    final files = <File>[];
-    await for (final f in from.list(recursive: true, followLinks: false)) {
-      if (f is File) files.add(f);
-    }
-    onProgress(0, files.length);
+    void Function(int doneBytes, int totalBytes) onProgress, {
+    String? exclude,
+  }) async {
+    final files = [
+      for (final f in await _filesUnder(from))
+        if (p.relative(f.path, from: from.path) != exclude) f,
+    ];
+    final total = files.fold<int>(0, (sum, f) => sum + f.lengthSync());
     var done = 0;
+    onProgress(0, total);
     for (final f in files) {
       final rel = p.relative(f.path, from: from.path);
       final target = File(p.join(to.path, rel));
-      target.parent.createSync(recursive: true);
-      f.copySync(target.path);
-      done++;
-      if (done % 20 == 0 || done == files.length) {
-        onProgress(done, files.length);
-      }
-      // Yield so the progress dialog can repaint during big image trees.
-      if (done % 50 == 0) await Future<void>.delayed(Duration.zero);
+      await target.parent.create(recursive: true);
+      final length = f.lengthSync();
+      await f.copy(target.path);
+      done += length;
+      onProgress(done, total);
     }
   }
 

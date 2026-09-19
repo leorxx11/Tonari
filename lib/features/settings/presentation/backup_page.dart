@@ -15,16 +15,28 @@ class BackupPage extends ConsumerStatefulWidget {
 }
 
 class _BackupPageState extends ConsumerState<BackupPage> {
-  bool _includeImages = true;
-  int? _imagesBytes;
+  // Video covers are tiny and referenced by the database, so they always go.
+  final _dirs = {...BackupDir.values};
+  final _sizes = <BackupDir, int>{};
 
   @override
   void initState() {
     super.initState();
-    ref.read(backupServiceProvider).imagesSizeBytes().then((v) {
-      if (mounted) setState(() => _imagesBytes = v);
+    final service = ref.read(backupServiceProvider);
+    service.dirSizeBytes(BackupDir.images).then((v) {
+      if (mounted) setState(() => _sizes[BackupDir.images] = v);
     });
   }
+
+  Widget _dirSwitch(BackupDir dir, String title) => SwitchListTile(
+    title: Text(title),
+    subtitle: Text(switch (_sizes[dir]) {
+      null => '计算中…',
+      final bytes => _formatBytes(bytes),
+    }),
+    value: _dirs.contains(dir),
+    onChanged: (v) => setState(() => v ? _dirs.add(dir) : _dirs.remove(dir)),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -39,22 +51,16 @@ class _BackupPageState extends ConsumerState<BackupPage> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Text(
-              '备份包含媒体库数据（元数据、收藏、分组、历史、播放进度）、设置和登录凭据。'
-              '音频文件本身不在备份里：本地音频存在文件 App 中不会丢失，恢复后在'
+              '备份包含媒体库数据（元数据、收藏、分组、历史、播放进度、评分笔记）、'
+              '视频封面、设置和登录凭据。'
+              '音视频文件本身不在备份里：本地音频存在文件 App 中不会丢失，恢复后在'
               '「媒体来源」里重新选择一次文件夹即可恢复访问。',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
           ),
-          SwitchListTile(
-            title: const Text('包含封面与图片缓存'),
-            subtitle: Text(
-              _imagesBytes == null ? '计算中…' : _formatBytes(_imagesBytes!),
-            ),
-            value: _includeImages,
-            onChanged: (v) => setState(() => _includeImages = v),
-          ),
+          _dirSwitch(BackupDir.images, '包含作品封面与图片缓存'),
           ListTile(
             leading: const Icon(Icons.upload_outlined),
             title: const Text('导出备份'),
@@ -82,7 +88,7 @@ class _BackupPageState extends ConsumerState<BackupPage> {
             .read(backupServiceProvider)
             .export(
               targetDir: dir,
-              includeImages: _includeImages,
+              dirs: _dirs,
               onProgress: (stage, done, total) =>
                   progress.value = (stage, done, total),
             );
@@ -111,7 +117,7 @@ class _BackupPageState extends ConsumerState<BackupPage> {
       final created = manifest.createdAt;
       final desc =
           '备份时间：${created.year}-${created.month}-${created.day}\n'
-          '包含图片：${manifest.includesImages ? '是' : '否'}\n\n'
+          '包含：${manifest.dirs.isEmpty ? '仅数据' : manifest.dirs.map((d) => d.label).join('、')}\n\n'
           '恢复会覆盖当前的媒体库数据和设置，且无法撤销。';
       final confirmed = await showDialog<bool>(
         context: context,
@@ -198,7 +204,11 @@ class _BackupPageState extends ConsumerState<BackupPage> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(total > 0 ? '$stage（$done/$total）' : stage),
+                Text(
+                  total > 1
+                      ? '$stage  ${_formatBytes(done)} / ${_formatBytes(total)}'
+                      : stage,
+                ),
                 const SizedBox(height: 16),
                 LinearProgressIndicator(value: total > 0 ? done / total : null),
               ],

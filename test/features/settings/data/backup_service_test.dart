@@ -75,7 +75,7 @@ void main() {
           formatVersion: BackupManifest.currentFormat,
           schemaVersion: db.schemaVersion + 1,
           createdAt: DateTime(2026, 8, 4),
-          includesImages: true,
+          dirs: const {},
           includesSecrets: true,
         ).toJson(),
       ),
@@ -92,6 +92,9 @@ void main() {
     File(p.join(docsA.path, 'images', 'RJ1', 'main.jpg'))
       ..createSync(recursive: true)
       ..writeAsStringSync('cover-bytes');
+    File(p.join(docsA.path, 'video_covers', 'v.png'))
+      ..createSync(recursive: true)
+      ..writeAsStringSync('video-cover');
     SharedPreferences.setMockInitialValues({'player.speed': 1.5});
 
     final service = BackupService(
@@ -104,7 +107,7 @@ void main() {
     final exportTarget = Directory(p.join(tmp.path, 'exported'))..createSync();
     final backupPath = await service.export(
       targetDir: exportTarget.path,
-      includeImages: true,
+      dirs: {...BackupDir.values},
     );
 
     expect(
@@ -135,6 +138,10 @@ void main() {
       File(p.join(docsB.path, 'images', 'RJ1', 'main.jpg')).readAsStringSync(),
       'cover-bytes',
     );
+    expect(
+      File(p.join(docsB.path, 'video_covers', 'v.png')).readAsStringSync(),
+      'video-cover',
+    );
     expect(captured, {'p115_cookie': 'UID=1', 'llm_provider_key:d': 'sk'});
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getDouble('player.speed'), 1.5);
@@ -142,6 +149,40 @@ void main() {
       Directory(p.join(docsB.path, 'restore_pending')).existsSync(),
       false,
     );
+  });
+
+  test('a directory left out of the backup keeps its live copy', () async {
+    final service = BackupService(db, readSecrets: () async => {});
+    final exportTarget = Directory(p.join(tmp.path, 'exported'))..createSync();
+    final backupPath = await service.export(
+      targetDir: exportTarget.path,
+      dirs: {BackupDir.images},
+    );
+    expect(Directory(p.join(backupPath, 'video_covers')).existsSync(), false);
+
+    final docs = Directory(fakeDocs.path);
+    File(p.join(docs.path, 'video_covers', 'v.png'))
+      ..createSync(recursive: true)
+      ..writeAsStringSync('keep-me');
+    await service.stageRestore(backupPath);
+    await BackupService.applyPendingRestoreIn(docs, applySecrets: (_) async {});
+
+    expect(
+      File(p.join(docs.path, 'video_covers', 'v.png')).readAsStringSync(),
+      'keep-me',
+    );
+  });
+
+  test('format 1 manifests map includesImages onto dirs', () {
+    BackupManifest parse(bool includesImages) => BackupManifest.fromJson({
+      'formatVersion': 1,
+      'schemaVersion': 1,
+      'createdAt': '2026-08-04T00:00:00.000',
+      'includesImages': includesImages,
+      'includesSecrets': true,
+    });
+    expect(parse(true).dirs, {BackupDir.images});
+    expect(parse(false).dirs, isEmpty);
   });
 
   test('applyPendingRestoreIn is a no-op without a staged backup', () async {
