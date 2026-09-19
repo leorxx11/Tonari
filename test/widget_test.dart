@@ -682,6 +682,29 @@ void main() {
     expect(find.text('已重新导入 Hidden Work'), findsOneWidget);
   });
 
+  testWidgets('bulk stats refresh asks for confirmation first', (tester) async {
+    await tester.pumpWidget(testApp());
+    await tester.pumpAndSettle();
+
+    await openSection(tester, '设置');
+    await tester.ensureVisible(find.text('更新统计数据'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('更新统计数据'));
+    await tester.pumpAndSettle();
+    expect(find.text('开始更新'), findsOneWidget);
+
+    await tester.tap(find.text('取消'));
+    await tester.pumpAndSettle();
+    expect(find.text('开始更新'), findsNothing);
+    expect(find.text('统计数据已更新'), findsNothing);
+
+    await tester.tap(find.text('更新统计数据'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('开始更新'));
+    await tester.pumpAndSettle();
+    expect(find.text('统计数据已更新'), findsOneWidget);
+  });
+
   testWidgets('settings permanently deletes a removed work', (tester) async {
     String? deletedProductId;
     await tester.pumpWidget(

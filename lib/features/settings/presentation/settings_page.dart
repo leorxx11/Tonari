@@ -193,6 +193,26 @@ class _StatsRefreshTile extends ConsumerWidget {
       onTap: progress != null
           ? null
           : () async {
+              final confirmed = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('更新统计数据'),
+                  content: const Text(
+                    '将逐个向 DLsite 请求全部作品的售出、评分、价格和排名，作品多时需要一些时间。确定开始吗？',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(ctx).pop(false),
+                      child: const Text('取消'),
+                    ),
+                    FilledButton(
+                      onPressed: () => Navigator.of(ctx).pop(true),
+                      child: const Text('开始更新'),
+                    ),
+                  ],
+                ),
+              );
+              if (confirmed != true) return;
               final failed = await ref
                   .read(statsRefreshProvider.notifier)
                   .run();
