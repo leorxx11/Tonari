@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -48,7 +49,15 @@ class WorkCard extends StatelessWidget {
         child: GestureDetector(
           onLongPressStart: !hasMenu
               ? null
-              : (details) => _showMenu(context, details.globalPosition),
+              : (details) => _showWorkMenu(
+                  context,
+                  details.globalPosition,
+                  work: work,
+                  onRemove: onRemove,
+                  onToggleFavorite: onToggleFavorite,
+                  onAddToCollection: onAddToCollection,
+                  onRemoveFromCollection: onRemoveFromCollection,
+                ),
           child: InkWell(
             onTap: onTap,
             child: ExcludeSemantics(
@@ -94,77 +103,324 @@ class WorkCard extends StatelessWidget {
       ),
     );
   }
+}
 
-  void _showMenu(BuildContext context, Offset position) {
-    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
-    final local = overlay.globalToLocal(position);
-    showMenu<_WorkCardAction>(
-      context: context,
-      position: RelativeRect.fromRect(
-        Rect.fromCenter(center: local, width: 1, height: 1),
-        Offset.zero & overlay.size,
-      ),
-      items: [
-        if (onToggleFavorite != null)
-          PopupMenuItem(
-            value: _WorkCardAction.toggleFavorite,
-            child: Row(
-              children: [
-                Icon(work.isFavorite ? Icons.favorite_outline : Icons.favorite),
-                const SizedBox(width: 12),
-                Text(work.isFavorite ? '取消收藏' : '添加收藏'),
-              ],
-            ),
+void _showWorkMenu(
+  BuildContext context,
+  Offset position, {
+  required Work work,
+  VoidCallback? onRemove,
+  VoidCallback? onToggleFavorite,
+  VoidCallback? onAddToCollection,
+  VoidCallback? onRemoveFromCollection,
+}) {
+  final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+  final local = overlay.globalToLocal(position);
+  showMenu<_WorkCardAction>(
+    context: context,
+    position: RelativeRect.fromRect(
+      Rect.fromCenter(center: local, width: 1, height: 1),
+      Offset.zero & overlay.size,
+    ),
+    items: [
+      if (onToggleFavorite != null)
+        PopupMenuItem(
+          value: _WorkCardAction.toggleFavorite,
+          child: Row(
+            children: [
+              Icon(work.isFavorite ? Icons.favorite_outline : Icons.favorite),
+              const SizedBox(width: 12),
+              Text(work.isFavorite ? '取消收藏' : '添加收藏'),
+            ],
           ),
-        if (onAddToCollection != null)
-          const PopupMenuItem(
-            value: _WorkCardAction.addToCollection,
-            child: Row(
-              children: [
-                Icon(Icons.bookmark_add_outlined),
-                SizedBox(width: 12),
-                Text('加入分组…'),
-              ],
-            ),
+        ),
+      if (onAddToCollection != null)
+        const PopupMenuItem(
+          value: _WorkCardAction.addToCollection,
+          child: Row(
+            children: [
+              Icon(Icons.bookmark_add_outlined),
+              SizedBox(width: 12),
+              Text('加入分组…'),
+            ],
           ),
-        if (onRemoveFromCollection != null)
-          const PopupMenuItem(
-            value: _WorkCardAction.removeFromCollection,
-            child: Row(
-              children: [
-                Icon(Icons.bookmark_remove_outlined),
-                SizedBox(width: 12),
-                Text('移出分组'),
-              ],
-            ),
+        ),
+      if (onRemoveFromCollection != null)
+        const PopupMenuItem(
+          value: _WorkCardAction.removeFromCollection,
+          child: Row(
+            children: [
+              Icon(Icons.bookmark_remove_outlined),
+              SizedBox(width: 12),
+              Text('移出分组'),
+            ],
           ),
-        if (onRemove != null)
-          const PopupMenuItem(
-            value: _WorkCardAction.remove,
-            child: Row(
-              children: [
-                Icon(Icons.remove_circle_outline, color: Colors.red),
-                SizedBox(width: 12),
-                Text('移除作品', style: TextStyle(color: Colors.red)),
-              ],
-            ),
+        ),
+      if (onRemove != null)
+        const PopupMenuItem(
+          value: _WorkCardAction.remove,
+          child: Row(
+            children: [
+              Icon(Icons.remove_circle_outline, color: Colors.red),
+              SizedBox(width: 12),
+              Text('移除作品', style: TextStyle(color: Colors.red)),
+            ],
           ),
-      ],
-    ).then((action) {
-      switch (action) {
-        case _WorkCardAction.remove:
-          onRemove?.call();
-        case _WorkCardAction.toggleFavorite:
-          onToggleFavorite?.call();
-        case _WorkCardAction.addToCollection:
-          onAddToCollection?.call();
-        case _WorkCardAction.removeFromCollection:
-          onRemoveFromCollection?.call();
-        case null:
-          break;
-      }
-    });
+        ),
+    ],
+  ).then((action) {
+    switch (action) {
+      case _WorkCardAction.remove:
+        onRemove?.call();
+      case _WorkCardAction.toggleFavorite:
+        onToggleFavorite?.call();
+      case _WorkCardAction.addToCollection:
+        onAddToCollection?.call();
+      case _WorkCardAction.removeFromCollection:
+        onRemoveFromCollection?.call();
+      case null:
+        break;
+    }
+  });
+}
+
+const workListTileExtent = 92.0;
+
+/// Compact list-mode counterpart of [WorkCard]: one fixed-height row with
+/// clickable circle / CV names, meant for [ListView.itemExtent].
+class WorkListTile extends ConsumerStatefulWidget {
+  const WorkListTile({
+    super.key,
+    required this.work,
+    this.isRemote = false,
+    this.durationMs,
+    this.onTap,
+    this.onRemove,
+    this.onToggleFavorite,
+    this.onAddToCollection,
+    this.onRemoveFromCollection,
+  });
+
+  final Work work;
+  final bool isRemote;
+  final int? durationMs;
+  final VoidCallback? onTap;
+  final VoidCallback? onRemove;
+  final VoidCallback? onToggleFavorite;
+  final VoidCallback? onAddToCollection;
+  final VoidCallback? onRemoveFromCollection;
+
+  @override
+  ConsumerState<WorkListTile> createState() => _WorkListTileState();
+}
+
+class _WorkListTileState extends ConsumerState<WorkListTile> {
+  TapGestureRecognizer? _circleTap;
+  var _cvTaps = <TapGestureRecognizer>[];
+
+  @override
+  void initState() {
+    super.initState();
+    _buildRecognizers();
   }
+
+  @override
+  void didUpdateWidget(WorkListTile oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.work.circleName != widget.work.circleName ||
+        oldWidget.work.voiceActors.join('\n') !=
+            widget.work.voiceActors.join('\n')) {
+      _disposeRecognizers();
+      _buildRecognizers();
+    }
+  }
+
+  @override
+  void dispose() {
+    _disposeRecognizers();
+    super.dispose();
+  }
+
+  void _buildRecognizers() {
+    TapGestureRecognizer tapFor(WorkChipFilter filter) =>
+        TapGestureRecognizer()
+          ..onTap = () => applyChipFilter(context, ref, filter);
+    final circle = widget.work.circleName;
+    _circleTap = circle == null || circle.isEmpty
+        ? null
+        : tapFor((kind: WorkChipKind.circle, value: circle));
+    _cvTaps = [
+      for (final cv in widget.work.voiceActors)
+        tapFor((kind: WorkChipKind.voiceActor, value: cv)),
+    ];
+  }
+
+  void _disposeRecognizers() {
+    _circleTap?.dispose();
+    for (final r in _cvTaps) {
+      r.dispose();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final work = widget.work;
+    final title = (work.titleZh != null && work.titleZh!.isNotEmpty)
+        ? work.titleZh!
+        : work.title;
+    final link = TextStyle(color: theme.colorScheme.primary);
+    final meta = <InlineSpan>[];
+    void addPart(InlineSpan part) {
+      if (meta.isNotEmpty) meta.add(const TextSpan(text: '  /  '));
+      meta.add(part);
+    }
+
+    if (_circleTap != null) {
+      addPart(
+        TextSpan(text: work.circleName, style: link, recognizer: _circleTap),
+      );
+    }
+    if (_cvTaps.isNotEmpty) {
+      addPart(
+        TextSpan(
+          children: [
+            for (var i = 0; i < _cvTaps.length; i++) ...[
+              if (i > 0) const TextSpan(text: '  '),
+              TextSpan(
+                text: work.voiceActors[i],
+                style: link,
+                recognizer: _cvTaps[i],
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+    final durationMs = widget.durationMs;
+    if (durationMs != null && durationMs > 0) {
+      addPart(TextSpan(text: _formatTotalDuration(durationMs)));
+    }
+    final hasMenu =
+        widget.onRemove != null ||
+        widget.onToggleFavorite != null ||
+        widget.onAddToCollection != null ||
+        widget.onRemoveFromCollection != null;
+
+    return Semantics(
+      button: widget.onTap != null,
+      label: title,
+      child: GestureDetector(
+        onLongPressStart: !hasMenu
+            ? null
+            : (details) => _showWorkMenu(
+                context,
+                details.globalPosition,
+                work: work,
+                onRemove: widget.onRemove,
+                onToggleFavorite: widget.onToggleFavorite,
+                onAddToCollection: widget.onAddToCollection,
+                onRemoveFromCollection: widget.onRemoveFromCollection,
+              ),
+        child: InkWell(
+          onTap: widget.onTap,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: theme.colorScheme.outlineVariant,
+                  width: 0.5,
+                ),
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Row(
+                children: [
+                  SizedBox.square(
+                    dimension: 72,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        WorkCover(
+                          work: work,
+                          borderRadius: BorderRadius.circular(6),
+                          iconSize: 24,
+                        ),
+                        if (widget.isRemote)
+                          Positioned(
+                            bottom: 3,
+                            left: 3,
+                            child: Container(
+                              padding: const EdgeInsets.all(3),
+                              decoration: BoxDecoration(
+                                color: _overlayStrong,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(
+                                Icons.cloud,
+                                size: 10,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        if (work.isFavorite)
+                          const Positioned(
+                            top: 3,
+                            right: 3,
+                            child: Icon(
+                              Icons.favorite,
+                              size: 14,
+                              color: Colors.redAccent,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            height: 1.3,
+                          ),
+                        ),
+                        if (meta.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text.rich(
+                            TextSpan(children: meta),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+String _formatTotalDuration(int ms) {
+  final d = Duration(milliseconds: ms);
+  final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+  final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+  if (d.inHours == 0) return '$m:$s';
+  return '${d.inHours.toString().padLeft(2, '0')}:$m:$s';
 }
 
 enum _WorkCardAction {

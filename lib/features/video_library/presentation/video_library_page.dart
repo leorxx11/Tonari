@@ -9,7 +9,9 @@ import '../../../core/files/local_image_path.dart';
 import '../../../core/ui/app_toast.dart';
 import '../../../shared/widgets/app_drawer.dart';
 import '../../../shared/widgets/library_home_button.dart';
+import '../../library/data/library_view_prefs.dart';
 import '../../library/presentation/widgets/collection_picker_sheet.dart';
+import '../../library/presentation/widgets/view_mode_button.dart';
 import '../data/video_cover_store.dart';
 import '../data/local_video_import.dart';
 import '../data/local_video_store.dart';
@@ -60,6 +62,7 @@ class _VideoLibraryPageState extends ConsumerState<VideoLibraryPage> {
 
   @override
   Widget build(BuildContext context) {
+    final viewMode = ref.watch(videoViewModeProvider);
     final itemsAsync = ref.watch(videoItemsProvider);
     return Scaffold(
       appBar: AppBar(
@@ -88,6 +91,7 @@ class _VideoLibraryPageState extends ConsumerState<VideoLibraryPage> {
                   )
                 : const Icon(Icons.add),
           ),
+          ViewModeButton(provider: videoViewModeProvider),
           IconButton(
             tooltip: _favoritesOnly ? '取消只看收藏' : '只看收藏',
             icon: Icon(
@@ -111,16 +115,8 @@ class _VideoLibraryPageState extends ConsumerState<VideoLibraryPage> {
               onImport: _importing ? null : _importVideos,
             );
           }
-          return GridView.builder(
-            padding: const EdgeInsets.fromLTRB(10, 10, 10, 16),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
-              childAspectRatio: 1.15,
-            ),
-            itemCount: items.length,
-            itemBuilder: (_, i) => VideoCard(item: items[i]),
+          return CustomScrollView(
+            slivers: [videoItemsSliver(items: items, mode: viewMode)],
           );
         },
       ),
@@ -196,8 +192,13 @@ class VideoCard extends ConsumerWidget {
         clipBehavior: Clip.hardEdge,
         margin: EdgeInsets.zero,
         child: GestureDetector(
-          onLongPressStart: (details) =>
-              _showMenu(context, ref, details.globalPosition),
+          onLongPressStart: (details) => _showVideoMenu(
+            context,
+            ref,
+            details.globalPosition,
+            item,
+            onRemoveFromCollection: onRemoveFromCollection,
+          ),
           child: InkWell(
             onTap: () => ref.read(videoLibraryPlayerProvider).play(item),
             child: ExcludeSemantics(
@@ -265,156 +266,352 @@ class VideoCard extends ConsumerWidget {
       ),
     );
   }
+}
 
-  bool get _localImport =>
-      item.sourceKind == 'local' && item.sourceId == LocalVideoStore.sourceId;
+bool _isLocalImport(VideoItem item) =>
+    item.sourceKind == 'local' && item.sourceId == LocalVideoStore.sourceId;
 
-  void _showMenu(BuildContext context, WidgetRef ref, Offset position) {
-    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
-    final local = overlay.globalToLocal(position);
-    showMenu<_VideoCardAction>(
-      context: context,
-      position: RelativeRect.fromRect(
-        Rect.fromCenter(center: local, width: 1, height: 1),
-        Offset.zero & overlay.size,
+void _showVideoMenu(
+  BuildContext context,
+  WidgetRef ref,
+  Offset position,
+  VideoItem item, {
+  VoidCallback? onRemoveFromCollection,
+}) {
+  final localImport = _isLocalImport(item);
+  final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+  final local = overlay.globalToLocal(position);
+  showMenu<_VideoCardAction>(
+    context: context,
+    position: RelativeRect.fromRect(
+      Rect.fromCenter(center: local, width: 1, height: 1),
+      Offset.zero & overlay.size,
+    ),
+    items: [
+      PopupMenuItem(
+        value: _VideoCardAction.toggleFavorite,
+        child: Row(
+          children: [
+            Icon(item.isFavorite ? Icons.favorite_outline : Icons.favorite),
+            const SizedBox(width: 12),
+            Text(item.isFavorite ? '取消收藏' : '添加收藏'),
+          ],
+        ),
       ),
-      items: [
-        PopupMenuItem(
-          value: _VideoCardAction.toggleFavorite,
-          child: Row(
-            children: [
-              Icon(item.isFavorite ? Icons.favorite_outline : Icons.favorite),
-              const SizedBox(width: 12),
-              Text(item.isFavorite ? '取消收藏' : '添加收藏'),
-            ],
-          ),
+      const PopupMenuItem(
+        value: _VideoCardAction.rename,
+        child: Row(
+          children: [
+            Icon(Icons.drive_file_rename_outline),
+            SizedBox(width: 12),
+            Text('修改标题'),
+          ],
         ),
+      ),
+      const PopupMenuItem(
+        value: _VideoCardAction.addToCollection,
+        child: Row(
+          children: [
+            Icon(Icons.bookmark_add_outlined),
+            SizedBox(width: 12),
+            Text('加入分组…'),
+          ],
+        ),
+      ),
+      if (onRemoveFromCollection != null)
         const PopupMenuItem(
-          value: _VideoCardAction.rename,
+          value: _VideoCardAction.removeFromCollection,
           child: Row(
             children: [
-              Icon(Icons.drive_file_rename_outline),
+              Icon(Icons.bookmark_remove_outlined),
               SizedBox(width: 12),
-              Text('修改标题'),
+              Text('移出分组'),
             ],
           ),
         ),
-        const PopupMenuItem(
-          value: _VideoCardAction.addToCollection,
-          child: Row(
-            children: [
-              Icon(Icons.bookmark_add_outlined),
-              SizedBox(width: 12),
-              Text('加入分组…'),
-            ],
-          ),
+      PopupMenuItem(
+        value: _VideoCardAction.remove,
+        child: Row(
+          children: [
+            const Icon(Icons.remove_circle_outline, color: Colors.red),
+            const SizedBox(width: 12),
+            Text(
+              localImport ? '删除视频' : '从视频库移除',
+              style: const TextStyle(color: Colors.red),
+            ),
+          ],
         ),
-        if (onRemoveFromCollection != null)
-          const PopupMenuItem(
-            value: _VideoCardAction.removeFromCollection,
-            child: Row(
-              children: [
-                Icon(Icons.bookmark_remove_outlined),
-                SizedBox(width: 12),
-                Text('移出分组'),
+      ),
+    ],
+  ).then((action) async {
+    final repo = ref.read(videoLibraryRepositoryProvider);
+    switch (action) {
+      case _VideoCardAction.toggleFavorite:
+        await repo.setFavorite(item.id, !item.isFavorite);
+      case _VideoCardAction.rename:
+        if (!context.mounted) return;
+        final name = await _promptTitle(context, item);
+        if (name != null) await repo.rename(item.id, name);
+      case _VideoCardAction.addToCollection:
+        if (!context.mounted) return;
+        await showVideoCollectionPicker(context, item);
+      case _VideoCardAction.removeFromCollection:
+        onRemoveFromCollection?.call();
+      case _VideoCardAction.remove:
+        if (localImport) {
+          if (!context.mounted) return;
+          final confirmed = await showDialog<bool>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text('删除视频？'),
+              content: const Text('将删除 Tonari 中的视频文件及其播放记录，原始文件不受影响。'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('取消'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: const Text('删除'),
+                ),
               ],
             ),
-          ),
-        PopupMenuItem(
-          value: _VideoCardAction.remove,
-          child: Row(
-            children: [
-              const Icon(Icons.remove_circle_outline, color: Colors.red),
-              const SizedBox(width: 12),
-              Text(
-                _localImport ? '删除视频' : '从视频库移除',
-                style: const TextStyle(color: Colors.red),
-              ),
-            ],
-          ),
+          );
+          if (confirmed != true || !context.mounted) return;
+        }
+        try {
+          if (localImport &&
+              ref.read(videoControllerProvider).item?.stableId == item.id) {
+            await ref.read(videoControllerProvider.notifier).stop();
+          }
+          await repo.remove(item.id);
+          showAppToast(localImport ? '已删除视频' : '已从视频库移除');
+        } catch (e) {
+          showAppToast('删除失败：$e');
+        }
+      case null:
+        break;
+    }
+  });
+}
+
+Future<String?> _promptTitle(BuildContext context, VideoItem item) async {
+  final controller = TextEditingController(text: videoItemTitle(item));
+  final name = await showDialog<String>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('修改标题'),
+      content: TextField(
+        controller: controller,
+        autofocus: true,
+        decoration: const InputDecoration(hintText: '视频标题'),
+        textInputAction: TextInputAction.done,
+        onSubmitted: (v) => Navigator.of(ctx).pop(v),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(),
+          child: const Text('取消'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(ctx).pop(controller.text),
+          child: const Text('确定'),
         ),
       ],
-    ).then((action) async {
-      final repo = ref.read(videoLibraryRepositoryProvider);
-      switch (action) {
-        case _VideoCardAction.toggleFavorite:
-          await repo.setFavorite(item.id, !item.isFavorite);
-        case _VideoCardAction.rename:
-          if (!context.mounted) return;
-          final name = await _promptTitle(context);
-          if (name != null) await repo.rename(item.id, name);
-        case _VideoCardAction.addToCollection:
-          if (!context.mounted) return;
-          await showVideoCollectionPicker(context, item);
-        case _VideoCardAction.removeFromCollection:
-          onRemoveFromCollection?.call();
-        case _VideoCardAction.remove:
-          if (_localImport) {
-            if (!context.mounted) return;
-            final confirmed = await showDialog<bool>(
-              context: context,
-              builder: (ctx) => AlertDialog(
-                title: const Text('删除视频？'),
-                content: const Text('将删除 Tonari 中的视频文件及其播放记录，原始文件不受影响。'),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(ctx, false),
-                    child: const Text('取消'),
+    ),
+  );
+  controller.dispose();
+  final trimmed = name?.trim();
+  return (trimmed == null || trimmed.isEmpty) ? null : trimmed;
+}
+
+const videoListTileExtent = 92.0;
+
+const _videoGridDelegate = SliverGridDelegateWithFixedCrossAxisCount(
+  crossAxisCount: 2,
+  mainAxisSpacing: 10,
+  crossAxisSpacing: 10,
+  childAspectRatio: 1.15,
+);
+
+/// Videos as a sliver in the given [mode], for pages that stack several
+/// sections in one [CustomScrollView].
+Widget videoItemsSliver({
+  required List<VideoItem> items,
+  required LibraryViewMode mode,
+  VoidCallback? Function(VideoItem)? onRemoveFromCollection,
+}) {
+  final delegate = SliverChildBuilderDelegate(
+    (_, i) => LibraryVideoItem(
+      item: items[i],
+      mode: mode,
+      onRemoveFromCollection: onRemoveFromCollection?.call(items[i]),
+    ),
+    childCount: items.length,
+  );
+  if (mode == LibraryViewMode.list) {
+    return SliverPadding(
+      padding: const EdgeInsets.only(bottom: 16),
+      sliver: SliverFixedExtentList(
+        itemExtent: videoListTileExtent,
+        delegate: delegate,
+      ),
+    );
+  }
+  return SliverPadding(
+    padding: const EdgeInsets.fromLTRB(10, 10, 10, 16),
+    sliver: SliverGrid(gridDelegate: _videoGridDelegate, delegate: delegate),
+  );
+}
+
+class LibraryVideoItem extends StatelessWidget {
+  const LibraryVideoItem({
+    super.key,
+    required this.item,
+    required this.mode,
+    this.onRemoveFromCollection,
+  });
+
+  final VideoItem item;
+  final LibraryViewMode mode;
+  final VoidCallback? onRemoveFromCollection;
+
+  @override
+  Widget build(BuildContext context) => mode == LibraryViewMode.list
+      ? VideoListTile(
+          item: item,
+          onRemoveFromCollection: onRemoveFromCollection,
+        )
+      : VideoCard(item: item, onRemoveFromCollection: onRemoveFromCollection);
+}
+
+class VideoListTile extends ConsumerWidget {
+  const VideoListTile({
+    super.key,
+    required this.item,
+    this.onRemoveFromCollection,
+  });
+
+  final VideoItem item;
+  final VoidCallback? onRemoveFromCollection;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final title = videoItemTitle(item);
+    final size = item.size;
+    final meta = [
+      item.sourceName,
+      if (size != null && size > 0) _formatBytes(size),
+    ].join(' · ');
+    return Semantics(
+      button: true,
+      label: title,
+      child: GestureDetector(
+        onLongPressStart: (details) => _showVideoMenu(
+          context,
+          ref,
+          details.globalPosition,
+          item,
+          onRemoveFromCollection: onRemoveFromCollection,
+        ),
+        child: InkWell(
+          onTap: () => ref.read(videoLibraryPlayerProvider).play(item),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: theme.colorScheme.outlineVariant,
+                  width: 0.5,
+                ),
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 128,
+                    height: 72,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          VideoCover(coverPath: item.coverPath, iconSize: 24),
+                          if (item.sourceKind != 'local')
+                            Positioned(
+                              bottom: 3,
+                              left: 3,
+                              child: Container(
+                                padding: const EdgeInsets.all(3),
+                                decoration: BoxDecoration(
+                                  color: const Color(0x8C000000),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(
+                                  Icons.cloud,
+                                  size: 10,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          if (item.isFavorite)
+                            const Positioned(
+                              top: 3,
+                              right: 3,
+                              child: Icon(
+                                Icons.favorite,
+                                size: 14,
+                                color: Colors.redAccent,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
                   ),
-                  TextButton(
-                    onPressed: () => Navigator.pop(ctx, true),
-                    child: const Text('删除'),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            height: 1.3,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          meta,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
-            );
-            if (confirmed != true || !context.mounted) return;
-          }
-          try {
-            if (_localImport &&
-                ref.read(videoControllerProvider).item?.stableId == item.id) {
-              await ref.read(videoControllerProvider.notifier).stop();
-            }
-            await repo.remove(item.id);
-            showAppToast(_localImport ? '已删除视频' : '已从视频库移除');
-          } catch (e) {
-            showAppToast('删除失败：$e');
-          }
-        case null:
-          break;
-      }
-    });
-  }
-
-  Future<String?> _promptTitle(BuildContext context) async {
-    final controller = TextEditingController(text: videoItemTitle(item));
-    final name = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('修改标题'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(hintText: '视频标题'),
-          textInputAction: TextInputAction.done,
-          onSubmitted: (v) => Navigator.of(ctx).pop(v),
+            ),
+          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(controller.text),
-            child: const Text('确定'),
-          ),
-        ],
       ),
     );
-    controller.dispose();
-    final trimmed = name?.trim();
-    return (trimmed == null || trimmed.isEmpty) ? null : trimmed;
   }
+}
+
+String _formatBytes(int bytes) {
+  if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+  if (bytes < 1024 * 1024 * 1024) {
+    return '${(bytes / 1024 / 1024).toStringAsFixed(1)} MB';
+  }
+  return '${(bytes / 1024 / 1024 / 1024).toStringAsFixed(2)} GB';
 }
 
 enum _VideoCardAction {
@@ -440,7 +637,18 @@ class VideoCover extends ConsumerWidget {
         LocalImagePath.resolve(coverPath) ??
         LocalImagePath.resolve(defaultCover);
     if (resolved != null) {
-      return Image.file(File(resolved), fit: BoxFit.cover);
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth;
+          return Image.file(
+            File(resolved),
+            fit: BoxFit.cover,
+            cacheWidth: width.isFinite
+                ? (width * MediaQuery.devicePixelRatioOf(context)).round()
+                : null,
+          );
+        },
+      );
     }
     return Container(
       color: theme.colorScheme.surfaceContainerHigh,

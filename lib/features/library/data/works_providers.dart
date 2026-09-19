@@ -26,7 +26,7 @@ final workSortProvider = NotifierProvider<WorkSort, WorkSortMode>(WorkSort.new);
 
 enum SourceFilter { all, local, remote }
 
-enum WorkChipKind { genre, voiceActor, series }
+enum WorkChipKind { genre, voiceActor, series, circle }
 
 typedef WorkChipFilter = ({WorkChipKind kind, String value});
 
@@ -34,12 +34,14 @@ String chipLabel(WorkChipFilter chip) => switch (chip.kind) {
   WorkChipKind.genre => '#${chip.value}',
   WorkChipKind.voiceActor => 'CV：${chip.value}',
   WorkChipKind.series => '系列：${chip.value}',
+  WorkChipKind.circle => '社团：${chip.value}',
 };
 
 bool workMatchesChip(Work w, WorkChipFilter chip) => switch (chip.kind) {
   WorkChipKind.genre => genreNamesOf(w).contains(chip.value),
   WorkChipKind.voiceActor => w.voiceActors.contains(chip.value),
   WorkChipKind.series => w.seriesName == chip.value,
+  WorkChipKind.circle => w.circleName == chip.value,
 };
 
 class WorkFilter {
@@ -211,6 +213,20 @@ final removedWorksProvider = StreamProvider<List<Work>>((ref) {
         ..where((w) => w.isRemoved.equals(true))
         ..orderBy([(w) => OrderingTerm.desc(w.updatedAt)]))
       .watch();
+});
+
+/// Total audio length per work, summed over its tracks in one grouped query.
+final workDurationsProvider = StreamProvider<Map<String, int>>((ref) {
+  final db = ref.watch(databaseProvider);
+  final total = db.tracks.durationMs.sum();
+  final query = db.selectOnly(db.tracks)
+    ..addColumns([db.tracks.workId, total])
+    ..groupBy([db.tracks.workId]);
+  return query.watch().map(
+    (rows) => {
+      for (final row in rows) row.read(db.tracks.workId)!: row.read(total) ?? 0,
+    },
+  );
 });
 
 final tracksByWorkProvider = StreamProvider.family<List<Track>, String>((

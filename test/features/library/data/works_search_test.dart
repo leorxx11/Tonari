@@ -172,4 +172,50 @@ void main() {
     )).map((w) => w.productId);
     expect(ids, unorderedEquals(['RJ1', 'RJ3']));
   });
+
+  test('circle chip keeps only works from that circle', () async {
+    await insertWork('RJ1', circleName: 'シロクマの嫁');
+    await insertWork('RJ2', circleName: 'Other');
+    await insertWork('RJ3');
+
+    container.read(workFilterProvider.notifier).addChip((
+      kind: WorkChipKind.circle,
+      value: 'シロクマの嫁',
+    ));
+    final ids = (await awaitProvider(
+      allWorksProvider.future,
+    )).map((w) => w.productId);
+    expect(ids, ['RJ1']);
+  });
+
+  test('work durations sum every track per work', () async {
+    await insertWork('RJ1');
+    await insertWork('RJ2');
+    final now = DateTime.now();
+    Future<void> insertTrack(String id, String workId, int durationMs) => db
+        .into(db.tracks)
+        .insert(
+          TracksCompanion.insert(
+            id: id,
+            workId: workId,
+            filePath: '/$workId/$id.mp3',
+            fileName: '$id.mp3',
+            fileFormat: 'mp3',
+            fileSizeBytes: 1,
+            durationMs: durationMs,
+            parentDirName: workId,
+            title: id,
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+    await insertTrack('a', 'RJ1', 60000);
+    await insertTrack('b', 'RJ1', 90000);
+    await insertTrack('c', 'RJ2', 1000);
+
+    expect(await awaitProvider(workDurationsProvider.future), {
+      'RJ1': 150000,
+      'RJ2': 1000,
+    });
+  });
 }

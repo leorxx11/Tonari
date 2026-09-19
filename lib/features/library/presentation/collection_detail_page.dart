@@ -5,7 +5,8 @@ import '../../../shared/widgets/library_home_button.dart';
 import '../../video_library/data/video_library_providers.dart';
 import '../../video_library/presentation/video_library_page.dart';
 import '../data/collections_providers.dart';
-import 'widgets/works_grid.dart';
+import '../data/library_view_prefs.dart';
+import 'widgets/works_view.dart';
 
 class CollectionDetailPage extends ConsumerWidget {
   const CollectionDetailPage({super.key, required this.collectionId});
@@ -23,6 +24,8 @@ class CollectionDetailPage extends ConsumerWidget {
     if (collection == null) {
       return const Scaffold(body: SizedBox.shrink());
     }
+    final workMode = ref.watch(workViewModeProvider);
+    final videoMode = ref.watch(videoViewModeProvider);
     final loading = works == null || videos == null;
     final empty = !loading && works.isEmpty && videos.isEmpty;
     return Scaffold(
@@ -38,52 +41,35 @@ class CollectionDetailPage extends ConsumerWidget {
               slivers: [
                 if (works.isNotEmpty) ...[
                   if (videos.isNotEmpty) const _SectionHeader('音声'),
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(10, 10, 10, 16),
-                    sliver: SliverGrid(
-                      gridDelegate: workGridDelegate,
-                      delegate: SliverChildBuilderDelegate(
-                        (ctx, i) => WorkGridCard(
-                          work: works[i],
-                          onRemoveFromCollection: () => ref
-                              .read(collectionRepositoryProvider)
-                              .setMembership(
-                                works[i].productId,
-                                collectionId,
-                                member: false,
-                              ),
-                        ),
-                        childCount: works.length,
-                      ),
+                  workItemsSliver(
+                    works: works,
+                    mode: workMode,
+                    itemBuilder: (ctx, i) => LibraryWorkItem(
+                      work: works[i],
+                      mode: workMode,
+                      onRemoveFromCollection: () => ref
+                          .read(collectionRepositoryProvider)
+                          .setMembership(
+                            works[i].productId,
+                            collectionId,
+                            member: false,
+                          ),
                     ),
                   ),
                 ],
                 if (videos.isNotEmpty) ...[
                   if (works.isNotEmpty) const _SectionHeader('视频'),
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(10, 10, 10, 16),
-                    sliver: SliverGrid(
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            mainAxisSpacing: 10,
-                            crossAxisSpacing: 10,
-                            childAspectRatio: 1.15,
-                          ),
-                      delegate: SliverChildBuilderDelegate(
-                        (ctx, i) => VideoCard(
-                          item: videos[i],
-                          onRemoveFromCollection: () => ref
-                              .read(videoLibraryRepositoryProvider)
-                              .setCollectionMembership(
-                                videos[i].id,
-                                collectionId,
-                                member: false,
-                              ),
-                        ),
-                        childCount: videos.length,
-                      ),
-                    ),
+                  videoItemsSliver(
+                    items: videos,
+                    mode: videoMode,
+                    onRemoveFromCollection: (video) =>
+                        () => ref
+                            .read(videoLibraryRepositoryProvider)
+                            .setCollectionMembership(
+                              video.id,
+                              collectionId,
+                              member: false,
+                            ),
                   ),
                 ],
               ],
@@ -100,6 +86,8 @@ class FavoritesDetailPage extends ConsumerWidget {
     final works = ref.watch(favoriteWorksProvider).value;
     final allVideos = ref.watch(videoItemsProvider).value;
     final videos = allVideos?.where((v) => v.isFavorite).toList();
+    final workMode = ref.watch(workViewModeProvider);
+    final videoMode = ref.watch(videoViewModeProvider);
     final loading = works == null || videos == null;
     final empty = !loading && works.isEmpty && videos.isEmpty;
     return Scaffold(
@@ -115,35 +103,16 @@ class FavoritesDetailPage extends ConsumerWidget {
               slivers: [
                 if (works.isNotEmpty) ...[
                   if (videos.isNotEmpty) const _SectionHeader('音声'),
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(10, 10, 10, 16),
-                    sliver: SliverGrid(
-                      gridDelegate: workGridDelegate,
-                      delegate: SliverChildBuilderDelegate(
-                        (ctx, i) => WorkGridCard(work: works[i]),
-                        childCount: works.length,
-                      ),
-                    ),
+                  workItemsSliver(
+                    works: works,
+                    mode: workMode,
+                    itemBuilder: (ctx, i) =>
+                        LibraryWorkItem(work: works[i], mode: workMode),
                   ),
                 ],
                 if (videos.isNotEmpty) ...[
                   if (works.isNotEmpty) const _SectionHeader('视频'),
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(10, 10, 10, 16),
-                    sliver: SliverGrid(
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            mainAxisSpacing: 10,
-                            crossAxisSpacing: 10,
-                            childAspectRatio: 1.15,
-                          ),
-                      delegate: SliverChildBuilderDelegate(
-                        (ctx, i) => VideoCard(item: videos[i]),
-                        childCount: videos.length,
-                      ),
-                    ),
-                  ),
+                  videoItemsSliver(items: videos, mode: videoMode),
                 ],
               ],
             ),

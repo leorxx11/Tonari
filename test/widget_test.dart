@@ -49,8 +49,10 @@ Widget testApp({
   Work? playingWork,
   List<AppEvent> appEvents = const [],
   Map<String, List<SubtitleCue>> subtitlePreviews = const {},
+  Map<String, int> workDurations = const {},
 }) => ProviderScope(
   overrides: [
+    workDurationsProvider.overrideWith((ref) => Stream.value(workDurations)),
     sharedPreferencesProvider.overrideWithValue(_testPrefs),
     appEventSinkProvider.overrideWithValue(_FakeEventSink()),
     appEventsProvider.overrideWith((ref) => Stream.value(appEvents)),
@@ -202,12 +204,14 @@ Work _work(
   bool isRemoved = false,
   bool isFavorite = false,
   List<String> voiceActors = const [],
+  String? circleName,
 }) {
   final now = DateTime(2026, 5, 24, 14, 30);
   return Work(
     productId: rj,
     title: title ?? rj,
     voiceActors: voiceActors,
+    circleName: circleName,
     illustrators: const [],
     scenarioWriters: const [],
     musicians: const [],
@@ -430,6 +434,44 @@ void main() {
 
     expect(find.text('CV：花玲'), findsNothing);
     expect(find.text('Other Work'), findsOneWidget);
+  });
+
+  testWidgets('list view shows circle, CV and duration and filters by circle', (
+    tester,
+  ) async {
+    addTearDown(() => _testPrefs.remove('library.view.works'));
+    await tester.pumpWidget(
+      testApp(
+        works: [
+          _work(
+            'RJ1',
+            title: 'Listed Work',
+            circleName: 'Circle A',
+            voiceActors: ['花玲'],
+          ),
+          _work('RJ2', title: 'Other Work', circleName: 'Circle B'),
+        ],
+        workDurations: {'RJ1': 3 * 3600000 + 47 * 60000 + 16000},
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(WorkCard), findsNWidgets(2));
+
+    await tester.tap(find.byTooltip('列表视图'));
+    await tester.pumpAndSettle();
+    expect(find.byType(WorkCard), findsNothing);
+    expect(find.byType(WorkListTile), findsNWidgets(2));
+    expect(
+      find.textContaining('Circle A  /  花玲  /  03:47:16', findRichText: true),
+      findsOneWidget,
+    );
+    expect(_testPrefs.getString('library.view.works'), 'list');
+
+    await tester.tapOnText(find.textRange.ofSubstring('Circle A'));
+    await tester.pumpAndSettle();
+    expect(find.text('社团：Circle A'), findsOneWidget);
+    expect(find.text('Listed Work'), findsOneWidget);
+    expect(find.text('Other Work'), findsNothing);
   });
 
   testWidgets('library resets scroll for filters and sorting', (tester) async {

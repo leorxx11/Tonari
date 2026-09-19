@@ -3,11 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/db/database.dart';
 import '../data/work_actions_provider.dart';
+import '../data/library_view_prefs.dart';
 import '../data/works_providers.dart';
 import '../../../shared/widgets/app_drawer.dart';
 import 'import_entry.dart';
 import 'widgets/library_task_status.dart';
-import 'widgets/works_grid.dart';
+import 'widgets/view_mode_button.dart';
+import 'widgets/works_view.dart';
 import '../../../core/ui/app_toast.dart';
 
 class LibraryPage extends ConsumerStatefulWidget {
@@ -82,6 +84,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                   ref.read(workFilterProvider.notifier).toggleFavoritesOnly(),
             ),
           ],
+          ViewModeButton(provider: workViewModeProvider),
           PopupMenuButton<WorkSortMode>(
             tooltip: '排序',
             icon: const Icon(Icons.sort),
@@ -119,7 +122,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                 filter: filter,
                 onImport: () => showImportSourcesSheet(context, ref),
               )
-            : WorksGrid(
+            : WorksView(
                 controller: _scrollController,
                 works: works,
                 onRemove: _onRemoveWork,
