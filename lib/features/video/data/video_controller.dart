@@ -149,9 +149,11 @@ class VideoController extends Notifier<VideoPlaybackState>
       ..._controllerFields(_controller),
     });
     await ref.read(playbackControllerProvider.notifier).stop();
+    if (attemptId != _openSeq) return;
     _publishTimer?.cancel();
     _publishTimer = null;
     await _teardown();
+    if (attemptId != _openSeq) return;
     state = VideoPlaybackState(item: stableItem);
     _lastVideoError = null;
     _lastEnded = false;
@@ -164,6 +166,12 @@ class VideoController extends Notifier<VideoPlaybackState>
     });
     VideoPlayerController? controller;
     FutureOr<void> Function()? release;
+    // A newer open()/stop() while this one awaits must win; otherwise this
+    // player finishes loading later and plays alongside the newer one.
+    void ensureCurrent() {
+      if (attemptId != _openSeq) throw const _OpenSuperseded();
+    }
+
     try {
       DiagnosticLog.write('video_player', 'resolve_begin', {
         ..._videoItemFields(stableItem),
@@ -179,6 +187,7 @@ class VideoController extends Notifier<VideoPlaybackState>
         'hasHeaders': resolved.headers?.isNotEmpty ?? false,
       });
       release = resolved.release;
+      ensureCurrent();
       final options = VideoPlayerOptions(allowBackgroundPlayback: true);
       if (resolved.url.isScheme('file')) {
         controller = VideoPlayerController.file(
@@ -201,6 +210,7 @@ class VideoController extends Notifier<VideoPlaybackState>
         'urlPort': resolved.url.hasPort ? resolved.url.port : null,
       });
       await controller.initialize();
+      ensureCurrent();
       DiagnosticLog.write('video_player', 'initialized', {
         ..._videoItemFields(stableItem),
         'attemptId': attemptId,
@@ -210,8 +220,10 @@ class VideoController extends Notifier<VideoPlaybackState>
         'height': controller.value.size.height,
       });
       await _restorePosition(controller, stableItem);
+      ensureCurrent();
       controller.addListener(_onValue);
       await _loadArtwork(stableItem);
+      ensureCurrent();
       if (autoplay) {
         await controller.play();
         DiagnosticLog.write('video_player', 'play_requested', {
@@ -219,6 +231,7 @@ class VideoController extends Notifier<VideoPlaybackState>
           'attemptId': attemptId,
           'positionMs': controller.value.position.inMilliseconds,
         });
+        ensureCurrent();
       }
       _controller = controller;
       _resolvedRelease = release;
@@ -235,7 +248,21 @@ class VideoController extends Notifier<VideoPlaybackState>
         _publish();
         _saveSlot();
       });
+    } on _OpenSuperseded {
+      DiagnosticLog.write('video_player', 'open_superseded', {
+        ..._videoItemFields(stableItem),
+        'attemptId': attemptId,
+        'latestAttemptId': _openSeq,
+      });
+      controller?.removeListener(_onValue);
+      await controller?.dispose();
+      await release?.call();
     } catch (e) {
+      if (attemptId != _openSeq) {
+        await controller?.dispose();
+        await release?.call();
+        return;
+      }
       DiagnosticLog.write('video_player', 'open_error', {
         ..._videoItemFields(stableItem),
         'attemptId': attemptId,
@@ -328,6 +355,7 @@ class VideoController extends Notifier<VideoPlaybackState>
   }
 
   Future<void> stop() async {
+    _openSeq++;
     if (_controller == null && state.item == null) return;
     DiagnosticLog.write('video_player', 'stop', {
       ..._stateFields(),
@@ -788,4 +816,8 @@ String _fileExtension(String name) {
 String _tail(String value) {
   if (value.length <= 6) return value;
   return value.substring(value.length - 6);
+}
+
+class _OpenSuperseded implements Exception {
+  const _OpenSuperseded();
 }
