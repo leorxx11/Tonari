@@ -165,9 +165,17 @@ class _EmptyState extends StatelessWidget {
 }
 
 class VideoCard extends ConsumerWidget {
-  const VideoCard({super.key, required this.item, this.onRemoveFromCollection});
+  const VideoCard({
+    super.key,
+    required this.item,
+    this.large = false,
+    this.onRemoveFromCollection,
+  });
 
   final VideoItem item;
+
+  /// Full-width card with the source line, matching the works card view.
+  final bool large;
 
   /// When set (collection detail page), the long-press menu offers
   /// "移出分组" instead of touching the library membership.
@@ -196,6 +204,7 @@ class VideoCard extends ConsumerWidget {
             child: ExcludeSemantics(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: large ? MainAxisSize.min : MainAxisSize.max,
                 children: [
                   AspectRatio(
                     aspectRatio: 16 / 9,
@@ -233,23 +242,51 @@ class VideoCard extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-                      child: Align(
-                        alignment: Alignment.topLeft,
-                        child: Text(
-                          title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            height: 1.25,
+                  if (large)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              height: 1.3,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _videoMeta(item),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                        child: Align(
+                          alignment: Alignment.topLeft,
+                          child: Text(
+                            title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              height: 1.25,
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -258,6 +295,14 @@ class VideoCard extends ConsumerWidget {
       ),
     );
   }
+}
+
+String _videoMeta(VideoItem item) {
+  final size = item.size;
+  return [
+    item.sourceName,
+    if (size != null && size > 0) _formatBytes(size),
+  ].join(' · ');
 }
 
 bool _isLocalImport(VideoItem item) =>
@@ -450,6 +495,16 @@ Widget videoItemsSliver({
       ),
     );
   }
+  if (mode == LibraryViewMode.card) {
+    return SliverPadding(
+      padding: const EdgeInsets.fromLTRB(10, 12, 10, 16),
+      sliver: SliverList.separated(
+        itemCount: items.length,
+        itemBuilder: delegate.builder,
+        separatorBuilder: (_, _) => const SizedBox(height: 12),
+      ),
+    );
+  }
   return SliverPadding(
     padding: const EdgeInsets.fromLTRB(10, 10, 10, 16),
     sliver: SliverGrid(gridDelegate: _videoGridDelegate, delegate: delegate),
@@ -474,7 +529,11 @@ class LibraryVideoItem extends StatelessWidget {
           item: item,
           onRemoveFromCollection: onRemoveFromCollection,
         )
-      : VideoCard(item: item, onRemoveFromCollection: onRemoveFromCollection);
+      : VideoCard(
+          item: item,
+          large: mode == LibraryViewMode.card,
+          onRemoveFromCollection: onRemoveFromCollection,
+        );
 }
 
 class VideoListTile extends ConsumerWidget {
@@ -491,11 +550,7 @@ class VideoListTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final title = videoItemTitle(item);
-    final size = item.size;
-    final meta = [
-      item.sourceName,
-      if (size != null && size > 0) _formatBytes(size),
-    ].join(' · ');
+    final meta = _videoMeta(item);
     return Semantics(
       button: true,
       label: title,

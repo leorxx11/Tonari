@@ -26,17 +26,23 @@ class LibraryViewModeNotifier extends Notifier<LibraryViewMode> {
 
 final workViewModeProvider =
     NotifierProvider<LibraryViewModeNotifier, LibraryViewMode>(
-      () => LibraryViewModeNotifier('library.view.works', const [
-        LibraryViewMode.card,
-        LibraryViewMode.grid,
-        LibraryViewMode.list,
-      ]),
+      () =>
+          LibraryViewModeNotifier('library.view.works', LibraryViewMode.values),
     );
 
 final videoViewModeProvider =
     NotifierProvider<LibraryViewModeNotifier, LibraryViewMode>(
-      () => LibraryViewModeNotifier('library.view.videos', const [
-        LibraryViewMode.grid,
-        LibraryViewMode.list,
-      ]),
+      () => LibraryViewModeNotifier(
+        'library.view.videos',
+        LibraryViewMode.values,
+      ),
+    );
+
+/// Favorites and groups mix works and videos; one mode drives both sections.
+final collectionViewModeProvider =
+    NotifierProvider<LibraryViewModeNotifier, LibraryViewMode>(
+      () => LibraryViewModeNotifier(
+        'library.view.collections',
+        LibraryViewMode.values,
+      ),
     );

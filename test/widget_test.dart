@@ -519,6 +519,29 @@ void main() {
     expect(find.text('1980 JPY'), findsNothing);
   });
 
+  testWidgets('favorites page has its own remembered view mode', (
+    tester,
+  ) async {
+    addTearDown(() => _testPrefs.remove('library.view.collections'));
+    await tester.pumpWidget(
+      testApp(works: [_work('RJ1', title: 'Fav Work', isFavorite: true)]),
+    );
+    await tester.pumpAndSettle();
+
+    await openSection(tester, '收藏');
+    await tester.tap(find.text('全部收藏'));
+    await tester.pumpAndSettle();
+    expect(find.byType(WorkCard), findsOneWidget);
+
+    await tester.tap(find.byTooltip('视图：大卡片'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('视图：网格'));
+    await tester.pumpAndSettle();
+    expect(_testPrefs.getString('library.view.collections'), 'list');
+    expect(_testPrefs.getString('library.view.works'), 'grid');
+    expect(find.byType(WorkListTile), findsOneWidget);
+  });
+
   testWidgets('library resets scroll for filters and sorting', (tester) async {
     addTearDown(() => _testPrefs.remove('library.sort.works'));
     await tester.pumpWidget(

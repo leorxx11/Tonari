@@ -129,4 +129,49 @@ void main() {
       await tester.pump();
     },
   );
+
+  testWidgets('video library cycles card, grid and list views', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final db = TonariDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final item = VideoItem(
+      id: 'local:video_import:videos/id/movie.mp4',
+      sourceKind: 'local',
+      sourceId: LocalVideoStore.sourceId,
+      sourceName: '本地导入',
+      path: 'videos/id/movie.mp4',
+      fileName: 'movie.mp4',
+      isFavorite: false,
+      addedAt: DateTime.now(),
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          unreadEventCountProvider.overrideWith((ref) => Stream.value(0)),
+          sharedPreferencesProvider.overrideWithValue(prefs),
+          databaseProvider.overrideWithValue(db),
+          videoItemsProvider.overrideWith((ref) => Stream.value([item])),
+        ],
+        child: const MaterialApp(home: VideoLibraryPage()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(VideoCard), findsOneWidget);
+    expect(find.text('本地导入'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('视图：大卡片'));
+    await tester.pumpAndSettle();
+    expect(prefs.getString('library.view.videos'), 'grid');
+    expect(find.byType(VideoCard), findsOneWidget);
+    expect(find.text('本地导入'), findsNothing);
+
+    await tester.tap(find.byTooltip('视图：网格'));
+    await tester.pumpAndSettle();
+    expect(prefs.getString('library.view.videos'), 'list');
+    expect(find.byType(VideoListTile), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+  });
 }

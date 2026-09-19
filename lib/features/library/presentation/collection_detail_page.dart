@@ -6,6 +6,7 @@ import '../../video_library/data/video_library_providers.dart';
 import '../../video_library/presentation/video_library_page.dart';
 import '../data/collections_providers.dart';
 import '../data/library_view_prefs.dart';
+import 'widgets/view_mode_button.dart';
 import 'widgets/works_view.dart';
 
 class CollectionDetailPage extends ConsumerWidget {
@@ -24,14 +25,16 @@ class CollectionDetailPage extends ConsumerWidget {
     if (collection == null) {
       return const Scaffold(body: SizedBox.shrink());
     }
-    final workMode = ref.watch(workViewModeProvider);
-    final videoMode = ref.watch(videoViewModeProvider);
+    final mode = ref.watch(collectionViewModeProvider);
     final loading = works == null || videos == null;
     final empty = !loading && works.isEmpty && videos.isEmpty;
     return Scaffold(
       appBar: AppBar(
         title: Text(collection.name),
-        actions: const [LibraryHomeButton()],
+        actions: [
+          ViewModeButton(provider: collectionViewModeProvider),
+          const LibraryHomeButton(),
+        ],
       ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
@@ -43,10 +46,10 @@ class CollectionDetailPage extends ConsumerWidget {
                   if (videos.isNotEmpty) const _SectionHeader('音声'),
                   workItemsSliver(
                     works: works,
-                    mode: workMode,
+                    mode: mode,
                     itemBuilder: (ctx, i) => LibraryWorkItem(
                       work: works[i],
-                      mode: workMode,
+                      mode: mode,
                       onRemoveFromCollection: () => ref
                           .read(collectionRepositoryProvider)
                           .setMembership(
@@ -61,7 +64,7 @@ class CollectionDetailPage extends ConsumerWidget {
                   if (works.isNotEmpty) const _SectionHeader('视频'),
                   videoItemsSliver(
                     items: videos,
-                    mode: videoMode,
+                    mode: mode,
                     onRemoveFromCollection: (video) =>
                         () => ref
                             .read(videoLibraryRepositoryProvider)
@@ -86,14 +89,16 @@ class FavoritesDetailPage extends ConsumerWidget {
     final works = ref.watch(favoriteWorksProvider).value;
     final allVideos = ref.watch(videoItemsProvider).value;
     final videos = allVideos?.where((v) => v.isFavorite).toList();
-    final workMode = ref.watch(workViewModeProvider);
-    final videoMode = ref.watch(videoViewModeProvider);
+    final mode = ref.watch(collectionViewModeProvider);
     final loading = works == null || videos == null;
     final empty = !loading && works.isEmpty && videos.isEmpty;
     return Scaffold(
       appBar: AppBar(
         title: const Text('全部收藏'),
-        actions: const [LibraryHomeButton()],
+        actions: [
+          ViewModeButton(provider: collectionViewModeProvider),
+          const LibraryHomeButton(),
+        ],
       ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
@@ -105,14 +110,14 @@ class FavoritesDetailPage extends ConsumerWidget {
                   if (videos.isNotEmpty) const _SectionHeader('音声'),
                   workItemsSliver(
                     works: works,
-                    mode: workMode,
+                    mode: mode,
                     itemBuilder: (ctx, i) =>
-                        LibraryWorkItem(work: works[i], mode: workMode),
+                        LibraryWorkItem(work: works[i], mode: mode),
                   ),
                 ],
                 if (videos.isNotEmpty) ...[
                   if (works.isNotEmpty) const _SectionHeader('视频'),
-                  videoItemsSliver(items: videos, mode: videoMode),
+                  videoItemsSliver(items: videos, mode: mode),
                 ],
               ],
             ),
