@@ -232,6 +232,7 @@ class _SeverityIcon extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return switch (severity) {
       'warning' => Icon(Icons.warning_amber_rounded, color: scheme.tertiary),
+      'info' => Icon(Icons.check_circle_outline, color: scheme.secondary),
       _ => Icon(Icons.error_outline, color: scheme.error),
     };
   }

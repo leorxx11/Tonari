@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/widgets/library_home_button.dart';
-import '../../../core/files/folder_bookmark.dart';
 import '../../../core/ui/app_toast.dart';
+import '../data/backup_controller.dart';
 import '../data/backup_service.dart';
 
 class BackupPage extends ConsumerStatefulWidget {
@@ -61,12 +61,7 @@ class _BackupPageState extends ConsumerState<BackupPage> {
             ),
           ),
           _dirSwitch(BackupDir.images, '包含作品封面与图片缓存'),
-          ListTile(
-            leading: const Icon(Icons.upload_outlined),
-            title: const Text('导出备份'),
-            subtitle: const Text('选择目标文件夹（建议 iCloud Drive 或本机）'),
-            onTap: _onExport,
-          ),
+          _ExportTile(dirs: _dirs),
           const Divider(),
           ListTile(
             leading: const Icon(Icons.download_outlined),
@@ -79,32 +74,10 @@ class _BackupPageState extends ConsumerState<BackupPage> {
     );
   }
 
-  Future<void> _onExport() async {
-    await _withScopedDir((dir) async {
-      final progress = ValueNotifier<(String, int, int)>(('准备中', 0, 0));
-      _showProgressDialog(progress);
-      try {
-        final path = await ref
-            .read(backupServiceProvider)
-            .export(
-              targetDir: dir,
-              dirs: _dirs,
-              onProgress: (stage, done, total) =>
-                  progress.value = (stage, done, total),
-            );
-        if (!mounted) return;
-        Navigator.of(context).pop();
-        showAppToast('备份完成：${path.split('/').last}');
-      } catch (e) {
-        if (!mounted) return;
-        Navigator.of(context).pop();
-        showAppToast('备份失败：$e');
-      }
-    });
-  }
-
   Future<void> _onRestore() async {
-    await _withScopedDir((dir) async {
+    final url = await FilePicker.getDirectoryPath();
+    if (url == null) return;
+    await withScopedDir(url, (dir) async {
       final service = ref.read(backupServiceProvider);
       final BackupManifest manifest;
       try {
@@ -169,28 +142,6 @@ class _BackupPageState extends ConsumerState<BackupPage> {
     });
   }
 
-  Future<void> _withScopedDir(Future<void> Function(String dir) action) async {
-    final url = await FilePicker.getDirectoryPath();
-    if (url == null) return;
-    String? scoped;
-    try {
-      final bookmark = await FolderBookmark.create(url);
-      final r = await FolderBookmark.resolve(bookmark);
-      scoped = r.url;
-    } catch (_) {
-      // Simulator / in-sandbox folders don't need an active scope.
-    }
-    try {
-      await action(scoped ?? url);
-    } finally {
-      if (scoped != null) {
-        try {
-          await FolderBookmark.release(scoped);
-        } catch (_) {}
-      }
-    }
-  }
-
   void _showProgressDialog(ValueNotifier<(String, int, int)> progress) {
     showDialog<void>(
       context: context,
@@ -225,4 +176,38 @@ String _formatBytes(int bytes) {
     return '${(bytes / 1024 / 1024 / 1024).toStringAsFixed(2)} GB';
   }
   return '${(bytes / 1024 / 1024).toStringAsFixed(1)} MB';
+}
+
+class _ExportTile extends ConsumerWidget {
+  const _ExportTile({required this.dirs});
+
+  final Set<BackupDir> dirs;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final run = ref.watch(backupControllerProvider);
+    return ListTile(
+      leading: run == null
+          ? const Icon(Icons.upload_outlined)
+          : const SizedBox.square(
+              dimension: 24,
+              child: CircularProgressIndicator(strokeWidth: 2.5),
+            ),
+      title: Text(run == null ? '导出备份' : '正在后台备份…'),
+      subtitle: Text(switch (run) {
+        null => '选择目标文件夹（建议 iCloud Drive 或本机）',
+        (:final stage, :final done, :final total) when total > 1 =>
+          '$stage  ${_formatBytes(done)} / ${_formatBytes(total)}',
+        (:final stage, done: _, total: _) => stage,
+      }),
+      enabled: run == null,
+      onTap: () async {
+        final url = await FilePicker.getDirectoryPath();
+        if (url == null) return;
+        await ref.read(backupControllerProvider.notifier).export(url, {
+          ...dirs,
+        });
+      },
+    );
+  }
 }

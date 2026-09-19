@@ -7,7 +7,8 @@ import '../../../core/db/providers.dart';
 
 /// Persistent, user-facing problem inbox. Background failures (import,
 /// subtitle download, metadata, auth) are logged here so they survive past a
-/// transient SnackBar and across restarts. Only error/warning — never success.
+/// transient SnackBar and across restarts. Success ('info') is reserved for
+/// long background jobs the user walked away from, like backups.
 class AppEventSink {
   AppEventSink(this._db, {Uuid? uuid}) : _uuid = uuid ?? const Uuid();
 
