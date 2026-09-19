@@ -93,6 +93,7 @@ class PlaybackController extends Notifier<PlaybackState>
     with WidgetsBindingObserver {
   late final AudioPlayer player;
   StreamSubscription<ProcessingState>? _processingSub;
+  StreamSubscription<bool>? _playingSub;
   Timer? _positionTimer;
   String? _resolvedFolderUrl;
   FutureOr<void> Function()? _resolvedMediaRelease;
@@ -103,6 +104,8 @@ class PlaybackController extends Notifier<PlaybackState>
   bool _lastResolvedWasProxy = false;
   bool _proxyStale = false;
   DateTime? _leftForegroundAt;
+  DateTime? _pausedAt;
+  Timer? _stallWatchdog;
   Future<void>? _refreshing;
   // Position to resume to when a deferred/stale source is (re)resolved. Set by
   // cold-start restore (lastPositionMs); null means "resume at live position".
@@ -114,6 +117,9 @@ class PlaybackController extends Notifier<PlaybackState>
     WidgetsBinding.instance.addObserver(this);
     NowPlayingBridge.setCommandHandler(_handleNowPlayingCommand);
     _processingSub = player.processingStateStream.listen(_onProcessingState);
+    _playingSub = player.playingStream.listen(
+      (playing) => _pausedAt = playing ? null : DateTime.now(),
+    );
     _positionTimer = Timer.periodic(
       const Duration(seconds: 5),
       (_) => _syncPlaybackTick(),
@@ -122,6 +128,8 @@ class PlaybackController extends Notifier<PlaybackState>
     ref.onDispose(() {
       WidgetsBinding.instance.removeObserver(this);
       _processingSub?.cancel();
+      _playingSub?.cancel();
+      _stallWatchdog?.cancel();
       _positionTimer?.cancel();
       NowPlayingBridge.clearCommandHandler();
       NowPlayingBridge.clear();
@@ -155,9 +163,12 @@ class PlaybackController extends Notifier<PlaybackState>
     // Only the loopback-proxied P115 source expires, and only mark it stale when
     // paused — actively-playing background audio is proven-live, so leave it be.
     // The 30s floor skips quick app switches that can't have expired anything.
+    final since = _pausedAt != null && _pausedAt!.isAfter(left)
+        ? _pausedAt!
+        : left;
     if (_lastResolvedWasProxy &&
         !player.playing &&
-        DateTime.now().difference(left) > const Duration(seconds: 30)) {
+        DateTime.now().difference(since) > const Duration(seconds: 30)) {
       _proxyStale = true;
       unawaited(_ensureFreshSource());
     }
@@ -437,9 +448,42 @@ class PlaybackController extends Notifier<PlaybackState>
       'playing': player.playing,
       'processingState': player.processingState.name,
     });
+    _markStaleIfSuspended();
     await _ensureFreshSource();
+    _watchForStall();
     await player.play();
     await _publishNowPlaying();
+  }
+
+  /// A lock-screen play arrives while the app is still in the background, so
+  /// the foreground-resume check never ran. Paused in the background for long
+  /// enough, iOS has suspended the app and the proxy's socket is gone.
+  void _markStaleIfSuspended() {
+    final left = _leftForegroundAt;
+    final paused = _pausedAt;
+    if (!_lastResolvedWasProxy || left == null || paused == null) return;
+    final since = left.isAfter(paused) ? left : paused;
+    if (DateTime.now().difference(since) > const Duration(seconds: 30)) {
+      _proxyStale = true;
+    }
+  }
+
+  /// A dead proxy or expired 115 link leaves the player "playing" at a frozen
+  /// position, and further play/pause taps can't revive it. If the position
+  /// hasn't moved shortly after play, re-resolve once.
+  void _watchForStall() {
+    _stallWatchdog?.cancel();
+    if (!_lastResolvedWasProxy) return;
+    final from = player.position;
+    _stallWatchdog = Timer(const Duration(seconds: 8), () {
+      if (!player.playing || player.position > from) return;
+      DiagnosticLog.write('player', 'play_stalled', {
+        'positionMs': from.inMilliseconds,
+        'processingState': player.processingState.name,
+      });
+      _proxyStale = true;
+      unawaited(_ensureFreshSource());
+    });
   }
 
   Future<void> pause() async {
