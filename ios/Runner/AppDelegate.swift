@@ -924,35 +924,58 @@ private final class PipSubtitleController: NSObject {
     context.translateBy(x: 0, y: CGFloat(height))
     context.scaleBy(x: 1, y: -1)
 
+    let inset: CGFloat = 16
+    let drawWidth = CGFloat(width) - inset * 2
+    let maxHeight = CGFloat(height) - 12
+    // Long cues wrap and shrink to fit the fixed strip rather than resizing
+    // the PiP window; below the minimum size the last line is truncated.
+    var fontSize: CGFloat = 32
+    var attrString = Self.pipSubtitle(text, fontSize: fontSize)
+    var textHeight = Self.wrappedHeight(attrString, width: drawWidth)
+    while textHeight > maxHeight && fontSize > 20 {
+      fontSize -= 2
+      attrString = Self.pipSubtitle(text, fontSize: fontSize)
+      textHeight = Self.wrappedHeight(attrString, width: drawWidth)
+    }
+    let drawHeight = min(textHeight, maxHeight)
+    let drawRect = CGRect(
+      x: inset,
+      y: (CGFloat(height) - drawHeight) / 2,
+      width: drawWidth,
+      height: drawHeight
+    )
+    attrString.draw(
+      with: drawRect,
+      options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine],
+      context: nil
+    )
+
+    enqueuePixelBuffer(buffer)
+    hasEnqueuedAtLeastOneFrame = true
+  }
+
+  private static func pipSubtitle(_ text: String, fontSize: CGFloat) -> NSAttributedString {
     let paragraph = NSMutableParagraphStyle()
     paragraph.alignment = .center
-    paragraph.lineBreakMode = .byTruncatingTail
-    let attrString = NSAttributedString(
+    paragraph.lineBreakMode = .byWordWrapping
+    return NSAttributedString(
       string: text,
       attributes: [
-        .font: UIFont.systemFont(ofSize: 32, weight: .semibold),
+        .font: UIFont.systemFont(ofSize: fontSize, weight: .semibold),
         .foregroundColor: UIColor.white,
         .paragraphStyle: paragraph,
       ]
     )
+  }
 
-    let inset: CGFloat = 16
-    let drawWidth = CGFloat(width) - inset * 2
-    let textBounds = attrString.boundingRect(
-      with: CGSize(width: drawWidth, height: CGFloat(height)),
-      options: [.usesLineFragmentOrigin],
-      context: nil
+  private static func wrappedHeight(_ text: NSAttributedString, width: CGFloat) -> CGFloat {
+    ceil(
+      text.boundingRect(
+        with: CGSize(width: width, height: .greatestFiniteMagnitude),
+        options: [.usesLineFragmentOrigin],
+        context: nil
+      ).height
     )
-    let drawRect = CGRect(
-      x: inset,
-      y: max(inset, (CGFloat(height) - textBounds.height) / 2),
-      width: drawWidth,
-      height: textBounds.height
-    )
-    attrString.draw(with: drawRect, options: [.usesLineFragmentOrigin], context: nil)
-
-    enqueuePixelBuffer(buffer)
-    hasEnqueuedAtLeastOneFrame = true
   }
 
   private func enqueuePixelBuffer(_ pixelBuffer: CVPixelBuffer) {
