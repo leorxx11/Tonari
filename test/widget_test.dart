@@ -26,6 +26,8 @@ import 'package:tonari/features/library/data/work_reimport_provider.dart';
 import 'package:tonari/features/library/data/works_providers.dart';
 import 'package:tonari/features/library/presentation/widgets/sample_gallery.dart';
 import 'package:tonari/features/library/presentation/widgets/work_card.dart';
+import 'package:tonari/features/library/presentation/widgets/work_cover.dart';
+import 'package:tonari/features/library/presentation/collections_page.dart';
 import 'package:tonari/features/p115/data/p115_cookie_store.dart';
 import 'package:tonari/features/player/data/playback_controller.dart';
 import 'package:tonari/features/player/presentation/mini_player.dart';
@@ -625,6 +627,35 @@ void main() {
 
     expect(find.text('全部收藏'), findsOneWidget);
     expect(find.textContaining('还没有分组'), findsOneWidget);
+  });
+
+  testWidgets('全部收藏 card uses the newest favorite as its cover', (
+    tester,
+  ) async {
+    final older = _work(
+      'RJ1',
+      title: 'Older',
+      isFavorite: true,
+    ).copyWith(localImportedAt: DateTime(2026, 1, 1));
+    final newer = _work(
+      'RJ2',
+      title: 'Newer',
+      isFavorite: true,
+    ).copyWith(localImportedAt: DateTime(2026, 6, 1));
+    // favoriteWorksProvider is newest-first; the override keeps list order.
+    await tester.pumpWidget(testApp(works: [newer, older]));
+    await tester.pumpAndSettle();
+
+    await openSection(tester, '收藏');
+
+    expect(find.text('2 个作品'), findsOneWidget);
+    final cover = tester.widget<WorkCover>(
+      find.descendant(
+        of: find.byType(CollectionsPage),
+        matching: find.byType(WorkCover),
+      ),
+    );
+    expect(cover.work.productId, 'RJ2');
   });
 
   testWidgets('long press menu includes 加入分组 and opens picker', (tester) async {

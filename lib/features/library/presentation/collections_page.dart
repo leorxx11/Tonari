@@ -38,44 +38,29 @@ class CollectionsPage extends ConsumerWidget {
       body: collectionsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('加载失败：$e')),
-        data: (collections) => ListView(
-          padding: const EdgeInsets.only(bottom: 24),
-          children: [
-            const Card(
-              margin: EdgeInsets.fromLTRB(10, 12, 10, 0),
-              clipBehavior: Clip.antiAlias,
-              child: _AllFavoritesTile(),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(18, 18, 18, 8),
-              child: Text(
-                '分组',
-                style: theme.textTheme.labelLarge?.copyWith(
-                  color: theme.colorScheme.primary,
-                ),
+        data: (collections) => CustomScrollView(
+          slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(10, 12, 10, 24),
+              sliver: SliverGrid(
+                gridDelegate: _gridDelegate,
+                delegate: SliverChildListDelegate([
+                  const _AllFavoritesCard(),
+                  for (final c in collections) _CollectionCard(collection: c),
+                ]),
               ),
             ),
             if (collections.isEmpty)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                child: Text(
-                  '还没有分组，点右上角新建，或在媒体库长按作品加入分组',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                  child: Text(
+                    '还没有分组，点右上角新建，或在媒体库长按作品加入分组',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
                   ),
-                ),
-              )
-            else
-              Card(
-                margin: const EdgeInsets.symmetric(horizontal: 10),
-                clipBehavior: Clip.antiAlias,
-                child: Column(
-                  children: [
-                    for (var i = 0; i < collections.length; i++) ...[
-                      if (i > 0) const Divider(height: 1, indent: 84),
-                      _CollectionTile(collection: collections[i]),
-                    ],
-                  ],
                 ),
               ),
           ],
@@ -85,10 +70,22 @@ class CollectionsPage extends ConsumerWidget {
   }
 }
 
+const _gridDelegate = SliverGridDelegateWithFixedCrossAxisCount(
+  crossAxisCount: 2,
+  mainAxisSpacing: 10,
+  crossAxisSpacing: 10,
+  childAspectRatio: 0.9,
+);
+
 const _favoriteColor = Color(0xFFEC407A);
 
-class _AllFavoritesTile extends ConsumerWidget {
-  const _AllFavoritesTile();
+String _countText(List<Work> works, List<VideoItem> videos) => [
+  if (works.isNotEmpty || videos.isEmpty) '${works.length} 个作品',
+  if (videos.isNotEmpty) '${videos.length} 个视频',
+].join(' · ');
+
+class _AllFavoritesCard extends ConsumerWidget {
+  const _AllFavoritesCard();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -96,78 +93,46 @@ class _AllFavoritesTile extends ConsumerWidget {
     final videos = (ref.watch(videoItemsProvider).value ?? const <VideoItem>[])
         .where((v) => v.isFavorite)
         .toList();
-    final counts = [
-      if (works.isNotEmpty || videos.isEmpty) '${works.length} 个作品',
-      if (videos.isNotEmpty) '${videos.length} 个视频',
-    ].join(' · ');
-    return ListTile(
-      leading: SizedBox(
-        width: 52,
-        height: 52,
-        child: Container(
-          decoration: BoxDecoration(
-            color: _favoriteColor.withValues(alpha: 0.14),
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: const Icon(Icons.favorite, color: _favoriteColor),
-        ),
+    return _GroupCard(
+      title: '全部收藏',
+      subtitle: _countText(works, videos),
+      cover: _Cover(
+        work: works.firstOrNull,
+        video: videos.firstOrNull,
+        placeholder: Icons.favorite,
+        placeholderColor: _favoriteColor,
       ),
-      title: const Text('全部收藏'),
-      subtitle: Text(counts),
-      onTap: () {
-        Navigator.of(context, rootNavigator: true).push(
-          MaterialPageRoute<void>(builder: (_) => const FavoritesDetailPage()),
-        );
-      },
+      badge: const Icon(Icons.favorite, size: 20, color: _favoriteColor),
+      onTap: () => Navigator.of(context, rootNavigator: true).push(
+        MaterialPageRoute<void>(builder: (_) => const FavoritesDetailPage()),
+      ),
     );
   }
 }
 
-class _CollectionTile extends ConsumerWidget {
-  const _CollectionTile({required this.collection});
+class _CollectionCard extends ConsumerWidget {
+  const _CollectionCard({required this.collection});
 
   final Collection collection;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
     final works =
         ref.watch(collectionWorksProvider(collection.id)).value ?? const [];
     final videos =
         ref.watch(collectionVideosProvider(collection.id)).value ?? const [];
-    final counts = [
-      if (works.isNotEmpty || videos.isEmpty) '${works.length} 个作品',
-      if (videos.isNotEmpty) '${videos.length} 个视频',
-    ].join(' · ');
-    return ListTile(
-      leading: SizedBox(
-        width: 52,
-        height: 52,
-        child: works.isNotEmpty
-            ? WorkCover(
-                work: works.first,
-                borderRadius: BorderRadius.circular(4),
-                iconSize: 24,
-              )
-            : videos.isNotEmpty
-            ? ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: VideoCover(coverPath: videos.first.coverPath),
-              )
-            : Container(
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Icon(
-                  Icons.bookmark_outline,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
+    return _GroupCard(
+      title: collection.name,
+      subtitle: _countText(works, videos),
+      cover: _Cover(
+        work: works.firstOrNull,
+        video: videos.firstOrNull,
+        placeholder: Icons.bookmark_outline,
       ),
-      title: Text(collection.name),
-      subtitle: Text(counts),
-      trailing: PopupMenuButton<_CollectionAction>(
+      menu: PopupMenuButton<_CollectionAction>(
+        tooltip: '分组操作',
+        padding: EdgeInsets.zero,
+        icon: const Icon(Icons.more_vert, size: 20),
         onSelected: (action) => _onAction(context, ref, action),
         itemBuilder: (_) => const [
           PopupMenuItem(
@@ -192,13 +157,11 @@ class _CollectionTile extends ConsumerWidget {
           ),
         ],
       ),
-      onTap: () {
-        Navigator.of(context, rootNavigator: true).push(
-          MaterialPageRoute<void>(
-            builder: (_) => CollectionDetailPage(collectionId: collection.id),
-          ),
-        );
-      },
+      onTap: () => Navigator.of(context, rootNavigator: true).push(
+        MaterialPageRoute<void>(
+          builder: (_) => CollectionDetailPage(collectionId: collection.id),
+        ),
+      ),
     );
   }
 
@@ -241,3 +204,126 @@ class _CollectionTile extends ConsumerWidget {
 }
 
 enum _CollectionAction { rename, delete }
+
+/// Newest item's cover: works first (their lists are newest-first), then
+/// videos, else a tinted placeholder icon.
+class _Cover extends StatelessWidget {
+  const _Cover({
+    required this.work,
+    required this.video,
+    required this.placeholder,
+    this.placeholderColor,
+  });
+
+  final Work? work;
+  final VideoItem? video;
+  final IconData placeholder;
+  final Color? placeholderColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final work = this.work;
+    if (work != null) return WorkCover(work: work);
+    final video = this.video;
+    if (video != null) return VideoCover(coverPath: video.coverPath);
+    final theme = Theme.of(context);
+    final color = placeholderColor ?? theme.colorScheme.onSurfaceVariant;
+    return ColoredBox(
+      color: color.withValues(alpha: 0.12),
+      child: Icon(placeholder, size: 40, color: color),
+    );
+  }
+}
+
+class _GroupCard extends StatelessWidget {
+  const _GroupCard({
+    required this.title,
+    required this.subtitle,
+    required this.cover,
+    required this.onTap,
+    this.badge,
+    this.menu,
+  });
+
+  final String title;
+  final String subtitle;
+  final Widget cover;
+  final VoidCallback onTap;
+  final Widget? badge;
+  final Widget? menu;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AspectRatio(
+              aspectRatio: 4 / 3,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  cover,
+                  if (badge != null)
+                    Positioned(
+                      top: 6,
+                      right: 6,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
+                        child: badge,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 0, 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            subtitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    ?menu,
+                    if (menu == null) const SizedBox(width: 12),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
