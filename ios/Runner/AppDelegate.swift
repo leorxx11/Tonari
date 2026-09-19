@@ -3,6 +3,7 @@ import AVKit
 import Flutter
 import MediaPlayer
 import UIKit
+import UniformTypeIdentifiers
 
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
@@ -15,6 +16,9 @@ import UIKit
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+    VideoImportPlugin.register(
+      with: engineBridge.pluginRegistry.registrar(forPlugin: "VideoImportPlugin")!
+    )
     BookmarkPlugin.register(
       with: engineBridge.pluginRegistry.registrar(forPlugin: "BookmarkPlugin")!
     )
@@ -30,6 +34,52 @@ import UIKit
     ForwardNavigationPlugin.register(
       with: engineBridge.pluginRegistry.registrar(forPlugin: "ForwardNavigationPlugin")!
     )
+  }
+}
+
+private final class VideoImportPlugin: NSObject, FlutterPlugin, UIDocumentPickerDelegate {
+  private let registrar: FlutterPluginRegistrar
+  private var pending: FlutterResult?
+
+  init(registrar: FlutterPluginRegistrar) {
+    self.registrar = registrar
+    super.init()
+  }
+
+  static func register(with registrar: FlutterPluginRegistrar) {
+    let channel = FlutterMethodChannel(
+      name: "tonari/video_import", binaryMessenger: registrar.messenger()
+    )
+    registrar.addMethodCallDelegate(VideoImportPlugin(registrar: registrar), channel: channel)
+  }
+
+  func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+    guard call.method == "pick" else {
+      result(FlutterMethodNotImplemented)
+      return
+    }
+    pending = result
+    let extensions = call.arguments as! [String]
+    let picker = UIDocumentPickerViewController(
+      forOpeningContentTypes: extensions.map { UTType(filenameExtension: $0)! },
+      asCopy: true
+    )
+    picker.allowsMultipleSelection = true
+    picker.delegate = self
+    var presenter = registrar.viewController!
+    while let presented = presenter.presentedViewController { presenter = presented }
+    presenter.present(picker, animated: true)
+  }
+
+  func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+    // Keep the separate Inbox URLs; flattening into tmp would overwrite namesakes.
+    pending!(urls.map { ["path": $0.path, "name": $0.lastPathComponent] })
+    pending = nil
+  }
+
+  func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+    pending!([])
+    pending = nil
   }
 }
 

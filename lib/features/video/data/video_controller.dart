@@ -363,7 +363,7 @@ class VideoController extends Notifier<VideoPlaybackState>
     });
     _publishTimer?.cancel();
     _publishTimer = null;
-    _saveSlot();
+    await _saveSlot();
     await _teardown();
     await NowPlayingBridge.clear();
     await MediaProxy.instance.reset('video_stop');
@@ -510,12 +510,12 @@ class VideoController extends Notifier<VideoPlaybackState>
     DiagnosticLog.write('video_player', 'teardown_done');
   }
 
-  void _saveSlot() {
+  Future<void> _saveSlot() async {
     final item = state.item;
     final c = _controller;
     if (item == null || c == null || !c.value.isInitialized) return;
     final positionMs = c.value.position.inMilliseconds;
-    unawaited(
+    await Future.wait([
       ref
           .read(videoResumeStoreProvider)
           .write(
@@ -525,8 +525,6 @@ class VideoController extends Notifier<VideoPlaybackState>
               lastPlayedAt: DateTime.now(),
             ),
           ),
-    );
-    unawaited(
       ref
           .read(playHistoryRepositoryProvider)
           .recordItem(
@@ -534,7 +532,7 @@ class VideoController extends Notifier<VideoPlaybackState>
             positionMs: positionMs,
             durationMs: c.value.duration.inMilliseconds,
           ),
-    );
+    ]);
   }
 
   /// Loads the video-library cover for the lock screen / Control Center.

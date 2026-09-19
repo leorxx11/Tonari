@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/db/providers.dart';
+import '../../video_library/data/local_video_store.dart';
 import '../../p115/data/p115_auth_service.dart';
 import '../../p115/data/p115_client.dart';
 import '../../p115/data/p115_cookie_store.dart';
@@ -40,7 +41,11 @@ PlayableResolver buildRemoteResolver(
         }
       };
     case RemoteSourceKind.local:
-      return () async => ResolvedMediaUrl(url: Uri.file(path));
+      return () async => ResolvedMediaUrl(
+        url: sourceId == LocalVideoStore.sourceId
+            ? (await ref.read(localVideoStoreProvider).file(path)).uri
+            : Uri.file(path),
+      );
     case RemoteSourceKind.webdav:
       return () async {
         final config = await _webdavConfig(ref, sourceId);

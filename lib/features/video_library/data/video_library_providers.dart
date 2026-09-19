@@ -7,6 +7,8 @@ import '../../../core/db/providers.dart';
 import '../../browse/data/remote_models.dart';
 import '../../browse/data/remote_resolvers.dart';
 import '../../video/data/video_controller.dart';
+import '../../video/data/video_resume_store.dart';
+import 'local_video_store.dart';
 import 'video_cover_store.dart';
 
 final videoItemsProvider = StreamProvider<List<VideoItem>>((ref) {
@@ -73,14 +75,23 @@ final videoLibraryRepositoryProvider = Provider<VideoLibraryRepository>((ref) {
   return VideoLibraryRepository(
     ref.watch(databaseProvider),
     ref.watch(videoCoverStoreProvider),
+    ref.watch(localVideoStoreProvider),
+    ref.watch(videoResumeStoreProvider),
   );
 });
 
 class VideoLibraryRepository {
-  VideoLibraryRepository(this._db, this._covers);
+  VideoLibraryRepository(
+    this._db,
+    this._covers,
+    this._localVideos,
+    this._resumeStore,
+  );
 
   final TonariDatabase _db;
   final VideoCoverStore _covers;
+  final LocalVideoStore _localVideos;
+  final VideoResumeStore _resumeStore;
 
   /// Returns false when the video is already in the library.
   Future<bool> add(PlayableItem item) async {
@@ -108,7 +119,18 @@ class VideoLibraryRepository {
 
   Future<void> remove(String id) async {
     final row = await _row(id);
+    final localImport =
+        row?.sourceKind == 'local' && row?.sourceId == LocalVideoStore.sourceId;
+    if (localImport) {
+      await _localVideos.delete(row!.path);
+      if (_resumeStore.read()?.id == id) await _resumeStore.clear();
+    }
     await _db.transaction(() async {
+      if (localImport) {
+        await (_db.delete(
+          _db.playHistoryEntries,
+        )..where((e) => e.id.equals(id))).go();
+      }
       await (_db.delete(
         _db.collectionVideos,
       )..where((cv) => cv.videoId.equals(id))).go();

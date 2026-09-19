@@ -2,6 +2,8 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tonari/core/prefs/shared_prefs_provider.dart';
 import 'package:tonari/core/db/database.dart';
 import 'package:tonari/core/db/providers.dart';
 import 'package:tonari/features/browse/data/remote_models.dart';
@@ -28,10 +30,15 @@ void main() {
   late ProviderContainer container;
   late VideoLibraryRepository repo;
 
-  setUp(() {
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
     db = TonariDatabase.forTesting(NativeDatabase.memory());
     container = ProviderContainer(
-      overrides: [databaseProvider.overrideWithValue(db)],
+      overrides: [
+        databaseProvider.overrideWithValue(db),
+        sharedPreferencesProvider.overrideWithValue(prefs),
+      ],
     );
     repo = container.read(videoLibraryRepositoryProvider);
   });
@@ -87,12 +94,13 @@ void main() {
     final groupId = await collections.create('组');
     await repo.setCollectionMembership('p115:pc1', groupId, member: true);
 
-    final videos = await awaitProvider(collectionVideosProvider(groupId).future);
-    expect(videos.map((v) => v.id), ['p115:pc1']);
-    expect(
-      await awaitProvider(videoCollectionIdsProvider('p115:pc1').future),
-      {groupId},
+    final videos = await awaitProvider(
+      collectionVideosProvider(groupId).future,
     );
+    expect(videos.map((v) => v.id), ['p115:pc1']);
+    expect(await awaitProvider(videoCollectionIdsProvider('p115:pc1').future), {
+      groupId,
+    });
 
     await repo.remove('p115:pc1');
     expect(await db.select(db.videoItems).get(), isEmpty);

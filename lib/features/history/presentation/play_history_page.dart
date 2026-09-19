@@ -8,6 +8,7 @@ import '../../library/presentation/open_work_detail.dart';
 import '../../library/presentation/widgets/work_cover.dart';
 import '../../video_library/data/video_library_providers.dart';
 import '../../video_library/presentation/video_library_page.dart';
+import '../../video_library/data/local_video_store.dart';
 import '../data/history_playback.dart';
 import '../data/play_history_repository.dart';
 import '../../../core/ui/app_toast.dart';
@@ -174,7 +175,10 @@ class _HistoryRow extends ConsumerWidget {
                 onTap: () =>
                     Navigator.of(ctx).pop(_HistoryAction.addToVideoLibrary),
               ),
-            if (isVideo && inLibrary)
+            if (isVideo &&
+                inLibrary &&
+                !(entry.sourceKind == 'local' &&
+                    entry.sourceId == LocalVideoStore.sourceId))
               ListTile(
                 leading: const Icon(Icons.video_library),
                 title: const Text('从视频库移除'),

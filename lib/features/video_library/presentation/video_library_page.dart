@@ -11,6 +11,9 @@ import '../../../shared/widgets/app_drawer.dart';
 import '../../../shared/widgets/library_home_button.dart';
 import '../../library/presentation/widgets/collection_picker_sheet.dart';
 import '../data/video_cover_store.dart';
+import '../data/local_video_import.dart';
+import '../data/local_video_store.dart';
+import '../../video/data/video_controller.dart';
 import '../data/video_library_providers.dart';
 
 class VideoLibraryPage extends ConsumerStatefulWidget {
@@ -22,6 +25,38 @@ class VideoLibraryPage extends ConsumerStatefulWidget {
 
 class _VideoLibraryPageState extends ConsumerState<VideoLibraryPage> {
   bool _favoritesOnly = false;
+  bool _importing = false;
+  int _completed = 0;
+  int _total = 0;
+
+  Future<void> _importVideos() async {
+    setState(() {
+      _importing = true;
+      _completed = 0;
+      _total = 0;
+    });
+    try {
+      final count = await ref
+          .read(localVideoImportProvider)
+          .pickAndImport(
+            onProgress: (completed, total) {
+              if (!mounted) return;
+              setState(() {
+                _completed = completed;
+                _total = total;
+              });
+            },
+          );
+      if (count > 0) {
+        if (mounted) setState(() => _favoritesOnly = false);
+        showAppToast('已导入 $count 个视频');
+      }
+    } catch (e) {
+      showAppToast('已导入 $_completed 个，导入失败：$e');
+    } finally {
+      if (mounted) setState(() => _importing = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +65,29 @@ class _VideoLibraryPageState extends ConsumerState<VideoLibraryPage> {
       appBar: AppBar(
         leading: const DrawerMenuButton(),
         title: const Text('视频库'),
+        bottom: _importing && _total > 0
+            ? PreferredSize(
+                preferredSize: const Size.fromHeight(40),
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Text(
+                    '正在导入 ${_completed + 1 > _total ? _total : _completed + 1} / $_total',
+                  ),
+                ),
+              )
+            : null,
         actions: [
+          IconButton(
+            tooltip: '导入本地视频',
+            onPressed: _importing ? null : _importVideos,
+            icon: _importing
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.add),
+          ),
           IconButton(
             tooltip: _favoritesOnly ? '取消只看收藏' : '只看收藏',
             icon: Icon(
@@ -49,7 +106,10 @@ class _VideoLibraryPageState extends ConsumerState<VideoLibraryPage> {
               ? all.where((v) => v.isFavorite).toList()
               : all;
           if (items.isEmpty) {
-            return _EmptyState(filtered: _favoritesOnly);
+            return _EmptyState(
+              filtered: _favoritesOnly,
+              onImport: _importing ? null : _importVideos,
+            );
           }
           return GridView.builder(
             padding: const EdgeInsets.fromLTRB(10, 10, 10, 16),
@@ -69,9 +129,10 @@ class _VideoLibraryPageState extends ConsumerState<VideoLibraryPage> {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.filtered});
+  const _EmptyState({required this.filtered, required this.onImport});
 
   final bool filtered;
+  final VoidCallback? onImport;
 
   @override
   Widget build(BuildContext context) {
@@ -94,12 +155,20 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              filtered ? '关掉"只看收藏"过滤看看' : '在浏览页或播放历史里长按视频，选择"加入视频库"',
+              filtered ? '关掉"只看收藏"过滤看看' : '从「文件」导入本地视频，或在浏览页、播放历史中加入视频库',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
               textAlign: TextAlign.center,
             ),
+            if (!filtered) ...[
+              const SizedBox(height: 20),
+              FilledButton.tonalIcon(
+                onPressed: onImport,
+                icon: const Icon(Icons.add),
+                label: const Text('导入本地视频'),
+              ),
+            ],
           ],
         ),
       ),
@@ -197,6 +266,9 @@ class VideoCard extends ConsumerWidget {
     );
   }
 
+  bool get _localImport =>
+      item.sourceKind == 'local' && item.sourceId == LocalVideoStore.sourceId;
+
   void _showMenu(BuildContext context, WidgetRef ref, Offset position) {
     final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
     final local = overlay.globalToLocal(position);
@@ -248,13 +320,16 @@ class VideoCard extends ConsumerWidget {
               ],
             ),
           ),
-        const PopupMenuItem(
+        PopupMenuItem(
           value: _VideoCardAction.remove,
           child: Row(
             children: [
-              Icon(Icons.remove_circle_outline, color: Colors.red),
-              SizedBox(width: 12),
-              Text('从视频库移除', style: TextStyle(color: Colors.red)),
+              const Icon(Icons.remove_circle_outline, color: Colors.red),
+              const SizedBox(width: 12),
+              Text(
+                _localImport ? '删除视频' : '从视频库移除',
+                style: const TextStyle(color: Colors.red),
+              ),
             ],
           ),
         ),
@@ -274,8 +349,37 @@ class VideoCard extends ConsumerWidget {
         case _VideoCardAction.removeFromCollection:
           onRemoveFromCollection?.call();
         case _VideoCardAction.remove:
-          await repo.remove(item.id);
-          showAppToast('已从视频库移除');
+          if (_localImport) {
+            if (!context.mounted) return;
+            final confirmed = await showDialog<bool>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                title: const Text('删除视频？'),
+                content: const Text('将删除 Tonari 中的视频文件及其播放记录，原始文件不受影响。'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('取消'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: const Text('删除'),
+                  ),
+                ],
+              ),
+            );
+            if (confirmed != true || !context.mounted) return;
+          }
+          try {
+            if (_localImport &&
+                ref.read(videoControllerProvider).item?.stableId == item.id) {
+              await ref.read(videoControllerProvider.notifier).stop();
+            }
+            await repo.remove(item.id);
+            showAppToast(_localImport ? '已删除视频' : '已从视频库移除');
+          } catch (e) {
+            showAppToast('删除失败：$e');
+          }
         case null:
           break;
       }

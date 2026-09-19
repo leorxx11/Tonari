@@ -9,6 +9,8 @@ import 'package:video_player/video_player.dart';
 import '../../../shared/widgets/library_home_button.dart';
 import '../../player/data/sleep_timer.dart';
 import '../../player/presentation/sleep_timer_sheet.dart';
+import '../../browse/data/remote_models.dart';
+import '../../video_library/data/local_video_store.dart';
 import '../../video_library/data/frame_capture.dart';
 import '../../video_library/data/video_cover_store.dart';
 import '../../video_library/data/video_library_providers.dart';
@@ -763,18 +765,22 @@ class _VideoMoreMenu extends ConsumerWidget {
             ],
           ),
         ),
-        PopupMenuItem(
-          value: _VideoMenuAction.toggleLibrary,
-          child: Row(
-            children: [
-              Icon(
-                inLibrary ? Icons.video_library : Icons.video_library_outlined,
-              ),
-              const SizedBox(width: 12),
-              Text(inLibrary ? '从视频库移除' : '加入视频库'),
-            ],
+        if (item.sourceKind != RemoteSourceKind.local ||
+            item.sourceId != LocalVideoStore.sourceId)
+          PopupMenuItem(
+            value: _VideoMenuAction.toggleLibrary,
+            child: Row(
+              children: [
+                Icon(
+                  inLibrary
+                      ? Icons.video_library
+                      : Icons.video_library_outlined,
+                ),
+                const SizedBox(width: 12),
+                Text(inLibrary ? '从视频库移除' : '加入视频库'),
+              ],
+            ),
           ),
-        ),
       ],
     );
   }
