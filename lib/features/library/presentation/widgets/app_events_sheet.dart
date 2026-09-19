@@ -60,6 +60,7 @@ class AppEventsSheet extends ConsumerWidget {
         actions: [
           if ((events.value ?? const []).isNotEmpty)
             TextButton(
+              style: TextButton.styleFrom(foregroundColor: Colors.white),
               onPressed: () => ref.read(appEventSinkProvider).clear(),
               child: const Text('清空'),
             ),

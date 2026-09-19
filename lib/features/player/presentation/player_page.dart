@@ -1,10 +1,15 @@
 import 'dart:async';
 
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 
+import '../../../core/db/database.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../library/presentation/open_work_detail.dart';
 import '../../library/presentation/widgets/work_cover.dart';
 import '../../settings/data/player_prefs.dart';
@@ -17,7 +22,7 @@ import 'sleep_timer_sheet.dart';
 /// Sky-blue accent used for progress + volume sliders. Lighter and warmer
 /// than `CupertinoColors.systemBlue`, which felt too saturated against the
 /// large dark cover.
-const Color _kPlayerAccent = Color(0xFF4DACF9);
+const Color _kPlayerAccent = AppTheme.primary;
 
 class PlayerPage extends ConsumerStatefulWidget {
   const PlayerPage({super.key});
@@ -83,111 +88,128 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
       subtitleLine = '$subtitleLine · 还剩 ${sleep.remainingTracks} 曲停';
     }
 
+    final dark = theme.brightness == Brightness.dark;
     return Scaffold(
+      extendBodyBehindAppBar: true,
+      backgroundColor: theme.colorScheme.surface,
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: const SizedBox.shrink(),
         toolbarHeight: 44,
+        backgroundColor: Colors.transparent,
+        foregroundColor: iosLabel,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        systemOverlayStyle: dark
+            ? SystemUiOverlayStyle.light
+            : SystemUiOverlayStyle.dark,
       ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 4, 24, 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        final s = constraints.maxWidth.clamp(220.0, 360.0);
-                        return SizedBox(
-                          width: s,
-                          height: s,
-                          child: work == null
-                              ? DecoratedBox(
-                                  decoration: BoxDecoration(
-                                    color: theme
-                                        .colorScheme
-                                        .surfaceContainerHighest,
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Icon(
-                                    Icons.cloud_queue_rounded,
-                                    size: 88,
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                  ),
-                                )
-                              : WorkCover(
-                                  work: work,
-                                  borderRadius: BorderRadius.circular(20),
-                                  iconSize: 72,
-                                ),
-                        );
-                      },
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (work != null) _BlurredCover(work: work),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 4, 24, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final s = constraints.maxWidth.clamp(220.0, 360.0);
+                            return SizedBox(
+                              width: s,
+                              height: s,
+                              child: work == null
+                                  ? DecoratedBox(
+                                      decoration: BoxDecoration(
+                                        color: theme
+                                            .colorScheme
+                                            .surfaceContainerHighest,
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Icon(
+                                        Icons.cloud_queue_rounded,
+                                        size: 88,
+                                        color:
+                                            theme.colorScheme.onSurfaceVariant,
+                                      ),
+                                    )
+                                  : WorkCover(
+                                      work: work,
+                                      borderRadius: BorderRadius.circular(20),
+                                      iconSize: 72,
+                                    ),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 28),
+                        Text(
+                          title,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            color: iosLabel,
+                            fontWeight: FontWeight.w700,
+                            height: 1.3,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          subtitleLine,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: iosTertiary,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 28),
-                    Text(
-                      title,
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        color: iosLabel,
-                        fontWeight: FontWeight.w700,
-                        height: 1.3,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      subtitleLine,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: iosTertiary,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                  _ProgressBar(
+                    controller: controller,
+                    accent: iosBlue,
+                    timeColor: iosSecondary,
+                  ),
+                  const SizedBox(height: 14),
+                  _MainControls(
+                    stepSeconds: step,
+                    primary: iosLabel,
+                    disabled: iosTertiary,
+                    playingStream: controller.player.playingStream,
+                    onPrev: state.hasPrevious ? controller.previous : null,
+                    onNext: state.hasNext ? controller.next : null,
+                    onSeekBackward: () => _seekBy(Duration(seconds: -step)),
+                    onSeekForward: () => _seekBy(Duration(seconds: step)),
+                    onPlay: controller.play,
+                    onPause: controller.pause,
+                  ),
+                  const SizedBox(height: 18),
+                  _VolumeRow(
+                    player: controller.player,
+                    accent: iosBlue,
+                    iconColor: iosSecondary,
+                  ),
+                  const SizedBox(height: 14),
+                  _BottomActions(
+                    color: iosSecondary,
+                    mode: ref.watch(playerPrefsProvider).playbackMode,
+                    onQueue: () => _showQueue(context, state, controller),
+                    onCycleMode: _cycleMode,
+                    onSleepTimer: () => showSleepTimerSheet(context),
+                    onMore: () => _showMore(context),
+                  ),
+                ],
               ),
-              _ProgressBar(
-                controller: controller,
-                accent: iosBlue,
-                timeColor: iosSecondary,
-              ),
-              const SizedBox(height: 14),
-              _MainControls(
-                stepSeconds: step,
-                primary: iosLabel,
-                disabled: iosTertiary,
-                playingStream: controller.player.playingStream,
-                onPrev: state.hasPrevious ? controller.previous : null,
-                onNext: state.hasNext ? controller.next : null,
-                onSeekBackward: () => _seekBy(Duration(seconds: -step)),
-                onSeekForward: () => _seekBy(Duration(seconds: step)),
-                onPlay: controller.play,
-                onPause: controller.pause,
-              ),
-              const SizedBox(height: 18),
-              _VolumeRow(
-                player: controller.player,
-                accent: iosBlue,
-                iconColor: iosSecondary,
-              ),
-              const SizedBox(height: 14),
-              _BottomActions(
-                color: iosSecondary,
-                mode: ref.watch(playerPrefsProvider).playbackMode,
-                onQueue: () => _showQueue(context, state, controller),
-                onCycleMode: _cycleMode,
-                onSleepTimer: () => showSleepTimerSheet(context),
-                onMore: () => _showMore(context),
-              ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -322,6 +344,29 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
           ),
         );
       },
+    );
+  }
+}
+
+/// Kikoeru-style backdrop: the cover blown up, blurred and washed out so
+/// the controls stay legible in both themes.
+class _BlurredCover extends StatelessWidget {
+  const _BlurredCover({required this.work});
+
+  final Work work;
+
+  @override
+  Widget build(BuildContext context) {
+    final surface = Theme.of(context).colorScheme.surface;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        ImageFiltered(
+          imageFilter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
+          child: WorkCover(work: work),
+        ),
+        ColoredBox(color: surface.withValues(alpha: 0.72)),
+      ],
     );
   }
 }

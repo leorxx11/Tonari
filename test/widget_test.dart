@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'support/forward_gesture.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -334,6 +335,9 @@ void main() {
     _testPrefs = await SharedPreferences.getInstance();
   });
 
+  // Large cards fit one per test viewport; most tests reason about the grid.
+  setUp(() => _testPrefs.setString('library.view.works', 'grid'));
+
   // IndexedStack keeps every section (and its hamburger) in the tree, so
   // finders must be narrowed to the visible one with hitTestable.
   Future<void> openDrawer(WidgetTester tester) async {
@@ -468,7 +472,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(WorkCard), findsNWidgets(2));
 
-    await tester.tap(find.byTooltip('列表视图'));
+    await tester.tap(find.byTooltip('视图：网格'));
     await tester.pumpAndSettle();
     expect(find.byType(WorkCard), findsNothing);
     expect(find.byType(WorkListTile), findsNWidgets(2));
@@ -483,6 +487,36 @@ void main() {
     expect(find.text('社团：Circle A'), findsOneWidget);
     expect(find.text('Listed Work'), findsOneWidget);
     expect(find.text('Other Work'), findsNothing);
+  });
+
+  testWidgets('card view shows rating, price, sales and cycles modes', (
+    tester,
+  ) async {
+    await _testPrefs.setString('library.view.works', 'card');
+    addTearDown(() => _testPrefs.remove('library.view.works'));
+    final work = _work('RJ1', title: 'Card Work', circleName: 'Circle A')
+        .copyWith(
+          rating: const Value(4.5),
+          ratingCount: const Value(12),
+          currentPrice: const Value(1980),
+          dlCount: const Value(350),
+        );
+    await tester.pumpWidget(
+      testApp(works: [work], workDurations: {'RJ1': 3 * 3600000}),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Card Work'), findsOneWidget);
+    expect(find.text('Circle A'), findsOneWidget);
+    expect(find.text(' (12)'), findsOneWidget);
+    expect(find.text('1980 JPY'), findsOneWidget);
+    expect(find.text('销量：350'), findsOneWidget);
+    expect(find.text(' 3.0h'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('视图：大卡片'));
+    await tester.pumpAndSettle();
+    expect(_testPrefs.getString('library.view.works'), 'grid');
+    expect(find.text('1980 JPY'), findsNothing);
   });
 
   testWidgets('library resets scroll for filters and sorting', (tester) async {

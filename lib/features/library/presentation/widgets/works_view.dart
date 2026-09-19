@@ -43,6 +43,16 @@ class WorksView extends ConsumerWidget {
         itemBuilder: item,
       );
     }
+    if (mode == LibraryViewMode.card) {
+      return ListView.separated(
+        controller: controller,
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: _cardPadding,
+        itemCount: works.length,
+        separatorBuilder: (_, _) => const SizedBox(height: 12),
+        itemBuilder: item,
+      );
+    }
     return GridView.builder(
       controller: controller,
       physics: const AlwaysScrollableScrollPhysics(),
@@ -74,15 +84,27 @@ Widget workItemsSliver({
       ),
     );
   }
+  if (mode == LibraryViewMode.card) {
+    return SliverPadding(
+      padding: _cardPadding,
+      sliver: SliverList.separated(
+        itemCount: works.length,
+        itemBuilder: itemBuilder,
+        separatorBuilder: (_, _) => const SizedBox(height: 12),
+      ),
+    );
+  }
   return SliverPadding(
     padding: const EdgeInsets.fromLTRB(10, 10, 10, 16),
     sliver: SliverGrid(gridDelegate: workGridDelegate, delegate: delegate),
   );
 }
 
+const _cardPadding = EdgeInsets.fromLTRB(10, 12, 10, 16);
+
 const workGridDelegate = SliverGridDelegateWithFixedCrossAxisCount(
   crossAxisCount: 2,
-  childAspectRatio: 0.6,
+  childAspectRatio: 0.52,
   crossAxisSpacing: 10,
   mainAxisSpacing: 10,
 );
@@ -114,13 +136,14 @@ class LibraryWorkItem extends ConsumerWidget {
         ref.read(toggleFavoriteProvider)(work.productId, !work.isFavorite);
     void onAddToCollection() => showCollectionPicker(context, work);
     void onTap() => openWorkDetail(context, ref, work);
+    final durationMs = ref.watch(
+      workDurationsProvider.select((d) => d.value?[work.productId]),
+    );
     if (mode == LibraryViewMode.list) {
       return WorkListTile(
         work: work,
         isRemote: isRemote,
-        durationMs: ref.watch(
-          workDurationsProvider.select((d) => d.value?[work.productId]),
-        ),
+        durationMs: durationMs,
         onRemove: onRemove,
         onToggleFavorite: onToggleFavorite,
         onAddToCollection: onAddToCollection,
@@ -131,6 +154,8 @@ class LibraryWorkItem extends ConsumerWidget {
     return WorkCard(
       work: work,
       isRemote: isRemote,
+      large: mode == LibraryViewMode.card,
+      durationMs: durationMs,
       onRemove: onRemove,
       onToggleFavorite: onToggleFavorite,
       onAddToCollection: onAddToCollection,

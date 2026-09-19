@@ -169,8 +169,11 @@ class _SearchField extends StatelessWidget {
             child: TextField(
               controller: controller,
               autofocus: chips.isEmpty,
+              style: const TextStyle(color: Colors.white),
+              cursorColor: Colors.white,
               decoration: InputDecoration(
                 hintText: chips.isEmpty ? '搜索 RJ、标题、CV、社团，#标签…' : null,
+                hintStyle: const TextStyle(color: Colors.white70),
                 border: InputBorder.none,
               ),
               onChanged: onQueryChanged,
@@ -194,26 +197,20 @@ class _FilterToken extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(10, 4, 6, 4),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
+        color: Colors.white24,
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
             chipLabel(chip),
-            style: theme.textTheme.labelLarge?.copyWith(
-              color: theme.colorScheme.onSurface,
-            ),
+            style: theme.textTheme.labelLarge?.copyWith(color: Colors.white),
           ),
           const SizedBox(width: 4),
           GestureDetector(
             onTap: onRemove,
-            child: Icon(
-              Icons.cancel,
-              size: 16,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+            child: const Icon(Icons.cancel, size: 16, color: Colors.white70),
           ),
         ],
       ),
@@ -254,14 +251,11 @@ class _SourceFilterMenu extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            current.label,
-            style: theme.textTheme.headlineSmall?.copyWith(
-              color: theme.colorScheme.onSurface,
-              fontWeight: FontWeight.w500,
-            ),
+            '音声库 · ${current.label}',
+            style: theme.appBarTheme.titleTextStyle,
           ),
           const SizedBox(width: 4),
-          Icon(Icons.expand_more, color: theme.colorScheme.onSurfaceVariant),
+          const Icon(Icons.expand_more, color: Colors.white70),
         ],
       ),
     );

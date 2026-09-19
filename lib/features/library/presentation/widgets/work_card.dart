@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/db/database.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../data/works_providers.dart';
 import 'chip_filter_actions.dart';
 import 'work_cover.dart';
@@ -14,6 +15,8 @@ class WorkCard extends StatelessWidget {
     super.key,
     required this.work,
     this.isRemote = false,
+    this.large = false,
+    this.durationMs,
     this.onTap,
     this.onRemove,
     this.onToggleFavorite,
@@ -23,6 +26,10 @@ class WorkCard extends StatelessWidget {
 
   final Work work;
   final bool isRemote;
+
+  /// Full-width card with the complete info block, Kikoeru's phone default.
+  final bool large;
+  final int? durationMs;
   final VoidCallback? onTap;
   final VoidCallback? onRemove;
   final VoidCallback? onToggleFavorite;
@@ -31,7 +38,6 @@ class WorkCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final hasMenu =
         onRemove != null ||
         onToggleFavorite != null ||
@@ -63,38 +69,41 @@ class WorkCard extends StatelessWidget {
             child: ExcludeSemantics(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: large ? MainAxisSize.min : MainAxisSize.max,
                 children: [
                   AspectRatio(
-                    aspectRatio: 1,
+                    // DLsite covers are 560×420.
+                    aspectRatio: large ? 4 / 3 : 1,
                     child: _CoverWithOverlays(
                       work: work,
                       isRemote: isRemote,
                       onToggleFavorite: onToggleFavorite,
                     ),
                   ),
-                  Expanded(
-                    child: ClipRect(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              displayTitle,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                height: 1.25,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Expanded(child: _TagWrap(work: work)),
-                          ],
+                  if (large)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                      child: _WorkInfo(
+                        work: work,
+                        title: displayTitle,
+                        durationMs: durationMs,
+                        large: true,
+                      ),
+                    )
+                  else
+                    Expanded(
+                      child: ClipRect(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+                          child: _WorkInfo(
+                            work: work,
+                            title: displayTitle,
+                            durationMs: durationMs,
+                            large: false,
+                          ),
                         ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -440,6 +449,13 @@ const _cardChipDensity = _ChipDensity(
   spacing: 4,
   maxWidth: 92,
 );
+const _largeChipDensity = _ChipDensity(
+  fontSize: 13,
+  paddingH: 10,
+  paddingV: 4,
+  spacing: 6,
+  maxWidth: 220,
+);
 
 class _CoverWithOverlays extends StatelessWidget {
   const _CoverWithOverlays({
@@ -570,18 +586,170 @@ class _CircleIconButton extends StatelessWidget {
   }
 }
 
-class _TagWrap extends ConsumerWidget {
-  const _TagWrap({required this.work});
+class _WorkInfo extends ConsumerWidget {
+  const _WorkInfo({
+    required this.work,
+    required this.title,
+    required this.durationMs,
+    required this.large,
+  });
 
   final Work work;
+  final String title;
+  final int? durationMs;
+  final bool large;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final entries = <_TagEntry>[];
+    final muted = theme.colorScheme.onSurfaceVariant;
+    final small = theme.textTheme.bodySmall?.copyWith(color: muted);
+    final circle = work.circleName;
+    final rating = work.rating;
+    final price = work.currentPrice ?? work.officialPrice;
+    final sales = work.dlCount;
+    final reviews = work.reviewCount;
+    final stats = [
+      if (rating != null && rating > 0) ...[
+        _Stars(rating: rating, size: large ? 17 : 13),
+        const SizedBox(width: 4),
+        Text(
+          rating.toStringAsFixed(rating == rating.roundToDouble() ? 0 : 1),
+          style: small?.copyWith(
+            color: AppTheme.price,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        if (work.ratingCount != null)
+          Text(' (${work.ratingCount})', style: small),
+      ],
+      if (large && reviews != null && reviews > 0) ...[
+        const SizedBox(width: 10),
+        Icon(Icons.chat, size: 15, color: muted),
+        Text(' ($reviews)', style: small),
+      ],
+      if (durationMs != null && durationMs! > 0) ...[
+        SizedBox(width: large ? 10 : 6),
+        Icon(Icons.schedule, size: large ? 15 : 12, color: muted),
+        Text(' ${_formatHours(durationMs!)}', style: small),
+      ],
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: large ? MainAxisSize.min : MainAxisSize.max,
+      children: [
+        Text(
+          title,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style:
+              (large ? theme.textTheme.titleMedium : theme.textTheme.bodyMedium)
+                  ?.copyWith(fontWeight: FontWeight.w600, height: 1.3),
+        ),
+        if (circle != null && circle.isNotEmpty) ...[
+          const SizedBox(height: 3),
+          GestureDetector(
+            onTap: () => applyChipFilter(context, ref, (
+              kind: WorkChipKind.circle,
+              value: circle,
+            )),
+            child: Text(
+              circle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: (large ? theme.textTheme.bodyMedium : small)?.copyWith(
+                color: muted,
+              ),
+            ),
+          ),
+        ],
+        if (stats.isNotEmpty) ...[
+          SizedBox(height: large ? 6 : 4),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const NeverScrollableScrollPhysics(),
+            child: Row(children: stats),
+          ),
+        ],
+        if (large && (price != null || sales != null)) ...[
+          const SizedBox(height: 6),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              if (price != null)
+                Text(
+                  '$price JPY',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: AppTheme.price,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              if (price != null && sales != null) const SizedBox(width: 12),
+              if (sales != null)
+                Text('销量：$sales', style: theme.textTheme.bodyMedium),
+            ],
+          ),
+        ],
+        SizedBox(height: large ? 10 : 6),
+        if (large)
+          _TagWrap(work: work, large: true)
+        else
+          Expanded(child: _TagWrap(work: work, large: false)),
+      ],
+    );
+  }
+}
+
+class _Stars extends StatelessWidget {
+  const _Stars({required this.rating, required this.size});
+
+  final double rating;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var i = 1; i <= 5; i++)
+          Icon(
+            rating >= i
+                ? Icons.star
+                : rating >= i - 0.5
+                ? Icons.star_half
+                : Icons.star_border,
+            size: size,
+            color: AppTheme.star,
+          ),
+      ],
+    );
+  }
+}
+
+String _formatHours(int ms) {
+  final minutes = ms ~/ 60000;
+  if (minutes < 60) return '${minutes}m';
+  final hours = minutes / 60;
+  return '${hours.toStringAsFixed(hours >= 10 ? 0 : 1)}h';
+}
+
+class _TagWrap extends ConsumerWidget {
+  const _TagWrap({required this.work, required this.large});
+
+  final Work work;
+
+  /// Large cards list genres first, then series and CVs, like Kikoeru.
+  final bool large;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final credits = <_TagEntry>[];
+    final genres = <_TagEntry>[];
 
     if (work.seriesName != null && work.seriesName!.isNotEmpty) {
-      entries.add(
+      credits.add(
         _TagEntry(
           label: work.seriesName!,
           background: const Color(0xFFFFA726),
@@ -591,7 +759,7 @@ class _TagWrap extends ConsumerWidget {
       );
     }
     for (final cv in work.voiceActors) {
-      entries.add(
+      credits.add(
         _TagEntry(
           label: cv,
           background: const Color(0xFF26A69A),
@@ -601,28 +769,30 @@ class _TagWrap extends ConsumerWidget {
       );
     }
     for (final g in _genreNames(work.genresJson)) {
-      entries.add(
+      genres.add(
         _TagEntry(
           label: g,
-          background: theme.colorScheme.surfaceContainerHigh,
+          background: theme.colorScheme.surfaceContainerHighest,
           foreground: theme.colorScheme.onSurfaceVariant,
           filter: (kind: WorkChipKind.genre, value: g),
         ),
       );
     }
 
+    final entries = large ? [...genres, ...credits] : [...credits, ...genres];
     if (entries.isEmpty) return const SizedBox.shrink();
+    final density = large ? _largeChipDensity : _cardChipDensity;
 
     return Wrap(
-      spacing: _cardChipDensity.spacing,
-      runSpacing: _cardChipDensity.spacing,
+      spacing: density.spacing,
+      runSpacing: density.spacing,
       children: [
-        for (final e in entries.take(_maxVisibleTags))
+        for (final e in large ? entries : entries.take(_maxVisibleTags))
           _Chip(
             label: e.label,
             background: e.background,
             foreground: e.foreground,
-            density: _cardChipDensity,
+            density: density,
             onTap: () => applyChipFilter(context, ref, e.filter),
           ),
       ],
@@ -686,7 +856,7 @@ class _Chip extends StatelessWidget {
         ),
         decoration: BoxDecoration(
           color: background,
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(16),
         ),
         constraints: BoxConstraints(maxWidth: density.maxWidth),
         child: Text(
@@ -696,7 +866,7 @@ class _Chip extends StatelessWidget {
           style: TextStyle(
             color: foreground,
             fontSize: density.fontSize,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w500,
             height: 1.2,
           ),
         ),

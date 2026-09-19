@@ -116,9 +116,7 @@ class _WorkDetailViewState extends ConsumerState<_WorkDetailView> {
               tooltip: work.isFavorite ? '取消收藏' : '添加收藏',
               icon: Icon(
                 work.isFavorite ? Icons.favorite : Icons.favorite_outline,
-                color: work.isFavorite
-                    ? Theme.of(context).colorScheme.primary
-                    : null,
+                color: work.isFavorite ? Colors.pinkAccent[100] : null,
               ),
               onPressed: () async {
                 final toggle = ref.read(toggleFavoriteProvider);
@@ -1411,7 +1409,7 @@ class _TranslationButton extends ConsumerWidget {
       tooltip: showZh ? '显示原文' : '翻译为中文',
       icon: Icon(
         showZh ? Icons.translate : Icons.translate_outlined,
-        color: showZh ? theme.colorScheme.primary : null,
+        color: showZh ? Colors.amberAccent : null,
       ),
       onPressed: () {
         if (hasZh) {

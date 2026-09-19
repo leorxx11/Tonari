@@ -10,10 +10,15 @@ class ViewModeButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final list = ref.watch(provider) == LibraryViewMode.list;
+    final mode = ref.watch(provider);
+    final (icon, label) = switch (mode) {
+      LibraryViewMode.card => (Icons.view_agenda_outlined, '大卡片'),
+      LibraryViewMode.grid => (Icons.grid_view, '网格'),
+      LibraryViewMode.list => (Icons.view_list, '列表'),
+    };
     return IconButton(
-      tooltip: list ? '网格视图' : '列表视图',
-      icon: Icon(list ? Icons.grid_view : Icons.view_list),
+      tooltip: '视图：$label',
+      icon: Icon(icon),
       onPressed: () => ref.read(provider.notifier).toggle(),
     );
   }
