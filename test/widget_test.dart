@@ -533,7 +533,6 @@ void main() {
     final filter = container.read(workFilterProvider.notifier);
     const chip = (kind: WorkChipKind.voiceActor, value: 'CV');
     final changes = <VoidCallback>[
-      filter.toggleFavoritesOnly,
       () => filter.setSource(SourceFilter.local),
       () => filter.setSearchQuery('RJ'),
       () => filter.addChip(chip),
@@ -1366,20 +1365,6 @@ void main() {
 
     final gridHeight = tester.getSize(find.byType(GridView)).height;
     expect(gridHeight, greaterThan(200));
-  });
-
-  testWidgets('favorite filter button toggles its tooltip', (tester) async {
-    await tester.pumpWidget(testApp());
-    await tester.pumpAndSettle();
-
-    expect(find.byTooltip('只看收藏'), findsOneWidget);
-    expect(find.byTooltip('取消只看收藏'), findsNothing);
-
-    await tester.tap(find.byTooltip('只看收藏'));
-    await tester.pumpAndSettle();
-
-    expect(find.byTooltip('只看收藏'), findsNothing);
-    expect(find.byTooltip('取消只看收藏'), findsOneWidget);
   });
 
   testWidgets('sort menu flips the current field and resets on a new one', (

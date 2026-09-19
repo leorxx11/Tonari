@@ -28,7 +28,6 @@ class VideoLibraryPage extends ConsumerStatefulWidget {
 
 class _VideoLibraryPageState extends ConsumerState<VideoLibraryPage> {
   final _scrollController = ScrollController(keepScrollOffset: false);
-  bool _favoritesOnly = false;
   bool _importing = false;
   int _completed = 0;
   int _total = 0;
@@ -58,7 +57,6 @@ class _VideoLibraryPageState extends ConsumerState<VideoLibraryPage> {
             },
           );
       if (count > 0) {
-        if (mounted) setState(() => _favoritesOnly = false);
         showAppToast('已导入 $count 个视频');
       }
     } catch (e) {
@@ -104,28 +102,15 @@ class _VideoLibraryPageState extends ConsumerState<VideoLibraryPage> {
           ),
           ViewModeButton(provider: videoViewModeProvider),
           SortMenuButton(provider: videoSortProvider),
-          IconButton(
-            tooltip: _favoritesOnly ? '取消只看收藏' : '只看收藏',
-            icon: Icon(
-              _favoritesOnly ? Icons.favorite : Icons.favorite_outline,
-            ),
-            onPressed: () => setState(() => _favoritesOnly = !_favoritesOnly),
-          ),
           const LibraryHomeButton(),
         ],
       ),
       body: itemsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('加载失败：$e')),
-        data: (all) {
-          final items = _favoritesOnly
-              ? all.where((v) => v.isFavorite).toList()
-              : all;
+        data: (items) {
           if (items.isEmpty) {
-            return _EmptyState(
-              filtered: _favoritesOnly,
-              onImport: _importing ? null : _importVideos,
-            );
+            return _EmptyState(onImport: _importing ? null : _importVideos);
           }
           return CustomScrollView(
             controller: _scrollController,
@@ -138,9 +123,8 @@ class _VideoLibraryPageState extends ConsumerState<VideoLibraryPage> {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.filtered, required this.onImport});
+  const _EmptyState({required this.onImport});
 
-  final bool filtered;
   final VoidCallback? onImport;
 
   @override
@@ -153,31 +137,26 @@ class _EmptyState extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              filtered ? Icons.filter_alt_outlined : CupertinoIcons.videocam,
+              CupertinoIcons.videocam,
               size: 64,
               color: theme.colorScheme.onSurfaceVariant,
             ),
             const SizedBox(height: 16),
-            Text(
-              filtered ? '没有收藏的视频' : '视频库还是空的',
-              style: theme.textTheme.titleMedium,
-            ),
+            Text('视频库还是空的', style: theme.textTheme.titleMedium),
             const SizedBox(height: 8),
             Text(
-              filtered ? '关掉"只看收藏"过滤看看' : '从「文件」导入本地视频，或在浏览页、播放历史中加入视频库',
+              '从「文件」导入本地视频，或在浏览页、播放历史中加入视频库',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
               textAlign: TextAlign.center,
             ),
-            if (!filtered) ...[
-              const SizedBox(height: 20),
-              FilledButton.tonalIcon(
-                onPressed: onImport,
-                icon: const Icon(Icons.add),
-                label: const Text('导入本地视频'),
-              ),
-            ],
+            const SizedBox(height: 20),
+            FilledButton.tonalIcon(
+              onPressed: onImport,
+              icon: const Icon(Icons.add),
+              label: const Text('导入本地视频'),
+            ),
           ],
         ),
       ),

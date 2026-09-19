@@ -75,14 +75,6 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
               icon: const Icon(Icons.search),
               onPressed: () => setState(() => _searching = true),
             ),
-            IconButton(
-              tooltip: filter.favoritesOnly ? '取消只看收藏' : '只看收藏',
-              icon: Icon(
-                filter.favoritesOnly ? Icons.favorite : Icons.favorite_outline,
-              ),
-              onPressed: () =>
-                  ref.read(workFilterProvider.notifier).toggleFavoritesOnly(),
-            ),
           ],
           ViewModeButton(provider: workViewModeProvider),
           SortMenuButton(provider: workSortProvider),
@@ -282,7 +274,6 @@ class _EmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isFiltered =
-        filter.favoritesOnly ||
         filter.searchQuery.trim().isNotEmpty ||
         filter.chips.isNotEmpty ||
         filter.source != SourceFilter.all;

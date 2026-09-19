@@ -50,25 +50,21 @@ bool workMatchesChip(Work w, WorkChipFilter chip) => switch (chip.kind) {
 
 class WorkFilter {
   const WorkFilter({
-    this.favoritesOnly = false,
     this.searchQuery = '',
     this.source = SourceFilter.all,
     this.chips = const [],
   });
 
-  final bool favoritesOnly;
   final String searchQuery;
   final SourceFilter source;
   final List<WorkChipFilter> chips;
 
   WorkFilter copyWith({
-    bool? favoritesOnly,
     String? searchQuery,
     SourceFilter? source,
     List<WorkChipFilter>? chips,
   }) {
     return WorkFilter(
-      favoritesOnly: favoritesOnly ?? this.favoritesOnly,
       searchQuery: searchQuery ?? this.searchQuery,
       source: source ?? this.source,
       chips: chips ?? this.chips,
@@ -79,10 +75,6 @@ class WorkFilter {
 class WorkFilterNotifier extends Notifier<WorkFilter> {
   @override
   WorkFilter build() => const WorkFilter();
-
-  void toggleFavoritesOnly() {
-    state = state.copyWith(favoritesOnly: !state.favoritesOnly);
-  }
 
   void setSearchQuery(String query) {
     state = state.copyWith(searchQuery: query);
@@ -122,9 +114,6 @@ final allWorksProvider = StreamProvider<List<Work>>((ref) {
       (db.select(db.works)
             ..where((w) {
               var expr = w.isRemoved.equals(false);
-              if (filter.favoritesOnly) {
-                expr = expr & w.isFavorite.equals(true);
-              }
               if (filter.source != SourceFilter.all) {
                 final remoteIds = db.selectOnly(db.importedFolders)
                   ..addColumns([db.importedFolders.id])
