@@ -17,6 +17,7 @@ class TonariApp extends ConsumerStatefulWidget {
 }
 
 class _TonariAppState extends ConsumerState<TonariApp> {
+  final _navigatorKey = GlobalKey<NavigatorState>();
   late final _forwardNavigation = ForwardNavigationObserver();
 
   @override
@@ -29,6 +30,7 @@ class _TonariAppState extends ConsumerState<TonariApp> {
   Widget build(BuildContext context) {
     final themeMode = ref.watch(themePrefsProvider);
     return MaterialApp(
+      navigatorKey: _navigatorKey,
       title: 'Tonari',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
@@ -42,7 +44,7 @@ class _TonariAppState extends ConsumerState<TonariApp> {
           children: [
             child ?? const SizedBox.shrink(),
             const PipSync(),
-            const SubtitleOverlay(),
+            SubtitleOverlay(navigatorKey: _navigatorKey),
             const AppToastHost(),
           ],
         ),

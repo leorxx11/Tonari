@@ -9,7 +9,9 @@ import '../data/subtitle_providers.dart';
 /// Hidden when no track is playing, no subtitle is loaded, the current cue is
 /// in a gap, or the user has toggled it off.
 class SubtitleOverlay extends ConsumerStatefulWidget {
-  const SubtitleOverlay({super.key});
+  const SubtitleOverlay({super.key, required this.navigatorKey});
+
+  final GlobalKey<NavigatorState> navigatorKey;
 
   @override
   ConsumerState<SubtitleOverlay> createState() => _SubtitleOverlayState();
@@ -58,20 +60,20 @@ class _SubtitleOverlayState extends ConsumerState<SubtitleOverlay> {
             if (mounted) setState(() => _dragDy = null);
           }
         },
-        onLongPress: () => _showMenu(context),
+        onLongPress: _showMenu,
         child: _SubtitleBar(text: text),
       ),
     );
   }
 
-  Future<void> _showMenu(BuildContext context) async {
+  Future<void> _showMenu() async {
     final controller = ref.read(subtitleControllerProvider);
     final overlayPrefs = ref.read(subtitleOverlayPrefsProvider.notifier);
     final loaded = ref.read(currentSubtitleProvider).value;
     final offsetMs = loaded?.timeOffsetMs ?? 0;
 
     await showModalBottomSheet<void>(
-      context: context,
+      context: widget.navigatorKey.currentState!.overlay!.context,
       showDragHandle: true,
       builder: (sheetCtx) {
         return SafeArea(
@@ -156,14 +158,11 @@ class _SubtitleBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final background = Theme.of(context).brightness == Brightness.dark
-        ? const Color(0x26FFFFFF)
-        : const Color(0x1F000000);
     // decoration: none is required because the overlay is rendered
     // outside any Material ancestor (Stack child of MaterialApp.builder),
     // where Flutter falls back to the debug "yellow double underline".
     return ColoredBox(
-      color: background,
+      color: const Color(0xD1000000),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         child: Text(
@@ -172,10 +171,10 @@ class _SubtitleBar extends StatelessWidget {
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(
-            color: Color(0xFF9123A7),
+            color: Colors.white,
             fontSize: 20,
-            fontWeight: FontWeight.w700,
-            height: 1.35,
+            fontWeight: FontWeight.w600,
+            height: 1.4,
             decoration: TextDecoration.none,
           ),
         ),
