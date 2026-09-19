@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_drawer.dart';
 import '../../../shared/widgets/library_home_button.dart';
 import '../../../core/ui/app_toast.dart';
@@ -26,60 +27,95 @@ class SettingsPage extends ConsumerWidget {
         actions: const [LibraryHomeButton()],
       ),
       body: ListView(
+        padding: const EdgeInsets.only(bottom: 24),
         children: [
           const _SectionLabel('内容'),
-          ListTile(
-            leading: const Icon(Icons.create_new_folder_outlined),
-            title: const Text('导入'),
-            subtitle: const Text('本地文件夹、115 网盘、WebDAV'),
-            onTap: () => showImportSourcesSheet(context, ref),
-          ),
-          const _Entry(
-            icon: Icons.folder_copy_outlined,
-            title: '媒体来源',
-            subtitle: '已导入来源与远程存储配置',
-            page: MediaSourceSettingsPage(),
-          ),
+          _Group([
+            ListTile(
+              leading: const Icon(
+                Icons.create_new_folder_outlined,
+                color: AppTheme.primary,
+              ),
+              title: const Text('导入'),
+              subtitle: const Text('本地文件夹、115 网盘、WebDAV'),
+              onTap: () => showImportSourcesSheet(context, ref),
+            ),
+            _Entry(
+              icon: Icons.folder_copy_outlined,
+              title: '媒体来源',
+              subtitle: '已导入来源与远程存储配置',
+              page: MediaSourceSettingsPage(),
+            ),
+          ]),
           const _SectionLabel('偏好'),
-          const _Entry(
-            icon: Icons.play_circle_outline,
-            title: '播放',
-            subtitle: '跳秒步长、视频默认封面',
-            page: PlaybackSettingsPage(),
-          ),
-          const _Entry(
-            icon: Icons.palette_outlined,
-            title: '外观',
-            subtitle: '主题、隐私与作品文件入口',
-            page: AppearanceSettingsPage(),
-          ),
-          const _Entry(
-            icon: Icons.translate_outlined,
-            title: '翻译',
-            subtitle: 'LLM Provider 配置',
-            page: TranslationSettingsPage(),
-          ),
+          const _Group([
+            _Entry(
+              icon: Icons.play_circle_outline,
+              title: '播放',
+              subtitle: '跳秒步长、视频默认封面',
+              page: PlaybackSettingsPage(),
+            ),
+            _Entry(
+              icon: Icons.palette_outlined,
+              title: '外观',
+              subtitle: '主题、隐私与作品文件入口',
+              page: AppearanceSettingsPage(),
+            ),
+            _Entry(
+              icon: Icons.translate_outlined,
+              title: '翻译',
+              subtitle: 'LLM Provider 配置',
+              page: TranslationSettingsPage(),
+            ),
+          ]),
           const _SectionLabel('数据'),
-          const _Entry(
-            icon: Icons.restore_from_trash_outlined,
-            title: '已移除作品',
-            subtitle: '重新导入或彻底移除记录',
-            page: RemovedWorksPage(),
-          ),
-          const _Entry(
-            icon: Icons.save_alt_outlined,
-            title: '备份与恢复',
-            subtitle: '导出媒体库数据，换机或换证书使用',
-            page: BackupPage(),
-          ),
-          const _StatsRefreshTile(),
+          const _Group([
+            _Entry(
+              icon: Icons.restore_from_trash_outlined,
+              title: '已移除作品',
+              subtitle: '重新导入或彻底移除记录',
+              page: RemovedWorksPage(),
+            ),
+            _Entry(
+              icon: Icons.save_alt_outlined,
+              title: '备份与恢复',
+              subtitle: '导出媒体库数据，换机或换证书使用',
+              page: BackupPage(),
+            ),
+            _StatsRefreshTile(),
+          ]),
           const _SectionLabel('支持'),
-          const _Entry(
-            icon: Icons.bug_report_outlined,
-            title: '诊断日志',
-            subtitle: '复制播放代理日志',
-            page: DiagnosticLogPage(),
-          ),
+          const _Group([
+            _Entry(
+              icon: Icons.bug_report_outlined,
+              title: '诊断日志',
+              subtitle: '复制播放与网络日志，用于排查问题',
+              page: DiagnosticLogPage(),
+            ),
+          ]),
+        ],
+      ),
+    );
+  }
+}
+
+/// Kikoeru groups settings into white cards with hairline dividers.
+class _Group extends StatelessWidget {
+  const _Group(this.children);
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 10),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          for (var i = 0; i < children.length; i++) ...[
+            if (i > 0) const Divider(height: 1, indent: 56),
+            children[i],
+          ],
         ],
       ),
     );
@@ -94,7 +130,7 @@ class _SectionLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 6),
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 8),
       child: Text(
         label,
         style: Theme.of(context).textTheme.labelLarge?.copyWith(
@@ -121,7 +157,7 @@ class _Entry extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: Icon(icon),
+      leading: Icon(icon, color: AppTheme.primary),
       title: Text(title),
       subtitle: Text(subtitle),
       trailing: const Icon(Icons.chevron_right),
@@ -141,7 +177,7 @@ class _StatsRefreshTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final progress = ref.watch(statsRefreshProvider);
     return ListTile(
-      leading: const Icon(Icons.bar_chart),
+      leading: const Icon(Icons.bar_chart, color: AppTheme.primary),
       title: const Text('更新统计数据'),
       subtitle: Text(
         progress == null

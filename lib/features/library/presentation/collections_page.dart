@@ -39,14 +39,19 @@ class CollectionsPage extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('加载失败：$e')),
         data: (collections) => ListView(
+          padding: const EdgeInsets.only(bottom: 24),
           children: [
-            const _AllFavoritesTile(),
+            const Card(
+              margin: EdgeInsets.fromLTRB(10, 12, 10, 0),
+              clipBehavior: Clip.antiAlias,
+              child: _AllFavoritesTile(),
+            ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 18, 16, 4),
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 8),
               child: Text(
                 '分组',
-                style: theme.textTheme.titleSmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: theme.colorScheme.primary,
                 ),
               ),
             ),
@@ -61,7 +66,18 @@ class CollectionsPage extends ConsumerWidget {
                 ),
               )
             else
-              for (final c in collections) _CollectionTile(collection: c),
+              Card(
+                margin: const EdgeInsets.symmetric(horizontal: 10),
+                clipBehavior: Clip.antiAlias,
+                child: Column(
+                  children: [
+                    for (var i = 0; i < collections.length; i++) ...[
+                      if (i > 0) const Divider(height: 1, indent: 84),
+                      _CollectionTile(collection: collections[i]),
+                    ],
+                  ],
+                ),
+              ),
           ],
         ),
       ),
@@ -69,12 +85,13 @@ class CollectionsPage extends ConsumerWidget {
   }
 }
 
+const _favoriteColor = Color(0xFFEC407A);
+
 class _AllFavoritesTile extends ConsumerWidget {
   const _AllFavoritesTile();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
     final works = ref.watch(favoriteWorksProvider).value ?? const [];
     final videos = (ref.watch(videoItemsProvider).value ?? const <VideoItem>[])
         .where((v) => v.isFavorite)
@@ -89,10 +106,10 @@ class _AllFavoritesTile extends ConsumerWidget {
         height: 52,
         child: Container(
           decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(8),
+            color: _favoriteColor.withValues(alpha: 0.14),
+            borderRadius: BorderRadius.circular(4),
           ),
-          child: Icon(Icons.favorite, color: theme.colorScheme.primary),
+          child: const Icon(Icons.favorite, color: _favoriteColor),
         ),
       ),
       title: const Text('全部收藏'),
@@ -129,18 +146,18 @@ class _CollectionTile extends ConsumerWidget {
         child: works.isNotEmpty
             ? WorkCover(
                 work: works.first,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(4),
                 iconSize: 24,
               )
             : videos.isNotEmpty
             ? ClipRRect(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(4),
                 child: VideoCover(coverPath: videos.first.coverPath),
               )
             : Container(
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(4),
                 ),
                 child: Icon(
                   Icons.bookmark_outline,

@@ -229,7 +229,7 @@ class _Leading extends ConsumerWidget {
           height: 48,
           child: WorkCover(
             work: work,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(4),
             iconSize: 24,
           ),
         );
@@ -239,7 +239,7 @@ class _Leading extends ConsumerWidget {
       final row = ref.watch(videoItemByIdProvider(entry.id)).value;
       if (row?.coverPath != null) {
         return ClipRRect(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(4),
           child: SizedBox(
             width: 48,
             height: 48,
@@ -253,7 +253,7 @@ class _Leading extends ConsumerWidget {
       height: 48,
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Icon(
         switch (entry.kind) {

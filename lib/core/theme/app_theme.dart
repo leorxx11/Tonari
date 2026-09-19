@@ -75,6 +75,8 @@ class AppTheme {
         side: BorderSide.none,
         shape: const StadiumBorder(),
       ),
+      // Plain lists read as white rows on the grey ground, like Kikoeru's.
+      listTileTheme: ListTileThemeData(tileColor: colorScheme.surface),
       dividerTheme: DividerThemeData(
         color: dark ? Colors.white12 : Colors.black12,
         space: 1,
@@ -88,6 +90,24 @@ class AppTheme {
         backgroundColor: colorScheme.surface,
         surfaceTintColor: Colors.transparent,
         indicatorColor: primary.withValues(alpha: dark ? 0.3 : 0.12),
+        iconTheme: WidgetStateProperty.resolveWith(
+          (states) => IconThemeData(
+            color: states.contains(WidgetState.selected)
+                ? colorScheme.primary
+                : colorScheme.onSurfaceVariant,
+          ),
+        ),
+        labelTextStyle: WidgetStateProperty.resolveWith(
+          (states) => TextStyle(
+            fontSize: 14,
+            fontWeight: states.contains(WidgetState.selected)
+                ? FontWeight.w600
+                : FontWeight.w400,
+            color: states.contains(WidgetState.selected)
+                ? colorScheme.primary
+                : colorScheme.onSurface,
+          ),
+        ),
       ),
       bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: colorScheme.surface,

@@ -61,7 +61,13 @@ class AppDrawer extends ConsumerWidget {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(28, 20, 16, 12),
-          child: Text('Tonari', style: Theme.of(context).textTheme.titleLarge),
+          child: Text(
+            'Tonari',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              color: Theme.of(context).colorScheme.primary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ),
         const NavigationDrawerDestination(
           icon: Icon(Icons.library_music_outlined),
@@ -132,7 +138,13 @@ class _SettingsDestination extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     return Material(
-      color: selected ? colors.secondaryContainer : Colors.transparent,
+      color: selected
+          ? colors.primary.withValues(
+              alpha: Theme.of(context).brightness == Brightness.dark
+                  ? 0.3
+                  : 0.12,
+            )
+          : Colors.transparent,
       shape: const StadiumBorder(),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -145,17 +157,15 @@ class _SettingsDestination extends StatelessWidget {
               children: [
                 Icon(
                   selected ? Icons.settings : Icons.settings_outlined,
-                  color: selected
-                      ? colors.onSecondaryContainer
-                      : colors.onSurfaceVariant,
+                  color: selected ? colors.primary : colors.onSurfaceVariant,
                 ),
                 const SizedBox(width: 12),
                 Text(
                   '设置',
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: selected
-                        ? colors.onSecondaryContainer
-                        : colors.onSurfaceVariant,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                    color: selected ? colors.primary : colors.onSurface,
                   ),
                 ),
               ],
