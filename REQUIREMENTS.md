@@ -26,7 +26,7 @@
 - **本地数据库**：Drift（原计划 Isar 3，因 Flutter 3.44 + Riverpod 3 依赖冲突替换为 Drift）
 - **音频核心**：`just_audio` + `just_audio_background` + `audio_session`
 - **视频核心**：`video_player` + `fvp`（FFmpeg 软解后端，接管 AVPlayer 无法解码的格式）
-- **云存储**：WebDAV（`dio` + `xml` 自实现 PROPFIND）；115 网盘（cookie 登录 + 本地 HTTP 代理 `MediaProxy` 给 fvp/FFmpeg 注入 Cookie/Referer）
+- **云存储**：WebDAV（`dio` + `xml` 自实现 PROPFIND）；115 网盘（cookie 登录 + 签名直链带 Cookie/Referer 头直连播放）
 - **HTTP**：`dio`
 - **HTML 解析**：`html` 包
 - **文件访问**：`file_picker` + `path_provider`
@@ -243,11 +243,13 @@
 - 移除作品 = 清空快照 + 留 tombstone（重扫不复活，找回 = 重新导入）；删除来源 = 级联硬删
 - 统一「媒体来源」页：查看 + 删除，导入入口在媒体库右上角
 
-**115 流播代理（`MediaProxy`）**：本地 `127.0.0.1` 代理给 fvp/FFmpeg 注入 Cookie/Referer（FFmpeg 自身会丢弃这些头）。两条非显然的 CDN 约束逼出当前设计：
-- 115 对同一签名直链限并发连接（约 2 条，超出返回 `403 115 pmt`）→ 代理对每个 URL 加并发信号量
-- FFmpeg 对交错封装的大文件发海量小 Range 读 → 代理按 4MB 网格块抓取 + LRU 缓存 + 有限块响应，命中率约 98%，上游请求降两个数量级
+**115 直连流播**：签名直链 + 请求头（登录 Cookie + 跳转时下发的防盗链 Cookie + Referer）直接交给播放器，不经本地代理（本地代理会在 iOS 挂起 App 后失效）。
+- 音频：just_audio 设 `useProxyForRequestHeaders: false`，请求头经 `AVURLAssetHTTPHeaderFieldsKey` 交给 AVPlayer
+- 视频：fvp 把 `httpHeaders` 写进 FFmpeg 的 `avio.headers`；User-Agent 不能放首位（FFmpeg 只识别换行后的 UA，否则重复发送）
+- 直链有效期由 URL 参数 `t` 给出：音频约 30 分钟～数小时，视频数天；音频在过期前 2 分钟内或播放卡死 8 秒时重新获取
+- 待观察：115 对同一直链限约 2 条并发连接（超出 `403 115 pmt`），直连后连接数由播放器决定
 
-**字幕**：远程字幕单独下载解析（115 走整文件直连下载，不经流播代理）。
+**字幕**：远程字幕单独下载解析（115 走整文件直连下载）。
 
 ## 4. 数据模型
 
@@ -459,7 +461,7 @@ TabView (底部 Tab)
 
 ### 10.1 已确定的决策
 
-- **流播，不做下载**：远程作品直接流播（115 经本地 `MediaProxy`，WebDAV 直连），不做整文件落盘 pin。
+- **流播，不做下载**：远程作品直接流播（115 与 WebDAV 均带请求头直连），不做整文件落盘 pin。
 - **Provider**：WebDAV 直连 + 115 网盘 cookie 扫码登录。**放弃** 115 OpenAPI（个人开发者审核关停）、Alist 中间层；PikPak 不做专门适配（走 WebDAV 通道即可覆盖）。
 - **视频解码**：从 `video_player`(AVPlayer 硬解) 换成 fvp（FFmpeg 软解），10-bit H.264 / HEVC / MKV 都能放。
 - **导入抽象**：远程目录与本地同构、**快照式**导入；导入管线（`applyScanResult` / `EnrichmentQueue` / works·tracks·subtitles 表 / 详情页 / 播放队列）几乎原样复用，只改扫描、字幕读取、播放源解析三个文件访问点。

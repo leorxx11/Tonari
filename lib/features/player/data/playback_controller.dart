@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:drift/drift.dart' show OrderingTerm, Value;
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 
@@ -89,22 +88,16 @@ class PlaybackState {
 /// App-lifetime audio playback owner. Lives outside PlayerPage so that
 /// popping back to the detail page (or anywhere) does not stop the audio,
 /// and so a mini player at the root can keep showing what's playing.
-class PlaybackController extends Notifier<PlaybackState>
-    with WidgetsBindingObserver {
+class PlaybackController extends Notifier<PlaybackState> {
   late final AudioPlayer player;
   StreamSubscription<ProcessingState>? _processingSub;
-  StreamSubscription<bool>? _playingSub;
   Timer? _positionTimer;
   String? _resolvedFolderUrl;
-  FutureOr<void> Function()? _resolvedMediaRelease;
-  // P115's signed CDN link and the loopback proxy both go stale after iOS
-  // suspends the app in the background. Track whether the live source is that
-  // proxy so a resumed P115 source is re-resolved before the next play, instead
-  // of `player.play()` hanging forever on a dead URL.
-  bool _lastResolvedWasProxy = false;
-  bool _proxyStale = false;
-  DateTime? _leftForegroundAt;
-  DateTime? _pausedAt;
+  // P115's signed CDN link expires (tens of minutes to hours for audio), after
+  // which `player.play()` hangs on a dead URL. Re-resolve before playing past
+  // it; stale also covers a deferred cold-start restore and a stalled play.
+  DateTime? _sourceExpiresAt;
+  bool _sourceStale = false;
   Timer? _stallWatchdog;
   Future<void>? _refreshing;
   // Position to resume to when a deferred/stale source is (re)resolved. Set by
@@ -113,28 +106,23 @@ class PlaybackController extends Notifier<PlaybackState>
 
   @override
   PlaybackState build() {
-    player = AudioPlayer();
-    WidgetsBinding.instance.addObserver(this);
+    // Hand P115's cookie headers to AVPlayer directly instead of just_audio's
+    // loopback proxy, which dies when iOS suspends the app.
+    player = AudioPlayer(useProxyForRequestHeaders: false);
     NowPlayingBridge.setCommandHandler(_handleNowPlayingCommand);
     _processingSub = player.processingStateStream.listen(_onProcessingState);
-    _playingSub = player.playingStream.listen(
-      (playing) => _pausedAt = playing ? null : DateTime.now(),
-    );
     _positionTimer = Timer.periodic(
       const Duration(seconds: 5),
       (_) => _syncPlaybackTick(),
     );
 
     ref.onDispose(() {
-      WidgetsBinding.instance.removeObserver(this);
       _processingSub?.cancel();
-      _playingSub?.cancel();
       _stallWatchdog?.cancel();
       _positionTimer?.cancel();
       NowPlayingBridge.clearCommandHandler();
       NowPlayingBridge.clear();
       player.dispose();
-      unawaited(_releaseResolvedMedia());
       _releaseScope();
     });
 
@@ -143,52 +131,36 @@ class PlaybackController extends Notifier<PlaybackState>
     return PlaybackState.empty;
   }
 
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    DiagnosticLog.write('player', 'app_lifecycle', {
-      'lifecycleState': state.name,
-      'playing': player.playing,
-      'lastResolvedWasProxy': _lastResolvedWasProxy,
-      'proxyStale': _proxyStale,
-      'hasCurrent': this.state.hasCurrent,
-    });
-    if (state == AppLifecycleState.paused) {
-      _leftForegroundAt ??= DateTime.now();
-      return;
-    }
-    if (state != AppLifecycleState.resumed) return;
-    final left = _leftForegroundAt;
-    _leftForegroundAt = null;
-    if (left == null) return;
-    // Only the loopback-proxied P115 source expires, and only mark it stale when
-    // paused — actively-playing background audio is proven-live, so leave it be.
-    // The 30s floor skips quick app switches that can't have expired anything.
-    final since = _pausedAt != null && _pausedAt!.isAfter(left)
-        ? _pausedAt!
-        : left;
-    if (_lastResolvedWasProxy &&
-        !player.playing &&
-        DateTime.now().difference(since) > const Duration(seconds: 30)) {
-      _proxyStale = true;
-      unawaited(_ensureFreshSource());
-    }
-  }
+  bool get _isStale =>
+      _sourceStale ||
+      (_sourceExpiresAt != null &&
+          DateTime.now().isAfter(
+            _sourceExpiresAt!.subtract(const Duration(minutes: 2)),
+          ));
 
-  bool _isProxyUrl(Uri url) => url.host == '127.0.0.1';
-
-  void _logSourceSet(Uri url, String via) {
+  /// Sets a resolved remote source, remembering when its link expires.
+  Future<void> _setRemoteSource(
+    ResolvedMediaUrl resolved,
+    String via, {
+    Duration? at,
+  }) async {
+    await player.setAudioSource(
+      AudioSource.uri(resolved.url, headers: resolved.headers),
+      initialPosition: at,
+    );
+    _sourceExpiresAt = resolved.expiresAt;
+    _sourceStale = false;
     DiagnosticLog.write('player', 'source_set', {
       'via': via,
-      'urlHost': url.host,
-      'urlPort': url.hasPort ? url.port : null,
-      'isProxy': _isProxyUrl(url),
+      'urlHost': resolved.url.host,
+      'expiresAt': resolved.expiresAt?.toIso8601String(),
     });
   }
 
-  /// Re-resolves a stale P115 source before play. Deduped so a proactive resume
-  /// refresh and a near-simultaneous play tap share one re-resolution.
+  /// Re-resolves a stale P115 source before play. Deduped so the stall
+  /// watchdog and a near-simultaneous play tap share one re-resolution.
   Future<void> _ensureFreshSource() {
-    if (!_proxyStale) return Future<void>.value();
+    if (!_isStale) return Future<void>.value();
     return _refreshing ??= _refreshStaleSource().whenComplete(
       () => _refreshing = null,
     );
@@ -223,22 +195,12 @@ class PlaybackController extends Notifier<PlaybackState>
       'positionMs': at.inMilliseconds,
       'wasPlaying': wasPlaying,
     });
-    final previousRelease = _resolvedMediaRelease;
     try {
-      await player.setAudioSource(
-        AudioSource.uri(resolved.url, headers: resolved.headers),
-        initialPosition: at,
-      );
+      await _setRemoteSource(resolved, 'refresh', at: at);
     } catch (_) {
-      await resolved.release?.call();
       return;
     }
-    _resolvedMediaRelease = resolved.release;
-    _lastResolvedWasProxy = _isProxyUrl(resolved.url);
-    _proxyStale = false;
     _resumePositionMs = null;
-    _logSourceSet(resolved.url, 'refresh');
-    await previousRelease?.call();
     if (wasPlaying) await player.play();
     await _publishNowPlaying();
   }
@@ -317,12 +279,11 @@ class PlaybackController extends Notifier<PlaybackState>
     );
 
     final track = tracks[idx];
-    // P115 needs a fresh signed link + loopback proxy that can't be built
-    // offline, so don't preload a bogus file:// source — defer resolution to
-    // the first play, like the video mini player's dormant resume.
+    // P115 needs a fresh signed link that can't be built offline, so don't
+    // preload a bogus file:// source — defer resolution to the first play,
+    // like the video mini player's dormant resume.
     if (remoteKind == RemoteSourceKind.p115) {
-      _lastResolvedWasProxy = true;
-      _proxyStale = true;
+      _sourceStale = true;
       _resumePositionMs = track.lastPositionMs;
       DiagnosticLog.write('player', 'restore', {
         'remoteKind': remoteKind?.name,
@@ -444,36 +405,22 @@ class PlaybackController extends Notifier<PlaybackState>
 
   Future<void> play() async {
     DiagnosticLog.write('player', 'play_requested', {
-      'proxyStale': _proxyStale,
+      'stale': _isStale,
       'playing': player.playing,
       'processingState': player.processingState.name,
     });
-    _markStaleIfSuspended();
     await _ensureFreshSource();
     _watchForStall();
     await player.play();
     await _publishNowPlaying();
   }
 
-  /// A lock-screen play arrives while the app is still in the background, so
-  /// the foreground-resume check never ran. Paused in the background for long
-  /// enough, iOS has suspended the app and the proxy's socket is gone.
-  void _markStaleIfSuspended() {
-    final left = _leftForegroundAt;
-    final paused = _pausedAt;
-    if (!_lastResolvedWasProxy || left == null || paused == null) return;
-    final since = left.isAfter(paused) ? left : paused;
-    if (DateTime.now().difference(since) > const Duration(seconds: 30)) {
-      _proxyStale = true;
-    }
-  }
-
-  /// A dead proxy or expired 115 link leaves the player "playing" at a frozen
-  /// position, and further play/pause taps can't revive it. If the position
-  /// hasn't moved shortly after play, re-resolve once.
+  /// A dead 115 link leaves the player "playing" at a frozen position, and
+  /// further play/pause taps can't revive it. If the position hasn't moved
+  /// shortly after play, re-resolve once.
   void _watchForStall() {
     _stallWatchdog?.cancel();
-    if (!_lastResolvedWasProxy) return;
+    if (_sourceExpiresAt == null) return;
     final from = player.position;
     _stallWatchdog = Timer(const Duration(seconds: 8), () {
       if (!player.playing || player.position > from) return;
@@ -481,7 +428,7 @@ class PlaybackController extends Notifier<PlaybackState>
         'positionMs': from.inMilliseconds,
         'processingState': player.processingState.name,
       });
-      _proxyStale = true;
+      _sourceStale = true;
       unawaited(_ensureFreshSource());
     });
   }
@@ -504,9 +451,8 @@ class PlaybackController extends Notifier<PlaybackState>
   Future<void> stop() async {
     await _savePosition();
     await player.stop();
-    await _releaseResolvedMedia();
-    _lastResolvedWasProxy = false;
-    _proxyStale = false;
+    _sourceExpiresAt = null;
+    _sourceStale = false;
     _resumePositionMs = null;
     await NowPlayingBridge.clear();
     await _releaseScope();
@@ -555,21 +501,7 @@ class PlaybackController extends Notifier<PlaybackState>
 
     final browseItem = state.currentBrowseItem;
     if (browseItem != null) {
-      final resolved = await browseItem.resolve();
-      final previousRelease = _resolvedMediaRelease;
-      try {
-        await player.setAudioSource(
-          AudioSource.uri(resolved.url, headers: resolved.headers),
-        );
-      } catch (_) {
-        await resolved.release?.call();
-        rethrow;
-      }
-      _resolvedMediaRelease = resolved.release;
-      _lastResolvedWasProxy = _isProxyUrl(resolved.url);
-      _proxyStale = false;
-      _logSourceSet(resolved.url, 'load_browse');
-      await previousRelease?.call();
+      await _setRemoteSource(await browseItem.resolve(), 'load_browse');
       unawaited(ref.read(playHistoryRepositoryProvider).recordItem(browseItem));
       await player.play();
       await _publishNowPlaying();
@@ -581,42 +513,19 @@ class PlaybackController extends Notifier<PlaybackState>
     if (track == null || work == null) return;
 
     if (state.remoteKind == RemoteSourceKind.p115) {
-      final resolved = await _resolveP115(track.filePath);
-      final previousRelease = _resolvedMediaRelease;
-      try {
-        await player.setAudioSource(
-          AudioSource.uri(resolved.url, headers: resolved.headers),
-        );
-      } catch (_) {
-        await resolved.release?.call();
-        rethrow;
-      }
-      _resolvedMediaRelease = resolved.release;
-      _lastResolvedWasProxy = _isProxyUrl(resolved.url);
-      _proxyStale = false;
-      _logSourceSet(resolved.url, 'load_p115');
-      await previousRelease?.call();
+      await _setRemoteSource(await _resolveP115(track.filePath), 'load_p115');
       await _bumpLastPlayed(trackChanged: true);
       await player.play();
       await _publishNowPlaying();
       return;
     }
 
-    final previousRelease = _resolvedMediaRelease;
     await player.setAudioSource(_audioSourceFor(track));
-    _resolvedMediaRelease = null;
-    _lastResolvedWasProxy = false;
-    _proxyStale = false;
-    await previousRelease?.call();
+    _sourceExpiresAt = null;
+    _sourceStale = false;
     await _bumpLastPlayed(trackChanged: true);
     await player.play();
     await _publishNowPlaying();
-  }
-
-  Future<void> _releaseResolvedMedia() async {
-    final release = _resolvedMediaRelease;
-    _resolvedMediaRelease = null;
-    await release?.call();
   }
 
   Future<ResolvedMediaUrl> _resolveP115(String pickcode) async {

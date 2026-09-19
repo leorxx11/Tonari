@@ -62,7 +62,7 @@ class _FakeP115Client extends P115Client {
   @override
   Future<ResolvedMediaUrl> resolveVideoUrl(String pickcode) async {
     calls.add('video:$pickcode');
-    return ResolvedMediaUrl(url: Uri.parse('http://127.0.0.1/video/$pickcode'));
+    return ResolvedMediaUrl(url: Uri.parse('https://video.test/$pickcode'));
   }
 }
 
@@ -127,7 +127,7 @@ void main() {
     final openedVideo = video.opened;
     expect(openedVideo, isNotNull);
     final videoUrl = await openedVideo!.resolve();
-    expect(videoUrl.url.toString(), 'http://127.0.0.1/video/pc-video');
+    expect(videoUrl.url.toString(), 'https://video.test/pc-video');
 
     expect(client.calls, ['audio:pc-audio', 'video:pc-video']);
   });

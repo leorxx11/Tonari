@@ -31,11 +31,13 @@ class RemoteEntry {
 }
 
 class ResolvedMediaUrl {
-  const ResolvedMediaUrl({required this.url, this.headers, this.release});
+  const ResolvedMediaUrl({required this.url, this.headers, this.expiresAt});
 
   final Uri url;
   final Map<String, String>? headers;
-  final FutureOr<void> Function()? release;
+
+  /// When a signed link stops working; null for sources that don't expire.
+  final DateTime? expiresAt;
 }
 
 typedef PlayableResolver = Future<ResolvedMediaUrl> Function();

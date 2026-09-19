@@ -4,7 +4,6 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/diagnostics/diagnostic_log.dart';
-import '../../../core/net/media_proxy.dart';
 import '../../../core/scanner/file_classifier.dart';
 import '../../browse/data/remote_models.dart';
 import 'p115_cipher.dart';
@@ -84,19 +83,20 @@ class P115Client {
 
   Future<ResolvedMediaUrl> resolveVideoUrl(String pickcode) async {
     final direct = await _resolveDirect(pickcode);
-    // fvp/FFmpeg won't forward a Cookie header at all, so stream playback
-    // through the local proxy which injects the auth headers per request.
-    final proxied = await MediaProxy.instance.wrap(direct.url, direct.headers);
-    return ResolvedMediaUrl(url: proxied.url, release: proxied.release);
+    return ResolvedMediaUrl(
+      url: direct.url,
+      headers: direct.headers,
+      expiresAt: _expiresAt(direct.url),
+    );
   }
 
   Future<ResolvedMediaUrl> resolveAudioUrl(String pickcode) async {
     final direct = await _resolveDirect(pickcode);
-    final proxied = await MediaProxy.instance.wrapAudio(
-      direct.url,
-      direct.headers,
+    return ResolvedMediaUrl(
+      url: direct.url,
+      headers: direct.headers,
+      expiresAt: _expiresAt(direct.url),
     );
-    return ResolvedMediaUrl(url: proxied.url, release: proxied.release);
   }
 
   /// Resolves the signed CDN direct link plus the headers it needs. The CDN
@@ -152,7 +152,10 @@ class P115Client {
       final data = jsonDecode(P115Cipher.decryptToString('${json['data']}'));
       final url = _extractDownloadUrl(data);
       final uri = Uri.parse(url);
-      final proxyCookie = _mergeCookieHeader(cookie.header, followed.cookies);
+      final downloadCookie = _mergeCookieHeader(
+        cookie.header,
+        followed.cookies,
+      );
       DiagnosticLog.write('p115', 'resolve_done', {
         'resolveId': resolveId,
         'hopCount': followed.hopCount,
@@ -160,15 +163,18 @@ class P115Client {
         'downloadScheme': uri.scheme,
         'downloadHost': uri.host,
         'downloadQueryKeys': uri.queryParameters.keys.toList()..sort(),
+        'expiresInSec': _expiresAt(uri)?.difference(DateTime.now()).inSeconds,
         'setCookieNames': _cookieNamesFromSetCookies(followed.cookies),
-        'proxyCookieNames': _cookieNamesFromHeader(proxyCookie),
+        'downloadCookieNames': _cookieNamesFromHeader(downloadCookie),
       });
       return (
         url: uri,
+        // FFmpeg only spots a caller User-Agent after a line break, so a
+        // leading one would be sent twice alongside its own default.
         headers: {
-          'User-Agent': _downloadUserAgent,
-          'Cookie': proxyCookie,
+          'Cookie': downloadCookie,
           'Referer': 'https://115.com/',
+          'User-Agent': _downloadUserAgent,
         },
       );
     } catch (e) {
@@ -182,10 +188,13 @@ class P115Client {
     }
   }
 
-  /// One-shot whole-file download (subtitles). Goes straight to the CDN with the
-  /// auth headers — dio *can* send a Cookie, so no proxy. Routing this through
-  /// [MediaProxy] would bound the response to one 4 MiB block and answer 206,
-  /// which this 200-expecting path treats as a failure.
+  /// Signed CDN links carry their expiry as a unix timestamp in `t`.
+  static DateTime? _expiresAt(Uri uri) {
+    final t = int.tryParse(uri.queryParameters['t'] ?? '');
+    return t == null ? null : DateTime.fromMillisecondsSinceEpoch(t * 1000);
+  }
+
+  /// One-shot whole-file download (subtitles) straight from the CDN.
   Future<List<int>> getBytesByPickcode(String pickcode) async {
     final direct = await _resolveDirect(pickcode);
     final res = await _dio.get<List<int>>(

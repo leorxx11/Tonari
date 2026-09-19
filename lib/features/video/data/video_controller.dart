@@ -11,7 +11,6 @@ import 'package:video_player/video_player.dart';
 import '../../../core/db/providers.dart';
 import '../../../core/diagnostics/diagnostic_log.dart';
 import '../../../core/files/local_image_path.dart';
-import '../../../core/net/media_proxy.dart';
 import '../../browse/data/remote_models.dart';
 import '../../browse/data/remote_resolvers.dart';
 import '../../history/data/play_history_repository.dart';
@@ -49,7 +48,6 @@ class VideoController extends Notifier<VideoPlaybackState>
     with WidgetsBindingObserver {
   Timer? _publishTimer;
   VideoPlayerController? _controller;
-  FutureOr<void> Function()? _resolvedRelease;
   bool _lastPlaying = false;
   // mdk can drop an autoplay while a resume seek is still buffering (seen on
   // un-indexed .ts, where locating the seek point takes several range reads).
@@ -62,7 +60,7 @@ class VideoController extends Notifier<VideoPlaybackState>
   String? _artworkPath;
 
   /// Last position observed while genuinely playable (not at the end). When
-  /// mdk spuriously reports "ended" (dead local proxy → FFmpeg EOF), this is
+  /// mdk spuriously reports "ended" (dead source → FFmpeg EOF), this is
   /// where playback gets restored to.
   int _lastPlayablePositionMs = 0;
   DateTime? _lastSeekAt;
@@ -170,7 +168,6 @@ class VideoController extends Notifier<VideoPlaybackState>
       'attemptId': attemptId,
     });
     VideoPlayerController? controller;
-    FutureOr<void> Function()? release;
     // A newer open()/stop() while this one awaits must win; otherwise this
     // player finishes loading later and plays alongside the newer one.
     void ensureCurrent() {
@@ -191,7 +188,6 @@ class VideoController extends Notifier<VideoPlaybackState>
         'urlPort': resolved.url.hasPort ? resolved.url.port : null,
         'hasHeaders': resolved.headers?.isNotEmpty ?? false,
       });
-      release = resolved.release;
       ensureCurrent();
       final options = VideoPlayerOptions(allowBackgroundPlayback: true);
       if (resolved.url.isScheme('file')) {
@@ -241,7 +237,6 @@ class VideoController extends Notifier<VideoPlaybackState>
         ensureCurrent();
       }
       _controller = controller;
-      _resolvedRelease = release;
       state = VideoPlaybackState(item: stableItem, controller: controller);
       NowPlayingBridge.setCommandHandler(_handleCommand);
       _publish();
@@ -263,11 +258,9 @@ class VideoController extends Notifier<VideoPlaybackState>
       });
       controller?.removeListener(_onValue);
       await controller?.dispose();
-      await release?.call();
     } catch (e) {
       if (attemptId != _openSeq) {
         await controller?.dispose();
-        await release?.call();
         return;
       }
       DiagnosticLog.write('video_player', 'open_error', {
@@ -278,7 +271,6 @@ class VideoController extends Notifier<VideoPlaybackState>
         ..._controllerFields(controller),
       });
       await controller?.dispose();
-      await release?.call();
       state = VideoPlaybackState(item: stableItem, error: e);
     }
   }
@@ -312,18 +304,6 @@ class VideoController extends Notifier<VideoPlaybackState>
       await _reopenCurrent('play_existing_invalid');
       return;
     }
-    // An iOS suspend may have killed the proxy listener while this player
-    // looks perfectly healthy. Revive it in place (same port, registrations
-    // kept) so the player just continues; a full reopen only when the port
-    // can't be reclaimed.
-    if (!c.value.isPlaying && !await MediaProxy.instance.revive()) {
-      DiagnosticLog.write('video_player', 'proxy_revive_failed', {
-        ..._stateFields(),
-        ..._controllerFields(c),
-      });
-      await _reopenCurrent('proxy_revive_failed');
-      return;
-    }
     await c.play();
     DiagnosticLog.write('video_player', 'play_existing_done', {
       ..._stateFields(),
@@ -349,9 +329,6 @@ class VideoController extends Notifier<VideoPlaybackState>
       'positionMs': position.inMilliseconds,
     });
     _lastSeekAt = DateTime.now();
-    // Seeking needs data too — revive a suspend-killed proxy before mdk
-    // starts bisecting the stream against a dead socket.
-    if (_controller != null) await MediaProxy.instance.revive();
     await _controller?.seekTo(position);
     _publish();
     _saveSlot();
@@ -374,7 +351,6 @@ class VideoController extends Notifier<VideoPlaybackState>
     await _saveSlot();
     await _teardown();
     await NowPlayingBridge.clear();
-    await MediaProxy.instance.reset('video_stop');
     state = const VideoPlaybackState();
   }
 
@@ -493,7 +469,7 @@ class VideoController extends Notifier<VideoPlaybackState>
   }
 
   /// mdk jumps position straight to the duration when its data source dies
-  /// (e.g. proxy socket killed by an iOS suspend): FFmpeg exhausts reconnects
+  /// (e.g. an expired link or dropped connection): FFmpeg exhausts reconnects
   /// and reports end-of-stream. A real end plays *into* the tail; a dead
   /// source "ends" from far away with no recent user seek.
   bool _isSpuriousEnd(int durationMs) {
@@ -536,12 +512,7 @@ class VideoController extends Notifier<VideoPlaybackState>
 
   Future<void> _teardown() async {
     final c = _controller;
-    final release = _resolvedRelease;
-    _resolvedRelease = null;
-    if (c == null) {
-      await release?.call();
-      return;
-    }
+    if (c == null) return;
     DiagnosticLog.write('video_player', 'teardown_start', {
       ..._controllerFields(c),
     });
@@ -549,7 +520,6 @@ class VideoController extends Notifier<VideoPlaybackState>
     c.removeListener(_onValue);
     await c.pause();
     await c.dispose();
-    await release?.call();
     _lastVideoError = null;
     _lastEnded = false;
     DiagnosticLog.write('video_player', 'teardown_done');
@@ -669,7 +639,6 @@ class VideoController extends Notifier<VideoPlaybackState>
     _publishTimer = null;
     await _teardown();
     await NowPlayingBridge.clear();
-    unawaited(MediaProxy.instance.reset('video_$reason'));
     DiagnosticLog.write('video_player', 'park_done', {
       'reason': reason,
       ..._videoItemFields(dormant),
