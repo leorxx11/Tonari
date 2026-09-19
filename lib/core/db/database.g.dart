@@ -10285,6 +10285,271 @@ class CollectionVideosCompanion extends UpdateCompanion<CollectionVideo> {
   }
 }
 
+class $ListenLogsTable extends ListenLogs
+    with TableInfo<$ListenLogsTable, ListenLog> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ListenLogsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _dayMeta = const VerificationMeta('day');
+  @override
+  late final GeneratedColumn<String> day = GeneratedColumn<String>(
+    'day',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _workIdMeta = const VerificationMeta('workId');
+  @override
+  late final GeneratedColumn<String> workId = GeneratedColumn<String>(
+    'work_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _listenedMsMeta = const VerificationMeta(
+    'listenedMs',
+  );
+  @override
+  late final GeneratedColumn<int> listenedMs = GeneratedColumn<int>(
+    'listened_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [day, workId, listenedMs];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'listen_logs';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ListenLog> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('day')) {
+      context.handle(
+        _dayMeta,
+        day.isAcceptableOrUnknown(data['day']!, _dayMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dayMeta);
+    }
+    if (data.containsKey('work_id')) {
+      context.handle(
+        _workIdMeta,
+        workId.isAcceptableOrUnknown(data['work_id']!, _workIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_workIdMeta);
+    }
+    if (data.containsKey('listened_ms')) {
+      context.handle(
+        _listenedMsMeta,
+        listenedMs.isAcceptableOrUnknown(data['listened_ms']!, _listenedMsMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_listenedMsMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {day, workId};
+  @override
+  ListenLog map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ListenLog(
+      day: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}day'],
+      )!,
+      workId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}work_id'],
+      )!,
+      listenedMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}listened_ms'],
+      )!,
+    );
+  }
+
+  @override
+  $ListenLogsTable createAlias(String alias) {
+    return $ListenLogsTable(attachedDatabase, alias);
+  }
+}
+
+class ListenLog extends DataClass implements Insertable<ListenLog> {
+  /// Local date as `yyyy-MM-dd`.
+  final String day;
+  final String workId;
+  final int listenedMs;
+  const ListenLog({
+    required this.day,
+    required this.workId,
+    required this.listenedMs,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['day'] = Variable<String>(day);
+    map['work_id'] = Variable<String>(workId);
+    map['listened_ms'] = Variable<int>(listenedMs);
+    return map;
+  }
+
+  ListenLogsCompanion toCompanion(bool nullToAbsent) {
+    return ListenLogsCompanion(
+      day: Value(day),
+      workId: Value(workId),
+      listenedMs: Value(listenedMs),
+    );
+  }
+
+  factory ListenLog.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ListenLog(
+      day: serializer.fromJson<String>(json['day']),
+      workId: serializer.fromJson<String>(json['workId']),
+      listenedMs: serializer.fromJson<int>(json['listenedMs']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'day': serializer.toJson<String>(day),
+      'workId': serializer.toJson<String>(workId),
+      'listenedMs': serializer.toJson<int>(listenedMs),
+    };
+  }
+
+  ListenLog copyWith({String? day, String? workId, int? listenedMs}) =>
+      ListenLog(
+        day: day ?? this.day,
+        workId: workId ?? this.workId,
+        listenedMs: listenedMs ?? this.listenedMs,
+      );
+  ListenLog copyWithCompanion(ListenLogsCompanion data) {
+    return ListenLog(
+      day: data.day.present ? data.day.value : this.day,
+      workId: data.workId.present ? data.workId.value : this.workId,
+      listenedMs: data.listenedMs.present
+          ? data.listenedMs.value
+          : this.listenedMs,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ListenLog(')
+          ..write('day: $day, ')
+          ..write('workId: $workId, ')
+          ..write('listenedMs: $listenedMs')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(day, workId, listenedMs);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ListenLog &&
+          other.day == this.day &&
+          other.workId == this.workId &&
+          other.listenedMs == this.listenedMs);
+}
+
+class ListenLogsCompanion extends UpdateCompanion<ListenLog> {
+  final Value<String> day;
+  final Value<String> workId;
+  final Value<int> listenedMs;
+  final Value<int> rowid;
+  const ListenLogsCompanion({
+    this.day = const Value.absent(),
+    this.workId = const Value.absent(),
+    this.listenedMs = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ListenLogsCompanion.insert({
+    required String day,
+    required String workId,
+    required int listenedMs,
+    this.rowid = const Value.absent(),
+  }) : day = Value(day),
+       workId = Value(workId),
+       listenedMs = Value(listenedMs);
+  static Insertable<ListenLog> custom({
+    Expression<String>? day,
+    Expression<String>? workId,
+    Expression<int>? listenedMs,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (day != null) 'day': day,
+      if (workId != null) 'work_id': workId,
+      if (listenedMs != null) 'listened_ms': listenedMs,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ListenLogsCompanion copyWith({
+    Value<String>? day,
+    Value<String>? workId,
+    Value<int>? listenedMs,
+    Value<int>? rowid,
+  }) {
+    return ListenLogsCompanion(
+      day: day ?? this.day,
+      workId: workId ?? this.workId,
+      listenedMs: listenedMs ?? this.listenedMs,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (day.present) {
+      map['day'] = Variable<String>(day.value);
+    }
+    if (workId.present) {
+      map['work_id'] = Variable<String>(workId.value);
+    }
+    if (listenedMs.present) {
+      map['listened_ms'] = Variable<int>(listenedMs.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ListenLogsCompanion(')
+          ..write('day: $day, ')
+          ..write('workId: $workId, ')
+          ..write('listenedMs: $listenedMs, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$TonariDatabase extends GeneratedDatabase {
   _$TonariDatabase(QueryExecutor e) : super(e);
   $TonariDatabaseManager get managers => $TonariDatabaseManager(this);
@@ -10308,6 +10573,7 @@ abstract class _$TonariDatabase extends GeneratedDatabase {
   late final $CollectionVideosTable collectionVideos = $CollectionVideosTable(
     this,
   );
+  late final $ListenLogsTable listenLogs = $ListenLogsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -10326,6 +10592,7 @@ abstract class _$TonariDatabase extends GeneratedDatabase {
     playHistoryEntries,
     videoItems,
     collectionVideos,
+    listenLogs,
   ];
 }
 
@@ -15764,6 +16031,170 @@ typedef $$CollectionVideosTableProcessedTableManager =
       CollectionVideo,
       PrefetchHooks Function()
     >;
+typedef $$ListenLogsTableCreateCompanionBuilder =
+    ListenLogsCompanion Function({
+      required String day,
+      required String workId,
+      required int listenedMs,
+      Value<int> rowid,
+    });
+typedef $$ListenLogsTableUpdateCompanionBuilder =
+    ListenLogsCompanion Function({
+      Value<String> day,
+      Value<String> workId,
+      Value<int> listenedMs,
+      Value<int> rowid,
+    });
+
+class $$ListenLogsTableFilterComposer
+    extends Composer<_$TonariDatabase, $ListenLogsTable> {
+  $$ListenLogsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get day => $composableBuilder(
+    column: $table.day,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get workId => $composableBuilder(
+    column: $table.workId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get listenedMs => $composableBuilder(
+    column: $table.listenedMs,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ListenLogsTableOrderingComposer
+    extends Composer<_$TonariDatabase, $ListenLogsTable> {
+  $$ListenLogsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get day => $composableBuilder(
+    column: $table.day,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get workId => $composableBuilder(
+    column: $table.workId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get listenedMs => $composableBuilder(
+    column: $table.listenedMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ListenLogsTableAnnotationComposer
+    extends Composer<_$TonariDatabase, $ListenLogsTable> {
+  $$ListenLogsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get day =>
+      $composableBuilder(column: $table.day, builder: (column) => column);
+
+  GeneratedColumn<String> get workId =>
+      $composableBuilder(column: $table.workId, builder: (column) => column);
+
+  GeneratedColumn<int> get listenedMs => $composableBuilder(
+    column: $table.listenedMs,
+    builder: (column) => column,
+  );
+}
+
+class $$ListenLogsTableTableManager
+    extends
+        RootTableManager<
+          _$TonariDatabase,
+          $ListenLogsTable,
+          ListenLog,
+          $$ListenLogsTableFilterComposer,
+          $$ListenLogsTableOrderingComposer,
+          $$ListenLogsTableAnnotationComposer,
+          $$ListenLogsTableCreateCompanionBuilder,
+          $$ListenLogsTableUpdateCompanionBuilder,
+          (
+            ListenLog,
+            BaseReferences<_$TonariDatabase, $ListenLogsTable, ListenLog>,
+          ),
+          ListenLog,
+          PrefetchHooks Function()
+        > {
+  $$ListenLogsTableTableManager(_$TonariDatabase db, $ListenLogsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ListenLogsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ListenLogsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ListenLogsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> day = const Value.absent(),
+                Value<String> workId = const Value.absent(),
+                Value<int> listenedMs = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ListenLogsCompanion(
+                day: day,
+                workId: workId,
+                listenedMs: listenedMs,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String day,
+                required String workId,
+                required int listenedMs,
+                Value<int> rowid = const Value.absent(),
+              }) => ListenLogsCompanion.insert(
+                day: day,
+                workId: workId,
+                listenedMs: listenedMs,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ListenLogsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$TonariDatabase,
+      $ListenLogsTable,
+      ListenLog,
+      $$ListenLogsTableFilterComposer,
+      $$ListenLogsTableOrderingComposer,
+      $$ListenLogsTableAnnotationComposer,
+      $$ListenLogsTableCreateCompanionBuilder,
+      $$ListenLogsTableUpdateCompanionBuilder,
+      (
+        ListenLog,
+        BaseReferences<_$TonariDatabase, $ListenLogsTable, ListenLog>,
+      ),
+      ListenLog,
+      PrefetchHooks Function()
+    >;
 
 class $TonariDatabaseManager {
   final _$TonariDatabase _db;
@@ -15794,4 +16225,6 @@ class $TonariDatabaseManager {
       $$VideoItemsTableTableManager(_db, _db.videoItems);
   $$CollectionVideosTableTableManager get collectionVideos =>
       $$CollectionVideosTableTableManager(_db, _db.collectionVideos);
+  $$ListenLogsTableTableManager get listenLogs =>
+      $$ListenLogsTableTableManager(_db, _db.listenLogs);
 }

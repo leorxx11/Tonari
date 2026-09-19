@@ -8,6 +8,7 @@ import 'converters.dart';
 import 'tables/app_events.dart';
 import 'tables/collections.dart';
 import 'tables/imported_folders.dart';
+import 'tables/listen_logs.dart';
 import 'tables/llm_providers.dart';
 import 'tables/play_history.dart';
 import 'tables/subtitles.dart';
@@ -34,6 +35,7 @@ part 'database.g.dart';
     PlayHistoryEntries,
     VideoItems,
     CollectionVideos,
+    ListenLogs,
   ],
 )
 class TonariDatabase extends _$TonariDatabase {
@@ -42,7 +44,7 @@ class TonariDatabase extends _$TonariDatabase {
   TonariDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 16;
+  int get schemaVersion => 17;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -119,6 +121,9 @@ class TonariDatabase extends _$TonariDatabase {
       }
       if (from < 16) {
         await m.addColumn(tracks, tracks.titleZh);
+      }
+      if (from < 17) {
+        await m.createTable(listenLogs);
       }
     },
   );

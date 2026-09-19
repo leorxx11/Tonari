@@ -4,10 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/widgets/app_drawer.dart';
 import '../../../shared/widgets/library_home_button.dart';
 import '../../library/data/works_providers.dart';
-import '../../library/presentation/widgets/chip_filter_actions.dart';
 import '../data/stats_providers.dart';
-
-const _chipColor = Color(0xFF3B887C);
+import 'stat_chip.dart';
 
 const _tabs = [
   (WorkChipKind.circle, '社团'),
@@ -120,7 +118,7 @@ class _StatsPageState extends ConsumerState<StatsPage> {
   }
 }
 
-class _StatsTab extends ConsumerWidget {
+class _StatsTab extends StatelessWidget {
   const _StatsTab({
     required this.kind,
     required this.entries,
@@ -132,7 +130,7 @@ class _StatsTab extends ConsumerWidget {
   final String emptyText;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     if (entries.isEmpty) {
       return Center(
@@ -155,43 +153,9 @@ class _StatsTab extends ConsumerWidget {
             runSpacing: 6,
             children: [
               for (final e in entries)
-                Material(
-                  color: _chipColor,
-                  shape: const StadiumBorder(),
-                  child: InkWell(
-                    customBorder: const StadiumBorder(),
-                    onTap: () {
-                      ref.read(workFilterProvider.notifier).clearSearch();
-                      applyChipFilter(context, ref, (
-                        kind: kind,
-                        value: e.name,
-                      ));
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 11,
-                        vertical: 5,
-                      ),
-                      child: Text.rich(
-                        TextSpan(
-                          text: e.name,
-                          children: [
-                            TextSpan(
-                              text: '  ${e.count}',
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.75),
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-                          ],
-                        ),
-                        style: theme.textTheme.labelLarge?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ),
+                StatChip(
+                  filter: (kind: kind, value: e.name),
+                  value: '${e.count}',
                 ),
             ],
           ),

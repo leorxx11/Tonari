@@ -14,6 +14,7 @@ import 'package:tonari/core/subtitle/subtitle_cue.dart';
 import 'package:tonari/core/prefs/shared_prefs_provider.dart';
 import 'package:tonari/shared/widgets/ios_selectable_text.dart';
 import 'package:tonari/features/history/data/play_history_repository.dart';
+import 'package:tonari/features/history/data/listen_stats.dart';
 import 'package:tonari/features/library/data/app_events.dart';
 import 'package:tonari/features/library/data/collections_providers.dart';
 import 'package:tonari/features/library/data/import_flow.dart';
@@ -77,6 +78,9 @@ Widget testApp({
     }),
     pickRandomWorkProvider.overrideWithValue(
       () async => works.where((w) => !w.isRemoved).firstOrNull,
+    ),
+    listenStatsProvider.overrideWith(
+      (ref) => Stream.value(computeListenStats(const [], {}, DateTime.now())),
     ),
     libraryStatsProvider.overrideWith(
       (ref) =>
@@ -461,6 +465,19 @@ void main() {
     expect(find.text('With CV'), findsOneWidget);
     expect(find.text('Also CV'), findsOneWidget);
     expect(find.text('Other Work'), findsNothing);
+  });
+
+  testWidgets('history opens listening stats with an empty state', (
+    tester,
+  ) async {
+    await tester.pumpWidget(testApp());
+    await tester.pumpAndSettle();
+
+    await openSection(tester, '播放历史');
+    await tester.tap(find.byTooltip('收听统计'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('播放音声后，收听时长会记录在这里'), findsOneWidget);
   });
 
   testWidgets('分类 sort toggles between count and name order', (tester) async {

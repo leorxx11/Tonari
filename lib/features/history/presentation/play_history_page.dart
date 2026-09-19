@@ -9,6 +9,7 @@ import '../../library/presentation/widgets/work_cover.dart';
 import '../../video_library/data/video_library_providers.dart';
 import '../../video_library/presentation/video_library_page.dart';
 import '../../video_library/data/local_video_store.dart';
+import 'listen_stats_page.dart';
 import '../data/history_playback.dart';
 import '../data/play_history_repository.dart';
 import '../../../core/ui/app_toast.dart';
@@ -26,6 +27,13 @@ class PlayHistoryPage extends ConsumerWidget {
         leading: const DrawerMenuButton(),
         title: const Text('播放历史'),
         actions: [
+          IconButton(
+            tooltip: '收听统计',
+            icon: const Icon(Icons.insights_outlined),
+            onPressed: () => Navigator.of(context, rootNavigator: true).push(
+              MaterialPageRoute<void>(builder: (_) => const ListenStatsPage()),
+            ),
+          ),
           IconButton(
             tooltip: '清空历史',
             icon: const Icon(Icons.delete_sweep_outlined),

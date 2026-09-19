@@ -12,6 +12,7 @@ import '../../../core/files/folder_bookmark.dart';
 import '../../../core/files/local_image_path.dart';
 import '../../../core/ui/app_toast.dart';
 import '../../browse/data/remote_models.dart';
+import '../../history/data/listen_stats.dart';
 import '../../history/data/play_history_repository.dart';
 import '../../settings/data/player_prefs.dart';
 import '../../video/data/video_controller.dart';
@@ -124,6 +125,7 @@ class PlaybackController extends Notifier<PlaybackState> {
   // Position to resume to when a deferred/stale source is (re)resolved. Set by
   // cold-start restore (lastPositionMs); null means "resume at live position".
   int? _resumePositionMs;
+  DateTime? _lastListenTick;
 
   @override
   PlaybackState build() {
@@ -659,8 +661,27 @@ class PlaybackController extends Notifier<PlaybackState> {
     // Don't touch the now-playing center when audio is idle — otherwise this
     // timer clears it every 5s and fights whatever is actually playing (video).
     if (!state.hasCurrent) return;
+    await _logListening();
     await _savePosition();
     await _publishNowPlaying();
+  }
+
+  /// Credits the wall time since the previous tick to the current work, but
+  /// only when audio was audibly playing at both ticks. Gaps longer than a
+  /// few ticks (app suspended, timer starved) are dropped rather than guessed.
+  Future<void> _logListening() async {
+    final now = DateTime.now();
+    final work = state.work;
+    final audible =
+        work != null &&
+        player.playing &&
+        player.processingState == ProcessingState.ready;
+    final last = _lastListenTick;
+    _lastListenTick = audible ? now : null;
+    if (!audible || last == null) return;
+    final ms = now.difference(last).inMilliseconds;
+    if (ms <= 0 || ms > 15000) return;
+    await ref.read(listenLogRepositoryProvider).add(work.productId, now, ms);
   }
 
   Future<void> _savePosition() async {
