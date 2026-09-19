@@ -11,6 +11,7 @@ import '../../../shared/widgets/app_drawer.dart';
 import '../../../shared/widgets/library_home_button.dart';
 import '../../library/data/library_view_prefs.dart';
 import '../../library/presentation/widgets/collection_picker_sheet.dart';
+import '../../library/presentation/widgets/sort_menu_button.dart';
 import '../../library/presentation/widgets/view_mode_button.dart';
 import '../data/video_cover_store.dart';
 import '../data/local_video_import.dart';
@@ -26,10 +27,17 @@ class VideoLibraryPage extends ConsumerStatefulWidget {
 }
 
 class _VideoLibraryPageState extends ConsumerState<VideoLibraryPage> {
+  final _scrollController = ScrollController(keepScrollOffset: false);
   bool _favoritesOnly = false;
   bool _importing = false;
   int _completed = 0;
   int _total = 0;
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   Future<void> _importVideos() async {
     setState(() {
@@ -62,6 +70,9 @@ class _VideoLibraryPageState extends ConsumerState<VideoLibraryPage> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(videoSortProvider, (_, _) {
+      if (_scrollController.hasClients) _scrollController.jumpTo(0);
+    });
     final viewMode = ref.watch(videoViewModeProvider);
     final itemsAsync = ref.watch(videoItemsProvider);
     return Scaffold(
@@ -92,6 +103,7 @@ class _VideoLibraryPageState extends ConsumerState<VideoLibraryPage> {
                 : const Icon(Icons.add),
           ),
           ViewModeButton(provider: videoViewModeProvider),
+          SortMenuButton(provider: videoSortProvider),
           IconButton(
             tooltip: _favoritesOnly ? '取消只看收藏' : '只看收藏',
             icon: Icon(
@@ -116,6 +128,7 @@ class _VideoLibraryPageState extends ConsumerState<VideoLibraryPage> {
             );
           }
           return CustomScrollView(
+            controller: _scrollController,
             slivers: [videoItemsSliver(items: items, mode: viewMode)],
           );
         },

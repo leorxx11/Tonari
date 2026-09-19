@@ -8,6 +8,7 @@ import '../data/works_providers.dart';
 import '../../../shared/widgets/app_drawer.dart';
 import 'import_entry.dart';
 import 'widgets/library_task_status.dart';
+import 'widgets/sort_menu_button.dart';
 import 'widgets/view_mode_button.dart';
 import 'widgets/works_view.dart';
 import '../../../core/ui/app_toast.dart';
@@ -42,7 +43,6 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     ref.listen(workFilterProvider, (_, _) => _scrollToTop());
     ref.listen(workSortProvider, (_, _) => _scrollToTop());
     final worksAsync = ref.watch(allWorksProvider);
-    final sort = ref.watch(workSortProvider);
     final filter = ref.watch(workFilterProvider);
     final searching = _searching || filter.chips.isNotEmpty;
     return Scaffold(
@@ -85,28 +85,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
             ),
           ],
           ViewModeButton(provider: workViewModeProvider),
-          PopupMenuButton<WorkSortMode>(
-            tooltip: '排序',
-            icon: const Icon(Icons.sort),
-            initialValue: sort,
-            onSelected: (mode) => ref.read(workSortProvider.notifier).set(mode),
-            itemBuilder: (context) => [
-              for (final mode in WorkSortMode.values)
-                PopupMenuItem(
-                  value: mode,
-                  child: Row(
-                    children: [
-                      if (mode == sort)
-                        const Icon(Icons.check, size: 18)
-                      else
-                        const SizedBox(width: 18),
-                      const SizedBox(width: 12),
-                      Text(mode.label),
-                    ],
-                  ),
-                ),
-            ],
-          ),
+          SortMenuButton(provider: workSortProvider),
           const EnrichmentStatusAction(),
           const LibraryTaskStatusButton(showWhenIdle: false),
         ],

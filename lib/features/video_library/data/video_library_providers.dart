@@ -5,17 +5,45 @@ import 'package:path/path.dart' as p;
 import '../../../core/db/database.dart';
 import '../../../core/db/providers.dart';
 import '../../browse/data/remote_models.dart';
+import '../../library/data/sort_order.dart';
 import '../../browse/data/remote_resolvers.dart';
 import '../../video/data/video_controller.dart';
 import '../../video/data/video_resume_store.dart';
 import 'local_video_store.dart';
 import 'video_cover_store.dart';
 
+enum VideoSortField implements SortField {
+  addedAt('收录时间', true);
+
+  const VideoSortField(this.label, this.defaultDescending);
+
+  @override
+  final String label;
+  @override
+  final bool defaultDescending;
+}
+
+final videoSortProvider =
+    NotifierProvider<
+      SortOrderNotifier<VideoSortField>,
+      SortOrder<VideoSortField>
+    >(() => SortOrderNotifier('library.sort.videos', VideoSortField.values));
+
 final videoItemsProvider = StreamProvider<List<VideoItem>>((ref) {
   final db = ref.watch(databaseProvider);
-  return (db.select(
-    db.videoItems,
-  )..orderBy([(v) => OrderingTerm.desc(v.addedAt)])).watch();
+  final sort = ref.watch(videoSortProvider);
+  Expression<Object> key($VideoItemsTable v) => switch (sort.field) {
+    VideoSortField.addedAt => v.addedAt,
+  };
+  return (db.select(db.videoItems)..orderBy([
+        (v) => OrderingTerm(
+          expression: key(v),
+          mode: sort.descending ? OrderingMode.desc : OrderingMode.asc,
+          nulls: NullsOrder.last,
+        ),
+        (v) => OrderingTerm.asc(v.id),
+      ]))
+      .watch();
 });
 
 /// Whether this stable id is already in the video library.

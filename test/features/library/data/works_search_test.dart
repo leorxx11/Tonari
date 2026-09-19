@@ -5,18 +5,25 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tonari/core/db/database.dart';
 import 'package:tonari/core/db/providers.dart';
+import 'package:tonari/core/prefs/shared_prefs_provider.dart';
 import 'package:tonari/features/library/data/works_providers.dart';
 
 void main() {
   late TonariDatabase db;
   late ProviderContainer container;
 
-  setUp(() {
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
     db = TonariDatabase.forTesting(NativeDatabase.memory());
     container = ProviderContainer(
-      overrides: [databaseProvider.overrideWithValue(db)],
+      overrides: [
+        databaseProvider.overrideWithValue(db),
+        sharedPreferencesProvider.overrideWithValue(prefs),
+      ],
     );
   });
 
@@ -45,6 +52,8 @@ void main() {
     String? seriesName,
     String? circleName,
     List<String> userTags = const [],
+    DateTime? releaseDate,
+    int? dlCount,
   }) async {
     final now = DateTime.now();
     await db
@@ -61,6 +70,8 @@ void main() {
             voiceActors: Value(voiceActors),
             seriesName: Value(seriesName),
             circleName: Value(circleName),
+            releaseDate: Value(releaseDate),
+            dlCount: Value(dlCount),
             userTags: Value(userTags),
             genresJson: Value(
               jsonEncode([
@@ -217,5 +228,25 @@ void main() {
       'RJ1': 150000,
       'RJ2': 1000,
     });
+  });
+
+  test('sorting keeps works without the key last in both directions', () async {
+    await insertWork('RJ1', releaseDate: DateTime(2024), dlCount: 50);
+    await insertWork('RJ2', releaseDate: DateTime(2025), dlCount: 900);
+    await insertWork('RJ3');
+    await insertWork('RJ0', releaseDate: DateTime(2025), dlCount: 50);
+
+    Future<List<String>> ids() async => (await awaitProvider(
+      allWorksProvider.future,
+    )).map((w) => w.productId).toList();
+    final sort = container.read(workSortProvider.notifier);
+
+    expect(await ids(), ['RJ0', 'RJ2', 'RJ1', 'RJ3']);
+    await sort.select(WorkSortField.releaseDate);
+    expect(await ids(), ['RJ1', 'RJ0', 'RJ2', 'RJ3']);
+    await sort.select(WorkSortField.sales);
+    expect(await ids(), ['RJ2', 'RJ0', 'RJ1', 'RJ3']);
+    await sort.select(WorkSortField.sales);
+    expect(await ids(), ['RJ0', 'RJ1', 'RJ2', 'RJ3']);
   });
 }

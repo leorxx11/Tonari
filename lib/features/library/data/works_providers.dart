@@ -3,26 +3,30 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/db/database.dart';
 import '../../../core/db/providers.dart';
+import 'sort_order.dart';
 import 'work_genres.dart';
 
-enum WorkSortMode {
-  importedAtDesc('导入时间 ↓'),
-  importedAtAsc('导入时间 ↑'),
-  productIdAsc('RJ 编号'),
-  lastPlayedAtDesc('最近播放');
+enum WorkSortField implements SortField {
+  releaseDate('发售日期', true),
+  sales('销量', true),
+  rating('评分', true),
+  addedAt('收录时间', true),
+  lastPlayed('最近播放', true),
+  productId('RJ 编号', false);
 
-  const WorkSortMode(this.label);
-  final String label;
-}
+  const WorkSortField(this.label, this.defaultDescending);
 
-class WorkSort extends Notifier<WorkSortMode> {
   @override
-  WorkSortMode build() => WorkSortMode.importedAtDesc;
-
-  void set(WorkSortMode mode) => state = mode;
+  final String label;
+  @override
+  final bool defaultDescending;
 }
 
-final workSortProvider = NotifierProvider<WorkSort, WorkSortMode>(WorkSort.new);
+final workSortProvider =
+    NotifierProvider<
+      SortOrderNotifier<WorkSortField>,
+      SortOrder<WorkSortField>
+    >(() => SortOrderNotifier('library.sort.works', WorkSortField.values));
 
 enum SourceFilter { all, local, remote }
 
@@ -136,7 +140,7 @@ final allWorksProvider = StreamProvider<List<Work>>((ref) {
               }
               return expr;
             })
-            ..orderBy([(w) => _orderingFor(sort, w)]))
+            ..orderBy(_orderingFor(sort)))
           .watch();
 
   final chips = filter.chips;
@@ -194,17 +198,27 @@ final remoteFolderIdsProvider = StreamProvider<Set<String>>((ref) {
       .map((rows) => rows.map((f) => f.id).toSet());
 });
 
-OrderingTerm _orderingFor(WorkSortMode mode, $WorksTable w) {
-  return switch (mode) {
-    WorkSortMode.importedAtDesc => OrderingTerm.desc(w.localImportedAt),
-    WorkSortMode.importedAtAsc => OrderingTerm.asc(w.localImportedAt),
-    WorkSortMode.productIdAsc => OrderingTerm.asc(w.productId),
-    WorkSortMode.lastPlayedAtDesc => OrderingTerm(
-      expression: w.lastPlayedAt,
-      mode: OrderingMode.desc,
+/// Missing values (no metadata yet, never played) sink to the bottom in both
+/// directions; RJ number breaks ties so equal keys keep a stable order.
+List<OrderClauseGenerator<$WorksTable>> _orderingFor(
+  SortOrder<WorkSortField> sort,
+) {
+  Expression<Object> key($WorksTable w) => switch (sort.field) {
+    WorkSortField.releaseDate => w.releaseDate,
+    WorkSortField.sales => w.dlCount,
+    WorkSortField.rating => w.rating,
+    WorkSortField.addedAt => w.localImportedAt,
+    WorkSortField.lastPlayed => w.lastPlayedAt,
+    WorkSortField.productId => w.productId,
+  };
+  return [
+    (w) => OrderingTerm(
+      expression: key(w),
+      mode: sort.descending ? OrderingMode.desc : OrderingMode.asc,
       nulls: NullsOrder.last,
     ),
-  };
+    (w) => OrderingTerm.asc(w.productId),
+  ];
 }
 
 final removedWorksProvider = StreamProvider<List<Work>>((ref) {

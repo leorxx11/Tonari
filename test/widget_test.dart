@@ -475,6 +475,7 @@ void main() {
   });
 
   testWidgets('library resets scroll for filters and sorting', (tester) async {
+    addTearDown(() => _testPrefs.remove('library.sort.works'));
     await tester.pumpWidget(
       testApp(
         works: List.generate(40, (i) => _work('RJ$i', voiceActors: ['CV'])),
@@ -495,7 +496,7 @@ void main() {
       filter.clearSearch,
       () => container
           .read(workSortProvider.notifier)
-          .set(WorkSortMode.productIdAsc),
+          .select(WorkSortField.productId),
     ];
     for (final change in changes) {
       await tester.drag(grid, const Offset(0, -500));
@@ -1313,17 +1314,40 @@ void main() {
     expect(find.byTooltip('取消只看收藏'), findsOneWidget);
   });
 
-  testWidgets('library tab exposes 4 sort modes in the menu', (tester) async {
+  testWidgets('sort menu flips the current field and resets on a new one', (
+    tester,
+  ) async {
+    addTearDown(() => _testPrefs.remove('library.sort.works'));
     await tester.pumpWidget(testApp());
     await tester.pumpAndSettle();
+    final container = ProviderScope.containerOf(
+      tester.element(find.byTooltip('排序')),
+    );
 
     await tester.tap(find.byTooltip('排序'));
     await tester.pumpAndSettle();
+    for (final label in ['发售日期', '销量', '评分', '收录时间', '最近播放', 'RJ 编号']) {
+      expect(find.text(label), findsOneWidget);
+    }
+    expect(find.byIcon(Icons.arrow_downward), findsOneWidget);
 
-    expect(find.text('导入时间 ↓'), findsOneWidget);
-    expect(find.text('导入时间 ↑'), findsOneWidget);
-    expect(find.text('RJ 编号'), findsOneWidget);
-    expect(find.text('最近播放'), findsOneWidget);
+    await tester.tap(find.text('发售日期'));
+    await tester.pumpAndSettle();
+    expect(container.read(workSortProvider), (
+      field: WorkSortField.releaseDate,
+      descending: false,
+    ));
+
+    await tester.tap(find.byTooltip('排序'));
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.arrow_upward), findsOneWidget);
+    await tester.tap(find.text('销量'));
+    await tester.pumpAndSettle();
+    expect(container.read(workSortProvider), (
+      field: WorkSortField.sales,
+      descending: true,
+    ));
+    expect(_testPrefs.getString('library.sort.works'), 'sales:desc');
   });
 
   testWidgets('drawer switches sections', (tester) async {
