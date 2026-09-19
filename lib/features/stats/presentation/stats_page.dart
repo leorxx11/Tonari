@@ -24,15 +24,17 @@ class StatsPage extends ConsumerStatefulWidget {
 
 class _StatsPageState extends ConsumerState<StatsPage> {
   bool _searching = false;
+  bool _byName = false;
   String _query = '';
 
-  List<StatEntry> _visible(LibraryStats stats, WorkChipKind kind) =>
-      _query.isEmpty
-      ? stats.of(kind)
-      : [
-          for (final e in stats.of(kind))
-            if (e.name.toLowerCase().contains(_query)) e,
-        ];
+  List<StatEntry> _visible(LibraryStats stats, WorkChipKind kind) {
+    final entries = [
+      for (final e in stats.of(kind))
+        if (_query.isEmpty || e.name.toLowerCase().contains(_query)) e,
+    ];
+    if (_byName) entries.sort((a, b) => a.name.compareTo(b.name));
+    return entries;
+  }
 
   void _closeSearch() => setState(() {
     _searching = false;
@@ -75,6 +77,11 @@ class _StatsPageState extends ConsumerState<StatsPage> {
                 icon: const Icon(Icons.search),
                 onPressed: () => setState(() => _searching = true),
               ),
+            IconButton(
+              tooltip: _byName ? '按作品数排序' : '按名称排序',
+              icon: Icon(_byName ? Icons.sort_by_alpha : Icons.sort),
+              onPressed: () => setState(() => _byName = !_byName),
+            ),
             const LibraryHomeButton(),
           ],
           bottom: TabBar(

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/ui/app_toast.dart';
 import '../../features/library/data/app_events.dart';
+import '../../features/library/data/works_providers.dart';
+import '../../features/library/presentation/open_work_detail.dart';
 import '../../features/library/presentation/widgets/app_events_sheet.dart';
 import '../providers/selected_section.dart';
 
@@ -110,21 +113,40 @@ class AppDrawer extends ConsumerWidget {
           ),
           label: const Text('消息'),
         ),
+        const NavigationDrawerDestination(
+          icon: Icon(Icons.casino_outlined),
+          label: Text('随机来一部'),
+        ),
       ],
     );
   }
 
-  void _onSelected(BuildContext context, WidgetRef ref, int index) {
+  Future<void> _onSelected(
+    BuildContext context,
+    WidgetRef ref,
+    int index,
+  ) async {
     if (index < AppSection.settings.index) {
       _selectSection(context, ref, AppSection.values[index]);
       return;
     }
+    // Query while the drawer (and its ref) is still alive.
+    final work = index == AppSection.settings.index
+        ? null
+        : await ref.read(pickRandomWorkProvider)();
+    if (!context.mounted) return;
     Navigator.of(context).pop();
-    // The drawer context dies with the pop; the sheet needs the root context.
+    // The drawer context dies with the pop; actions need the root context.
     final rootContext = rootScaffoldKey.currentContext;
     if (rootContext == null) return;
-    ref.read(appEventSinkProvider).markAllRead();
-    showAppEventsSheet(rootContext);
+    if (index == AppSection.settings.index) {
+      ref.read(appEventSinkProvider).markAllRead();
+      showAppEventsSheet(rootContext);
+    } else if (work == null) {
+      showAppToast('音声库还是空的');
+    } else {
+      openWorkDetail(rootContext, ref, work);
+    }
   }
 
   void _selectSection(BuildContext context, WidgetRef ref, AppSection section) {

@@ -337,11 +337,7 @@ class _HeaderSection extends ConsumerWidget {
     final releaseDate = work.releaseDate;
     final dateText = releaseDate == null ? null : _formatDate(releaseDate);
     final fileEntryPosition = ref.watch(fileEntryPositionProvider);
-    final subline = <String>[
-      if (work.circleName != null && work.circleName!.isNotEmpty)
-        work.circleName!,
-      ?dateText,
-    ].join(' · ');
+    final circle = work.circleName?.trim() ?? '';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -379,12 +375,30 @@ class _HeaderSection extends ConsumerWidget {
                   height: 1.35,
                 ),
               ),
-              if (subline.isNotEmpty) ...[
+              if (circle.isNotEmpty || dateText != null) ...[
                 const SizedBox(height: 6),
-                IosSelectableText(
-                  subline,
+                DefaultTextStyle.merge(
                   style: theme.textTheme.bodyMedium!.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  child: Wrap(
+                    children: [
+                      if (circle.isNotEmpty)
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => applyChipFilter(context, ref, (
+                            kind: WorkChipKind.circle,
+                            value: circle,
+                          )),
+                          child: Text(
+                            circle,
+                            style: TextStyle(color: theme.colorScheme.primary),
+                          ),
+                        ),
+                      if (circle.isNotEmpty && dateText != null)
+                        const Text(' · '),
+                      ?dateText == null ? null : Text(dateText),
+                    ],
                   ),
                 ),
               ],

@@ -102,6 +102,20 @@ final workFilterProvider = NotifierProvider<WorkFilterNotifier, WorkFilter>(
   WorkFilterNotifier.new,
 );
 
+/// Picks from the whole audio library, ignoring the library's filters.
+final pickRandomWorkProvider = Provider<Future<Work?> Function()>((ref) {
+  final db = ref.watch(databaseProvider);
+  return () =>
+      (db.select(db.works)
+            ..where((w) => w.isRemoved.equals(false))
+            ..orderBy([
+              (_) =>
+                  OrderingTerm(expression: const CustomExpression('RANDOM()')),
+            ])
+            ..limit(1))
+          .getSingleOrNull();
+});
+
 final allWorksProvider = StreamProvider<List<Work>>((ref) {
   final db = ref.watch(databaseProvider);
   final sort = ref.watch(workSortProvider);

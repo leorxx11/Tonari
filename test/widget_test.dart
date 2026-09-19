@@ -75,6 +75,9 @@ Widget testApp({
             .toList(),
       );
     }),
+    pickRandomWorkProvider.overrideWithValue(
+      () async => works.where((w) => !w.isRemoved).firstOrNull,
+    ),
     libraryStatsProvider.overrideWith(
       (ref) =>
           Stream.value(computeLibraryStats(works.where((w) => !w.isRemoved))),
@@ -364,7 +367,17 @@ void main() {
 
     await openDrawer(tester);
 
-    for (final label in ['音声库', '视频库', '收藏', '分类', '播放历史', '浏览', '设置', '消息']) {
+    for (final label in [
+      '音声库',
+      '视频库',
+      '收藏',
+      '分类',
+      '播放历史',
+      '浏览',
+      '设置',
+      '消息',
+      '随机来一部',
+    ]) {
       expect(find.text(label).hitTestable(), findsOneWidget, reason: label);
     }
     expect(
@@ -448,6 +461,28 @@ void main() {
     expect(find.text('With CV'), findsOneWidget);
     expect(find.text('Also CV'), findsOneWidget);
     expect(find.text('Other Work'), findsNothing);
+  });
+
+  testWidgets('分类 sort toggles between count and name order', (tester) async {
+    await tester.pumpWidget(
+      testApp(
+        works: [
+          _work('RJ1', circleName: 'B社'),
+          _work('RJ2', circleName: 'B社'),
+          _work('RJ3', circleName: 'A社'),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+    await openSection(tester, '分类');
+
+    double xOf(String name) =>
+        tester.getTopLeft(find.textContaining(name).hitTestable()).dx;
+    expect(xOf('B社'), lessThan(xOf('A社')));
+
+    await tester.tap(find.byTooltip('按名称排序'));
+    await tester.pumpAndSettle();
+    expect(xOf('A社'), lessThan(xOf('B社')));
   });
 
   testWidgets('分类 search filters every tab and updates tab counts', (
@@ -908,6 +943,43 @@ void main() {
     expect(find.byKey(const Key('files-entry')), findsOneWidget);
     // Track list lives on the WorkFilesPage now, not the detail page.
     expect(find.text('track01.wav'), findsNothing);
+  });
+
+  testWidgets('tapping the circle on work detail filters the library', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      testApp(
+        works: [
+          _work('RJ1', title: 'Circle Work', circleName: '柚子社'),
+          _work('RJ2', title: 'Other Work', circleName: 'B社'),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Circle Work'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('柚子社').hitTestable());
+    await tester.pumpAndSettle();
+
+    expect(find.text('社团：柚子社'), findsOneWidget);
+    expect(find.text('Circle Work'), findsOneWidget);
+    expect(find.text('Other Work'), findsNothing);
+  });
+
+  testWidgets('drawer random pick opens a work', (tester) async {
+    await tester.pumpWidget(
+      testApp(works: [_work('RJ01560714', title: 'Only Work')]),
+    );
+    await tester.pumpAndSettle();
+
+    await openSection(tester, '随机来一部');
+
+    expect(find.byKey(const Key('selectable-work-title')), findsOneWidget);
+    expect(find.text('Only Work'), findsWidgets);
   });
 
   testWidgets('work detail title is selectable', (tester) async {
