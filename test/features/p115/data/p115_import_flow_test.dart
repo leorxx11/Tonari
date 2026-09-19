@@ -210,32 +210,37 @@ void main() {
     },
   );
 
-  test('unsupported subtitle format stays visible but is never fetched', () async {
-    final db = TonariDatabase.forTesting(NativeDatabase.memory());
-    addTearDown(db.close);
-    final client = _FakeP115Client({
-      'rj': [
-        _file('audio-1', '01.wav', RemoteEntryKind.audio, 'pc-audio'),
-        _file('sub-1', '01.ass', RemoteEntryKind.subtitle, 'pc-ass'),
-      ],
-    });
-    final flow = P115ImportFlow(
-      db: db,
-      client: client,
-      importer: ImportService(db),
-      enrichment: _NoopEnrichment(),
-    );
+  test(
+    'unsupported subtitle format stays visible but is never fetched',
+    () async {
+      final db = TonariDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final client = _FakeP115Client({
+        'rj': [
+          _file('audio-1', '01.wav', RemoteEntryKind.audio, 'pc-audio'),
+          _file('sub-1', '01.ass', RemoteEntryKind.subtitle, 'pc-ass'),
+        ],
+      });
+      final flow = P115ImportFlow(
+        db: db,
+        client: client,
+        importer: ImportService(db),
+        enrichment: _NoopEnrichment(),
+      );
 
-    final summary = await flow.importFolder(folder: _folder('rj', 'RJ999996'));
+      final summary = await flow.importFolder(
+        folder: _folder('rj', 'RJ999996'),
+      );
 
-    expect(summary.worksInserted, 1);
-    expect(client.requestedPickcodes, isEmpty);
-    final file = await (db.select(
-      db.workFiles,
-    )..where((f) => f.fileKind.equals('subtitle'))).getSingle();
-    expect(file.fileName, '01.ass');
-    expect(await db.select(db.subtitles).get(), isEmpty);
-  });
+      expect(summary.worksInserted, 1);
+      expect(client.requestedPickcodes, isEmpty);
+      final file = await (db.select(
+        db.workFiles,
+      )..where((f) => f.fileKind.equals('subtitle'))).getSingle();
+      expect(file.fileName, '01.ass');
+      expect(await db.select(db.subtitles).get(), isEmpty);
+    },
+  );
 
   test('a single failed subtitle download does not abort the import', () async {
     final db = TonariDatabase.forTesting(NativeDatabase.memory());
@@ -307,8 +312,11 @@ RemoteEntry _file(
 }
 
 class _FakeP115Client extends P115Client {
-  _FakeP115Client(this.rows, {this.bytes = const {}, this.byteErrors = const {}})
-    : super(cookieStore: P115CookieStore(backend: _MemoryCookieBackend()));
+  _FakeP115Client(
+    this.rows, {
+    this.bytes = const {},
+    this.byteErrors = const {},
+  }) : super(cookieStore: P115CookieStore(backend: _MemoryCookieBackend()));
 
   final Map<String, List<RemoteEntry>> rows;
   final Map<String, List<int>> bytes;
@@ -354,9 +362,20 @@ class _NoopEnrichment implements MetadataEnrichmentService {
   @override
   Future<void> enrichOne(
     String productId, {
-    bool force = false,
     ImageCacheProgress? onImageProgress,
   }) async {}
+
+  @override
+  Future<void> refreshMetadata(
+    String productId, {
+    ImageCacheProgress? onImageProgress,
+  }) async {}
+
+  @override
+  Future<void> refreshStats(String productId) async {}
+
+  @override
+  Future<int> refreshAllStats({MetadataProgress? onProgress}) async => 0;
 
   @override
   Future<void> enrichPending() async {}

@@ -167,9 +167,20 @@ class _NoopEnrichment implements MetadataEnrichmentService {
   @override
   Future<void> enrichOne(
     String productId, {
-    bool force = false,
     ImageCacheProgress? onImageProgress,
   }) async {}
+
+  @override
+  Future<void> refreshMetadata(
+    String productId, {
+    ImageCacheProgress? onImageProgress,
+  }) async {}
+
+  @override
+  Future<void> refreshStats(String productId) async {}
+
+  @override
+  Future<int> refreshAllStats({MetadataProgress? onProgress}) async => 0;
 
   @override
   Future<void> enrichPending() async {}

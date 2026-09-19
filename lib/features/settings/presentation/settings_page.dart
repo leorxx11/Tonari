@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/widgets/app_drawer.dart';
 import '../../../shared/widgets/library_home_button.dart';
+import '../../../core/ui/app_toast.dart';
+import '../../library/data/stats_refresh.dart';
 import '../../library/presentation/import_entry.dart';
 import 'appearance_settings_page.dart';
 import 'backup_page.dart';
@@ -70,6 +72,7 @@ class SettingsPage extends ConsumerWidget {
             subtitle: '导出媒体库数据，换机或换证书使用',
             page: BackupPage(),
           ),
+          const _StatsRefreshTile(),
           const _SectionLabel('支持'),
           const _Entry(
             icon: Icons.bug_report_outlined,
@@ -127,6 +130,39 @@ class _Entry extends StatelessWidget {
           context,
         ).push(MaterialPageRoute<void>(builder: (_) => page));
       },
+    );
+  }
+}
+
+class _StatsRefreshTile extends ConsumerWidget {
+  const _StatsRefreshTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final progress = ref.watch(statsRefreshProvider);
+    return ListTile(
+      leading: const Icon(Icons.bar_chart),
+      title: const Text('更新统计数据'),
+      subtitle: Text(
+        progress == null
+            ? '更新全部作品的售出、评分、价格和排名'
+            : '正在更新 ${progress.done}/${progress.total}…',
+      ),
+      trailing: progress == null
+          ? null
+          : const SizedBox.square(
+              dimension: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+      onTap: progress != null
+          ? null
+          : () async {
+              final failed = await ref
+                  .read(statsRefreshProvider.notifier)
+                  .run();
+              if (failed == null) return;
+              showAppToast(failed == 0 ? '统计数据已更新' : '更新完成，$failed 个作品失败');
+            },
     );
   }
 }

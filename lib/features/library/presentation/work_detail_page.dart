@@ -153,8 +153,26 @@ class _WorkDetailViewState extends ConsumerState<_WorkDetailView> {
     );
   }
 
+  Future<void> refreshStats(String productId) async {
+    final taskController = ref.read(workTaskControllerProvider.notifier);
+    final enrichment = ref.read(metadataEnrichmentProvider);
+    try {
+      await taskController.run<void>(
+        productId: productId,
+        kind: LibraryTaskKind.metadata,
+        title: '更新统计数据',
+        initialStage: '获取 DLsite 统计',
+        action: (task) => enrichment.refreshStats(productId),
+      );
+      if (!mounted) return;
+      showAppToast('统计数据已更新');
+    } catch (e) {
+      if (!mounted) return;
+      showAppToast('更新失败：$e');
+    }
+  }
+
   Future<void> refreshMetadata(String productId) async {
-    final before = ref.read(workByIdProvider(productId)).value;
     final taskController = ref.read(workTaskControllerProvider.notifier);
     final enrichment = ref.read(metadataEnrichmentProvider);
     try {
@@ -165,9 +183,8 @@ class _WorkDetailViewState extends ConsumerState<_WorkDetailView> {
         initialStage: '获取 DLsite 元数据',
         action: (task) async {
           task.update(stage: '获取 DLsite 元数据', message: productId);
-          await enrichment.enrichOne(
+          await enrichment.refreshMetadata(
             productId,
-            force: true,
             onImageProgress: (completed, total, current) {
               task.update(
                 stage: '下载图片',
@@ -180,9 +197,6 @@ class _WorkDetailViewState extends ConsumerState<_WorkDetailView> {
           ref.read(enrichmentQueueProvider.notifier).clearFailure(productId);
         },
       );
-      _evictWorkImages(before);
-      final after = ref.read(workByIdProvider(productId)).value;
-      if (after != null) _evictWorkImages(after);
       if (!mounted) return;
       showAppToast('元数据已刷新');
     } catch (e) {
@@ -1453,6 +1467,8 @@ class _MoreMenu extends ConsumerWidget {
             ref
                 .read(translationControllerProvider(work.productId).notifier)
                 .translate(force: true);
+          case 'refresh_stats':
+            state.refreshStats(work.productId);
           case 'refresh_metadata':
             state.refreshMetadata(work.productId);
           case 'refresh_images':
@@ -1484,6 +1500,17 @@ class _MoreMenu extends ConsumerWidget {
           ),
         ),
         PopupMenuItem(
+          value: 'refresh_stats',
+          enabled: canRefresh,
+          child: const ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.bar_chart),
+            title: Text('更新统计数据'),
+            subtitle: Text('售出、评分、价格、排名'),
+          ),
+        ),
+        PopupMenuItem(
           value: 'refresh_metadata',
           enabled: canRefresh,
           child: const ListTile(
@@ -1491,7 +1518,7 @@ class _MoreMenu extends ConsumerWidget {
             contentPadding: EdgeInsets.zero,
             leading: Icon(Icons.refresh),
             title: Text('刷新元数据'),
-            subtitle: Text('会清除已缓存的翻译'),
+            subtitle: Text('标题、CV、标签、简介等，不重新下载图片'),
           ),
         ),
         PopupMenuItem(

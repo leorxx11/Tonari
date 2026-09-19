@@ -128,7 +128,6 @@ class _FakeEnrichment extends MetadataEnrichmentService {
   @override
   Future<void> enrichOne(
     String productId, {
-    bool force = false,
     ImageCacheProgress? onImageProgress,
   }) async {
     attempts[productId] = (attempts[productId] ?? 0) + 1;

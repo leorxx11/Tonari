@@ -78,34 +78,132 @@ class MetadataEnrichmentService {
 
   Future<void> enrichOne(
     String productId, {
-    bool force = false,
     ImageCacheProgress? onImageProgress,
   }) {
     return _throttled(
-      () =>
-          _enrichOne(productId, force: force, onImageProgress: onImageProgress),
+      () => _enrichOne(productId, onImageProgress: onImageProgress),
     );
   }
 
   Future<void> _enrichOne(
     String productId, {
-    required bool force,
     ImageCacheProgress? onImageProgress,
   }) async {
-    final row = await (_db.select(
-      _db.works,
-    )..where((r) => r.productId.equals(productId))).getSingleOrNull();
+    final row = await _row(productId);
     if (row == null) return;
-    if (!force &&
-        row.scrapedAt != null &&
+    if (row.scrapedAt != null &&
         LocalImagePath.resolve(row.mainImageLocalPath) != null) {
       return;
     }
 
-    if (force) {
-      await _imageCache.evict(productId);
+    final work = await _fetchWork(productId);
+    final ajax = await _tryFetchAjax(productId);
+    final images = await _imageCache.cache(
+      productId: productId,
+      mainImageUrl: work.mainImageUrl,
+      sampleImageUrls: work.sampleImageUrls,
+      descriptionImageUrls: work.descriptionImageUrls,
+      onProgress: onImageProgress,
+    );
+    if (images.mainImage == null) {
+      throw DlsiteFetchException('Failed to cache main image for $productId');
     }
 
+    final now = DateTime.now();
+    await _write(
+      productId,
+      _columns(work, ajax).copyWith(
+        mainImageLocalPath: Value(images.mainImage),
+        sampleImageLocalPaths: Value(images.sampleImages),
+        descriptionImageLocalPaths: Value(images.descriptionImages),
+        scrapedAt: Value(now),
+        updatedAt: Value(now),
+      ),
+    );
+  }
+
+  /// Re-fetches the catalog text (title, credits, tags, description) and
+  /// stats while keeping cached images. A translation survives unless the
+  /// source text it was made from changed. Works never enriched get the full
+  /// first-time enrichment instead, since they have no images to keep.
+  Future<void> refreshMetadata(
+    String productId, {
+    ImageCacheProgress? onImageProgress,
+  }) {
+    return _throttled(() async {
+      final row = await _row(productId);
+      if (row == null) return;
+      if (LocalImagePath.resolve(row.mainImageLocalPath) == null) {
+        return _enrichOne(productId, onImageProgress: onImageProgress);
+      }
+      final work = await _fetchWork(productId);
+      final ajax = await _tryFetchAjax(productId);
+      final now = DateTime.now();
+      await _write(
+        productId,
+        _columns(work, ajax).copyWith(
+          titleZh: work.title == row.title
+              ? const Value.absent()
+              : const Value(null),
+          descriptionHtmlZh: work.descriptionHtml == row.descriptionHtml
+              ? const Value.absent()
+              : const Value(null),
+          scrapedAt: Value(now),
+          updatedAt: Value(now),
+        ),
+      );
+    });
+  }
+
+  /// Updates only the fast-changing numbers (sales, rating, price, ranks)
+  /// from DLsite's lightweight ajax endpoint.
+  Future<void> refreshStats(String productId) {
+    return _throttled(() async {
+      final ajax = await _fetcher.fetchAjax(productId);
+      if (ajax.dlCount == null &&
+          ajax.rateCount == null &&
+          ajax.price == null) {
+        throw DlsiteFetchException('No DLsite stats for $productId');
+      }
+      await _write(
+        productId,
+        _statsColumns(ajax).copyWith(updatedAt: Value(DateTime.now())),
+      );
+    });
+  }
+
+  /// [refreshStats] over every enriched work; returns how many failed.
+  Future<int> refreshAllStats({MetadataProgress? onProgress}) async {
+    final rows =
+        await (_db.select(_db.works)
+              ..where(
+                (r) => r.isRemoved.equals(false) & r.scrapedAt.isNotNull(),
+              )
+              ..orderBy([(r) => OrderingTerm.asc(r.productId)]))
+            .get();
+    var failed = 0;
+    for (var i = 0; i < rows.length; i++) {
+      final id = rows[i].productId;
+      onProgress?.call(i, rows.length, id);
+      try {
+        await refreshStats(id);
+      } catch (_) {
+        failed++;
+      }
+      onProgress?.call(i + 1, rows.length, id);
+    }
+    return failed;
+  }
+
+  Future<Work?> _row(String productId) => (_db.select(
+    _db.works,
+  )..where((r) => r.productId.equals(productId))).getSingleOrNull();
+
+  Future<void> _write(String productId, WorksCompanion columns) => (_db.update(
+    _db.works,
+  )..where((r) => r.productId.equals(productId))).write(columns);
+
+  Future<DlsiteWorkData> _fetchWork(String productId) async {
     final translated = _fetcher.parseHtml(
       await _fetcher.fetchHtml(productId),
       productId,
@@ -127,76 +225,61 @@ class MetadataEnrichmentService {
         original = null;
       }
     }
-    final work = _merge(translated, original);
+    return _merge(translated, original);
+  }
 
-    DlsiteAjaxData? ajax;
+  Future<DlsiteAjaxData?> _tryFetchAjax(String productId) async {
     try {
-      ajax = await _fetcher.fetchAjax(productId);
+      return await _fetcher.fetchAjax(productId);
     } catch (_) {
-      ajax = null;
+      return null;
     }
+  }
 
-    final images = await _imageCache.cache(
-      productId: productId,
-      mainImageUrl: work.mainImageUrl,
-      sampleImageUrls: work.sampleImageUrls,
-      descriptionImageUrls: work.descriptionImageUrls,
-      onProgress: onImageProgress,
-    );
-    if (images.mainImage == null) {
-      throw DlsiteFetchException('Failed to cache main image for $productId');
-    }
-
-    final now = DateTime.now();
-    await (_db.update(
-      _db.works,
-    )..where((r) => r.productId.equals(productId))).write(
-      WorksCompanion(
-        title: Value(work.title),
-        titleRomaji: Value(work.titleRomaji),
-        originalProductId: Value(work.originalProductId),
-        circleId: Value(work.circleId),
-        circleName: Value(work.circleName),
-        releaseDate: Value(work.releaseDate),
-        voiceActors: Value(work.voiceActors),
-        illustrators: Value(work.illustrators),
-        scenarioWriters: Value(work.scenarioWriters),
-        musicians: Value(work.musicians),
-        ageRating: Value(work.ageRating),
-        workType: Value(work.workType),
-        workTypeName: Value(work.workTypeName),
-        fileFormats: Value(work.fileFormats),
-        supportedLanguages: Value(work.supportedLanguages),
-        genresJson: Value(
-          jsonEncode(work.genres.map((g) => g.toJson()).toList()),
-        ),
-        fileSize: Value(work.fileSize),
-        seriesId: Value(work.seriesId),
-        seriesName: Value(work.seriesName),
-        descriptionHtml: Value(work.descriptionHtml),
-        titleZh: force ? const Value(null) : const Value.absent(),
-        descriptionHtmlZh: force ? const Value(null) : const Value.absent(),
-        mainImageUrl: Value(work.mainImageUrl),
-        sampleImageUrls: Value(work.sampleImageUrls),
-        mainImageLocalPath: Value(images.mainImage),
-        sampleImageLocalPaths: Value(images.sampleImages),
-        descriptionImageLocalPaths: Value(images.descriptionImages),
-        rating: Value(ajax?.rateAverage),
-        ratingCount: Value(ajax?.rateCount),
-        reviewCount: Value(ajax?.reviewCount),
-        dlCount: Value(ajax?.dlCount),
-        wishlistCount: Value(ajax?.wishlistCount),
-        rankDay: Value(ajax?.rankDay),
-        rankWeek: Value(ajax?.rankWeek),
-        rankMonth: Value(ajax?.rankMonth),
-        currentPrice: Value(ajax?.price),
-        officialPrice: Value(ajax?.officialPrice),
-        discountRate: Value(ajax?.discountRate),
-        scrapedAt: Value(now),
-        updatedAt: Value(now),
+  /// Catalog text plus stats; a failed stats fetch leaves the old numbers.
+  WorksCompanion _columns(DlsiteWorkData work, DlsiteAjaxData? ajax) {
+    final stats = ajax == null ? const WorksCompanion() : _statsColumns(ajax);
+    return stats.copyWith(
+      title: Value(work.title),
+      titleRomaji: Value(work.titleRomaji),
+      originalProductId: Value(work.originalProductId),
+      circleId: Value(work.circleId),
+      circleName: Value(work.circleName),
+      releaseDate: Value(work.releaseDate),
+      voiceActors: Value(work.voiceActors),
+      illustrators: Value(work.illustrators),
+      scenarioWriters: Value(work.scenarioWriters),
+      musicians: Value(work.musicians),
+      ageRating: Value(work.ageRating),
+      workType: Value(work.workType),
+      workTypeName: Value(work.workTypeName),
+      fileFormats: Value(work.fileFormats),
+      supportedLanguages: Value(work.supportedLanguages),
+      genresJson: Value(
+        jsonEncode(work.genres.map((g) => g.toJson()).toList()),
       ),
+      fileSize: Value(work.fileSize),
+      seriesId: Value(work.seriesId),
+      seriesName: Value(work.seriesName),
+      descriptionHtml: Value(work.descriptionHtml),
+      mainImageUrl: Value(work.mainImageUrl),
+      sampleImageUrls: Value(work.sampleImageUrls),
     );
   }
+
+  WorksCompanion _statsColumns(DlsiteAjaxData ajax) => WorksCompanion(
+    rating: Value(ajax.rateAverage),
+    ratingCount: Value(ajax.rateCount),
+    reviewCount: Value(ajax.reviewCount),
+    dlCount: Value(ajax.dlCount),
+    wishlistCount: Value(ajax.wishlistCount),
+    rankDay: Value(ajax.rankDay),
+    rankWeek: Value(ajax.rankWeek),
+    rankMonth: Value(ajax.rankMonth),
+    currentPrice: Value(ajax.price),
+    officialPrice: Value(ajax.officialPrice),
+    discountRate: Value(ajax.discountRate),
+  );
 
   /// Re-downloads only the work's images, leaving every other column —
   /// including the cached translation — untouched. Use when the user
