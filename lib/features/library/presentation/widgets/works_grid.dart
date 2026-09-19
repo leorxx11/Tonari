@@ -12,17 +12,20 @@ class WorksGrid extends ConsumerWidget {
   const WorksGrid({
     super.key,
     required this.works,
+    this.controller,
     this.onRemove,
     this.onRemoveFromCollection,
   });
 
   final List<Work> works;
+  final ScrollController? controller;
   final ValueChanged<Work>? onRemove;
   final ValueChanged<Work>? onRemoveFromCollection;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return GridView.builder(
+      controller: controller,
       physics: const AlwaysScrollableScrollPhysics(),
       gridDelegate: workGridDelegate,
       padding: const EdgeInsets.fromLTRB(10, 10, 10, 16),

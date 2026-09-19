@@ -20,6 +20,7 @@ class LibraryPage extends ConsumerStatefulWidget {
 class _LibraryPageState extends ConsumerState<LibraryPage> {
   bool _searching = false;
   late final TextEditingController _searchController;
+  final _scrollController = ScrollController(keepScrollOffset: false);
 
   @override
   void initState() {
@@ -30,11 +31,14 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(workFilterProvider, (_, _) => _scrollToTop());
+    ref.listen(workSortProvider, (_, _) => _scrollToTop());
     final worksAsync = ref.watch(allWorksProvider);
     final sort = ref.watch(workSortProvider);
     final filter = ref.watch(workFilterProvider);
@@ -115,9 +119,17 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                 filter: filter,
                 onImport: () => showImportSourcesSheet(context, ref),
               )
-            : WorksGrid(works: works, onRemove: _onRemoveWork),
+            : WorksGrid(
+                controller: _scrollController,
+                works: works,
+                onRemove: _onRemoveWork,
+              ),
       ),
     );
+  }
+
+  void _scrollToTop() {
+    if (_scrollController.hasClients) _scrollController.jumpTo(0);
   }
 
   Future<void> _onRemoveWork(Work work) async {

@@ -24,6 +24,7 @@ import 'package:tonari/features/library/data/work_image_cache.dart';
 import 'package:tonari/features/library/data/work_reimport_provider.dart';
 import 'package:tonari/features/library/data/works_providers.dart';
 import 'package:tonari/features/library/presentation/widgets/sample_gallery.dart';
+import 'package:tonari/features/library/presentation/widgets/work_card.dart';
 import 'package:tonari/features/p115/data/p115_cookie_store.dart';
 import 'package:tonari/features/player/data/playback_controller.dart';
 import 'package:tonari/features/player/presentation/mini_player.dart';
@@ -429,6 +430,79 @@ void main() {
 
     expect(find.text('CV：花玲'), findsNothing);
     expect(find.text('Other Work'), findsOneWidget);
+  });
+
+  testWidgets('library resets scroll for filters and sorting', (tester) async {
+    await tester.pumpWidget(
+      testApp(
+        works: List.generate(40, (i) => _work('RJ$i', voiceActors: ['CV'])),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final grid = find.byType(GridView).first;
+    final controller = tester.widget<GridView>(grid).controller!;
+    final container = ProviderScope.containerOf(tester.element(grid));
+    final filter = container.read(workFilterProvider.notifier);
+    const chip = (kind: WorkChipKind.voiceActor, value: 'CV');
+    final changes = <VoidCallback>[
+      filter.toggleFavoritesOnly,
+      () => filter.setSource(SourceFilter.local),
+      () => filter.setSearchQuery('RJ'),
+      () => filter.addChip(chip),
+      () => filter.removeChip(chip),
+      filter.clearSearch,
+      () => container
+          .read(workSortProvider.notifier)
+          .set(WorkSortMode.productIdAsc),
+    ];
+    for (final change in changes) {
+      await tester.drag(grid, const Offset(0, -500));
+      await tester.pumpAndSettle();
+      expect(controller.offset, greaterThan(0));
+      change();
+      await tester.pumpAndSettle();
+      expect(controller.offset, 0);
+    }
+  });
+
+  testWidgets('clearing an empty filter restores the grid at the top', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      testApp(works: List.generate(40, (i) => _work('RJ$i'))),
+    );
+    await tester.pumpAndSettle();
+    final grid = find.byType(GridView).first;
+    final container = ProviderScope.containerOf(tester.element(grid));
+    await tester.drag(grid, const Offset(0, -500));
+    await tester.pumpAndSettle();
+    final filter = container.read(workFilterProvider.notifier);
+    filter.addChip((kind: WorkChipKind.voiceActor, value: 'Absent'));
+    await tester.pumpAndSettle();
+    expect(find.text('没有匹配的作品'), findsOneWidget);
+    filter.clearSearch();
+    await tester.pumpAndSettle();
+    expect(tester.widget<GridView>(grid).controller!.offset, 0);
+  });
+
+  testWidgets('returning from work details preserves library scroll', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      testApp(works: List.generate(40, (i) => _work('RJ$i'))),
+    );
+    await tester.pumpAndSettle();
+    final grid = find.byType(GridView).first;
+    await tester.drag(grid, const Offset(0, -500));
+    await tester.pumpAndSettle();
+    final controller = tester.widget<GridView>(grid).controller!;
+    final offset = controller.offset;
+    expect(offset, greaterThan(0));
+    tester.widget<WorkCard>(find.byType(WorkCard).first).onTap!();
+    await tester.pumpAndSettle();
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(controller.offset, offset);
   });
 
   testWidgets('favorites section shows 全部收藏 entry and groups hint', (
