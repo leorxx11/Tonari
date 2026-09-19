@@ -20,6 +20,7 @@ import '../../p115/data/p115_auth_service.dart';
 import '../../p115/data/p115_client.dart';
 import '../../p115/data/p115_cookie_store.dart';
 import '../../webdav/data/webdav_client.dart';
+import '../../library/data/app_events.dart';
 import '../../library/data/work_media_source.dart';
 import '../../library/data/work_tree.dart';
 import 'now_playing_bridge.dart';
@@ -83,6 +84,26 @@ class PlaybackState {
   );
 
   static const empty = PlaybackState();
+}
+
+/// A user-facing message for a failed play, plus the remote source's name
+/// when the failure belongs to a remote source (so it is worth keeping in the
+/// inbox). For WebDAV the server is probed once to tell "unreachable" apart
+/// from a problem with the file itself.
+Future<(String, String?)> describePlayError(
+  Object e, {
+  ({Future<String> Function() name, Future<void> Function() probe})? webdav,
+}) async {
+  if (e is P115AuthExpiredException) return ('115 登录已失效，请重新登录', '115');
+  if (e is P115Exception) return (e.message, '115');
+  if (webdav == null) return ('无法播放：$e', null);
+  final name = await webdav.name();
+  try {
+    await webdav.probe();
+  } catch (_) {
+    return ('WebDAV「$name」连不上，请检查网络或服务器是否开机', name);
+  }
+  return ('无法播放：$e', name);
 }
 
 /// App-lifetime audio playback owner. Lives outside PlayerPage so that
@@ -470,13 +491,51 @@ class PlaybackController extends Notifier<PlaybackState> {
         'errorType': '${e.runtimeType}',
         'message': '$e',
       });
-      showAppToast(_playErrorText(e));
+      final (text, sourceName) = await _describePlayError(e);
+      showAppToast(text);
+      final work = state.work;
+      if (sourceName != null) {
+        await ref
+            .read(appEventSinkProvider)
+            .log(
+              category: 'network',
+              title: text,
+              detail: '$e',
+              productId: work?.productId,
+              workTitle: work?.title,
+              sourceName: sourceName,
+            );
+      }
     }
   }
 
-  String _playErrorText(Object e) {
-    if (e is P115AuthExpiredException) return '115 登录已失效，请重新登录';
-    return '无法播放：$e';
+  Future<(String, String?)> _describePlayError(Object e) {
+    final config = state.remoteConfig;
+    return describePlayError(
+      e,
+      webdav: state.remoteKind == RemoteSourceKind.webdav && config != null
+          ? (
+              name: () async => await _webdavServerName() ?? config.host,
+              probe: () =>
+                  ref.read(webdavClientProvider).testConnection(config),
+            )
+          : null,
+    );
+  }
+
+  Future<String?> _webdavServerName() async {
+    final folderId = state.work?.importedFolderId;
+    if (folderId == null) return null;
+    final db = ref.read(databaseProvider);
+    final folder = await (db.select(
+      db.importedFolders,
+    )..where((f) => f.id.equals(folderId))).getSingleOrNull();
+    final serverId = folder?.serverId;
+    if (serverId == null) return null;
+    final server = await (db.select(
+      db.webdavServers,
+    )..where((s) => s.id.equals(serverId))).getSingleOrNull();
+    return server?.name;
   }
 
   /// Loads the current track from scratch and starts playing. Per-track
