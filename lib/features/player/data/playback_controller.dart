@@ -22,6 +22,7 @@ import '../../p115/data/p115_client.dart';
 import '../../p115/data/p115_cookie_store.dart';
 import '../../webdav/data/webdav_client.dart';
 import '../../library/data/work_media_source.dart';
+import '../../library/data/work_tree.dart';
 import 'now_playing_bridge.dart';
 import 'sleep_timer.dart';
 
@@ -255,11 +256,14 @@ class PlaybackController extends Notifier<PlaybackState>
       return;
     }
 
-    final tracks =
-        await (db.select(db.tracks)
-              ..where((t) => t.workId.equals(work.productId))
-              ..orderBy([(t) => OrderingTerm.asc(t.filePath)]))
-            .get();
+    // Same order the files page queues from; filePath is a pickcode for 115.
+    final tracks = flattenForPlayback(
+      buildWorkTree(
+        await (db.select(
+          db.tracks,
+        )..where((t) => t.workId.equals(work.productId))).get(),
+      ),
+    );
     if (tracks.isEmpty) return;
 
     final idx = tracks.indexWhere((t) => t.id == work.lastPlayedTrackId);
