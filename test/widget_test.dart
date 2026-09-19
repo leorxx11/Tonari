@@ -31,6 +31,7 @@ import 'package:tonari/features/library/presentation/collections_page.dart';
 import 'package:tonari/features/p115/data/p115_cookie_store.dart';
 import 'package:tonari/features/player/data/playback_controller.dart';
 import 'package:tonari/features/player/presentation/mini_player.dart';
+import 'package:tonari/features/stats/data/stats_providers.dart';
 import 'package:tonari/features/subtitle/data/subtitle_providers.dart';
 import 'package:tonari/features/video_library/data/video_library_providers.dart';
 import 'package:tonari/features/webdav/data/webdav_server_repository.dart';
@@ -74,6 +75,10 @@ Widget testApp({
             .toList(),
       );
     }),
+    libraryStatsProvider.overrideWith(
+      (ref) =>
+          Stream.value(computeLibraryStats(works.where((w) => !w.isRemoved))),
+    ),
     collectionsProvider.overrideWith(
       (ref) => Stream.value(const <Collection>[]),
     ),
@@ -359,7 +364,7 @@ void main() {
 
     await openDrawer(tester);
 
-    for (final label in ['音声库', '视频库', '收藏', '播放历史', '浏览', '设置', '消息']) {
+    for (final label in ['音声库', '视频库', '收藏', '分类', '播放历史', '浏览', '设置', '消息']) {
       expect(find.text(label).hitTestable(), findsOneWidget, reason: label);
     }
     expect(
@@ -417,6 +422,63 @@ void main() {
 
     expect(find.text('Test Work'), findsOneWidget);
     expect(find.text('Another'), findsOneWidget);
+  });
+
+  testWidgets('分类 lists voice actors with counts and filters on tap', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      testApp(
+        works: [
+          _work('RJ1', title: 'With CV', voiceActors: ['花玲']),
+          _work('RJ2', title: 'Also CV', voiceActors: ['花玲']),
+          _work('RJ3', title: 'Other Work'),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await openSection(tester, '分类');
+    await tester.tap(find.text('声优 1'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('花玲').hitTestable());
+    await tester.pumpAndSettle();
+
+    expect(find.text('CV：花玲'), findsOneWidget);
+    expect(find.text('With CV'), findsOneWidget);
+    expect(find.text('Also CV'), findsOneWidget);
+    expect(find.text('Other Work'), findsNothing);
+  });
+
+  testWidgets('分类 search filters every tab and updates tab counts', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      testApp(
+        works: [
+          _work('RJ1', circleName: '柚子社', voiceActors: ['柚木つばめ']),
+          _work('RJ2', circleName: 'B社', voiceActors: ['沢野ぽぷら']),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await openSection(tester, '分类');
+    expect(find.text('社团 2'), findsOneWidget);
+    expect(find.text('声优 2'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('搜索'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '柚');
+    await tester.pumpAndSettle();
+
+    expect(find.text('社团 1'), findsOneWidget);
+    expect(find.text('声优 1'), findsOneWidget);
+    expect(find.textContaining('B社'), findsNothing);
+
+    await tester.tap(find.byTooltip('关闭搜索'));
+    await tester.pumpAndSettle();
+    expect(find.text('社团 2'), findsOneWidget);
   });
 
   testWidgets('tapping a CV chip adds a removable AND filter token', (

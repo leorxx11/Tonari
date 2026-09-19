@@ -85,6 +85,11 @@ class AppDrawer extends ConsumerWidget {
           label: Text('收藏'),
         ),
         const NavigationDrawerDestination(
+          icon: Icon(Icons.label_outline),
+          selectedIcon: Icon(Icons.label),
+          label: Text('分类'),
+        ),
+        const NavigationDrawerDestination(
           icon: Icon(Icons.history),
           label: Text('播放历史'),
         ),

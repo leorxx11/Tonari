@@ -14,6 +14,7 @@ import '../../features/library/presentation/work_detail_page.dart';
 import '../../features/player/data/playback_controller.dart';
 import '../../features/player/presentation/mini_player.dart';
 import '../../features/settings/presentation/settings_page.dart';
+import '../../features/stats/presentation/stats_page.dart';
 import '../../features/video/data/video_controller.dart';
 import '../../features/video_library/presentation/video_library_page.dart';
 import '../providers/selected_section.dart';
@@ -88,6 +89,7 @@ class _RootTabViewState extends ConsumerState<RootTabView> {
                       LibraryPage(),
                       VideoLibraryPage(),
                       CollectionsPage(),
+                      StatsPage(),
                       PlayHistoryPage(),
                       BrowsePage(),
                       SettingsPage(),

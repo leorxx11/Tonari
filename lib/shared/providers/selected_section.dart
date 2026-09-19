@@ -4,6 +4,7 @@ enum AppSection {
   audioLibrary,
   videoLibrary,
   collections,
+  stats,
   history,
   browse,
   settings,
