@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:drift/drift.dart' show OrderingTerm;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fvp/fvp.dart';
+import 'package:fvp/mdk.dart' show MediaInfo;
 import 'package:video_player/video_player.dart';
 
 import '../../../core/db/providers.dart';
@@ -49,6 +51,9 @@ class VideoController extends Notifier<VideoPlaybackState>
   VideoPlayerController? _controller;
   FutureOr<void> Function()? _resolvedRelease;
   bool _lastPlaying = false;
+  // mdk can drop an autoplay while a resume seek is still buffering (seen on
+  // un-indexed .ts, where locating the seek point takes several range reads).
+  DateTime? _autoplayGuardUntil;
   String? _lastVideoError;
   bool _lastEnded = false;
   var _openSeq = 0;
@@ -219,12 +224,14 @@ class VideoController extends Notifier<VideoPlaybackState>
         'width': controller.value.size.width,
         'height': controller.value.size.height,
       });
+      _logMediaInfo(controller);
       await _restorePosition(controller, stableItem);
       ensureCurrent();
       controller.addListener(_onValue);
       await _loadArtwork(stableItem);
       ensureCurrent();
       if (autoplay) {
+        _autoplayGuardUntil = DateTime.now().add(const Duration(seconds: 15));
         await controller.play();
         DiagnosticLog.write('video_player', 'play_requested', {
           ..._videoItemFields(stableItem),
@@ -331,6 +338,7 @@ class VideoController extends Notifier<VideoPlaybackState>
       ..._stateFields(),
       ..._controllerFields(_controller),
     });
+    _autoplayGuardUntil = null;
     await _controller?.pause();
     _publish();
     _saveSlot();
@@ -372,6 +380,32 @@ class VideoController extends Notifier<VideoPlaybackState>
 
   /// Seeks to where this video was left, preferring the per-file history row
   /// (works for any history / video-library entry) over the single resume slot.
+  /// Codec info to tell hardware-decodable streams (H.264/HEVC) from ones iOS
+  /// can only decode in software (MPEG-2 broadcast .ts), which run hot.
+  void _logMediaInfo(VideoPlayerController controller) {
+    if (!DiagnosticLog.enabled) return;
+    final MediaInfo? info;
+    try {
+      info = controller.getMediaInfo();
+    } on StateError {
+      return; // not running on fvp (tests)
+    }
+    if (info == null) return;
+    final video = info.video?.firstOrNull?.codec;
+    final audio = info.audio?.firstOrNull?.codec;
+    DiagnosticLog.write('video_player', 'media_info', {
+      'container': info.format,
+      'videoCodec': video?.codec,
+      'profile': video?.profile,
+      'pixelFormat': video?.formatName,
+      'width': video?.width,
+      'height': video?.height,
+      'frameRate': video?.frameRate,
+      'bitRate': video?.bitRate,
+      'audioCodec': audio?.codec,
+    });
+  }
+
   Future<void> _restorePosition(
     VideoPlayerController controller,
     PlayableItem item,
@@ -421,6 +455,17 @@ class VideoController extends Notifier<VideoPlaybackState>
         'isPlaying': playing,
         ..._controllerFields(c),
       });
+      final guard = _autoplayGuardUntil;
+      if (!playing && value.isBuffering && guard != null) {
+        _autoplayGuardUntil = null;
+        if (DateTime.now().isBefore(guard)) {
+          DiagnosticLog.write('video_player', 'autoplay_dropped_replay', {
+            ..._controllerFields(c),
+          });
+          unawaited(c.play());
+          return;
+        }
+      }
       _publish();
     }
     final durationMs = value.duration.inMilliseconds;
