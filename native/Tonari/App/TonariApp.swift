@@ -76,6 +76,7 @@ struct RootView: View {
                 SettingsView()
             }
         }
+        .background { SubtitlePiPHost(pip: player.pip).frame(width: 1, height: 1) }
         .tabBarMinimizeBehavior(.onScrollDown)
         .tabViewBottomAccessory(isEnabled: player.hasCurrent) {
             MiniPlayer().matchedTransitionSource(id: "player", in: playerTransition)

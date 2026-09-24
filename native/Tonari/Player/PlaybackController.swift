@@ -20,7 +20,9 @@ final class PlaybackController {
     private(set) var index = 0
     private(set) var isPlaying = false
     private(set) var isLoading = false
-    private(set) var positionMs = 0
+    private(set) var positionMs = 0 {
+        didSet { pip.update(trackId: currentTrack?.id, positionMs: positionMs) }
+    }
     private(set) var durationMs = 0
     private(set) var rate: Float = 1
     private(set) var route = AudioRoute.current
@@ -29,6 +31,7 @@ final class PlaybackController {
 
     let prefs: PlayerPrefs
     let sleep: SleepTimer
+    let pip: SubtitlePiP
 
     @ObservationIgnored private let player = AVPlayer()
     @ObservationIgnored private let store: PlaybackStore
@@ -54,7 +57,9 @@ final class PlaybackController {
         store = PlaybackStore(database: database)
         prefs = PlayerPrefs()
         sleep = SleepTimer(prefs: prefs)
+        pip = SubtitlePiP(database: database)
         sleep.controller = self
+        pip.player = self
         observePlayer()
         RemoteCommands.register { [weak self] command in self?.handle(command) }
         Task { [weak self] in
@@ -190,6 +195,10 @@ final class PlaybackController {
         pausedByUser = true
         player.pause()
         savePosition()
+    }
+
+    func startSubtitlePiP() {
+        pip.start(trackId: currentTrack?.id, positionMs: positionMs)
     }
 
     func togglePlay() {
@@ -428,6 +437,7 @@ final class PlaybackController {
                 let playing = status != .paused
                 guard playing != isPlaying else { return }
                 isPlaying = playing
+                pip.playbackStateChanged(isPlaying: playing)
                 DiagnosticLog.shared.write("player", "state", ["playing": playing, "positionMs": positionMs])
                 if !playing { savePosition() }
                 publishNowPlaying()

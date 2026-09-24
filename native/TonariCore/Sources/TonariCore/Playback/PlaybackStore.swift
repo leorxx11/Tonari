@@ -159,6 +159,14 @@ public struct PlaybackStore: Sendable {
         }
     }
 
+    public func removeHistory(_ id: String) throws {
+        try database.writer.write { db in _ = try PlayHistoryEntry.deleteOne(db, key: id) }
+    }
+
+    public func clearHistory() throws {
+        try database.writer.write { db in _ = try PlayHistoryEntry.deleteAll(db) }
+    }
+
     public static func historyId(_ entry: RemoteEntry) -> String {
         if let pickcode = entry.pickcode, !pickcode.isEmpty { "p115:\(pickcode)" } else { "webdav:\(entry.sourceId):\(entry.path)" }
     }

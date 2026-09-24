@@ -124,6 +124,13 @@ struct PlayerView: View {
             }
             .pickerStyle(.menu)
             if let subtitle {
+                if SubtitlePiP.isSupported {
+                    if player.pip.isActive {
+                        Button("关闭画中画字幕", systemImage: "pip.exit") { player.pip.stop() }
+                    } else {
+                        Button("画中画字幕", systemImage: "pip.enter") { player.startSubtitlePiP() }
+                    }
+                }
                 Section("字幕时间 · 当前 \(Self.offsetText(subtitle.timeOffsetMs))") {
                     Button("字幕提前 0.1 秒", systemImage: "backward") { shiftSubtitle(by: -100) }
                     Button("字幕推后 0.1 秒", systemImage: "forward") { shiftSubtitle(by: 100) }

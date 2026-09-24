@@ -11,6 +11,8 @@ enum Route: Hashable {
     case p115Login
     case p115Settings
     case playbackSettings
+    case playHistory
+    case listenStats
     case mediaSources
     case removedWorks
     case backup
@@ -117,6 +119,8 @@ extension View {
             case .p115Login: P115LoginView()
             case .p115Settings: P115SettingsView()
             case .playbackSettings: PlaybackSettingsView()
+            case .playHistory: PlayHistoryView()
+            case .listenStats: ListenStatsView()
             case .mediaSources: MediaSourcesView()
             case .removedWorks: RemovedWorksView()
             case .backup: BackupView()

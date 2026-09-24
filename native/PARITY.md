@@ -46,13 +46,13 @@
 - [x] 中断处理（来电、其他 App 占用音频）、拔耳机暂停（Flutter 版由 just_audio 默认的 `handleInterruptions` 处理，原生要自己监听 `AVAudioSession` 通知）
 - [x] 锁屏 / 控制中心：封面、标题、上下首、拖进度（`now_playing_bridge.dart`）
 - [x] MiniPlayer（`tabViewBottomAccessory`，进度改为播放键外圈进度环）
-- [ ] 播放历史：音频 / 视频分组、看到百分比、删除单条、清空（`play_history_page.dart`）
-- [ ] 收听时长记录与收听统计：本周 / 本月 / 累计、每日、常听作品 / 声优 / 社团（`listen_logs`、`listen_stats_page.dart`）
+- [x] 播放历史：音频 / 视频分组、看到百分比、删除单条、清空（`play_history_page.dart`）
+- [x] 收听时长记录与收听统计：本周 / 本月 / 累计、每日、常听作品 / 声优 / 社团（原生版为可左右滑动的前 5 排行榜）（`listen_logs`、`listen_stats_page.dart`）
 - [x] 字幕解析：srt / vtt / lrc（`core/subtitle/`）
 - [x] 播放页字幕（原生新增，参照 Apple Music 歌词）：跟随播放滚动、手动滚动后 3 秒恢复跟随、点句跳转、偏移 ±0.1s / 重置
-- [ ] 字幕模式：关闭 / App 内悬浮 / 画中画（`subtitle_overlay_prefs.dart`）
-- [ ] 悬浮字幕：拖动、恢复默认位置、偏移 ±0.1s、重置偏移（`subtitle_overlay.dart`）
-- [ ] 画中画字幕窗口（`ios/Runner/AppDelegate.swift` 的 `PipSubtitleController`）
+- [x] 字幕模式：原生版只保留画中画开关（播放页「⋯」菜单），App 内悬浮字幕按用户决定不做（`subtitle_overlay_prefs.dart`）
+- [-] 悬浮字幕：不做（2026-09-25 用户决定）；偏移 ±0.1s / 重置已在播放页字幕实现（`subtitle_overlay.dart`）
+- [x] 画中画字幕窗口（`ios/Runner/AppDelegate.swift` 的 `PipSubtitleController`）
 
 ## N4 云端片库
 

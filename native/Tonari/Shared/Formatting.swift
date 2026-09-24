@@ -28,6 +28,13 @@ enum Formatting {
         return minutes >= 60 ? String(format: "%.1fh", Double(minutes) / 60) : "\(minutes)m"
     }
 
+    /// `45 分钟` / `3 小时` / `3 小时 12 分`, as the stats pages word it.
+    static func listening(ms: Int) -> String {
+        let minutes = ms / 60_000
+        guard minutes >= 60 else { return "\(minutes) 分钟" }
+        return minutes % 60 == 0 ? "\(minutes / 60) 小时" : "\(minutes / 60) 小时 \(minutes % 60) 分"
+    }
+
     static func bytes(_ n: Int) -> String {
         Int64(n).formatted(.byteCount(style: .file))
     }

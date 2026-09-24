@@ -39,6 +39,14 @@ struct FavoritesView: View {
                     }
                 }
                 Section {
+                    NavigationLink(value: Route.playHistory) {
+                        Label("播放历史", systemImage: "clock.arrow.circlepath")
+                    }
+                    NavigationLink(value: Route.listenStats) {
+                        Label("收听统计", systemImage: "chart.bar.xaxis")
+                    }
+                }
+                Section {
                     NavigationLink(value: Route.favoriteItems) {
                         LabeledContent {
                             Text("\(favoriteCount)")

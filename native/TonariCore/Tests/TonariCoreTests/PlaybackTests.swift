@@ -130,3 +130,36 @@ struct SubtitleTimelineTests {
         #expect(subtitle(offset: -2_000).positionMs(ofLine: 0) == 0)
     }
 }
+
+struct ListenStatsTests {
+    @Test func sumsPeriodsDaysAndRankings() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .current
+        // Wednesday 2026-09-23 local time.
+        let now = calendar.date(from: DateComponents(year: 2026, month: 9, day: 23, hour: 21))!
+        var a = Fixtures.work("RJ01000001")
+        a.voiceActors = ["甲", "乙"]
+        a.circleName = "社团A"
+        var b = Fixtures.work("RJ01000002")
+        b.voiceActors = ["甲"]
+        b.circleName = nil
+        let logs = [
+            ListenLog(day: "2026-09-23", workId: a.productId, listenedMs: 60_000),
+            ListenLog(day: "2026-09-21", workId: b.productId, listenedMs: 30_000),
+            ListenLog(day: "2026-09-20", workId: a.productId, listenedMs: 10_000),
+            ListenLog(day: "2026-08-31", workId: b.productId, listenedMs: 5_000),
+            ListenLog(day: "2026-09-22", workId: "RJ09999999", listenedMs: 1_000),
+        ]
+        let stats = ListenStats.compute(logs: logs, works: [a.productId: a, b.productId: b], now: now, calendar: calendar)
+        #expect(stats.totalMs == 106_000)
+        #expect(stats.weekMs == 91_000)
+        #expect(stats.monthMs == 101_000)
+        #expect(stats.daily.count == ListenStats.dailyWindow)
+        #expect(stats.daily.last?.ms == 60_000)
+        #expect(stats.daily[ListenStats.dailyWindow - 3].ms == 30_000)
+        #expect(stats.topWorks.map(\.item.productId) == ["RJ01000001", "RJ01000002"])
+        #expect(stats.topVoiceActors.map(\.item) == ["甲", "乙"])
+        #expect(stats.topVoiceActors[0].ms == 105_000)
+        #expect(stats.topCircles.map(\.item) == ["社团A"])
+    }
+}
