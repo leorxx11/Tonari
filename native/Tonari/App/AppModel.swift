@@ -3,7 +3,7 @@ import SwiftUI
 import TonariCore
 
 enum AppTab: Hashable {
-    case library, favorites, browse, settings
+    case library, favorites, browse, settings, search
 }
 
 enum Route: Hashable {
@@ -19,7 +19,8 @@ enum Route: Hashable {
     case diagnostics
     case work(String)
     case files(String)
-    case categories
+    /// Works sharing a voice actor, circle, series or tag.
+    case chip(WorkChip)
     case favoriteItems
     case collection(String)
 }
@@ -67,9 +68,10 @@ final class AppModel {
     var libraryPath = NavigationPath()
     var favoritesPath = NavigationPath()
     var browsePath = NavigationPath()
+    var searchPath = NavigationPath()
 
     var libraryKind = LibraryKind.audio
-    var filter = WorkFilter()
+    var source = SourceFilter.all
     var sort: WorkSort {
         didSet { UserDefaults.standard.set(sort.preference, forKey: WorkSort.preferenceKey) }
     }
@@ -91,15 +93,20 @@ final class AppModel {
         tab = .browse
     }
 
-    func openWork(_ productId: String) {
-        libraryPath = NavigationPath([Route.work(productId)])
-        tab = .library
+    /// Pushes onto whichever tab is showing, for links inside views that
+    /// are themselves links, like the chips on a library card.
+    func push(_ route: Route) {
+        switch tab {
+        case .library: libraryPath.append(route)
+        case .favorites: favoritesPath.append(route)
+        case .browse: browsePath.append(route)
+        case .search: searchPath.append(route)
+        case .settings: break
+        }
     }
 
-    func showInLibrary(_ chip: WorkChip) {
-        filter.add(chip)
-        libraryKind = .audio
-        libraryPath = NavigationPath()
+    func openWork(_ productId: String) {
+        libraryPath = NavigationPath([Route.work(productId)])
         tab = .library
     }
 
@@ -127,7 +134,7 @@ extension View {
             case .diagnostics: DiagnosticLogView()
             case .work(let id): WorkDetailView(productId: id)
             case .files(let id): WorkFilesView(productId: id)
-            case .categories: CategoriesView()
+            case .chip(let chip): ChipWorksView(chip: chip)
             case .favoriteItems: CollectionDetailView(collectionId: nil)
             case .collection(let id): CollectionDetailView(collectionId: id)
             }

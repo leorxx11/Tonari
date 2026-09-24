@@ -104,7 +104,7 @@ struct WorkMetaLine: View {
 }
 
 /// Tappable CV (green), series (orange) and tag (gray) capsules; tapping one
-/// filters the library by it.
+/// opens the works that share it.
 struct WorkChipsView: View {
     let work: Work
     var includeGenres = true
@@ -116,7 +116,7 @@ struct WorkChipsView: View {
         let chips = allChips
         FlowLayout(spacing: 6, lineSpacing: 6) {
             ForEach(Array(chips.prefix(limit ?? chips.count)), id: \.self) { chip in
-                Button(chip.value) { model.showInLibrary(chip) }
+                Button(chip.value) { model.push(.chip(chip)) }
                     .buttonStyle(ChipButtonStyle(kind: chip.kind))
             }
         }

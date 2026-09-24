@@ -17,10 +17,8 @@ struct LibraryView: View {
             Group {
                 switch model.libraryKind {
                 case .audio:
-                    WorkCollectionView(works: visibleWorks, durations: durations, remoteIds: remoteIds)
+                    WorkCollectionView(works: works, durations: durations, remoteIds: remoteIds)
                         .overlay { emptyState }
-                        .searchable(text: $model.filter.searchText, prompt: "搜索 RJ、标题、CV、社团，#标签")
-                        .safeAreaInset(edge: .top) { chipBar }
                 case .video:
                     VideoListView()
                 }
@@ -35,8 +33,8 @@ struct LibraryView: View {
             .safeAreaInset(edge: .bottom) { TaskBanner() }
             .appDestinations()
         }
-        .task(id: QueryKey(sort: model.sort, source: model.filter.source)) {
-            let request = WorkQueries.library(sort: model.sort, source: model.filter.source)
+        .task(id: QueryKey(sort: model.sort, source: model.source)) {
+            let request = WorkQueries.library(sort: model.sort, source: model.source)
             await database.observe({ try request.fetchAll($0) }) { works = $0 }
         }
         .task {
@@ -59,10 +57,6 @@ struct LibraryView: View {
         let source: SourceFilter
     }
 
-    private var visibleWorks: [Work] {
-        model.filter.isEmpty ? works : works.filter(model.filter.matches)
-    }
-
     @ViewBuilder private var emptyState: some View {
         if works.isEmpty {
             ContentUnavailableView {
@@ -73,44 +67,11 @@ struct LibraryView: View {
                 Button("导入本地文件夹") { pickingFolder = true }
                     .buttonStyle(.borderedProminent)
             }
-        } else if visibleWorks.isEmpty {
-            ContentUnavailableView.search
-        }
-    }
-
-    @ViewBuilder private var chipBar: some View {
-        if !model.filter.chips.isEmpty {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(model.filter.chips, id: \.self) { chip in
-                        Button {
-                            model.filter.chips.removeAll { $0 == chip }
-                        } label: {
-                            HStack(spacing: 4) {
-                                Text(chip.label)
-                                Image(systemName: "xmark").font(.caption2.bold())
-                            }
-                        }
-                        .buttonStyle(.bordered)
-                        .buttonBorderShape(.capsule)
-                        .controlSize(.small)
-                    }
-                }
-                .padding(.horizontal)
-                .padding(.vertical, 6)
-            }
-            .background(.bar)
         }
     }
 
     @ToolbarContentBuilder private var toolbar: some ToolbarContent {
         @Bindable var model = model
-        ToolbarItem(placement: .topBarLeading) {
-            NavigationLink(value: Route.categories) {
-                Image(systemName: "tag")
-            }
-            .accessibilityLabel("分类")
-        }
         ToolbarItem(placement: .principal) {
             Picker("媒体库", selection: $model.libraryKind) {
                 ForEach(AppModel.LibraryKind.allCases, id: \.self) { Text($0.rawValue) }
@@ -155,7 +116,7 @@ struct LibraryView: View {
                         }
                     }
                     Section("来源") {
-                        Picker("来源", selection: $model.filter.source) {
+                        Picker("来源", selection: $model.source) {
                             ForEach(SourceFilter.allCases, id: \.self) { Text($0.label) }
                         }
                     }

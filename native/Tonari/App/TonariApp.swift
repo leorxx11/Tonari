@@ -76,6 +76,9 @@ struct RootView: View {
             Tab("设置", systemImage: "gearshape", value: AppTab.settings) {
                 SettingsView()
             }
+            Tab("搜索", systemImage: "magnifyingglass", value: AppTab.search, role: .search) {
+                SearchView()
+            }
         }
         .background { SubtitlePiPHost(pip: player.pip).frame(width: 1, height: 1) }
         .tabBarMinimizeBehavior(.onScrollDown)

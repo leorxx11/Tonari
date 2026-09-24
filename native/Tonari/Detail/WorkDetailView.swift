@@ -163,7 +163,7 @@ struct WorkDetailView: View {
                 .textSelection(.enabled)
             HStack(spacing: 6) {
                 if let circle = work.circleName, !circle.isEmpty {
-                    Button(circle) { model.showInLibrary(WorkChip(.circle, circle)) }
+                    Button(circle) { model.push(.chip(WorkChip(.circle, circle))) }
                 }
                 if work.circleName != nil, work.releaseDate != nil {
                     Text("·").foregroundStyle(.secondary)

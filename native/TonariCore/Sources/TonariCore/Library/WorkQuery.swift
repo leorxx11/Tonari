@@ -75,9 +75,20 @@ public enum SourceFilter: String, CaseIterable, Sendable {
     }
 }
 
-public struct WorkChip: Hashable, Sendable {
-    public enum Kind: Sendable {
+/// A voice actor, circle, series or tag a work carries; opens the works
+/// that share it.
+public struct WorkChip: Hashable, Sendable, Codable {
+    public enum Kind: String, Sendable, Codable {
         case genre, voiceActor, series, circle
+
+        public var label: String {
+            switch self {
+            case .genre: "标签"
+            case .voiceActor: "声优"
+            case .series: "系列"
+            case .circle: "社团"
+            }
+        }
     }
 
     public var kind: Kind
@@ -107,39 +118,22 @@ public struct WorkChip: Hashable, Sendable {
     }
 }
 
-/// In-memory part of the library filter. Matching runs in Swift rather than
-/// SQL LIKE so list columns match on their values, not their JSON encoding.
-public struct WorkFilter: Equatable, Sendable {
-    public var searchText = ""
-    public var source = SourceFilter.all
-    public var chips: [WorkChip] = []
-
-    public init() {}
-
-    public var isEmpty: Bool { searchText.trimmingCharacters(in: .whitespaces).isEmpty && chips.isEmpty }
-
-    public mutating func add(_ chip: WorkChip) {
-        if !chips.contains(chip) { chips.append(chip) }
-    }
-
-    /// `#tag` searches tag names only; anything else searches every field a
-    /// work is remembered by.
-    public func matches(_ work: Work) -> Bool {
-        guard chips.allSatisfy({ $0.matches(work) }) else { return false }
-        let query = searchText.trimmingCharacters(in: .whitespaces).lowercased()
-        if query.hasPrefix("#") {
-            let tag = query.dropFirst().trimmingCharacters(in: .whitespaces)
-            return tag.isEmpty || work.genreNames.contains { $0.lowercased().contains(tag) }
-        }
-        return query.isEmpty || work.matchesText(query)
-    }
-}
-
 extension Work {
     public var genreNames: [String] { genresJson.map(\.name) }
 
     public var displayTitle: String {
         if let titleZh, !titleZh.isEmpty { titleZh } else { title }
+    }
+
+    /// Search as the Flutter build did it: `#tag` looks at tag names only,
+    /// anything else at every field a work is remembered by.
+    public func matches(search query: String) -> Bool {
+        let query = query.trimmingCharacters(in: .whitespaces).lowercased()
+        if query.hasPrefix("#") {
+            let tag = query.dropFirst().trimmingCharacters(in: .whitespaces)
+            return !tag.isEmpty && genreNames.contains { $0.lowercased().contains(tag) }
+        }
+        return !query.isEmpty && matchesText(query)
     }
 
     func matchesText(_ query: String) -> Bool {

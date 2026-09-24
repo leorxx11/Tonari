@@ -105,15 +105,15 @@ private struct Rankings: View {
             .pickerStyle(.segmented)
             TabView(selection: $board) {
                 page(stats.topWorks.map { ($0.item.productId, $0.item.displayTitle, $0.item.mainImageLocalPath, $0.ms) }) { id in
-                    model.favoritesPath.append(Route.work(id))
+                    model.push(.work(id))
                 }
                 .tag(Board.works)
                 page(stats.topVoiceActors.map { ($0.item, $0.item, nil, $0.ms) }) { name in
-                    model.showInLibrary(WorkChip(.voiceActor, name))
+                    model.push(.chip(WorkChip(.voiceActor, name)))
                 }
                 .tag(Board.voiceActors)
                 page(stats.topCircles.map { ($0.item, $0.item, nil, $0.ms) }) { name in
-                    model.showInLibrary(WorkChip(.circle, name))
+                    model.push(.chip(WorkChip(.circle, name)))
                 }
                 .tag(Board.circles)
             }

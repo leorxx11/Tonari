@@ -3,7 +3,7 @@ import GRDB
 import Testing
 @testable import TonariCore
 
-struct WorkFilterTests {
+struct LibrarySearchTests {
     private func work(_ id: String, configure: (inout Work) -> Void = { _ in }) -> Work {
         var work = Fixtures.work(id)
         configure(&work)
@@ -16,14 +16,11 @@ struct WorkFilterTests {
             $0.voiceActors = ["大山チロル"]
             $0.genresJson = [.init(id: "500", name: "舔耳")]
         }
-        for query in ["rj0109", "分身", "チロル", "舔耳", "社团"] {
-            var filter = WorkFilter()
-            filter.searchText = query
-            #expect(filter.matches(w), "\(query)")
+        for query in ["rj0109", "分身", "チロル", "舔耳", "社团", " RJ01098024 "] {
+            #expect(w.matches(search: query), "\(query)")
         }
-        var miss = WorkFilter()
-        miss.searchText = "不存在"
-        #expect(!miss.matches(w))
+        #expect(!w.matches(search: "不存在"))
+        #expect(!w.matches(search: "  "))
     }
 
     @Test func hashSearchMatchesTagsOnly() {
@@ -31,24 +28,39 @@ struct WorkFilterTests {
             $0.title = "舔耳 in title"
             $0.genresJson = [.init(id: "1", name: "ASMR")]
         }
-        var filter = WorkFilter()
-        filter.searchText = "#asm"
-        #expect(filter.matches(w))
-        filter.searchText = "#舔耳"
-        #expect(!filter.matches(w))
+        #expect(w.matches(search: "#asm"))
+        #expect(!w.matches(search: "#舔耳"))
+        #expect(!w.matches(search: "#"))
     }
 
-    @Test func chipsMustAllMatch() {
-        let w = work("RJ01000001") { $0.voiceActors = ["A", "B"] }
-        var filter = WorkFilter()
-        filter.add(WorkChip(.voiceActor, "A"))
-        filter.add(WorkChip(.voiceActor, "A"))
-        #expect(filter.chips.count == 1)
-        #expect(filter.matches(w))
-        filter.add(WorkChip(.circle, "别的社团"))
-        #expect(!filter.matches(w))
+    @Test func groupsWorksAndNamesByKind() {
+        let a = work("RJ01000001") {
+            $0.voiceActors = ["柚木つばめ"]
+            $0.circleName = "つばめ工房"
+            $0.genresJson = [.init(id: "1", name: "耳かき")]
+        }
+        let b = work("RJ01000002") { $0.voiceActors = ["他の人"] }
+        let stats = LibraryStats([a, b])
+        let result = LibrarySearch("つばめ", works: [a, b], stats: stats)
+        #expect(result.works.map(\.productId) == ["RJ01000001"])
+        #expect(result.voiceActors.map(\.name) == ["柚木つばめ"])
+        #expect(result.circles.map(\.name) == ["つばめ工房"])
+        #expect(result.genres.isEmpty)
+        let tags = LibrarySearch("#耳", works: [a, b], stats: stats)
+        #expect(tags.voiceActors.isEmpty && tags.circles.isEmpty)
+        #expect(tags.genres.map(\.name) == ["耳かき"])
+        #expect(LibrarySearch("", works: [a, b], stats: stats).isEmpty)
     }
 
+    @Test func chipsMatchTheirOwnField() {
+        let w = work("RJ01000001") { $0.voiceActors = ["A", "B"]; $0.seriesName = "S" }
+        #expect(WorkChip(.voiceActor, "A").matches(w))
+        #expect(WorkChip(.series, "S").matches(w))
+        #expect(!WorkChip(.circle, "A").matches(w))
+    }
+}
+
+struct WorkSortTests {
     @Test func sortPreferenceRoundTripsAndToggles() {
         #expect(WorkSort(preference: "releaseDate:desc") == WorkSort(field: .releaseDate, descending: true))
         #expect(WorkSort(preference: "productId:asc").preference == "productId:asc")
