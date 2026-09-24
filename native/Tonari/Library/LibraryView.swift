@@ -72,13 +72,17 @@ struct LibraryView: View {
 
     @ToolbarContentBuilder private var toolbar: some ToolbarContent {
         @Bindable var model = model
-        ToolbarItem(placement: .principal) {
+        ToolbarItem(placement: .topBarLeading) {
             Picker("媒体库", selection: $model.libraryKind) {
                 ForEach(AppModel.LibraryKind.allCases, id: \.self) { Text($0.rawValue) }
             }
             .pickerStyle(.segmented)
-            .fixedSize()
+            .controlSize(.large)
+            .frame(width: 170)
         }
+        // The segmented control draws its own capsule; the bar's glass
+        // behind it would double the outline.
+        .sharedBackgroundVisibility(.hidden)
         if model.libraryKind == .audio {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 Button("随机来一部", systemImage: "dice", action: pickRandom)
