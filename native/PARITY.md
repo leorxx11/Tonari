@@ -13,18 +13,18 @@
 
 ## N2 媒体库
 
-- [ ] 媒体库三种视图：大卡片 / 网格 / 列表（`library_view_prefs.dart`、`view_mode_button.dart`）
-- [ ] 排序（点当前字段切换升降序，记忆选择）（`sort_order.dart`、`sort_menu_button.dart`）
-- [ ] 搜索：RJ、标题、CV、社团、`#标签`（`library_page.dart`）
-- [ ] 来源筛选：全部 / 本地 / 远程（`library_page.dart`）
-- [ ] 作品卡片：收藏、加入 / 移出分组、移除作品、销量（`work_card.dart`）
-- [ ] 随机来一部（`app_drawer.dart`）
-- [ ] 作品详情：封面、演职员、标签、系列、价格 / 评分 / 售出 / 收藏数 / 排名、简介、图片画廊（`work_detail_page.dart`）
+- [x] 媒体库三种视图：大卡片 / 网格 / 列表（`library_view_prefs.dart`、`view_mode_button.dart`）
+- [x] 排序（点当前字段切换升降序，记忆选择）（`sort_order.dart`、`sort_menu_button.dart`）
+- [x] 搜索：RJ、标题、CV、社团、`#标签`（`library_page.dart`）
+- [x] 来源筛选：全部 / 本地 / 远程（`library_page.dart`）
+- [ ] 作品卡片：收藏、加入 / 移出分组、销量 ✅；移除作品（N2b）（`work_card.dart`）
+- [x] 随机来一部（`app_drawer.dart`）
+- [x] 作品详情：封面、演职员、标签、系列、价格 / 评分 / 售出 / 收藏数 / 排名、简介、图片画廊（`work_detail_page.dart`）
 - [ ] 详情页操作：刷新元数据、只刷新图片、更新统计数据、下载图片、在 DLsite 中打开、从媒体库移除、重新扫描此作品
-- [ ] 作品文件浏览：目录树、音频数、字幕状态、字幕预览（`work_files_page.dart`）
-- [ ] 作品文件入口位置：左下角 / 右下角（`file_entry_prefs.dart`）
-- [ ] 收藏与分组：全部收藏、新建 / 重命名 / 删除分组，作品和视频都可加入（`collections_page.dart`、`collection_detail_page.dart`、`collection_picker_sheet.dart`）
-- [ ] 分类页：社团 / 声优 / 标签，搜索，按作品数 / 名称排序（`stats_page.dart`）
+- [ ] 作品文件浏览：目录树、音频数 ✅；字幕状态、字幕预览（N3）（`work_files_page.dart`）
+- [x] 作品文件入口位置：左下角 / 右下角（`file_entry_prefs.dart`）
+- [x] 收藏与分组：全部收藏、新建 / 重命名 / 删除分组，作品和视频都可加入（`collections_page.dart`、`collection_detail_page.dart`、`collection_picker_sheet.dart`）
+- [x] 分类页：社团 / 声优 / 标签，搜索，按作品数 / 名称排序（`stats_page.dart`）
 - [ ] 导入本地文件夹：security-scoped bookmark、递归扫描、RJ 识别、音质归并（`folder_bookmark.dart`、`core/scanner/`、`import_service.dart`）
 - [ ] 导入结果汇总：新增 / 跳过 / 音轨数 / 失败作品（`import_entry.dart`）
 - [ ] 文件夹重扫默认跳过已导入；单作品重扫 `reviveTombstoned`（`rescan_service.dart`、`work_reimport_provider.dart`）

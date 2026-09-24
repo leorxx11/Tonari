@@ -76,7 +76,7 @@
 
 - 分支 `feat/native-ios`；排期见 `native/PLAN.md`，功能对照清单见 `native/PARITY.md`（完成一项勾一项）。
 - 开发期间 Flutter 版冻结，只修 bug，不加新功能。
-- 技术栈：Swift 6 + SwiftUI（UIKit 补位）、GRDB、SwiftSoup、mdk-sdk（视频），iOS 17+。
+- 技术栈：Swift 6 + SwiftUI（UIKit 补位）、GRDB、SwiftSoup、mdk-sdk（视频），iOS 26+。
 - 结构：`Tonari.xcodeproj`（App target，`Tonari/` 为同步文件夹，加文件不改 `.pbxproj`）、`TonariCore/`（纯逻辑 SPM 包，可在 macOS 上 `swift test`）、`Packages/MDK/`（mdk 二进制 + Swift 封装）。
 - 数据库沿用 Flutter 版 Drift schema：snake_case 列名、日期存 Unix 秒、字符串列表存 JSON 文本。
 - App target 默认 `@MainActor` 隔离（`SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`）。

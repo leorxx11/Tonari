@@ -5,6 +5,7 @@ import TonariCore
 @main
 struct TonariApp: App {
     @Environment(\.scenePhase) private var scenePhase
+    @State private var model = AppModel()
     private let database: AppDatabase
 
     init() {
@@ -30,6 +31,7 @@ struct TonariApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()
+                .environment(model)
                 .environment(\.appDatabase, database)
                 .preferredColorScheme(.light)
         }
@@ -44,16 +46,26 @@ extension EnvironmentValues {
 }
 
 struct RootView: View {
+    @Environment(AppModel.self) private var model
+
     var body: some View {
-        TabView {
-            LibraryView()
-                .tabItem { Label("媒体库", systemImage: "music.note.list") }
-            PlaceholderView(title: "收藏", systemImage: "heart", note: "N2 实现")
-                .tabItem { Label("收藏", systemImage: "heart") }
-            PlaceholderView(title: "浏览", systemImage: "folder", note: "N4 实现")
-                .tabItem { Label("浏览", systemImage: "folder") }
-            SettingsView()
-                .tabItem { Label("设置", systemImage: "gearshape") }
+        @Bindable var model = model
+        TabView(selection: $model.tab) {
+            Tab("媒体库", systemImage: "music.note.list", value: AppTab.library) {
+                LibraryView()
+            }
+            Tab("收藏", systemImage: "heart", value: AppTab.favorites) {
+                FavoritesView()
+            }
+            Tab("浏览", systemImage: "folder", value: AppTab.browse) {
+                PlaceholderView(title: "浏览", systemImage: "folder", note: "N4 实现")
+            }
+            Tab("设置", systemImage: "gearshape", value: AppTab.settings) {
+                SettingsView()
+            }
+        }
+        .sheet(item: $model.collectionPickerWork) { work in
+            CollectionPickerSheet(work: work)
         }
     }
 }

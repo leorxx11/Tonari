@@ -10,7 +10,7 @@
 
 | # | 决策 | 推荐 | 理由 |
 |---|---|---|---|
-| 1 | 最低系统 | iOS 17 | 自用不上架；`@Observable`、成熟的 `NavigationStack` 从 17 起才可用，停在 15 要写大量兼容代码 |
+| 1 | 最低系统 | iOS 26（2026-09-24 由 17 上调） | 自用不上架、设备为 iOS 27；用原生 `tabViewBottomAccessory` 播放栏、`tabBarMinimizeBehavior` 等 iOS 26 API，不写兼容代码 |
 | 2 | UI 框架 | SwiftUI 为主，UIKit 补位 | 播放器 PiP、DocumentPicker、横屏视频需要 UIKit |
 | 3 | UI 风格 | 暂用系统白色主题 + 底部 Tab（2026-09-24 改定） | 用户决定不沿用 Kikoeru 配色与侧边抽屉 |
 | 4 | 数据库 | GRDB | 能直接打开 Drift 生成的 SQLite，表结构原样沿用；SwiftData 需要重新建模且读不了旧库；SQLite.swift 维护活跃度不如 GRDB |
