@@ -4,12 +4,12 @@
 
 ## N1 数据层 + 骨架
 
-- [ ] 14 张表 GRDB 模型，结构与 Drift schema v17 一致（`lib/core/db/`）
+- [x] 14 张表 GRDB 模型，结构与 Drift schema v17 一致（`lib/core/db/`）
 - [ ] 偏好设置读写（`lib/core/prefs/`、各 `*_prefs.dart`）
-- [ ] Keychain：WebDAV 密码、115 Cookie、LLM API Key
-- [ ] 侧边抽屉导航：音声库 / 视频库 / 浏览 / 收藏 / 分类 / 播放历史 / 消息 / 设置 / 随机来一部（`lib/shared/widgets/app_drawer.dart`）
-- [ ] Kikoeru 主题配色、浅色 / 深色 / 跟随系统（`lib/core/theme/app_theme.dart`、`appearance_settings_page.dart`）
-- [ ] 从 Flutter 备份恢复：数据库 + 图片目录 + prefs.json + secrets.json（`backup_service.dart`）
+- [x] Keychain：WebDAV 密码、115 Cookie、LLM API Key
+- [x] 底部 Tab：媒体库（音声 / 视频切换）、收藏、浏览、设置（替代 Flutter 版侧边抽屉 `lib/shared/widgets/app_drawer.dart`；抽屉里的分类、播放历史、消息、随机来一部的入口位置待定）
+- [x] 主题暂定系统白色（浅色），Kikoeru 配色与深色模式暂不做
+- [x] 从 Flutter 备份恢复：数据库 + 图片目录 + prefs.json + secrets.json（`backup_service.dart`）
 
 ## N2 媒体库
 
