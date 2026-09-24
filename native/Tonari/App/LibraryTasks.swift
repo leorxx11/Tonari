@@ -43,8 +43,11 @@ extension AppModel {
             try work.importedFolderId.flatMap { try ImportedFolder.fetchOne(db, key: $0) }
         }
         guard let folder else { throw LocalImport.Failure("原始导入位置已不存在，无法重新扫描") }
-        guard folder.type == "local" else { throw LocalImport.Failure("云端来源的重新扫描将在 N4 支持") }
-        return try await LocalImport(database: database).reimportWork(work, from: folder)
+        switch folder.type {
+        case "local": return try await LocalImport(database: database).reimportWork(work, from: folder)
+        case "p115": return try await P115Import(database: database, client: .shared).reimportWork(work)
+        default: throw LocalImport.Failure("WebDAV 来源的重新扫描将在 N4b 支持")
+        }
     }
 }
 

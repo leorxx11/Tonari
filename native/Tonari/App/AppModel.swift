@@ -7,6 +7,13 @@ enum AppTab: Hashable {
 }
 
 enum Route: Hashable {
+    case p115Folder([RemoteEntry])
+    case p115Login
+    case p115Settings
+    case mediaSources
+    case removedWorks
+    case backup
+    case diagnostics
     case work(String)
     case files(String)
     case categories
@@ -55,6 +62,7 @@ final class AppModel {
     let tasks = LibraryTasks()
     var libraryPath = NavigationPath()
     var favoritesPath = NavigationPath()
+    var browsePath = NavigationPath()
 
     var libraryKind = LibraryKind.audio
     var filter = WorkFilter()
@@ -69,6 +77,14 @@ final class AppModel {
         let defaults = UserDefaults.standard
         sort = WorkSort(preference: defaults.string(forKey: WorkSort.preferenceKey))
         viewMode = ViewMode(rawValue: defaults.string(forKey: Self.viewModeKey) ?? "") ?? .card
+    }
+
+    /// Opens 115 where the user left off, or its login when signed out.
+    func openP115() {
+        browsePath = NavigationPath(
+            P115Client.shared.loginState == .loggedIn ? BrowseLocation.routes(P115Client.sourceId) : [Route.p115Login]
+        )
+        tab = .browse
     }
 
     func showInLibrary(_ chip: WorkChip) {
@@ -90,6 +106,13 @@ extension View {
     func appDestinations() -> some View {
         navigationDestination(for: Route.self) { route in
             switch route {
+            case .p115Folder(let stack): P115BrowserView(stack: stack)
+            case .p115Login: P115LoginView()
+            case .p115Settings: P115SettingsView()
+            case .mediaSources: MediaSourcesView()
+            case .removedWorks: RemovedWorksView()
+            case .backup: BackupView()
+            case .diagnostics: DiagnosticLogView()
             case .work(let id): WorkDetailView(productId: id)
             case .files(let id): WorkFilesView(productId: id)
             case .categories: CategoriesView()

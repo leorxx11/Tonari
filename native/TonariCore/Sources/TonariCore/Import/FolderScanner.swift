@@ -29,15 +29,25 @@ public enum FileKind: String, Sendable {
 }
 
 public struct ScannedFile: Sendable, Equatable {
+    /// Local absolute path, or the 115 pickcode / WebDAV path of a remote file.
     public let path: String
     /// Relative to the work's root folder, `/`-separated.
     public let relativePath: String
     public let fileName: String
     public let sizeBytes: Int
     public let kind: FileKind
+    public let parentDirName: String
+    /// 'main' / 'free' / … suggested by the folder or file name.
+    public let categoryHint: String?
 
-    public var parentDirName: String {
-        (path as NSString).deletingLastPathComponent.split(separator: "/").last.map(String.init) ?? ""
+    public init(path: String, relativePath: String, fileName: String, sizeBytes: Int, parentDirName: String, categoryHint: String?) {
+        self.path = path
+        self.relativePath = relativePath
+        self.fileName = fileName
+        self.sizeBytes = sizeBytes
+        self.kind = FileKind(fileName: fileName)
+        self.parentDirName = parentDirName
+        self.categoryHint = categoryHint
     }
 }
 
@@ -49,6 +59,13 @@ public struct ScannedWork: Sendable {
     /// import must neither overwrite an existing snapshot nor create a shell.
     public let incomplete: Bool
 
+    public init(productId: String, rootPath: String, files: [ScannedFile], incomplete: Bool) {
+        self.productId = productId
+        self.rootPath = rootPath
+        self.files = files
+        self.incomplete = incomplete
+    }
+
     public func files(_ kind: FileKind) -> [ScannedFile] { files.filter { $0.kind == kind } }
 }
 
@@ -58,6 +75,16 @@ public struct ScanResult: Sendable {
     /// Top-level folders with no RJ id in their name or their children's.
     public let unrecognizedDirs: [String]
     public let errors: [String]
+    /// Works skipped during the scan because they were already imported.
+    public var skippedExisting = 0
+
+    public init(rootPath: String, works: [ScannedWork], unrecognizedDirs: [String], errors: [String], skippedExisting: Int = 0) {
+        self.rootPath = rootPath
+        self.works = works
+        self.unrecognizedDirs = unrecognizedDirs
+        self.errors = errors
+        self.skippedExisting = skippedExisting
+    }
 }
 
 /// Finds RJ works under a folder: the folder itself, its children, or its
@@ -127,12 +154,14 @@ public enum FolderScanner {
                 guard values.isRegularFile! else { continue }
                 let path = url.resolvingSymlinksInPath().path
                 let name = url.lastPathComponent
+                let parent = url.deletingLastPathComponent().lastPathComponent
                 files.append(ScannedFile(
                     path: path,
                     relativePath: String(path.dropFirst(rootPath.count)),
                     fileName: name,
                     sizeBytes: values.fileSize!,
-                    kind: FileKind(fileName: name)
+                    parentDirName: parent,
+                    categoryHint: categoryHint(parentDir: parent, fileName: name)
                 ))
             } catch {
                 errors.append("\(url.path): \(error.localizedDescription)")

@@ -7,8 +7,12 @@ import Security
 public struct KeychainStore: Sendable {
     public static let shared = KeychainStore(service: "com.leo.tonari.secrets")
 
-    public struct Failure: Error {
+    public struct Failure: Error, CustomStringConvertible {
         public let status: OSStatus
+
+        public var description: String {
+            "OSStatus \(status)：\(SecCopyErrorMessageString(status, nil).map { $0 as String } ?? "未知错误")"
+        }
     }
 
     let service: String

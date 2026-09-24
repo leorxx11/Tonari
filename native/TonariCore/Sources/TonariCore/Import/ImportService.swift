@@ -29,17 +29,21 @@ extension AppDatabase {
     /// - `reviveTombstoned`: an explicit single-work reimport brings back a
     ///   removed work; a folder import never does.
     /// - `skipExisting`: leave works already in the library untouched.
+    /// - `remoteSubtitles`: for remote sources, the subtitle bytes that were
+    ///   downloaded, keyed by file path; nil reads local files from disk.
     public func applyScanResult(
         _ scan: ScanResult,
         sourceFolderId: String?,
         reviveTombstoned: Bool = false,
-        skipExisting: Bool = false
+        skipExisting: Bool = false,
+        remoteSubtitles: [String: Data]? = nil
     ) throws -> ImportSummary {
         var summary = ImportSummary()
         let skip: Set<String> = skipExisting ? try activeWorkIds(among: scan.works.map(\.productId)) : []
-        summary.worksSkipped = skip.count
+        summary.worksSkipped = skip.count + scan.skippedExisting
         // File IO outside the write transaction.
-        let subtitles = scan.works.filter { !skip.contains($0.productId) && !$0.incomplete }.flatMap(Self.readSubtitles)
+        let subtitles = scan.works.filter { !skip.contains($0.productId) && !$0.incomplete }
+            .flatMap { Self.readSubtitles($0, remote: remoteSubtitles) }
         let now = Date.now
 
         try writer.write { db in
@@ -70,7 +74,7 @@ extension AppDatabase {
                     let trackId = Self.fileId(id, audio.relativePath)
                     trackIds.append(trackId)
                     let title = (audio.fileName as NSString).deletingPathExtension
-                    let hint = FolderScanner.categoryHint(parentDir: audio.parentDirName, fileName: audio.fileName)
+                    let hint = audio.categoryHint
                     if try Track.exists(db, key: trackId) {
                         try db.execute(sql: """
                             UPDATE tracks SET file_path = ?, relative_path = ?, file_name = ?, file_format = ?,
@@ -163,7 +167,7 @@ extension AppDatabase {
 
     /// Subtitles matched to audio in the same folder, named either
     /// `track.wav.vtt` (DLsite style) or `track.srt` (shared stem).
-    private static func readSubtitles(_ work: ScannedWork) -> [ParsedSubtitle] {
+    private static func readSubtitles(_ work: ScannedWork, remote: [String: Data]?) -> [ParsedSubtitle] {
         let audios = work.files(.audio)
         func dir(_ relativePath: String) -> String { (relativePath as NSString).deletingLastPathComponent }
         return work.files(.subtitle).compactMap { subtitle in
@@ -175,11 +179,16 @@ extension AppDatabase {
                     && ($0.fileName == stem || ($0.fileName as NSString).deletingPathExtension == stem)
             }) else { return nil }
             let data: Data
-            do {
-                data = try Data(contentsOf: URL(filePath: subtitle.path))
-            } catch {
-                DiagnosticLog.shared.write("import", "subtitle_unreadable", ["path": subtitle.path, "error": "\(error)"])
-                return nil
+            if let remote {
+                guard let downloaded = remote[subtitle.path] else { return nil }
+                data = downloaded
+            } else {
+                do {
+                    data = try Data(contentsOf: URL(filePath: subtitle.path))
+                } catch {
+                    DiagnosticLog.shared.write("import", "subtitle_unreadable", ["path": subtitle.path, "error": "\(error)"])
+                    return nil
+                }
             }
             let body = data.starts(with: [0xEF, 0xBB, 0xBF]) ? data.dropFirst(3) : data[...]
             let lines = SubtitleParser.parse(String(decoding: body, as: UTF8.self), format: format)

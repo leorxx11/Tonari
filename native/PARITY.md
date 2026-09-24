@@ -26,7 +26,7 @@
 - [x] 收藏与分组：全部收藏、新建 / 重命名 / 删除分组，作品和视频都可加入（`collections_page.dart`、`collection_detail_page.dart`、`collection_picker_sheet.dart`）
 - [x] 分类页：社团 / 声优 / 标签，搜索，按作品数 / 名称排序（`stats_page.dart`）
 - [~] 导入本地文件夹（已实现，待 115 接入后真机验证）：security-scoped bookmark、递归扫描、RJ 识别、音质归并（`folder_bookmark.dart`、`core/scanner/`、`import_service.dart`）
-- [~] 导入结果汇总（待验证）：新增 / 跳过 / 音轨数 / 失败作品（`import_entry.dart`）
+- [x] 导入结果汇总（115 真机验证）：新增 / 跳过 / 音轨数 / 失败作品（`import_entry.dart`）
 - [~] 文件夹重扫默认跳过已导入（待验证）；单作品重扫 `reviveTombstoned`（`rescan_service.dart`、`work_reimport_provider.dart`）
 - [~] 移除 = 清快照 + 墓碑（待验证）；已移除作品页：重新导入、彻底移除（`removed_works_page.dart`）
 - [~] needsRescan 迁移重扫（待验证）：仅本地来源启动时自动跑
@@ -57,11 +57,11 @@
 
 - [ ] WebDAV 服务器管理：增删改、测试连接、删除时提示受影响作品数（`webdav_settings_page.dart`、`webdav_server_edit_page.dart`）
 - [ ] WebDAV 浏览、导入目录到媒体库（`webdav_browser_page.dart`）
-- [ ] 115 扫码登录、退出登录（`p115_login_page.dart`、`p115_settings_page.dart`）
-- [ ] 115 浏览、导入、风控检测与中断（`p115_browser_page.dart`）
-- [ ] 浏览页：WebDAV / 115 入口与登录状态（`browse_page.dart`、`remote_browser_page.dart`）
-- [ ] 远程扫描阶段跳过已导入作品；导入在后台进行
-- [ ] 远程字幕下载解析
+- [x] 115 扫码登录、退出登录（`p115_login_page.dart`、`p115_settings_page.dart`）
+- [x] 115 浏览（每级文件夹一页，记住上次位置）、导入、风控检测与中断（`p115_browser_page.dart`）
+- [~] 浏览页：WebDAV / 115 入口与登录状态（115 ✅，WebDAV 待 N4b）（`browse_page.dart`、`remote_browser_page.dart`）
+- [~] 远程扫描阶段跳过已导入作品；导入在后台进行（115 已实现）
+- [~] 远程字幕下载解析（115 已实现，N3 显示字幕时验证）
 - [ ] 115 直链带请求头直连播放；音频过期前 2 分钟内重新获取，卡死 8 秒兜底重取
 - [ ] 播放失败时探测一次来源并点名不可达的来源，记入消息
 - [~] 媒体来源页：查看、删除来源（级联硬删，显示作品数）（N2b 已实现，待验证）（`media_sources_page.dart`）

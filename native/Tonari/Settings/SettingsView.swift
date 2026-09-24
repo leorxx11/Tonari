@@ -18,32 +18,30 @@ struct SettingsView: View {
                     }
                     .disabled(model.tasks.isBusy)
                 }
+                Section("云端") {
+                    NavigationLink(value: Route.p115Settings) {
+                        Label(P115Client.sourceName, systemImage: "icloud")
+                    }
+                }
                 Section("数据") {
-                    NavigationLink {
-                        MediaSourcesView()
-                    } label: {
+                    NavigationLink(value: Route.mediaSources) {
                         Label("媒体来源", systemImage: "folder")
                     }
-                    NavigationLink {
-                        RemovedWorksView()
-                    } label: {
+                    NavigationLink(value: Route.removedWorks) {
                         Label("已移除作品", systemImage: "trash")
                     }
-                    NavigationLink {
-                        BackupView()
-                    } label: {
+                    NavigationLink(value: Route.backup) {
                         Label("备份与恢复", systemImage: "externaldrive")
                     }
                 }
                 Section("支持") {
-                    NavigationLink {
-                        DiagnosticLogView()
-                    } label: {
+                    NavigationLink(value: Route.diagnostics) {
                         Label("诊断日志", systemImage: "stethoscope")
                     }
                 }
             }
             .navigationTitle("设置")
+            .appDestinations()
             .safeAreaInset(edge: .bottom) { TaskBanner() }
             .alert("更新统计数据", isPresented: $confirmingStats) {
                 Button("取消", role: .cancel) {}

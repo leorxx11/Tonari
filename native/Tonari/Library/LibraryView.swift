@@ -125,6 +125,9 @@ struct LibraryView: View {
                     Section("导入") {
                         Button("导入本地文件夹", systemImage: "folder.badge.plus") { pickingFolder = true }
                             .disabled(model.tasks.isBusy)
+                        Button("从 115 导入", systemImage: "icloud.and.arrow.down") {
+                            model.openP115()
+                        }
                         if pendingEnrichment > 0 && !enrichment.isActive {
                             Button("补全 \(pendingEnrichment) 个作品的资料", systemImage: "arrow.down.circle") {
                                 Task { await enrichment.runPending(reset: true) }

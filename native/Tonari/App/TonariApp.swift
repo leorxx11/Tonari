@@ -63,7 +63,7 @@ struct RootView: View {
                 FavoritesView()
             }
             Tab("浏览", systemImage: "folder", value: AppTab.browse) {
-                PlaceholderView(title: "浏览", systemImage: "folder", note: "N4 实现")
+                BrowseView()
             }
             Tab("设置", systemImage: "gearshape", value: AppTab.settings) {
                 SettingsView()
