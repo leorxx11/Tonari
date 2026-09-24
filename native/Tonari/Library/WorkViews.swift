@@ -265,6 +265,8 @@ private struct WorkContextMenu: ViewModifier {
             }
             if let removeFromCollection {
                 Button("移出分组", systemImage: "folder.badge.minus", role: .destructive, action: removeFromCollection)
+            } else {
+                Button("移除作品", systemImage: "trash", role: .destructive) { model.removingWork = work }
             }
         }
     }

@@ -1,6 +1,6 @@
 # 功能对照清单
 
-原生版与 Flutter 版对齐的验收清单，按阶段分组。每项括号内是 Flutter 版对应源码，移植时以它为准。完成一项勾一项，N6 结束时应全部打勾。
+原生版与 Flutter 版对齐的验收清单，按阶段分组。每项括号内是 Flutter 版对应源码，移植时以它为准。完成一项勾一项（`[~]` 表示已实现但还没在真机验证），N6 结束时应全部打勾。
 
 ## N1 数据层 + 骨架
 
@@ -17,7 +17,7 @@
 - [x] 排序（点当前字段切换升降序，记忆选择）（`sort_order.dart`、`sort_menu_button.dart`）
 - [x] 搜索：RJ、标题、CV、社团、`#标签`（`library_page.dart`）
 - [x] 来源筛选：全部 / 本地 / 远程（`library_page.dart`）
-- [ ] 作品卡片：收藏、加入 / 移出分组、销量 ✅；移除作品（N2b）（`work_card.dart`）
+- [x] 作品卡片：收藏、加入 / 移出分组、销量、移除作品（`work_card.dart`）
 - [x] 随机来一部（`app_drawer.dart`）
 - [x] 作品详情：封面、演职员、标签、系列、价格 / 评分 / 售出 / 收藏数 / 排名、简介、图片画廊（`work_detail_page.dart`）
 - [ ] 详情页操作：刷新元数据、只刷新图片、更新统计数据、下载图片、在 DLsite 中打开、从媒体库移除、重新扫描此作品
@@ -25,15 +25,15 @@
 - [x] 作品文件入口位置：左下角 / 右下角（`file_entry_prefs.dart`）
 - [x] 收藏与分组：全部收藏、新建 / 重命名 / 删除分组，作品和视频都可加入（`collections_page.dart`、`collection_detail_page.dart`、`collection_picker_sheet.dart`）
 - [x] 分类页：社团 / 声优 / 标签，搜索，按作品数 / 名称排序（`stats_page.dart`）
-- [ ] 导入本地文件夹：security-scoped bookmark、递归扫描、RJ 识别、音质归并（`folder_bookmark.dart`、`core/scanner/`、`import_service.dart`）
-- [ ] 导入结果汇总：新增 / 跳过 / 音轨数 / 失败作品（`import_entry.dart`）
-- [ ] 文件夹重扫默认跳过已导入；单作品重扫 `reviveTombstoned`（`rescan_service.dart`、`work_reimport_provider.dart`）
-- [ ] 移除 = 清快照 + 墓碑；已移除作品页：重新导入、彻底移除（`removed_works_page.dart`）
-- [ ] needsRescan 迁移重扫：仅本地来源启动时自动跑
+- [~] 导入本地文件夹（已实现，待 115 接入后真机验证）：security-scoped bookmark、递归扫描、RJ 识别、音质归并（`folder_bookmark.dart`、`core/scanner/`、`import_service.dart`）
+- [~] 导入结果汇总（待验证）：新增 / 跳过 / 音轨数 / 失败作品（`import_entry.dart`）
+- [~] 文件夹重扫默认跳过已导入（待验证）；单作品重扫 `reviveTombstoned`（`rescan_service.dart`、`work_reimport_provider.dart`）
+- [~] 移除 = 清快照 + 墓碑（待验证）；已移除作品页：重新导入、彻底移除（`removed_works_page.dart`）
+- [~] needsRescan 迁移重扫（待验证）：仅本地来源启动时自动跑
 - [ ] DLsite 抓取：HTML + AJAX、翻译版回退原作、图片带 Referer 下载到沙盒（`dlsite_fetcher.dart`、`metadata_enrichment.dart`、`work_image_cache.dart`）
 - [ ] 后台补全队列：串行、每作品最多重试 2 次、进度 + 「补全 N 个」、打开未补全作品自动拉取（`enrichment_queue.dart`、`library_task_status.dart`）
 - [ ] 全部作品统计数据批量更新（`settings_page.dart`）
-- [ ] 音轨时长探测（`track_duration_probe.dart`）
+- [~] 音轨时长探测：本地导入时探测（待验证）；远程音轨随 N3/N4（`track_duration_probe.dart`）
 
 ## N3 播放器 + 字幕
 
@@ -64,7 +64,7 @@
 - [ ] 远程字幕下载解析
 - [ ] 115 直链带请求头直连播放；音频过期前 2 分钟内重新获取，卡死 8 秒兜底重取
 - [ ] 播放失败时探测一次来源并点名不可达的来源，记入消息
-- [ ] 媒体来源页：查看、删除来源（级联硬删，显示作品数）（`media_sources_page.dart`）
+- [~] 媒体来源页：查看、删除来源（级联硬删，显示作品数）（N2b 已实现，待验证）（`media_sources_page.dart`）
 
 ## N5 视频
 

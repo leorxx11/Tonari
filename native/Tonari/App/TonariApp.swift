@@ -47,6 +47,7 @@ extension EnvironmentValues {
 
 struct RootView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.appDatabase) private var database
 
     var body: some View {
         @Bindable var model = model
@@ -66,6 +67,24 @@ struct RootView: View {
         }
         .sheet(item: $model.collectionPickerWork) { work in
             CollectionPickerSheet(work: work)
+        }
+        .alert(
+            "从媒体库移除",
+            isPresented: Binding(get: { model.removingWork != nil }, set: { if !$0 { model.removingWork = nil } })
+        ) {
+            Button("取消", role: .cancel) {}
+            Button("移除", role: .destructive) {
+                try! database.removeWork(model.removingWork!.productId)
+            }
+        } message: {
+            Text("将清除该作品在 App 内的快照（音轨、文件、字幕），云盘/本地的原文件不受影响。重新导入可找回。")
+        }
+        .alert(
+            model.tasks.result ?? "",
+            isPresented: Binding(get: { model.tasks.result != nil }, set: { if !$0 { model.tasks.result = nil } })
+        ) {}
+        .task {
+            await LocalImport(database: database).rescanFlaggedLocalWorks()
         }
     }
 }

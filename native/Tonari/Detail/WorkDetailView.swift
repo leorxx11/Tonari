@@ -6,6 +6,7 @@ struct WorkDetailView: View {
 
     @Environment(AppModel.self) private var model
     @Environment(\.appDatabase) private var database
+    @Environment(\.dismiss) private var dismiss
     @State private var work: Work?
     @State private var fileCount = 0
     @State private var durationMs = 0
@@ -34,6 +35,10 @@ struct WorkDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { toolbar }
         .fullScreenCover(item: $gallery) { GalleryView(selection: $0) }
+        .safeAreaInset(edge: .bottom) { TaskBanner() }
+        .onChange(of: work?.isRemoved) { _, removed in
+            if removed == true { dismiss() }
+        }
         .task {
             await database.observe({ db in
                 (
@@ -61,6 +66,16 @@ struct WorkDetailView: View {
                 }
                 Menu("更多", systemImage: "ellipsis") {
                     Button("加入分组…", systemImage: "folder.badge.plus") { model.collectionPickerWork = work }
+                    Button("重新扫描此作品", systemImage: "arrow.clockwise") {
+                        Task {
+                            await model.tasks.run("重新扫描作品", detail: work.productId) {
+                                let summary = try await model.reimport(work, database: database)
+                                return "作品已重新扫描：\(summary.tracksTotal) 个音轨"
+                            }
+                        }
+                    }
+                    .disabled(model.tasks.isBusy)
+                    Button("从媒体库移除", systemImage: "trash", role: .destructive) { model.removingWork = work }
                 }
             }
         }

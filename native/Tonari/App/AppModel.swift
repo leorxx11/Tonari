@@ -50,6 +50,9 @@ final class AppModel {
     var tab = AppTab.library
     /// Work whose group membership sheet is showing.
     var collectionPickerWork: Work?
+    /// Work awaiting confirmation to be removed from the library.
+    var removingWork: Work?
+    let tasks = LibraryTasks()
     var libraryPath = NavigationPath()
     var favoritesPath = NavigationPath()
 

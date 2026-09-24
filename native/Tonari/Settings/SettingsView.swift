@@ -6,6 +6,16 @@ struct SettingsView: View {
             List {
                 Section("数据") {
                     NavigationLink {
+                        MediaSourcesView()
+                    } label: {
+                        Label("媒体来源", systemImage: "folder")
+                    }
+                    NavigationLink {
+                        RemovedWorksView()
+                    } label: {
+                        Label("已移除作品", systemImage: "trash")
+                    }
+                    NavigationLink {
                         BackupView()
                     } label: {
                         Label("备份与恢复", systemImage: "externaldrive")

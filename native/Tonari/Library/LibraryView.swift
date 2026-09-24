@@ -8,6 +8,7 @@ struct LibraryView: View {
     @State private var durations: [String: Int] = [:]
     @State private var remoteIds: Set<String> = []
     @State private var libraryEmpty = false
+    @State private var pickingFolder = false
 
     var body: some View {
         @Bindable var model = model
@@ -26,6 +27,11 @@ struct LibraryView: View {
             .toolbar { toolbar }
             .navigationBarTitleDisplayMode(.inline)
             .alert("音声库还是空的", isPresented: $libraryEmpty) {}
+            .fileImporter(isPresented: $pickingFolder, allowedContentTypes: [.folder]) { result in
+                guard case .success(let url) = result else { return }
+                Task { await importFolder(url) }
+            }
+            .safeAreaInset(edge: .bottom) { TaskBanner() }
             .appDestinations()
         }
         .task(id: QueryKey(sort: model.sort, source: model.filter.source)) {
@@ -53,7 +59,14 @@ struct LibraryView: View {
 
     @ViewBuilder private var emptyState: some View {
         if works.isEmpty {
-            ContentUnavailableView("媒体库还是空的", systemImage: "music.note", description: Text("导入一个包含 RJ 编号的文件夹开始使用"))
+            ContentUnavailableView {
+                Label("媒体库还是空的", systemImage: "music.note")
+            } description: {
+                Text("导入一个包含 RJ 编号的文件夹开始使用")
+            } actions: {
+                Button("导入本地文件夹") { pickingFolder = true }
+                    .buttonStyle(.borderedProminent)
+            }
         } else if visibleWorks.isEmpty {
             ContentUnavailableView.search
         }
@@ -103,6 +116,10 @@ struct LibraryView: View {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 Button("随机来一部", systemImage: "dice", action: pickRandom)
                 Menu("更多", systemImage: "ellipsis") {
+                    Section("导入") {
+                        Button("导入本地文件夹", systemImage: "folder.badge.plus") { pickingFolder = true }
+                            .disabled(model.tasks.isBusy)
+                    }
                     Section("排序") {
                         ForEach(WorkSortField.allCases, id: \.self) { field in
                             Button {
@@ -130,6 +147,16 @@ struct LibraryView: View {
                     }
                 }
             }
+        }
+    }
+
+    private func importFolder(_ url: URL) async {
+        let flow = LocalImport(database: database)
+        await model.tasks.run("导入本地文件夹", detail: url.lastPathComponent) {
+            let folder = try flow.addFolder(url)
+            let summary = try await flow.importFolder(folder)
+            if summary.workIds.isEmpty { try flow.removeIfEmpty(folder) }
+            return summary.resultText
         }
     }
 
