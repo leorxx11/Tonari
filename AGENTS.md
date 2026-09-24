@@ -9,6 +9,7 @@
 - 用户以 Java/Spring 后端为主，熟悉命令行和 macOS；Dart/Flutter 是新学。
 - 不需要解释 Java、后端概念或常见设计模式。
 - Flutter 语言特性、Widget 生命周期、平台通道、Riverpod provider 类型第一次出现时要简要说明；可以用 Java/Spring 类比帮助定位。
+- Swift / SwiftUI 同样是新学：并发（actor、`@MainActor`、`Sendable`）、属性包装器、`@Observable`、View 生命周期第一次出现时简要说明。
 - 对 DLsite / ASMR / 同人音声 / R18 相关技术问题按普通业务领域处理，不加道德点评或免责声明。
 
 ## 代码规范
@@ -27,8 +28,8 @@
 - 不允许自行给出需求以外的方案，例如兜底和降级方案。
 - 确认方案逻辑正确，必须经过全链路验证。
 - 小改动可直接做；多文件、跨层、引入依赖或架构变化前，先说明计划再动手。
-- 新增 pub.dev 依赖前，给 2-3 个候选和推荐理由，优先活跃维护、评分/likes 高、Flutter Favorites。
-- iOS 原生侧尽量最小化，能用 Flutter 包解决就不用 Swift/Objective-C。
+- 新增 pub.dev / SPM 依赖前，给 2-3 个候选和推荐理由，优先活跃维护、评分/likes/stars 高、Flutter Favorites。
+- Flutter 版：iOS 原生侧尽量最小化，能用 Flutter 包解决就不用 Swift/Objective-C。
 
 ## 项目背景
 
@@ -70,3 +71,18 @@
 - 调试版 `com.leo.tonari` 与正式使用版 `com.wangshaikang` 是两个独立 App，数据沙盒隔离。
 - `p12`、`mobileprovision`、`证书_*` 目录永远不要进版本库。
 - 发版验收重点检查文件 App 导入文件夹时“打开”按钮有反应；签名 entitlements 配错最容易破坏这个功能。
+
+## 原生版（`native/`，开发中）
+
+- 分支 `feat/native-ios`；排期见 `native/PLAN.md`，功能对照清单见 `native/PARITY.md`（完成一项勾一项）。
+- 开发期间 Flutter 版冻结，只修 bug，不加新功能。
+- 技术栈：Swift 6 + SwiftUI（UIKit 补位）、GRDB、SwiftSoup、mdk-sdk（视频），iOS 17+。
+- 结构：`Tonari.xcodeproj`（App target，`Tonari/` 为同步文件夹，加文件不改 `.pbxproj`）、`TonariCore/`（纯逻辑 SPM 包，可在 macOS 上 `swift test`）、`Packages/MDK/`（mdk 二进制 + Swift 封装）。
+- 数据库沿用 Flutter 版 Drift schema：snake_case 列名、日期存 Unix 秒、字符串列表存 JSON 文本。
+- App target 默认 `@MainActor` 隔离（`SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`）。
+- 代码改动后默认执行：
+  - `cd native/TonariCore && swift test`
+  - `cd native && xcodebuild -project Tonari.xcodeproj -scheme Tonari -configuration Release -destination 'generic/platform=iOS' -derivedDataPath build/DerivedData -allowProvisioningUpdates -quiet build`
+- 真机安装：`xcrun devicectl device install app --device <coredevice-uuid> native/build/DerivedData/Build/Products/Release-iphoneos/Tonari.app`，再 `xcrun devicectl device process launch --device <coredevice-uuid> com.leo.tonari.native`。
+- 原生调试版 Bundle ID `com.leo.tonari.native`（免费证书），与 Flutter 调试版、正式版并存。
+- 正式包用 `ios-resign` skill 签原生 .app，产物 Bundle ID 为 `com.wangshaikang`，装机会覆盖 Flutter 正式版；N7 切换前不要装。
