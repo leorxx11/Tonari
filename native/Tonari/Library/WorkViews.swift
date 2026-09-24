@@ -180,7 +180,7 @@ struct WorkCard: View {
             }
             .padding(12)
         }
-        .background(Color(.systemBackground), in: .rect(cornerRadius: 12))
+        .background(Color(.secondarySystemGroupedBackground), in: .rect(cornerRadius: 12))
         .clipShape(.rect(cornerRadius: 12))
         .shadow(color: .black.opacity(0.06), radius: 6, y: 2)
     }
@@ -207,7 +207,7 @@ struct WorkGridCell: View {
             }
             .padding(8)
         }
-        .background(Color(.systemBackground), in: .rect(cornerRadius: 10))
+        .background(Color(.secondarySystemGroupedBackground), in: .rect(cornerRadius: 10))
         .clipShape(.rect(cornerRadius: 10))
         .shadow(color: .black.opacity(0.06), radius: 4, y: 1)
     }

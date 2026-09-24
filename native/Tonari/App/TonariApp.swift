@@ -8,6 +8,7 @@ struct TonariApp: App {
     @State private var model = AppModel()
     @State private var enrichment: EnrichmentQueue
     @State private var player: PlaybackController
+    @AppStorage(Appearance.preferenceKey) private var appearance = Appearance.system
     private let database: AppDatabase
 
     init() {
@@ -39,7 +40,7 @@ struct TonariApp: App {
                 .environment(enrichment)
                 .environment(player)
                 .environment(\.appDatabase, database)
-                .preferredColorScheme(.light)
+                .preferredColorScheme(appearance.colorScheme)
         }
         .onChange(of: scenePhase) { _, phase in
             DiagnosticLog.shared.write("app", "lifecycle", ["phase": "\(phase)"])

@@ -44,8 +44,28 @@ struct P115BrowserView: View {
         .overlay { overlay }
         .safeAreaInset(edge: .bottom) { TaskBanner() }
         .navigationTitle(current.name)
-        .toolbarTitleDisplayMode(.inlineLarge)
+        .navigationBarTitleDisplayMode(.inline)
+        // The folder name sits beside the back button and stays put while
+        // scrolling; the title is kept for the back button's history menu.
+        .toolbar(removing: .title)
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                // The bar sizes an item once from what it reports; without an
+                // ideal width of its own a short name can end up truncated.
+                Text(current.name)
+                    .font(.headline)
+                    .lineLimit(1)
+                    .frame(maxWidth: 220, alignment: .leading)
+                    .fixedSize()
+            }
+            .sharedBackgroundVisibility(.hidden)
+            if stack.count > 1 {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("回到浏览首页", systemImage: "house") {
+                        model.browsePath = NavigationPath()
+                    }
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button("导入到媒体库", systemImage: "square.and.arrow.down") { confirmingImport = true }
                     .disabled(model.tasks.isBusy)

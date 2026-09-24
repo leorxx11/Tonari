@@ -6,6 +6,7 @@ struct SettingsView: View {
     @Environment(AppModel.self) private var model
     @Environment(EnrichmentQueue.self) private var enrichment
     @State private var confirmingStats = false
+    @AppStorage(Appearance.preferenceKey) private var appearance = Appearance.system
 
     var body: some View {
         NavigationStack {
@@ -17,6 +18,13 @@ struct SettingsView: View {
                         Label("更新统计数据", systemImage: "chart.bar")
                     }
                     .disabled(model.tasks.isBusy)
+                }
+                Section("外观") {
+                    Picker(selection: $appearance) {
+                        ForEach(Appearance.allCases, id: \.self) { Text($0.label) }
+                    } label: {
+                        Label("主题", systemImage: "circle.lefthalf.filled")
+                    }
                 }
                 Section("播放") {
                     NavigationLink(value: Route.playbackSettings) {
