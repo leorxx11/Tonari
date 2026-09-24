@@ -5,8 +5,14 @@ public struct Work: DriftRecord, Identifiable, Hashable {
     public static let databaseTableName = "works"
 
     public struct Genre: Codable, Sendable, Hashable {
-        public var id: String
+        /// Null when the tag link has no `/genre/<id>`.
+        public var id: String?
         public var name: String
+
+        public init(id: String?, name: String) {
+            self.id = id
+            self.name = name
+        }
     }
 
     public var id: String { productId }

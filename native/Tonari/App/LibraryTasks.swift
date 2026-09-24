@@ -8,7 +8,7 @@ import TonariCore
 final class LibraryTasks {
     struct Running: Equatable {
         let title: String
-        let detail: String
+        var detail: String
     }
 
     private(set) var running: Running?
@@ -16,6 +16,11 @@ final class LibraryTasks {
     var result: String?
 
     var isBusy: Bool { running != nil }
+
+    /// Updates the running task's detail line, e.g. with progress.
+    func report(_ detail: String) {
+        running?.detail = detail
+    }
 
     func run(_ title: String, detail: String, _ operation: () async throws -> String) async {
         running = Running(title: title, detail: detail)
@@ -46,21 +51,28 @@ extension AppModel {
 /// Progress of the running library task, pinned above the bottom edge.
 struct TaskBanner: View {
     @Environment(AppModel.self) private var model
+    @Environment(EnrichmentQueue.self) private var enrichment
 
     var body: some View {
         if let running = model.tasks.running {
-            HStack(spacing: 12) {
-                ProgressView()
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(running.title).font(.subheadline.weight(.medium))
-                    Text(running.detail).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                }
-                Spacer()
-            }
-            .padding(12)
-            .glassEffect(in: .rect(cornerRadius: 16))
-            .padding(.horizontal)
-            .padding(.bottom, 8)
+            banner(running.title, running.detail)
+        } else if let current = enrichment.current {
+            banner("补全资料 \(enrichment.done + 1)/\(enrichment.total)", current)
         }
+    }
+
+    private func banner(_ title: String, _ detail: String) -> some View {
+        HStack(spacing: 12) {
+            ProgressView()
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.subheadline.weight(.medium))
+                Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            }
+            Spacer()
+        }
+        .padding(12)
+        .glassEffect(in: .rect(cornerRadius: 16))
+        .padding(.horizontal)
+        .padding(.bottom, 8)
     }
 }

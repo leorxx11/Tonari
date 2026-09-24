@@ -6,6 +6,7 @@ import TonariCore
 struct TonariApp: App {
     @Environment(\.scenePhase) private var scenePhase
     @State private var model = AppModel()
+    @State private var enrichment: EnrichmentQueue
     private let database: AppDatabase
 
     init() {
@@ -23,6 +24,7 @@ struct TonariApp: App {
                 ])
             }
             database = try AppDatabase.open(in: documents)
+            _enrichment = State(initialValue: EnrichmentQueue(database: database))
         } catch {
             fatalError("Failed to open the library: \(error)")
         }
@@ -32,6 +34,7 @@ struct TonariApp: App {
         WindowGroup {
             RootView()
                 .environment(model)
+                .environment(enrichment)
                 .environment(\.appDatabase, database)
                 .preferredColorScheme(.light)
         }
@@ -47,6 +50,7 @@ extension EnvironmentValues {
 
 struct RootView: View {
     @Environment(AppModel.self) private var model
+    @Environment(EnrichmentQueue.self) private var enrichment
     @Environment(\.appDatabase) private var database
 
     var body: some View {
@@ -85,6 +89,7 @@ struct RootView: View {
         ) {}
         .task {
             await LocalImport(database: database).rescanFlaggedLocalWorks()
+            await enrichment.runPending()
         }
     }
 }

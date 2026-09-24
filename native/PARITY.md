@@ -20,7 +20,7 @@
 - [x] 作品卡片：收藏、加入 / 移出分组、销量、移除作品（`work_card.dart`）
 - [x] 随机来一部（`app_drawer.dart`）
 - [x] 作品详情：封面、演职员、标签、系列、价格 / 评分 / 售出 / 收藏数 / 排名、简介、图片画廊（`work_detail_page.dart`）
-- [ ] 详情页操作：刷新元数据、只刷新图片、更新统计数据、下载图片、在 DLsite 中打开、从媒体库移除、重新扫描此作品
+- [x] 详情页操作：刷新元数据、只刷新图片、更新统计数据、在 DLsite 中打开、从媒体库移除、重新扫描此作品（「下载图片」即刷新图片）
 - [ ] 作品文件浏览：目录树、音频数 ✅；字幕状态、字幕预览（N3）（`work_files_page.dart`）
 - [x] 作品文件入口位置：左下角 / 右下角（`file_entry_prefs.dart`）
 - [x] 收藏与分组：全部收藏、新建 / 重命名 / 删除分组，作品和视频都可加入（`collections_page.dart`、`collection_detail_page.dart`、`collection_picker_sheet.dart`）
@@ -30,9 +30,9 @@
 - [~] 文件夹重扫默认跳过已导入（待验证）；单作品重扫 `reviveTombstoned`（`rescan_service.dart`、`work_reimport_provider.dart`）
 - [~] 移除 = 清快照 + 墓碑（待验证）；已移除作品页：重新导入、彻底移除（`removed_works_page.dart`）
 - [~] needsRescan 迁移重扫（待验证）：仅本地来源启动时自动跑
-- [ ] DLsite 抓取：HTML + AJAX、翻译版回退原作、图片带 Referer 下载到沙盒（`dlsite_fetcher.dart`、`metadata_enrichment.dart`、`work_image_cache.dart`）
-- [ ] 后台补全队列：串行、每作品最多重试 2 次、进度 + 「补全 N 个」、打开未补全作品自动拉取（`enrichment_queue.dart`、`library_task_status.dart`）
-- [ ] 全部作品统计数据批量更新（`settings_page.dart`）
+- [x] DLsite 抓取：HTML + AJAX、翻译版回退原作、图片带 Referer 下载到沙盒（`dlsite_fetcher.dart`、`metadata_enrichment.dart`、`work_image_cache.dart`）
+- [x] 后台补全队列：串行、每作品最多重试 2 次、进度 + 「补全 N 个」、打开未补全作品自动拉取（`enrichment_queue.dart`、`library_task_status.dart`）
+- [x] 全部作品统计数据批量更新（`settings_page.dart`）
 - [~] 音轨时长探测：本地导入时探测（待验证）；远程音轨随 N3/N4（`track_duration_probe.dart`）
 
 ## N3 播放器 + 字幕

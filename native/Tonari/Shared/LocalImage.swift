@@ -23,7 +23,7 @@ struct LocalImage: View {
                     Image(systemName: "photo").foregroundStyle(.tertiary)
                 }
             }
-            .task(id: TaskKey(path: path, width: proxy.size.width)) {
+            .task(id: TaskKey(path: path, width: proxy.size.width, generation: ThumbnailCache.shared.generation)) {
                 image = await ThumbnailCache.shared.image(path: path, size: proxy.size, scale: displayScale)
             }
         }
@@ -33,6 +33,7 @@ struct LocalImage: View {
     private struct TaskKey: Hashable {
         let path: String?
         let width: CGFloat
+        let generation: Int
     }
 }
 
@@ -51,17 +52,29 @@ struct FittedLocalImage: View {
                 Color(.secondarySystemBackground).aspectRatio(16 / 9, contentMode: .fit)
             }
         }
-        .task(id: path) {
+        .task(id: "\(path)#\(ThumbnailCache.shared.generation)") {
             image = await ThumbnailCache.shared.fitted(path: path, width: 440, scale: displayScale)
         }
     }
 }
 
-@MainActor
+@Observable
 final class ThumbnailCache {
     static let shared = ThumbnailCache()
 
-    private let cache = NSCache<NSString, UIImage>()
+    @ObservationIgnored private let cache = NSCache<NSString, UIImage>()
+    /// Bumped when images on disk are replaced, so views reload them.
+    private(set) var generation = 0
+    @ObservationIgnored private var keys: Set<String> = []
+
+    /// Drops cached thumbnails of files under `prefix`, e.g. `images/RJ01234567/`.
+    func evict(prefix: String) {
+        for key in keys where key.hasPrefix(prefix) {
+            cache.removeObject(forKey: key as NSString)
+            keys.remove(key)
+        }
+        generation += 1
+    }
 
     func fitted(path: String, width: CGFloat, scale: CGFloat) async -> UIImage? {
         let url = URL.documentsDirectory.appending(path: path)
@@ -81,6 +94,7 @@ final class ThumbnailCache {
         let target = CGSize(width: source.size.width * factor, height: source.size.height * factor)
         guard let thumbnail = await source.byPreparingThumbnail(ofSize: target) else { return nil }
         cache.setObject(thumbnail, forKey: key)
+        keys.insert(key as String)
         return thumbnail
     }
 }

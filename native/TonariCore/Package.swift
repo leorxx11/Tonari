@@ -21,7 +21,8 @@ let package = Package(
         ),
         .testTarget(
             name: "TonariCoreTests",
-            dependencies: ["TonariCore"]
+            dependencies: ["TonariCore"],
+            resources: [.copy("Fixtures")]
         ),
     ]
 )

@@ -13,7 +13,7 @@ public struct ImportSummary: Sendable {
     public var worksSkipped = 0
 
     public var resultText: String {
-        var text = "导入完成：新增 \(worksInserted)，已有 \(worksSkipped) 跳过，共 \(tracksTotal) 音轨。"
+        var text = "导入完成：新增 \(worksInserted)，已有 \(worksSkipped) 跳过，共 \(tracksTotal) 音轨。封面和元数据后台补全中。"
         if !incompleteWorks.isEmpty {
             text += "\n\(incompleteWorks.count) 个作品扫描失败，已跳过，可稍后重新导入。"
         }

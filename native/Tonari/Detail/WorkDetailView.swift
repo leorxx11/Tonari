@@ -5,8 +5,10 @@ struct WorkDetailView: View {
     let productId: String
 
     @Environment(AppModel.self) private var model
+    @Environment(EnrichmentQueue.self) private var enrichment
     @Environment(\.appDatabase) private var database
     @Environment(\.dismiss) private var dismiss
+    @State private var fetching = false
     @State private var work: Work?
     @State private var fileCount = 0
     @State private var durationMs = 0
@@ -18,6 +20,11 @@ struct WorkDetailView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     header(work)
                     VStack(alignment: .leading, spacing: 14) {
+                        if fetching {
+                            Label("正在获取 DLsite 资料…", systemImage: "arrow.down.circle")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
                         titleBlock(work)
                         WorkStatsView(work: work, durationMs: durationMs)
                         WorkChipsView(work: work)
@@ -38,6 +45,18 @@ struct WorkDetailView: View {
         .safeAreaInset(edge: .bottom) { TaskBanner() }
         .onChange(of: work?.isRemoved) { _, removed in
             if removed == true { dismiss() }
+        }
+        .task(id: work?.productId) {
+            // Opening a work that was never enriched fetches it right away
+            // instead of waiting for the background queue.
+            guard let work, MetadataEnrichment.needsEnrichment(work, documents: .documentsDirectory) else { return }
+            fetching = true
+            do {
+                try await enrichment.service.enrich(productId)
+            } catch {
+                DiagnosticLog.shared.write("metadata", "detail_enrich_failed", ["productId": productId, "error": "\(error)"])
+            }
+            fetching = false
         }
         .task {
             await database.observe({ db in
@@ -66,6 +85,18 @@ struct WorkDetailView: View {
                 }
                 Menu("更多", systemImage: "ellipsis") {
                     Button("加入分组…", systemImage: "folder.badge.plus") { model.collectionPickerWork = work }
+                    Section("DLsite") {
+                        Button("刷新元数据", systemImage: "arrow.triangle.2.circlepath") {
+                            runRefresh("刷新元数据", done: "元数据已刷新") { try await $0.refreshMetadata(productId, onImage: $1) }
+                        }
+                        Button("只刷新图片", systemImage: "photo.on.rectangle") {
+                            runRefresh("刷新图片", done: "图片已刷新") { try await $0.refreshImages(productId, onImage: $1) }
+                        }
+                        Button("更新统计数据", systemImage: "chart.bar") {
+                            runRefresh("更新统计数据", done: "统计数据已更新") { service, _ in try await service.refreshStats(productId) }
+                        }
+                    }
+                    .disabled(model.tasks.isBusy)
                     Button("重新扫描此作品", systemImage: "arrow.clockwise") {
                         Task {
                             await model.tasks.run("重新扫描作品", detail: work.productId) {
@@ -77,6 +108,23 @@ struct WorkDetailView: View {
                     .disabled(model.tasks.isBusy)
                     Button("从媒体库移除", systemImage: "trash", role: .destructive) { model.removingWork = work }
                 }
+            }
+        }
+    }
+
+    /// Runs a DLsite refresh as a library task, reporting image progress.
+    private func runRefresh(
+        _ title: String, done: String,
+        _ operation: @escaping (MetadataEnrichment, @escaping MetadataEnrichment.ImageProgress) async throws -> Void
+    ) {
+        let tasks = model.tasks
+        Task {
+            await tasks.run(title, detail: productId) {
+                try await operation(enrichment.service) { completed, total, label in
+                    Task { @MainActor in tasks.report("\(label)（\(completed)/\(total)）") }
+                }
+                ThumbnailCache.shared.evict(prefix: "images/\(productId)/")
+                return done
             }
         }
     }

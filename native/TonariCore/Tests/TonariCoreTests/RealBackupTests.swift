@@ -61,4 +61,18 @@ struct RealBackupTests {
         }
         #expect(missing.isEmpty, "missing: \(missing.prefix(5))")
     }
+
+    /// Hits DLsite. A refresh keeps a translation only when the re-parsed
+    /// title and description content equal what the Flutter build stored.
+    /// Run with `TONARI_LIVE=1` as well.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["TONARI_LIVE"] != nil))
+    func liveParseReproducesStoredText() async throws {
+        let works = try await dbQueue.read { try Work.filter(Column("description_html_zh") != nil).fetchAll($0) }
+        let client = DLsiteClient()
+        for work in works {
+            let parsed = try DLsiteParser.parseHTML(try await client.workPage(work.productId), productId: work.productId)
+            #expect(parsed.title == work.title, "\(work.productId) title")
+            #expect(MetadataEnrichment.content(parsed.descriptionHtml) == MetadataEnrichment.content(work.descriptionHtml), "\(work.productId) description")
+        }
+    }
 }

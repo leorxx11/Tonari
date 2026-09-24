@@ -163,6 +163,10 @@ struct WorkDescriptionTests {
         ])
         #expect(WorkDescription.imageURLs(items) == ["https://img.dlsite.jp/a.jpg"])
     }
+
+    @Test func carriageReturnsAreNewlines() throws {
+        #expect(try WorkDescription.parse("<p>一\r\n<br />\r\n二</p>") == [.text([.paragraph("一\n\n二")])])
+    }
 }
 
 struct LibraryStatsTests {

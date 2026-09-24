@@ -3,6 +3,7 @@ import TonariCore
 
 struct LibraryView: View {
     @Environment(AppModel.self) private var model
+    @Environment(EnrichmentQueue.self) private var enrichment
     @Environment(\.appDatabase) private var database
     @State private var works: [Work] = []
     @State private var durations: [String: Int] = [:]
@@ -46,6 +47,11 @@ struct LibraryView: View {
                 remoteIds = $0.1
             }
         }
+    }
+
+    /// Works still missing DLsite metadata or their cover.
+    private var pendingEnrichment: Int {
+        works.count { MetadataEnrichment.needsEnrichment($0, documents: .documentsDirectory) }
     }
 
     private struct QueryKey: Equatable {
@@ -119,6 +125,11 @@ struct LibraryView: View {
                     Section("导入") {
                         Button("导入本地文件夹", systemImage: "folder.badge.plus") { pickingFolder = true }
                             .disabled(model.tasks.isBusy)
+                        if pendingEnrichment > 0 && !enrichment.isActive {
+                            Button("补全 \(pendingEnrichment) 个作品的资料", systemImage: "arrow.down.circle") {
+                                Task { await enrichment.runPending(reset: true) }
+                            }
+                        }
                     }
                     Section("排序") {
                         ForEach(WorkSortField.allCases, id: \.self) { field in
@@ -158,6 +169,7 @@ struct LibraryView: View {
             if summary.workIds.isEmpty { try flow.removeIfEmpty(folder) }
             return summary.resultText
         }
+        await enrichment.runPending()
     }
 
     private func pickRandom() {

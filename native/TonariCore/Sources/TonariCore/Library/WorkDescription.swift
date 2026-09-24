@@ -65,7 +65,7 @@ public enum WorkDescription {
             }
         }
 
-        let body = try SwiftSoup.parseBodyFragment(html).body()!
+        let body = try SwiftSoup.parseBodyFragment(html.normalizingNewlines).body()!
         for node in body.getChildNodes() { try walk(node) }
         flushParagraph()
         flushText()
@@ -75,5 +75,13 @@ public enum WorkDescription {
     /// Image URLs in the order `descriptionImageLocalPaths` was saved.
     public static func imageURLs(_ items: [Item]) -> [String] {
         items.compactMap { if case .image(let url) = $0 { url } else { nil } }
+    }
+}
+
+extension String {
+    /// HTML5 input preprocessing turns CRLF and lone CR into LF before
+    /// parsing; SwiftSoup skips that step.
+    var normalizingNewlines: String {
+        replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
     }
 }
