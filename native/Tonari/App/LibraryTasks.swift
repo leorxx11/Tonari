@@ -46,7 +46,7 @@ extension AppModel {
         switch folder.type {
         case "local": return try await LocalImport(database: database).reimportWork(work, from: folder)
         case "p115": return try await P115Import(database: database, client: .shared).reimportWork(work)
-        default: throw LocalImport.Failure("WebDAV 来源的重新扫描将在 N4b 支持")
+        default: throw LocalImport.Failure("暂不支持重新扫描 WebDAV 来源")
         }
     }
 }

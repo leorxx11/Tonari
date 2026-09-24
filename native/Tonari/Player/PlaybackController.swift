@@ -283,7 +283,7 @@ final class PlaybackController {
             case "p115":
                 return try await remoteAsset(pickcode: track.filePath)
             case "webdav":
-                throw P115Error.failed("WebDAV 作品的播放将在 N4b 接入")
+                throw P115Error.failed("暂不支持播放 WebDAV 作品")
             default:
                 expiresAt = nil
                 return AVURLAsset(url: URL(filePath: track.filePath))

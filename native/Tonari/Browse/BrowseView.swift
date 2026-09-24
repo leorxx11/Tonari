@@ -23,9 +23,6 @@ struct BrowseView: View {
                     }
                     .tint(.primary)
                 }
-                Section("WebDAV") {
-                    Text("WebDAV 将在 N4b 接入").foregroundStyle(.secondary)
-                }
             }
             .navigationTitle("浏览")
             .appDestinations()
