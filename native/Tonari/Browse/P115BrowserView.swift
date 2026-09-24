@@ -3,11 +3,13 @@ import TonariCore
 
 /// One 115 folder. Each level is its own page on the navigation stack, so
 /// back steps up a single folder and the title names the current one.
-/// Playing files arrives with the player (N3) and video library (N5).
+/// Audio plays in place with the folder's audio files as the queue; video
+/// arrives with the video library (N5).
 struct P115BrowserView: View {
     @Environment(AppModel.self) private var model
     @Environment(EnrichmentQueue.self) private var enrichment
     @Environment(\.appDatabase) private var database
+    @Environment(PlaybackController.self) private var player
     /// From the 115 root down to this folder.
     let stack: [RemoteEntry]
     @State private var entries: [RemoteEntry] = []
@@ -25,6 +27,14 @@ struct P115BrowserView: View {
                     NavigationLink(value: Route.p115Folder(stack + [entry])) {
                         RemoteEntryRow(entry: entry)
                     }
+                } else if entry.kind == .audio {
+                    Button {
+                        let audio = entries.filter { $0.kind == .audio }
+                        player.play(files: audio, at: audio.firstIndex(of: entry)!, sourceName: P115Client.sourceName)
+                    } label: {
+                        RemoteEntryRow(entry: entry, playing: player.currentFile?.id == entry.id)
+                    }
+                    .tint(.primary)
                 } else {
                     RemoteEntryRow(entry: entry)
                 }
@@ -105,11 +115,12 @@ struct P115BrowserView: View {
 
 struct RemoteEntryRow: View {
     let entry: RemoteEntry
+    var playing = false
 
     var body: some View {
         HStack(spacing: 12) {
             let (icon, tint) = Self.icon(entry.kind)
-            Image(systemName: icon)
+            Image(systemName: playing ? "waveform" : icon)
                 .foregroundStyle(tint)
                 .frame(width: 34, height: 34)
                 .background(tint.opacity(0.12), in: .rect(cornerRadius: 8))

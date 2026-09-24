@@ -170,6 +170,7 @@ nonisolated struct RecentItem: Identifiable, Sendable {
 
 private struct RecentTile: View {
     let item: RecentItem
+    @Environment(PlaybackController.self) private var player
 
     var body: some View {
         let tile = VStack(alignment: .leading, spacing: 4) {
@@ -182,6 +183,13 @@ private struct RecentTile: View {
         .frame(width: 120)
         if let workId = item.workId {
             NavigationLink(value: Route.work(workId)) { tile }.buttonStyle(.plain)
+        } else if let file = item.entry.remoteFile {
+            Button {
+                player.play(files: [file], at: 0, sourceName: item.entry.sourceName ?? P115Client.sourceName)
+            } label: {
+                tile
+            }
+            .buttonStyle(.plain)
         } else {
             tile
         }

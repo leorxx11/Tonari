@@ -7,10 +7,11 @@ struct TonariApp: App {
     @Environment(\.scenePhase) private var scenePhase
     @State private var model = AppModel()
     @State private var enrichment: EnrichmentQueue
+    @State private var player: PlaybackController
     private let database: AppDatabase
 
     init() {
-        try! AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+        try! AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio)
         let documents = URL.documentsDirectory
         do {
             // Must run before the database opens: it may replace the file.
@@ -25,6 +26,7 @@ struct TonariApp: App {
             }
             database = try AppDatabase.open(in: documents)
             _enrichment = State(initialValue: EnrichmentQueue(database: database))
+            _player = State(initialValue: PlaybackController(database: database))
         } catch {
             fatalError("Failed to open the library: \(error)")
         }
@@ -35,11 +37,13 @@ struct TonariApp: App {
             RootView()
                 .environment(model)
                 .environment(enrichment)
+                .environment(player)
                 .environment(\.appDatabase, database)
                 .preferredColorScheme(.light)
         }
         .onChange(of: scenePhase) { _, phase in
             DiagnosticLog.shared.write("app", "lifecycle", ["phase": "\(phase)"])
+            if phase == .background { player.savePosition() }
         }
     }
 }
@@ -51,10 +55,13 @@ extension EnvironmentValues {
 struct RootView: View {
     @Environment(AppModel.self) private var model
     @Environment(EnrichmentQueue.self) private var enrichment
+    @Environment(PlaybackController.self) private var player
     @Environment(\.appDatabase) private var database
+    @Namespace private var playerTransition
 
     var body: some View {
         @Bindable var model = model
+        @Bindable var player = player
         TabView(selection: $model.tab) {
             Tab("媒体库", systemImage: "music.note.list", value: AppTab.library) {
                 LibraryView()
@@ -68,6 +75,19 @@ struct RootView: View {
             Tab("设置", systemImage: "gearshape", value: AppTab.settings) {
                 SettingsView()
             }
+        }
+        .tabBarMinimizeBehavior(.onScrollDown)
+        .tabViewBottomAccessory(isEnabled: player.hasCurrent) {
+            MiniPlayer().matchedTransitionSource(id: "player", in: playerTransition)
+        }
+        .fullScreenCover(isPresented: $model.showingPlayer) {
+            PlayerView().navigationTransition(.zoom(sourceID: "player", in: playerTransition))
+        }
+        .alert(
+            "无法播放",
+            isPresented: Binding(get: { player.errorMessage != nil }, set: { if !$0 { player.errorMessage = nil } })
+        ) {} message: {
+            Text(player.errorMessage ?? "")
         }
         .sheet(item: $model.collectionPickerWork) { work in
             CollectionPickerSheet(work: work)

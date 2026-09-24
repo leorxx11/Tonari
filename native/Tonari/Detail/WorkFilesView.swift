@@ -2,11 +2,12 @@ import SwiftUI
 import TonariCore
 
 /// A work's files as folders, opening at the folder most likely to hold the
-/// main audio. Playing and previewing arrive with the player (N3).
+/// main audio. Tapping a track plays the whole work from it.
 struct WorkFilesView: View {
     let productId: String
 
     @Environment(\.appDatabase) private var database
+    @Environment(PlaybackController.self) private var player
     @State private var tree: [WorkTreeNode] = []
     @State private var path: [String] = []
     @State private var loaded = false
@@ -23,10 +24,15 @@ struct WorkFilesView: View {
                     }
                     .tint(.primary)
                 case .track(let track):
-                    FileNodeRow(
-                        icon: "music.note", tint: .pink, title: track.titleZh ?? track.title,
-                        detail: [Formatting.trackTime(ms: track.durationMs), Formatting.bytes(track.fileSizeBytes)].joined(separator: " · ")
-                    )
+                    Button {
+                        play(track)
+                    } label: {
+                        FileNodeRow(
+                            icon: player.currentTrack?.id == track.id ? "waveform" : "music.note", tint: .pink, title: track.titleZh ?? track.title,
+                            detail: [Formatting.trackTime(ms: track.durationMs), Formatting.bytes(track.fileSizeBytes)].joined(separator: " · ")
+                        )
+                    }
+                    .tint(.primary)
                 case .file(let file):
                     let (icon, tint) = Self.icon(for: file.fileKind)
                     FileNodeRow(icon: icon, tint: tint, title: file.fileName, detail: Formatting.bytes(file.fileSizeBytes))
@@ -53,6 +59,11 @@ struct WorkFilesView: View {
                 tree = nodes
             }
         }
+    }
+
+    private func play(_ track: Track) {
+        let queue = try! PlaybackStore(database: database).queue(for: productId)
+        player.play(queue, at: queue.tracks.firstIndex { $0.id == track.id }!)
     }
 
     private var currentLevel: [WorkTreeNode] {

@@ -10,6 +10,7 @@ enum Route: Hashable {
     case p115Folder([RemoteEntry])
     case p115Login
     case p115Settings
+    case playbackSettings
     case mediaSources
     case removedWorks
     case backup
@@ -56,6 +57,7 @@ final class AppModel {
 
     var tab = AppTab.library
     /// Work whose group membership sheet is showing.
+    var showingPlayer = false
     var collectionPickerWork: Work?
     /// Work awaiting confirmation to be removed from the library.
     var removingWork: Work?
@@ -87,6 +89,11 @@ final class AppModel {
         tab = .browse
     }
 
+    func openWork(_ productId: String) {
+        libraryPath = NavigationPath([Route.work(productId)])
+        tab = .library
+    }
+
     func showInLibrary(_ chip: WorkChip) {
         filter.add(chip)
         libraryKind = .audio
@@ -109,6 +116,7 @@ extension View {
             case .p115Folder(let stack): P115BrowserView(stack: stack)
             case .p115Login: P115LoginView()
             case .p115Settings: P115SettingsView()
+            case .playbackSettings: PlaybackSettingsView()
             case .mediaSources: MediaSourcesView()
             case .removedWorks: RemovedWorksView()
             case .backup: BackupView()

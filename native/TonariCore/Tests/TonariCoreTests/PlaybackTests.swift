@@ -1,0 +1,132 @@
+import Foundation
+import GRDB
+import Testing
+@testable import TonariCore
+
+struct PlaybackModeTests {
+    @Test func sequenceStopsAtTheEnd() {
+        var rng = SystemRandomNumberGenerator()
+        #expect(PlaybackMode.sequence.indexAfterCompletion(current: 0, count: 3, using: &rng) == 1)
+        #expect(PlaybackMode.sequence.indexAfterCompletion(current: 2, count: 3, using: &rng) == nil)
+        #expect(PlaybackMode.loopAll.indexAfterCompletion(current: 2, count: 3, using: &rng) == 0)
+        #expect(PlaybackMode.loopOne.indexAfterCompletion(current: 1, count: 3, using: &rng) == 1)
+    }
+
+    @Test func shuffleNeverRepeatsTheCurrentTrack() {
+        for current in 0..<4 {
+            for _ in 0..<50 {
+                var rng = SystemRandomNumberGenerator()
+                let next = PlaybackMode.shuffle.indexAfterCompletion(current: current, count: 4, using: &rng)!
+                #expect(next != current && (0..<4).contains(next))
+            }
+        }
+        var rng = SystemRandomNumberGenerator()
+        #expect(PlaybackMode.shuffle.indexAfterCompletion(current: 0, count: 1, using: &rng) == 0)
+    }
+
+    @Test func modesCycleInTheFlutterOrder() {
+        #expect(PlaybackMode.allCases.map(\.next) == [.loopAll, .loopOne, .shuffle, .sequence])
+        #expect(PlaybackMode(rawValue: "loopOne") == .loopOne)
+    }
+}
+
+struct PlaybackStoreTests {
+    private func database() throws -> (AppDatabase, PlaybackStore) {
+        let database = try AppDatabase.inMemory()
+        try database.writer.write { db in
+            try Fixtures.work("RJ01000001").insert(db)
+            for (id, path) in [("t2", "/music/RJ01000001/02.mp3"), ("t1", "/music/RJ01000001/01.mp3")] {
+                try Track(
+                    id: id, workId: "RJ01000001", filePath: path, relativePath: String(path.split(separator: "/").last!),
+                    fileName: String(path.split(separator: "/").last!), fileFormat: "mp3", fileSizeBytes: 1, durationMs: 0,
+                    sampleRate: nil, bitRate: nil, categoryHint: nil, userCategory: nil, parentDirName: "RJ01000001",
+                    trackNumber: nil, title: id, alternateQualityPathsJson: [:], lastPositionMs: 0, playCount: 0,
+                    createdAt: Fixtures.date, updatedAt: Fixtures.date, titleZh: nil
+                ).insert(db)
+            }
+        }
+        return (database, PlaybackStore(database: database))
+    }
+
+    @Test func restoresTheLastPlayedTrackInPlaybackOrder() throws {
+        let (database, store) = try database()
+        #expect(try store.lastPlayed() == nil)
+        let queue = try store.queue(for: "RJ01000001")
+        #expect(queue.tracks.map(\.id) == ["t1", "t2"])
+        try store.trackStarted(queue.tracks[1], of: queue.work, at: Fixtures.date)
+        try store.savePosition(42_000, of: queue.tracks[1], in: queue.work, at: Fixtures.date)
+        guard case .work(let restored, let index) = try store.lastPlayed() else { Issue.record("no work restored"); return }
+        #expect(index == 1)
+        #expect(restored.tracks[1].lastPositionMs == 42_000)
+        let history = try database.reader.read { try PlayHistoryEntry.fetchAll($0) }
+        #expect(history.map(\.id) == ["work:RJ01000001"])
+    }
+
+    @Test func accumulatesListeningPerDayAndWork() throws {
+        let (database, store) = try database()
+        try store.addListening(5_000, to: "RJ01000001", at: Fixtures.date)
+        try store.addListening(4_000, to: "RJ01000001", at: Fixtures.date)
+        let logs = try database.reader.read { try ListenLog.fetchAll($0) }
+        #expect(logs.map(\.listenedMs) == [9_000])
+        #expect(logs[0].day == PlaybackStore.dayKey(Fixtures.date))
+    }
+
+    @Test func keysRemoteFilesByPickcode() throws {
+        let (database, store) = try database()
+        let entry = RemoteEntry(id: "1", path: "1", name: "01 本編.mp3", kind: .audio, size: 10, pickcode: "abc", sourceId: P115Client.sourceId)
+        try store.recordFile(entry, sourceName: "115 网盘")
+        try store.recordFile(entry, sourceName: "115 网盘")
+        let rows = try database.reader.read { try PlayHistoryEntry.fetchAll($0) }
+        #expect(rows.map(\.id) == ["p115:abc"])
+        #expect(rows[0].title == "01 本編" && rows[0].kind == "audio" && rows[0].sourceKind == "p115")
+    }
+
+    @Test func restoresAFilePlayedAfterAWork() throws {
+        let (_, store) = try database()
+        let queue = try store.queue(for: "RJ01000001")
+        try store.trackStarted(queue.tracks[0], of: queue.work, at: Fixtures.date)
+        let entry = RemoteEntry(id: "9", path: "9", name: "a.mp3", kind: .audio, size: 10, pickcode: "pc", sourceId: P115Client.sourceId)
+        try store.recordFile(entry, sourceName: "115 网盘", at: Fixtures.date.addingTimeInterval(1))
+        try store.saveFilePosition(7_000, durationMs: 60_000, of: entry, at: Fixtures.date.addingTimeInterval(2))
+        guard case .file(let file, let sourceName, let positionMs, let durationMs) = try store.lastPlayed() else {
+            Issue.record("no file restored")
+            return
+        }
+        #expect(file.pickcode == "pc" && file.name == "a.mp3" && sourceName == "115 网盘")
+        #expect(positionMs == 7_000 && durationMs == 60_000)
+    }
+
+    @Test func countsCompletionsAndLearnsDurations() throws {
+        let (database, store) = try database()
+        let track = try store.queue(for: "RJ01000001").tracks[0]
+        try store.trackCompleted(track)
+        try store.recordDuration(61_000, of: track)
+        let row = try database.reader.read { try Track.fetchOne($0, key: track.id)! }
+        #expect(row.playCount == 1 && row.durationMs == 61_000)
+    }
+}
+
+struct SubtitleTimelineTests {
+    private func subtitle(offset: Int = 0) -> Subtitle {
+        Subtitle(
+            id: "t1", trackId: "t1", filePath: "a.srt", fileFormat: "srt", fileHash: "", timeOffsetMs: offset,
+            originalLinesJson: [.init(startMs: 1_000, endMs: 2_000, text: "一"), .init(startMs: 5_000, endMs: 6_000, text: "二")],
+            translatedLinesJson: nil, translatedAt: nil, translatedByModel: nil, createdAt: Fixtures.date, updatedAt: Fixtures.date
+        )
+    }
+
+    @Test func keepsTheLastStartedLineThroughGaps() {
+        let s = subtitle()
+        #expect(s.lineIndex(at: 500) == nil)
+        #expect(s.lineIndex(at: 1_000) == 0)
+        #expect(s.lineIndex(at: 3_000) == 0)
+        #expect(s.lineIndex(at: 9_000) == 1)
+    }
+
+    @Test func offsetDelaysLinesBothWays() {
+        let delayed = subtitle(offset: 500)
+        #expect(delayed.lineIndex(at: 1_200) == nil)
+        #expect(delayed.positionMs(ofLine: 1) == 5_500)
+        #expect(subtitle(offset: -2_000).positionMs(ofLine: 0) == 0)
+    }
+}

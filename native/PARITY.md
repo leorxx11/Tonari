@@ -37,18 +37,19 @@
 
 ## N3 播放器 + 字幕
 
-- [ ] 播放队列、上一首 / 下一首、队列列表（`playback_controller.dart`、`player_page.dart`）
-- [ ] 播放模式：顺序 / 循环 / 单曲 / 随机
-- [ ] 倍速
-- [ ] 快进 / 快退步长可设置（`playback_settings_page.dart`）
-- [ ] 睡眠定时：按时间 / 按曲数 / 播完本曲 / 自定义（`sleep_timer.dart`、`sleep_timer_sheet.dart`）
-- [ ] 按作品记忆进度、冷启动恢复
-- [ ] 中断处理（来电、其他 App 占用音频）、拔耳机暂停（Flutter 版由 just_audio 默认的 `handleInterruptions` 处理，原生要自己监听 `AVAudioSession` 通知）
-- [ ] 锁屏 / 控制中心：封面、标题、上下首、拖进度（`now_playing_bridge.dart`）
-- [ ] MiniPlayer + 底部进度细线
+- [x] 播放队列、上一首 / 下一首、队列列表（`playback_controller.dart`、`player_page.dart`）
+- [x] 播放模式：顺序 / 循环 / 单曲 / 随机
+- [x] 倍速
+- [x] 快进 / 快退步长可设置（`playback_settings_page.dart`）
+- [x] 睡眠定时：按时间 / 按曲数 / 播完本曲 / 自定义（`sleep_timer.dart`、`sleep_timer_sheet.dart`）
+- [x] 按作品记忆进度、冷启动恢复
+- [x] 中断处理（来电、其他 App 占用音频）、拔耳机暂停（Flutter 版由 just_audio 默认的 `handleInterruptions` 处理，原生要自己监听 `AVAudioSession` 通知）
+- [x] 锁屏 / 控制中心：封面、标题、上下首、拖进度（`now_playing_bridge.dart`）
+- [x] MiniPlayer（`tabViewBottomAccessory`，进度改为播放键外圈进度环）
 - [ ] 播放历史：音频 / 视频分组、看到百分比、删除单条、清空（`play_history_page.dart`）
 - [ ] 收听时长记录与收听统计：本周 / 本月 / 累计、每日、常听作品 / 声优 / 社团（`listen_logs`、`listen_stats_page.dart`）
-- [ ] 字幕解析：srt / vtt / lrc（`core/subtitle/`）
+- [x] 字幕解析：srt / vtt / lrc（`core/subtitle/`）
+- [x] 播放页字幕（原生新增，参照 Apple Music 歌词）：跟随播放滚动、手动滚动后 3 秒恢复跟随、点句跳转、偏移 ±0.1s / 重置
 - [ ] 字幕模式：关闭 / App 内悬浮 / 画中画（`subtitle_overlay_prefs.dart`）
 - [ ] 悬浮字幕：拖动、恢复默认位置、偏移 ±0.1s、重置偏移（`subtitle_overlay.dart`）
 - [ ] 画中画字幕窗口（`ios/Runner/AppDelegate.swift` 的 `PipSubtitleController`）
@@ -62,7 +63,7 @@
 - [~] 浏览页：WebDAV / 115 入口与登录状态（115 ✅，WebDAV 待 N4b）（`browse_page.dart`、`remote_browser_page.dart`）
 - [~] 远程扫描阶段跳过已导入作品；导入在后台进行（115 已实现）
 - [~] 远程字幕下载解析（115 已实现，N3 显示字幕时验证）
-- [ ] 115 直链带请求头直连播放；音频过期前 2 分钟内重新获取，卡死 8 秒兜底重取
+- [x] 115 直链带请求头直连播放；音频过期前 2 分钟内重新获取；播放中出错或链接过期后卡住时重取一次（原生版不用 8 秒定时器）
 - [ ] 播放失败时探测一次来源并点名不可达的来源，记入消息
 - [~] 媒体来源页：查看、删除来源（级联硬删，显示作品数）（N2b 已实现，待验证）（`media_sources_page.dart`）
 

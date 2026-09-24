@@ -18,6 +18,11 @@ struct SettingsView: View {
                     }
                     .disabled(model.tasks.isBusy)
                 }
+                Section("播放") {
+                    NavigationLink(value: Route.playbackSettings) {
+                        Label("快进 / 快退步长", systemImage: "goforward")
+                    }
+                }
                 Section("云端") {
                     NavigationLink(value: Route.p115Settings) {
                         Label(P115Client.sourceName, systemImage: "icloud")
