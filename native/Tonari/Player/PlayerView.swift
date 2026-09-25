@@ -7,7 +7,10 @@ import TonariCore
 /// mini player and dragging it down shrinks it back in. Subtitles and the
 /// queue replace the artwork in place, above controls that stay put.
 struct PlayerView: View {
-    enum Panel { case lyrics, queue }
+    enum Panel: String { case lyrics, queue }
+
+    /// Reopening the player returns to the panel it was closed on.
+    private static let panelKey = "player.panel"
 
     static let rates: [Float] = [0.75, 1, 1.25, 1.5, 2]
 
@@ -15,8 +18,13 @@ struct PlayerView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.appDatabase) private var database
     @Environment(\.dismiss) private var dismiss
-    @State private var panel: Panel?
+    @State private var panel = UserDefaults.standard.string(forKey: Self.panelKey).flatMap(Panel.init)
     @State private var showingSleep = false
+    /// On the lyrics panel the controls tuck away after a few idle seconds,
+    /// as in Apple Music, leaving the screen to the subtitles.
+    @State private var controlsVisible = true
+    @State private var hideTask: Task<Void, Never>?
+    @State private var controlsHeight: CGFloat = 0
     @Namespace private var artworkSpace
 
     var body: some View {
@@ -32,7 +40,17 @@ struct PlayerView: View {
                         compactHeader.padding(.top, 20)
                         Group {
                             switch panel {
-                            case .lyrics: LyricsPanel(subtitle: player.currentSubtitle)
+                            case .lyrics:
+                                LyricsPanel(subtitle: player.currentSubtitle, bottomCover: controlsVisible ? controlsHeight : 0) {
+                                    showControls()
+                                } onScroll: { up in
+                                    if up {
+                                        if !controlsVisible { showControls() }
+                                    } else if controlsVisible {
+                                        hideTask?.cancel()
+                                        withAnimation(.spring(duration: 0.4)) { controlsVisible = false }
+                                    }
+                                }
                             case .queue: QueuePanel(showingSleep: $showingSleep)
                             }
                         }
@@ -52,10 +70,17 @@ struct PlayerView: View {
                             moreMenu
                         }
                     }
-                    Scrubber().padding(.top, 16)
-                    controls.padding(.top, 14)
-                    VolumeRow().padding(.top, 22)
-                    bottomBar.padding(.top, 22)
+                    if panel != .lyrics { controlBlock }
+                }
+                // On the lyrics panel the controls float over the subtitles
+                // rather than taking room from them: resizing the scroll view
+                // mid-scroll stutters, so showing them only slides this in.
+                .overlay(alignment: .bottom) {
+                    if panel == .lyrics && controlsVisible {
+                        controlBlock
+                            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { controlsHeight = $0 }
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
                 }
                 .padding(.horizontal, 28)
                 // Sit the bottom row just above the home indicator, as Apple Music does.
@@ -66,6 +91,36 @@ struct PlayerView: View {
         .preferredColorScheme(.dark)
         .sheet(isPresented: $showingSleep) { SleepTimerSheet() }
         .onChange(of: player.hasCurrent) { _, hasCurrent in if !hasCurrent { dismiss() } }
+        .onChange(of: panel, initial: true) { _, panel in
+            UserDefaults.standard.set(panel?.rawValue, forKey: Self.panelKey)
+            if panel == .lyrics { showControls() } else { hideTask?.cancel(); controlsVisible = true }
+        }
+    }
+
+    private var controlBlock: some View {
+        VStack(spacing: 0) {
+            Scrubber().padding(.top, 16)
+            controls.padding(.top, 14)
+            VolumeRow().padding(.top, 22)
+            bottomBar.padding(.top, 22)
+        }
+        // Any touch on the controls restarts the idle countdown.
+        .simultaneousGesture(DragGesture(minimumDistance: 0).onChanged { _ in scheduleHide() })
+    }
+
+    private func showControls() {
+        withAnimation(.spring(duration: 0.4)) { controlsVisible = true }
+        scheduleHide()
+    }
+
+    private func scheduleHide() {
+        guard panel == .lyrics else { return }
+        hideTask?.cancel()
+        hideTask = Task {
+            try? await Task.sleep(for: .seconds(4))
+            guard !Task.isCancelled else { return }
+            withAnimation(.spring(duration: 0.5)) { controlsVisible = false }
+        }
     }
 
     /// Apple Music's dark, frosted grey tinted by the cover.
@@ -91,6 +146,11 @@ struct PlayerView: View {
             artwork
                 .frame(width: 64, height: 64)
                 .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
+                .onTapGesture {
+                    withAnimation(.spring(duration: 0.45, bounce: 0.15)) { panel = nil }
+                }
+                .accessibilityAddTraits(.isButton)
+                .accessibilityLabel("返回封面")
             titles(font: .headline)
             Spacer(minLength: 0)
             moreMenu

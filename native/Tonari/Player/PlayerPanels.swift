@@ -6,19 +6,29 @@ import TonariCore
 /// follow for a few seconds; tapping a line jumps there.
 struct LyricsPanel: View {
     let subtitle: Subtitle?
+    /// Height of the controls floating over the bottom; lines fade out above
+    /// them instead of the panel shrinking.
+    var bottomCover: CGFloat = 0
+    /// A tap between lines, which brings the controls back.
+    var onBlankTap: () -> Void = {}
+    /// The finger scrolled the lyrics: `true` back toward earlier lines,
+    /// which brings the controls back; `false` on toward later lines, which
+    /// hides them.
+    var onScroll: (_ up: Bool) -> Void = { _ in }
 
     @Environment(PlaybackController.self) private var player
     @State private var holdUntil: Date?
+    @State private var dragging = false
 
     var body: some View {
         if let subtitle, !subtitle.originalLinesJson.isEmpty {
             let current = subtitle.lineIndex(at: player.positionMs)
             ScrollViewReader { proxy in
                 ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 26) {
+                    LazyVStack(alignment: .leading, spacing: 28) {
                         ForEach(Array(subtitle.originalLinesJson.enumerated()), id: \.offset) { index, line in
                             Text(line.text)
-                                .font(.title2.bold())
+                                .font(.system(size: 30, weight: .bold))
                                 .foregroundStyle(.primary)
                                 .opacity(index == current ? 1 : 0.28)
                                 .scaleEffect(index == current ? 1 : 0.97, anchor: .leading)
@@ -35,7 +45,13 @@ struct LyricsPanel: View {
                     .padding(.vertical, 120)
                 }
                 .scrollIndicators(.hidden)
+                .background { Color.clear.contentShape(.rect).onTapGesture(perform: onBlankTap) }
+                .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y } action: { old, new in
+                    guard dragging, abs(new - old) > 1 else { return }
+                    onScroll(new < old)
+                }
                 .onScrollPhaseChange { _, phase in
+                    dragging = phase == .interacting
                     if phase == .interacting {
                         holdUntil = .distantFuture
                     } else if phase == .idle, holdUntil == .distantFuture {
@@ -51,10 +67,12 @@ struct LyricsPanel: View {
                 }
             }
             .mask {
-                LinearGradient(stops: [
-                    .init(color: .clear, location: 0), .init(color: .black, location: 0.12),
-                    .init(color: .black, location: 0.85), .init(color: .clear, location: 1),
-                ], startPoint: .top, endPoint: .bottom)
+                VStack(spacing: 0) {
+                    LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom).frame(height: 48)
+                    Color.black
+                    LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom).frame(height: 72)
+                    Color.clear.frame(height: bottomCover)
+                }
             }
         } else {
             ContentUnavailableView("此音轨没有字幕", systemImage: "quote.bubble")
