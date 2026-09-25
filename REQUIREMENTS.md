@@ -8,33 +8,33 @@
 - **云端片库**：WebDAV 直连 + 115 网盘（扫码登录 cookie），远程作品与本地同构，流播验证通过
 - 自动抓取 DLsite 作品元数据（封面、声优、标签等）
 - 完整的音频播放体验（后台播放、锁屏控制、倍速、A-B 循环、睡眠定时器）
-- **视频播放**：fvp（FFmpeg 软解）后端，支持 MKV / HEVC / 10-bit 等 AVPlayer 解不了的编码
-- 字幕加载与基于 LLM API 的简介翻译
+- **视频播放**：mdk-sdk 引擎，支持 MKV / HEVC / 10-bit 等 AVPlayer 解不了的编码
+- 字幕加载与基于 LLM API 的标题、简介、曲目名翻译
 - 隐私保护（应用锁、模糊预览图）
 
 ## 2. 项目范围与约束
 
 ### 2.1 平台
 - **目标平台**：iOS（iPhone 优先，iPad 兼容）
-- **最低系统**：iOS 15+
+- **最低系统**：iOS 26+（原生版；Flutter 版为 iOS 15+）
 - **分发方式**：淘宝签名（超级签 / 企业签）自用，不上架 App Store
 
 ### 2.2 技术栈
-- **框架**：Flutter (3.x)
-- **语言**：Dart
-- **状态管理**：Riverpod
-- **本地数据库**：Drift（原计划 Isar 3，因 Flutter 3.44 + Riverpod 3 依赖冲突替换为 Drift）
-- **音频核心**：`just_audio` + `just_audio_background` + `audio_session`
-- **视频核心**：`video_player` + `fvp`（FFmpeg 软解后端，接管 AVPlayer 无法解码的格式）
-- **云存储**：WebDAV（`dio` + `xml` 自实现 PROPFIND）；115 网盘（cookie 登录 + 签名直链带 Cookie/Referer 头直连播放）
-- **HTTP**：`dio`
-- **HTML 解析**：`html` 包
-- **文件访问**：`file_picker` + `path_provider`
-- **密钥存储**：`flutter_secure_storage`（iOS Keychain）
+2026-09 起由 Flutter 改为原生实现（Flutter 版归档在 `flutter` 分支，标签 `flutter-final`），排期与功能对照见 `native/PLAN.md`、`native/PARITY.md`。
+
+- **语言 / 界面**：Swift 6 + SwiftUI（UIKit 补位）
+- **本地数据库**：GRDB（沿用 Flutter 版 Drift schema，备份双向互通）
+- **音频核心**：AVPlayer + AVAudioSession（中断、路由变化自行处理）
+- **视频核心**：mdk-sdk（外部 Metal 渲染上下文）
+- **云存储**：115 网盘（cookie 登录 + 签名直链带 Cookie/Referer 头直连播放）；WebDAV 待移植
+- **HTTP**：URLSession
+- **HTML 解析**：SwiftSoup
+- **文件访问**：`fileImporter` + security-scoped bookmark
+- **密钥存储**：Keychain
 - **图片缓存**：本地沙盒缓存（带 Referer 的自定义下载）
 
 ### 2.3 明确不做的事情（避免范围蔓延）
-- ❌ 不做 Android 版本（Flutter 代码保留可移植性即可）
+- ❌ 不做 Android 版本
 - ❌ 不做账号系统、不做后端服务
 - ❌ 不做云同步（iCloud 同步留作未来扩展点）
 - ❌ 不做 Share Extension、Widget、Action Extension（淘宝签名兼容性考虑）
@@ -148,7 +148,7 @@
 
 **特别约束**：
 - 应用切换到后台、锁屏、其他 App 占用音频会话时的行为符合 iOS 标准
-- 来电中断后应能自动恢复（由 `just_audio` + `audio_session` 处理）
+- 来电中断后应能自动恢复（监听 `AVAudioSession` 中断通知）
 
 ### 3.4 字幕系统
 
@@ -222,11 +222,11 @@
 **目标**：作品内若含视频文件，提供与音频一致的播放入口。
 
 **功能点**：
-- **解码后端**：fvp（FFmpeg 软解）替代 `video_player` 默认的 AVPlayer，支持 MKV / HEVC / 10-bit H.264 等原生解不了的编码
-- **方向**：竖屏内嵌 + 横屏全屏，横屏控制条 3 秒自动隐藏
+- **解码后端**：mdk-sdk（VideoToolbox 硬解，FFmpeg 解封装），支持 MKV / HEVC / 10-bit H.264 等 AVPlayer 解不了的编码
+- **方向**：始终全屏黑底，横竖屏均可，控制条空闲自动隐藏
 - **手势**：画面横向滑动微调进度（整屏宽 ≈ ±90s，比进度条更细），拖动时预览目标时间戳、抬手才 seek（对流播友好）
 - **进度记忆**：按文件记忆播放位置，断点续播
-- **远程视频**：与音频共用云端片库（WebDAV / 115），通过本地代理流播
+- **远程视频**：与音频共用云端片库，115 直链带请求头直连
 - 字幕叠层与画中画（PiP）渲染
 
 ### 3.8 云端片库（WebDAV + 115）
@@ -244,9 +244,9 @@
 - 统一「媒体来源」页：查看 + 删除，导入入口在媒体库右上角
 
 **115 直连流播**：签名直链 + 请求头（登录 Cookie + 跳转时下发的防盗链 Cookie + Referer）直接交给播放器，不经本地代理（本地代理会在 iOS 挂起 App 后失效）。
-- 音频：just_audio 设 `useProxyForRequestHeaders: false`，请求头经 `AVURLAssetHTTPHeaderFieldsKey` 交给 AVPlayer
-- 视频：fvp 把 `httpHeaders` 写进 FFmpeg 的 `avio.headers`；User-Agent 不能放首位（FFmpeg 只识别换行后的 UA，否则重复发送）
-- 直链有效期由 URL 参数 `t` 给出：音频约 30 分钟～数小时，视频数天；音频在过期前 2 分钟内或播放卡死 8 秒时重新获取
+- 音频：请求头经 `AVURLAssetHTTPHeaderFieldsKey` 交给 AVPlayer
+- 视频：请求头交给 mdk（FFmpeg `headers` 选项）
+- 直链有效期由 URL 参数 `t` 给出：音频约 30 分钟～数小时，视频数天；音频在过期前 2 分钟内重新获取，播放中出错或链接过期后卡住时重取一次
 - 待观察：115 对同一直链限约 2 条并发连接（超出 `403 115 pmt`），直连后连接数由播放器决定
 
 **字幕**：远程字幕单独下载解析（115 走整文件直连下载）。
@@ -419,17 +419,16 @@ TabView (底部 Tab)
 
 每个阶段产出可独立运行的版本，避免长期不可运行状态。
 
-> 进度（截至 2026-06）：M1–M7 完成；M9 云端片库（WebDAV + 115）与视频播放已真机验证通过。M8 打磨持续进行。
+> 以上 M1–M9 为 Flutter 版阶段（截至 2026-06 完成 M1–M7、M9）。原生版阶段 N0–N7 见 `native/PLAN.md`。
 
 ## 7. 关键技术决策（已确认）
 
 | 项 | 决策 |
 |---|---|
-| 跨平台框架 | Flutter |
-| 状态管理 | Riverpod |
-| 本地数据库 | Drift（SQLite，原 Isar 因依赖冲突替换） |
-| 音频库 | just_audio + just_audio_background |
-| 视频库 | video_player + fvp（FFmpeg 软解） |
+| 实现 | 原生 Swift 6 + SwiftUI（2026-09 起；Flutter 版归档） |
+| 本地数据库 | GRDB（SQLite，沿用 Flutter 版 Drift schema） |
+| 音频库 | AVPlayer |
+| 视频库 | mdk-sdk |
 | 云存储 | WebDAV 直连 + 115 cookie 登录（OpenAPI / Alist 中间层已弃） |
 | 是否后端 | 无后端，纯客户端 |
 | 是否云同步 | 暂不做（不排除未来用 iCloud） |
@@ -463,7 +462,7 @@ TabView (底部 Tab)
 
 - **流播，不做下载**：远程作品直接流播（115 与 WebDAV 均带请求头直连），不做整文件落盘 pin。
 - **Provider**：WebDAV 直连 + 115 网盘 cookie 扫码登录。**放弃** 115 OpenAPI（个人开发者审核关停）、Alist 中间层；PikPak 不做专门适配（走 WebDAV 通道即可覆盖）。
-- **视频解码**：从 `video_player`(AVPlayer 硬解) 换成 fvp（FFmpeg 软解），10-bit H.264 / HEVC / MKV 都能放。
+- **视频解码**：Flutter 版从 `video_player`(AVPlayer 硬解) 换成 fvp（FFmpeg 软解）；原生版用 mdk-sdk，10-bit H.264 / HEVC / MKV 都能放。
 - **导入抽象**：远程目录与本地同构、**快照式**导入；导入管线（`applyScanResult` / `EnrichmentQueue` / works·tracks·subtitles 表 / 详情页 / 播放队列）几乎原样复用，只改扫描、字幕读取、播放源解析三个文件访问点。
 
 ### 10.2 非显然的坑（已解决）

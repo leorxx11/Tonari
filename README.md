@@ -1,63 +1,40 @@
 # Tonari
 
-iOS 端 ASMR 播放器，按 DLsite 作品（RJ 编号）组织音视频资源。支持本地导入与云端片库（WebDAV 直连、115 网盘扫码登录），音频与视频统一播放，自动抓取 DLsite 元数据。
+iOS 端 ASMR 播放器，按 DLsite 作品（RJ 编号）组织音视频资源。支持本地导入与 115 网盘（扫码登录），音频与视频统一播放，自动抓取 DLsite 元数据，可用 LLM 翻译标题、简介与曲目名。
 
-仅供个人自用。
+仅供个人自用。原先的 Flutter 版已归档到 `flutter` 分支（标签 `flutter-final`）。
 
 ## 技术栈
 
-- **框架 / 语言**：Flutter 3.x + Dart
-- **状态管理**：Riverpod
-- **本地数据库**：Drift（SQLite）
-- **音频**：just_audio + just_audio_background + audio_session
-- **视频**：video_player + fvp（FFmpeg 软解后端，支持 MKV / HEVC / 10-bit）
-- **网络**：dio
-- **云存储**：WebDAV（dio + xml PROPFIND）、115（cookie 登录，本地 HTTP 代理注入鉴权头给 fvp）
-- **元数据**：DLsite HTML + AJAX 抓取（html 包解析）
-- **密钥存储**：flutter_secure_storage（iOS Keychain）
+- **语言 / 界面**：Swift 6 + SwiftUI（UIKit 补位），iOS 26+
+- **数据库**：GRDB（沿用 Flutter 版 Drift schema，备份双向互通）
+- **音频**：AVPlayer（锁屏、画中画字幕）
+- **视频**：mdk-sdk（外部 Metal 渲染，支持 MKV / HEVC / 10-bit）
+- **元数据**：DLsite HTML + AJAX 抓取（SwiftSoup 解析）
+- **密钥存储**：Keychain
 
-## 环境要求
+## 目录
 
-- Flutter SDK（Dart `^3.12.0`）
-- Xcode + iOS 15.0 及以上的真机
-- 签名证书（免费开发证书调试，或淘宝分发证书发布）
+- `native/Tonari.xcodeproj`、`native/Tonari/`：App
+- `native/TonariCore/`：纯逻辑 Swift 包（数据库、导入、115、DLsite、字幕、翻译、备份）
+- `native/Packages/MDK/`：mdk 二进制与 Swift 封装
+- `native/PLAN.md`、`native/PARITY.md`、`native/design/`：排期、功能对照清单、界面示意
 
-## 构建与运行
+## 构建与测试
 
 ```bash
-flutter pub get
-
-# Drift 代码生成（生成物 lib/core/db/database.g.dart 已入库，
-# 仅在改了表结构后才需要重新生成）
-dart run build_runner build --delete-conflicting-outputs
-
-# 静态检查 + 测试
-flutter analyze
-flutter test
-
-# 真机 release 运行（设备 ID 见 AGENTS.md）
-flutter run --release -d <device-id>
+cd native/TonariCore && swift test
 ```
 
-真机部署若 `flutter run` 报找不到 `.app`，改用纯构建 + devicectl 安装：
-
 ```bash
-flutter build ios --release
-xcrun devicectl device install app --device <coredevice-uuid> build/ios/iphoneos/Runner.app
-xcrun devicectl device process launch --device <coredevice-uuid> com.leo.tonari
+cd native && xcodebuild -project Tonari.xcodeproj -scheme Tonari -configuration Release -destination 'generic/platform=iOS' -derivedDataPath build/DerivedData -allowProvisioningUpdates -quiet build
 ```
 
 ## 分发签名
 
-源码层 Bundle ID 固定为 `com.leo.tonari`（免费证书调试用）。正式分发走最小 entitlements 重签：
-
-```bash
-tools/sign-ipa.sh   # 产物 build/ios/iphoneos/tonari-signed.ipa
-```
-
-调试版 `com.leo.tonari` 与正式版 `com.wangshaikang` 数据沙盒隔离、互不影响。证书材料（`p12` / `mobileprovision` / `证书_*`）不入版本库。
+源码层 Bundle ID 为 `com.leo.tonari.native`（免费证书调试用）。正式包用最小 entitlements 重签 Release 产物，Bundle ID 由描述文件决定。证书材料（`p12` / `mobileprovision` / `证书_*`）不入版本库。
 
 ## 文档
 
-- [REQUIREMENTS.md](REQUIREMENTS.md) — 需求与设计文档
-- [AGENTS.md](AGENTS.md) — 协作约定、真机部署与签名细节
+- [REQUIREMENTS.md](REQUIREMENTS.md)：需求与设计
+- [AGENTS.md](AGENTS.md)：协作约定、构建、装机与签名
