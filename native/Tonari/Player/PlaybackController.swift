@@ -53,7 +53,14 @@ final class PlaybackController {
     @ObservationIgnored private var artwork: (workId: String, artwork: MPMediaItemArtwork)?
     @ObservationIgnored private var subscriptions: Set<AnyCancellable> = []
 
+    /// The current track's subtitle, kept up to date (offset changes too)
+    /// for the lyrics panel and the mini player's line.
+    private(set) var currentSubtitle: Subtitle?
+    @ObservationIgnored private var subtitleTask: Task<Void, Never>?
+    @ObservationIgnored private let database: AppDatabase
+
     init(database: AppDatabase) {
+        self.database = database
         store = PlaybackStore(database: database)
         prefs = PlayerPrefs()
         sleep = SleepTimer(prefs: prefs)
@@ -108,6 +115,20 @@ final class PlaybackController {
 
     func durationMs(at index: Int) -> Int {
         if case .work(let queue) = queue { queue.tracks[index].durationMs } else { 0 }
+    }
+
+    /// The subtitle line at the playhead, if the track has subtitles.
+    var currentLine: String? {
+        currentSubtitle.flatMap { subtitle in subtitle.lineIndex(at: positionMs).map { subtitle.originalLinesJson[$0].text } }
+    }
+
+    private func observeSubtitle() {
+        subtitleTask?.cancel()
+        currentSubtitle = nil
+        guard let trackId = currentTrack?.id else { return }
+        subtitleTask = Task { [weak self, database] in
+            await database.observe({ db in try Subtitle.fetchOne(db, key: trackId) }) { self?.currentSubtitle = $0 }
+        }
     }
 
     var subtitle: String {
@@ -169,6 +190,7 @@ final class PlaybackController {
     }
 
     private func startCurrent(from startMs: Int = 0) {
+        observeSubtitle()
         switch queue! {
         case .work(let queue): try! store.trackStarted(queue.tracks[index], of: queue.work)
         case .files(let files, let sourceName): try! store.recordFile(files[index], sourceName: sourceName)
@@ -404,6 +426,7 @@ final class PlaybackController {
         case nil:
             return
         }
+        observeSubtitle()
         DiagnosticLog.shared.write("player", "restore", ["remote": isRemote, "file": currentFile != nil, "positionMs": positionMs])
         if isRemote {
             needsLoad = true

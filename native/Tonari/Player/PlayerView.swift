@@ -16,7 +16,6 @@ struct PlayerView: View {
     @Environment(\.appDatabase) private var database
     @Environment(\.dismiss) private var dismiss
     @State private var panel: Panel?
-    @State private var subtitle: Subtitle?
     @State private var showingSleep = false
     @Namespace private var artworkSpace
 
@@ -33,7 +32,7 @@ struct PlayerView: View {
                         compactHeader.padding(.top, 20)
                         Group {
                             switch panel {
-                            case .lyrics: LyricsPanel(subtitle: subtitle)
+                            case .lyrics: LyricsPanel(subtitle: player.currentSubtitle)
                             case .queue: QueuePanel(showingSleep: $showingSleep)
                             }
                         }
@@ -67,13 +66,6 @@ struct PlayerView: View {
         .preferredColorScheme(.dark)
         .sheet(isPresented: $showingSleep) { SleepTimerSheet() }
         .onChange(of: player.hasCurrent) { _, hasCurrent in if !hasCurrent { dismiss() } }
-        .task(id: player.currentTrack?.id) {
-            guard let trackId = player.currentTrack?.id else {
-                subtitle = nil
-                return
-            }
-            await database.observe({ db in try Subtitle.fetchOne(db, key: trackId) }) { subtitle = $0 }
-        }
     }
 
     /// Apple Music's dark, frosted grey tinted by the cover.
@@ -123,7 +115,7 @@ struct PlayerView: View {
                 ForEach(Self.rates, id: \.self) { Text("\($0.formatted())x") }
             }
             .pickerStyle(.menu)
-            if let subtitle {
+            if let subtitle = player.currentSubtitle {
                 if SubtitlePiP.isSupported {
                     if player.pip.isActive {
                         Button("关闭画中画字幕", systemImage: "pip.exit") { player.pip.stop() }
@@ -157,7 +149,7 @@ struct PlayerView: View {
     }
 
     private func shiftSubtitle(by delta: Int) {
-        try! PlaybackStore(database: database).shiftSubtitle(of: subtitle!.trackId, byMs: delta)
+        try! PlaybackStore(database: database).shiftSubtitle(of: player.currentSubtitle!.trackId, byMs: delta)
     }
 
     static func offsetText(_ ms: Int) -> String {
@@ -192,7 +184,7 @@ struct PlayerView: View {
     private var bottomBar: some View {
         HStack(alignment: .top) {
             panelButton(.lyrics, title: "字幕", symbol: "quote.bubble")
-                .disabled(subtitle == nil)
+                .disabled(player.currentSubtitle == nil)
             Spacer()
             RouteButton()
             Spacer()

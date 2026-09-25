@@ -2,24 +2,56 @@ import SwiftUI
 import TonariCore
 
 /// Sits above the tab bar; when the tab bar minimizes on scroll it moves
-/// inline beside it and drops to title plus play button.
+/// inline beside it and drops to a single line plus the play button. The
+/// second line follows the subtitle, standing in for a floating caption.
+/// Swipe sideways to change track; long-press for the player's options.
 struct MiniPlayer: View {
     @Environment(PlaybackController.self) private var player
     @Environment(AppModel.self) private var model
     @Environment(\.tabViewBottomAccessoryPlacement) private var placement
+    @State private var showingSleep = false
+    @State private var dragX: CGFloat = 0
 
     var body: some View {
-        HStack(spacing: 10) {
+        let line = player.currentLine
+        HStack(spacing: 0) {
             PlayerArtwork(path: player.work?.mainImageLocalPath, cornerRadius: 6)
                 .frame(width: 34, height: 34)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(player.title).font(.subheadline.weight(.medium)).lineLimit(1)
-                if placement != .inline {
-                    Text(player.subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            GeometryReader { proxy in
+                let width = proxy.size.width
+                ZStack(alignment: .leading) {
+                    labels(title: player.title, detail: line ?? player.subtitle, inline: line)
+                        .offset(x: dragX)
+                    // The neighbouring track slides in from the side being revealed.
+                    if dragX < 0, player.hasNext {
+                        labels(title: player.title(at: player.index + 1), detail: player.subtitle, inline: nil)
+                            .offset(x: dragX + width)
+                    } else if dragX > 0, player.hasPrevious {
+                        labels(title: player.title(at: player.index - 1), detail: player.subtitle, inline: nil)
+                            .offset(x: dragX - width)
+                    }
+                }
+                .frame(width: width, height: proxy.size.height, alignment: .leading)
+                .gesture(swipe(width: width))
+            }
+            .frame(height: 36)
+            // As in Apple Music, text slides right up to the cover and the
+            // buttons and fades out there; the fade covers only the inset,
+            // so text at rest stays fully opaque.
+            .mask {
+                HStack(spacing: 0) {
+                    LinearGradient(colors: [.clear, .black], startPoint: .leading, endPoint: .trailing).frame(width: Self.inset)
+                    Color.black
+                    LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing).frame(width: Self.inset)
                 }
             }
-            Spacer(minLength: 0)
-            ProgressRingButton()
+            .animation(.easeInOut(duration: 0.2), value: line)
+            if player.sleep.isActive {
+                Image(systemName: "moon.fill").font(.caption).foregroundStyle(.secondary).padding(.trailing, 6)
+            }
+            PlayPauseButton()
+                .font(.body)
+                .frame(width: 32, height: 36)
             if placement != .inline {
                 Button("下一首", systemImage: "forward.fill", action: player.next)
                     .labelStyle(.iconOnly)
@@ -31,7 +63,77 @@ struct MiniPlayer: View {
         .padding(.horizontal, 12)
         .contentShape(.rect)
         .onTapGesture { model.showingPlayer = true }
+        .contextMenu { menu }
         .tint(.primary)
+        .sheet(isPresented: $showingSleep) { SleepTimerSheet() }
+    }
+
+    private static let inset: CGFloat = 10
+
+    /// Inline, a single line: the subtitle when there is one, else the title.
+    @ViewBuilder private func labels(title: String, detail: String, inline: String?) -> some View {
+        Group {
+            if placement == .inline {
+                Text(inline ?? title).font(.subheadline.weight(.medium)).lineLimit(1)
+            } else {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(title).font(.subheadline.weight(.medium)).lineLimit(1)
+                    Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                        .contentTransition(.opacity)
+                }
+            }
+        }
+        .padding(.horizontal, Self.inset)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Follows the finger; past a third of the width the neighbour slides
+    /// the rest of the way in and becomes the current track.
+    private func swipe(width: CGFloat) -> some Gesture {
+        DragGesture(minimumDistance: 16)
+            .onChanged { value in
+                guard abs(value.translation.width) > abs(value.translation.height) else { return }
+                let dx = value.translation.width
+                // Resist where there is no track to reveal.
+                dragX = (dx < 0 && !player.hasNext) || (dx > 0 && !player.hasPrevious) ? dx * 0.2 : dx
+            }
+            .onEnded { value in
+                let dx = value.translation.width
+                let forward = dx < 0 && player.hasNext
+                let backward = dx > 0 && player.hasPrevious
+                guard abs(dx) > width / 3, forward || backward else {
+                    withAnimation(.spring(duration: 0.3)) { dragX = 0 }
+                    return
+                }
+                withAnimation(.easeOut(duration: 0.2)) {
+                    dragX = forward ? -width : width
+                } completion: {
+                    if forward { player.next() } else { player.previous() }
+                    dragX = 0
+                }
+            }
+    }
+
+    @ViewBuilder private var menu: some View {
+        Button(player.sleep.isActive ? "睡眠定时 · \(player.sleep.statusText ?? "")" : "睡眠定时", systemImage: "moon.zzz") {
+            showingSleep = true
+        }
+        Picker(selection: Binding(get: { player.rate }, set: { player.setRate($0) })) {
+            ForEach(PlayerView.rates, id: \.self) { Text("\($0.formatted())x") }
+        } label: {
+            Label("播放速度 · \(player.rate.formatted())x", systemImage: "gauge.with.dots.needle.67percent")
+        }
+        .pickerStyle(.menu)
+        if player.currentSubtitle != nil, SubtitlePiP.isSupported {
+            if player.pip.isActive {
+                Button("关闭画中画字幕", systemImage: "pip.exit") { player.pip.stop() }
+            } else {
+                Button("画中画字幕", systemImage: "pip.enter") { player.startSubtitlePiP() }
+            }
+        }
+        if let work = player.work {
+            Button("查看作品", systemImage: "info.circle") { model.openWork(work.productId) }
+        }
     }
 }
 
@@ -46,24 +148,6 @@ struct PlayPauseButton: View {
                 .labelStyle(.iconOnly)
                 .contentTransition(.symbolEffect(.replace))
         }
-    }
-}
-
-/// Play button ringed by the track's progress, as in Podcasts.
-private struct ProgressRingButton: View {
-    @Environment(PlaybackController.self) private var player
-
-    var body: some View {
-        let fraction = player.durationMs > 0 ? Double(player.positionMs) / Double(player.durationMs) : 0
-        ZStack {
-            Circle().stroke(.quaternary, lineWidth: 2.5)
-            Circle()
-                .trim(from: 0, to: min(1, max(0, fraction)))
-                .stroke(.primary, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
-                .rotationEffect(.degrees(-90))
-            PlayPauseButton().font(.footnote)
-        }
-        .frame(width: 32, height: 32)
     }
 }
 
