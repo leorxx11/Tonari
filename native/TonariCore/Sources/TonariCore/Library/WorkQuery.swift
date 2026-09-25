@@ -175,6 +175,11 @@ public enum WorkQueries {
         return Dictionary(uniqueKeysWithValues: rows.map { ($0["work_id"], $0["total"] ?? 0) })
     }
 
+    public static func trackCounts(_ db: Database) throws -> [String: Int] {
+        let rows = try Row.fetchAll(db, sql: "SELECT work_id, COUNT(*) AS count FROM tracks GROUP BY work_id")
+        return Dictionary(uniqueKeysWithValues: rows.map { ($0["work_id"], $0["count"]) })
+    }
+
     /// Picks from the whole audio library, ignoring the library's filters.
     public static func random(_ db: Database) throws -> Work? {
         try Work.filter(Column("is_removed") == false).order(sql: "RANDOM()").fetchOne(db)

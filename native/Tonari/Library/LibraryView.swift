@@ -6,7 +6,7 @@ struct LibraryView: View {
     @Environment(EnrichmentQueue.self) private var enrichment
     @Environment(\.appDatabase) private var database
     @State private var works: [Work] = []
-    @State private var durations: [String: Int] = [:]
+    @State private var trackCounts: [String: Int] = [:]
     @State private var remoteIds: Set<String> = []
     @State private var libraryEmpty = false
     @State private var pickingFolder = false
@@ -17,7 +17,7 @@ struct LibraryView: View {
             Group {
                 switch model.libraryKind {
                 case .audio:
-                    WorkCollectionView(works: works, durations: durations, remoteIds: remoteIds)
+                    WorkCollectionView(works: works, trackCounts: trackCounts, remoteIds: remoteIds)
                         .overlay { emptyState }
                 case .video:
                     VideoListView()
@@ -39,9 +39,9 @@ struct LibraryView: View {
         }
         .task {
             await database.observe({ db in
-                (try WorkQueries.durations(db), try WorkQueries.remoteFolderIds(db))
+                (try WorkQueries.trackCounts(db), try WorkQueries.remoteFolderIds(db))
             }) {
-                durations = $0.0
+                trackCounts = $0.0
                 remoteIds = $0.1
             }
         }
@@ -149,54 +149,63 @@ struct LibraryView: View {
     }
 }
 
-/// Works in the chosen layout: full-width cards, a two-column grid or
-/// compact rows.
+/// Works in the chosen layout: a cover grid, compact rows or one full-width
+/// cover per row.
 struct WorkCollectionView: View {
     let works: [Work]
-    let durations: [String: Int]
+    let trackCounts: [String: Int]
     let remoteIds: Set<String>
 
     @Environment(AppModel.self) private var model
+    @Environment(\.appDatabase) private var database
 
     var body: some View {
         switch model.viewMode {
+        case .grid:
+            ScrollView {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 14)], spacing: 18) {
+                    ForEach(works) { work in
+                        link(work) { WorkGridCell(work: work, isRemote: isRemote(work)) }
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+            }
         case .list:
             List(works) { work in
                 NavigationLink(value: Route.work(work.productId)) {
-                    WorkRow(work: work, durationMs: durations[work.productId])
+                    WorkListRow(work: work, isRemote: isRemote(work), trackCount: trackCounts[work.productId] ?? 0)
                 }
-                .workContextMenu(work)
+                .navigationLinkIndicatorVisibility(.hidden)
+                .workContextMenu(work, trackCount: trackCounts[work.productId] ?? 0)
+                .swipeActions(edge: .leading) {
+                    Button(work.isFavorite ? "取消收藏" : "收藏", systemImage: work.isFavorite ? "heart.slash" : "heart") {
+                        try! database.setFavorite(work.productId, !work.isFavorite)
+                    }
+                    .tint(.pink)
+                }
+                .swipeActions(edge: .trailing) {
+                    Button("移除", systemImage: "trash", role: .destructive) { model.removingWork = work }
+                }
             }
             .listStyle(.plain)
-        case .grid:
+        case .cover:
             ScrollView {
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
+                LazyVStack(spacing: 24) {
                     ForEach(works) { work in
-                        NavigationLink(value: Route.work(work.productId)) {
-                            WorkGridCell(work: work, isRemote: isRemote(work), durationMs: durations[work.productId])
-                        }
-                        .buttonStyle(.plain)
-                        .workContextMenu(work)
+                        link(work) { WorkCoverCell(work: work, isRemote: isRemote(work)) }
                     }
                 }
-                .padding(12)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
             }
-            .background(Color(.systemGroupedBackground))
-        case .card:
-            ScrollView {
-                LazyVStack(spacing: 14) {
-                    ForEach(works) { work in
-                        NavigationLink(value: Route.work(work.productId)) {
-                            WorkCard(work: work, isRemote: isRemote(work), durationMs: durations[work.productId])
-                        }
-                        .buttonStyle(.plain)
-                        .workContextMenu(work)
-                    }
-                }
-                .padding(12)
-            }
-            .background(Color(.systemGroupedBackground))
         }
+    }
+
+    private func link(_ work: Work, @ViewBuilder label: () -> some View) -> some View {
+        NavigationLink(value: Route.work(work.productId), label: label)
+            .buttonStyle(.plain)
+            .workContextMenu(work, trackCount: trackCounts[work.productId] ?? 0)
     }
 
     private func isRemote(_ work: Work) -> Bool {

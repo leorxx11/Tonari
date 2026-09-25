@@ -36,21 +36,21 @@ final class AppModel {
     }
 
     enum ViewMode: String, CaseIterable {
-        case card, grid, list
+        case grid, list, cover
 
         var label: String {
             switch self {
-            case .card: "大卡片"
             case .grid: "网格"
             case .list: "列表"
+            case .cover: "大封面"
             }
         }
 
         var systemImage: String {
             switch self {
-            case .card: "rectangle.grid.1x2"
             case .grid: "square.grid.2x2"
             case .list: "list.bullet"
+            case .cover: "rectangle.grid.1x2"
             }
         }
     }
@@ -82,7 +82,7 @@ final class AppModel {
     init() {
         let defaults = UserDefaults.standard
         sort = WorkSort(preference: defaults.string(forKey: WorkSort.preferenceKey))
-        viewMode = ViewMode(rawValue: defaults.string(forKey: Self.viewModeKey) ?? "") ?? .card
+        viewMode = ViewMode(rawValue: defaults.string(forKey: Self.viewModeKey) ?? "") ?? .grid
     }
 
     /// Opens 115 where the user left off, or its login when signed out.

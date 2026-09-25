@@ -29,10 +29,10 @@ struct CollectionDetailView: View {
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
                     ForEach(works) { work in
                         NavigationLink(value: Route.work(work.productId)) {
-                            WorkGridCell(work: work, isRemote: false, durationMs: nil)
+                            WorkGridCell(work: work, isRemote: false)
                         }
                         .buttonStyle(.plain)
-                        .workContextMenu(work, removeFromCollection: collectionId.map { id in
+                        .workContextMenu(work, trackCount: nil, removeFromCollection: collectionId.map { id in
                             { try! database.setMembership(work: work.productId, collection: id, member: false) }
                         })
                     }

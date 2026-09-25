@@ -1,63 +1,46 @@
 import SwiftUI
 import TonariCore
 
-/// DLsite cover (4:3) with the RJ number, release date, cloud badge and a
-/// favorite toggle laid over its corners.
+/// DLsite cover at its 4:3 ratio, with a small cloud for 115 works and a
+/// heart for favorites in the corner.
 struct WorkCover: View {
     let work: Work
     let isRemote: Bool
-    var compact = false
-
-    @Environment(\.appDatabase) private var database
+    var cornerRadius: CGFloat = 8
 
     var body: some View {
         LocalImage(path: work.mainImageLocalPath)
             .aspectRatio(4 / 3, contentMode: .fit)
-            .overlay(alignment: .topLeading) {
-                Pill(text: work.productId).padding(6)
-            }
+            .clipShape(.rect(cornerRadius: cornerRadius))
             .overlay(alignment: .bottomTrailing) {
-                if let date = work.releaseDate, !compact {
-                    Pill(text: Formatting.date(date)).padding(6)
+                if isRemote || work.isFavorite {
+                    HStack(spacing: 4) {
+                        if isRemote { Image(systemName: "icloud.fill") }
+                        if work.isFavorite { Image(systemName: "heart.fill") }
+                    }
+                    .font(.caption2)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 4)
+                    .background(.black.opacity(0.45), in: .capsule)
+                    .padding(6)
                 }
-            }
-            .overlay(alignment: .bottomLeading) {
-                if isRemote {
-                    Image(systemName: "icloud.fill")
-                        .font(.caption2)
-                        .foregroundStyle(.white)
-                        .padding(5)
-                        .background(.black.opacity(0.55), in: .circle)
-                        .padding(6)
-                }
-            }
-            .overlay(alignment: .topTrailing) {
-                Button {
-                    try! database.setFavorite(work.productId, !work.isFavorite)
-                } label: {
-                    Image(systemName: work.isFavorite ? "heart.fill" : "heart")
-                        .font(.footnote.bold())
-                        .foregroundStyle(work.isFavorite ? .pink : .white)
-                        .frame(width: 30, height: 30)
-                        .background(.black.opacity(0.4), in: .circle)
-                }
-                .buttonStyle(.plain)
-                .padding(4)
-                .accessibilityLabel(work.isFavorite ? "取消收藏" : "添加收藏")
             }
     }
 }
 
-struct Pill: View {
-    let text: String
+extension Work {
+    /// Up to two voice actors, the circle when none are known.
+    var castLine: String? {
+        guard !voiceActors.isEmpty else { return circleName }
+        let names = voiceActors.prefix(2).joined(separator: "、")
+        return voiceActors.count > 2 ? names + " 等" : names
+    }
 
-    var body: some View {
-        Text(text)
-            .font(.caption2.monospacedDigit().weight(.medium))
-            .foregroundStyle(.white)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(.black.opacity(0.55), in: .capsule)
+    /// Voice actors · circle, then any extras, skipping what's unknown.
+    func creditLine(_ extras: String?...) -> String {
+        ([voiceActors.isEmpty ? nil : voiceActors.joined(separator: "、"), circleName] + extras)
+            .compactMap(\.self).joined(separator: " · ")
     }
 }
 
@@ -74,32 +57,6 @@ struct RatingStars: View {
         }
         .font(.system(size: size))
         .foregroundStyle(.orange)
-    }
-}
-
-/// Rating · review count · total length, whichever are known.
-struct WorkMetaLine: View {
-    let work: Work
-    let durationMs: Int?
-
-    var body: some View {
-        HStack(spacing: 6) {
-            if let rating = work.rating, rating > 0 {
-                RatingStars(rating: rating)
-                Text(rating.formatted(.number.precision(.fractionLength(0...1))))
-                    .foregroundStyle(.orange)
-                if let count = work.ratingCount {
-                    Text("(\(count))").foregroundStyle(.secondary)
-                }
-            }
-            if let durationMs, durationMs > 0 {
-                Label(Formatting.hours(ms: durationMs), systemImage: "clock")
-                    .labelStyle(.titleAndIcon)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .font(.caption)
-        .lineLimit(1)
     }
 }
 
@@ -148,125 +105,138 @@ struct ChipButtonStyle: ButtonStyle {
     }
 }
 
-struct WorkCard: View {
-    let work: Work
-    let isRemote: Bool
-    let durationMs: Int?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            WorkCover(work: work, isRemote: isRemote)
-            VStack(alignment: .leading, spacing: 8) {
-                Text(work.displayTitle)
-                    .font(.headline)
-                    .lineLimit(3)
-                    .multilineTextAlignment(.leading)
-                if let circle = work.circleName {
-                    Text(circle).font(.subheadline).foregroundStyle(.tint)
-                }
-                WorkMetaLine(work: work, durationMs: durationMs)
-                if work.currentPrice != nil || work.dlCount != nil {
-                    HStack(spacing: 12) {
-                        if let price = work.currentPrice ?? work.officialPrice {
-                            Text("\(price) JPY").foregroundStyle(.red).fontWeight(.semibold)
-                        }
-                        if let sales = work.dlCount {
-                            Text("销量 \(Formatting.count(sales))").foregroundStyle(.secondary)
-                        }
-                    }
-                    .font(.subheadline)
-                }
-                WorkChipsView(work: work, limit: 12)
-            }
-            .padding(12)
-        }
-        .background(Color(.secondarySystemGroupedBackground), in: .rect(cornerRadius: 12))
-        .clipShape(.rect(cornerRadius: 12))
-        .shadow(color: .black.opacity(0.06), radius: 6, y: 2)
-    }
-}
-
 struct WorkGridCell: View {
     let work: Work
     let isRemote: Bool
-    let durationMs: Int?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            WorkCover(work: work, isRemote: isRemote, compact: true)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(work.displayTitle)
-                    .font(.subheadline.weight(.medium))
-                    .lineLimit(2, reservesSpace: true)
-                    .multilineTextAlignment(.leading)
-                Text(work.circleName ?? " ")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                WorkMetaLine(work: work, durationMs: durationMs)
-            }
-            .padding(8)
+        VStack(alignment: .leading, spacing: 2) {
+            WorkCover(work: work, isRemote: isRemote)
+                .padding(.bottom, 4)
+            Text(work.displayTitle)
+                .font(.subheadline)
+                .lineLimit(1)
+            Text(work.castLine ?? " ")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
         }
-        .background(Color(.secondarySystemGroupedBackground), in: .rect(cornerRadius: 10))
-        .clipShape(.rect(cornerRadius: 10))
-        .shadow(color: .black.opacity(0.06), radius: 4, y: 1)
+        .contentShape(.rect)
     }
 }
 
-struct WorkRow: View {
+struct WorkListRow: View {
     let work: Work
-    let durationMs: Int?
+    let isRemote: Bool
+    let trackCount: Int
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(spacing: 12) {
             LocalImage(path: work.mainImageLocalPath)
-                .frame(width: 88, height: 66)
+                .frame(width: 64, height: 48)
                 .clipShape(.rect(cornerRadius: 6))
-            VStack(alignment: .leading, spacing: 3) {
-                Text(work.displayTitle).font(.subheadline.weight(.medium)).lineLimit(2)
-                Text([work.productId, work.circleName].compactMap(\.self).joined(separator: " · "))
-                    .font(.caption)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(work.displayTitle).lineLimit(1)
+                Text(work.creditLine())
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
-                if !work.voiceActors.isEmpty {
-                    Text(work.voiceActors.joined(separator: "、"))
-                        .font(.caption)
-                        .foregroundStyle(.teal)
-                        .lineLimit(1)
-                }
-                WorkMetaLine(work: work, durationMs: durationMs)
             }
+            Spacer(minLength: 0)
+            HStack(spacing: 4) {
+                if work.isFavorite { Image(systemName: "heart.fill").foregroundStyle(.pink) }
+                if isRemote { Image(systemName: "icloud").foregroundStyle(.secondary) }
+            }
+            .font(.caption)
+            Text("\(trackCount) 首")
+                .font(.subheadline.monospacedDigit())
+                .foregroundStyle(.secondary)
         }
-        .padding(.vertical, 2)
+    }
+}
+
+/// One work to a row with the cover at full width; replaces the old card.
+struct WorkCoverCell: View {
+    let work: Work
+    let isRemote: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            WorkCover(work: work, isRemote: isRemote, cornerRadius: 12)
+                .padding(.bottom, 6)
+            Text(work.displayTitle)
+                .font(.headline)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+            Text(work.creditLine(work.releaseDate.map(Formatting.date)))
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+        .contentShape(.rect)
     }
 }
 
 extension View {
-    /// Long-press menu shared by every place a work is listed.
-    func workContextMenu(_ work: Work, removeFromCollection: (() -> Void)? = nil) -> some View {
-        modifier(WorkContextMenu(work: work, removeFromCollection: removeFromCollection))
+    /// Long-press preview and menu shared by every place a work is listed.
+    /// Without a track count the play action is left out.
+    func workContextMenu(_ work: Work, trackCount: Int?, removeFromCollection: (() -> Void)? = nil) -> some View {
+        modifier(WorkContextMenu(work: work, trackCount: trackCount, removeFromCollection: removeFromCollection))
     }
 }
 
 private struct WorkContextMenu: ViewModifier {
     let work: Work
+    let trackCount: Int?
     let removeFromCollection: (() -> Void)?
 
     @Environment(AppModel.self) private var model
+    @Environment(PlaybackController.self) private var player
     @Environment(\.appDatabase) private var database
 
     func body(content: Content) -> some View {
         content.contextMenu {
+            if let trackCount, trackCount > 0 {
+                Button("播放", systemImage: "play.fill", action: play)
+            }
             Button(work.isFavorite ? "取消收藏" : "添加收藏", systemImage: work.isFavorite ? "heart.slash" : "heart") {
                 try! database.setFavorite(work.productId, !work.isFavorite)
             }
             Button("加入分组…", systemImage: "folder.badge.plus") {
                 model.collectionPickerWork = work
             }
+            Button("重新扫描", systemImage: "arrow.clockwise", action: rescan)
+                .disabled(model.tasks.isBusy)
             if let removeFromCollection {
                 Button("移出分组", systemImage: "folder.badge.minus", role: .destructive, action: removeFromCollection)
             } else {
                 Button("移除作品", systemImage: "trash", role: .destructive) { model.removingWork = work }
+            }
+        } preview: {
+            VStack(alignment: .leading, spacing: 4) {
+                WorkCover(work: work, isRemote: false, cornerRadius: 0)
+                Group {
+                    Text(work.displayTitle).font(.headline).lineLimit(2)
+                    Text(work.creditLine()).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                }
+                .padding(.horizontal, 12)
+            }
+            .padding(.bottom, 12)
+            .frame(width: 320)
+        }
+    }
+
+    /// Picks up at the track last played, from its start.
+    private func play() {
+        let queue = try! PlaybackStore(database: database).queue(for: work.productId)
+        player.play(queue, at: queue.tracks.firstIndex { $0.id == work.lastPlayedTrackId } ?? 0)
+    }
+
+    private func rescan() {
+        Task {
+            await model.tasks.run("重新扫描作品", detail: work.productId) {
+                let summary = try await model.reimport(work, database: database)
+                return "作品已重新扫描：\(summary.tracksTotal) 个音轨"
             }
         }
     }

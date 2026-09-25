@@ -279,11 +279,11 @@ struct ChipWorksView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.appDatabase) private var database
     @State private var works: [Work] = []
-    @State private var durations: [String: Int] = [:]
+    @State private var trackCounts: [String: Int] = [:]
     @State private var remoteIds: Set<String> = []
 
     var body: some View {
-        WorkCollectionView(works: works, durations: durations, remoteIds: remoteIds)
+        WorkCollectionView(works: works, trackCounts: trackCounts, remoteIds: remoteIds)
             .navigationTitle(chip.value)
             .navigationSubtitle("\(chip.kind.label) · \(works.count) 部作品")
             .navigationBarTitleDisplayMode(.inline)
@@ -293,12 +293,12 @@ struct ChipWorksView: View {
                 await database.observe({ db in
                     (
                         try request.fetchAll(db).filter { chip.matches($0) },
-                        try WorkQueries.durations(db),
+                        try WorkQueries.trackCounts(db),
                         try WorkQueries.remoteFolderIds(db)
                     )
                 }) {
                     works = $0.0
-                    durations = $0.1
+                    trackCounts = $0.1
                     remoteIds = $0.2
                 }
             }
