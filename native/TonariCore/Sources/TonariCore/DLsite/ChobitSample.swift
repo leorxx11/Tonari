@@ -15,6 +15,10 @@ public struct ChobitSample: Codable, Sendable, Equatable {
 
     public let tracks: [Track]
 
+    public init(tracks: [Track]) {
+        self.tracks = tracks
+    }
+
     /// Nil when the work has no audio preview (none at all, or a video one).
     /// Translation editions share the original's preview.
     public static func fetch(_ productId: String, get: @Sendable (URL) async throws -> Data) async throws -> ChobitSample? {

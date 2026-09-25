@@ -2,7 +2,7 @@ import Foundation
 import SwiftSoup
 
 /// Which DLsite storefront to browse: the adult floor or the all-ages one.
-public enum DLsiteFloor: String, CaseIterable, Sendable {
+public enum DLsiteFloor: String, Codable, CaseIterable, Sendable {
     case maniax, home
 
     public var label: String {
@@ -55,7 +55,7 @@ public enum CatalogSort: String, CaseIterable, Sendable, Hashable {
 
 /// The lists the discover tab reads. Voice works only.
 public enum CatalogQuery: Sendable, Hashable {
-    public enum Term: String, CaseIterable, Sendable {
+    public enum Term: String, Codable, CaseIterable, Sendable {
         case day, week, month
 
         public var label: String {

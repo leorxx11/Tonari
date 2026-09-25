@@ -129,6 +129,14 @@ struct MetadataEnrichmentTests {
         var count: Int { lock.withLock { urls.count } }
     }
 
+    @Test func statsRefreshKeepsTheRest() async throws {
+        var work = Work.shell("RJ01560714", folderPath: "", folderId: nil, at: .now)
+        work.title = "旧标题"
+        let refreshed = try await service(try AppDatabase.inMemory(), downloads: Downloads()).refreshStats(of: work)
+        #expect(refreshed.title == "旧标题")
+        #expect(refreshed.currentPrice != nil && refreshed.dlCount != nil)
+    }
+
     @Test func previewLeavesTheLibraryAlone() async throws {
         let db = try AppDatabase.inMemory()
         let downloads = Downloads()

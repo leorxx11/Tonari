@@ -172,6 +172,14 @@ public actor MetadataEnrichment {
         return row
     }
 
+    /// A previewed work with fresh sales, rating and price, the only parts
+    /// that change often; one small request instead of the whole page.
+    public func refreshStats(of work: Work) async throws -> Work {
+        var row = work
+        Self.apply(try await fetchStats(work.productId), to: &row)
+        return row
+    }
+
     /// DLsite translation editions (e.g. 大家一起来翻译) have their own RJ but a
     /// sparse page: no sample gallery, often no cast or runtime. Fetch the
     /// original and merge.

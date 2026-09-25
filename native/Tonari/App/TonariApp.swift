@@ -139,6 +139,7 @@ struct RootView: View {
         } message: {
             Text("将清除该作品在 App 内的快照（音轨、文件、字幕），云盘/本地的原文件不受影响。重新导入可找回。")
         }
+        .task { await model.discover.refreshStale() }
         .task {
             await LocalImport(database: database).rescanFlaggedLocalWorks()
             await enrichment.runPending()

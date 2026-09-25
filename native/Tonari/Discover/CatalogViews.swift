@@ -5,6 +5,8 @@ import TonariCore
 /// can be reordered.
 struct CatalogListView: View {
     @State private var query: CatalogQuery
+    /// Shared with the discover tab's ranking picker.
+    @AppStorage("discover.rankingTerm") private var rankingTerm = CatalogQuery.Term.day
 
     init(query: CatalogQuery) {
         _query = State(initialValue: query)
@@ -16,6 +18,21 @@ struct CatalogListView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 if let sort = query.sort { CatalogSortMenu(sort: sort) { query = query.sorted($0) } }
+                if case .ranking(let term) = query {
+                    Menu {
+                        Picker("榜单", selection: Binding(get: { term }, set: { new in
+                            query = .ranking(new)
+                            rankingTerm = new
+                        })) {
+                            ForEach(CatalogQuery.Term.allCases, id: \.self) { Text($0.label) }
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text(term.label)
+                            Image(systemName: "chevron.down").font(.caption.weight(.semibold))
+                        }
+                    }
+                }
             }
     }
 }
@@ -83,7 +100,11 @@ private struct CatalogList: View {
                     if index == list.items.count - 1 { Task { await model.discover.loadMore(query, floor: floor) } }
                 }
             }
-            if list.loading {
+            if list.items.isEmpty && list.error == nil && (list.loading || list.pages == 0) {
+                ForEach(0..<8, id: \.self) { index in
+                    CatalogRowPlaceholder(rank: query.isPaged ? nil : index + 1)
+                }
+            } else if list.loading {
                 ProgressView().frame(maxWidth: .infinity).listRowSeparator(.hidden)
             }
         }
@@ -95,13 +116,13 @@ private struct CatalogList: View {
                 } description: {
                     Text(error)
                 } actions: {
-                    Button("重试") { Task { await model.discover.load(query, floor: floor, refresh: true) } }
+                    Button("重试") { Task { await model.discover.refresh(query, floor: floor) } }
                 }
             } else if !list.loading, list.pages > 0, list.items.isEmpty {
                 ContentUnavailableView("没有作品", systemImage: "tray")
             }
         }
-        .refreshable { await model.discover.load(query, floor: floor, refresh: true) }
+        .refreshable { await model.discover.refresh(query, floor: floor) }
         .task(id: QueryKey(query: query, floor: floor)) { await model.discover.load(query, floor: floor) }
         .task { await database.observe(LibraryIds.fetch) { owned = $0 } }
     }
@@ -134,21 +155,20 @@ struct CatalogRow: View {
                     .frame(width: 28)
             }
             RemoteCover(url: item.coverURL).frame(width: 96)
+            // Every row the same height: two title lines reserved, the
+            // sales line always there.
             VStack(alignment: .leading, spacing: 3) {
-                Text(item.title).font(.subheadline.weight(.medium)).lineLimit(2)
+                Text(item.title).font(.subheadline.weight(.medium)).lineLimit(2, reservesSpace: true)
                 Text(item.creditLine).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 PriceLine(item: item)
-                if let sales = item.sales {
-                    HStack(spacing: 6) {
-                        Text("售出 \(Formatting.count(sales))")
-                        if owned { OwnedLabel() }
-                    }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                } else if owned {
-                    OwnedLabel().font(.caption)
+                HStack(spacing: 6) {
+                    Text(item.sales.map { "售出 \(Formatting.count($0))" } ?? " ")
+                    if owned { OwnedLabel() }
                 }
+                .font(.caption)
+                .foregroundStyle(.secondary)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.vertical, 2)
     }
@@ -186,12 +206,14 @@ struct CatalogTile: View {
     }
 }
 
+/// Price, and when discounted the list price struck through with the
+/// rate; a blank line when DLsite gave none, to keep rows even.
 struct PriceLine: View {
     let item: CatalogItem
 
     var body: some View {
-        if let price = item.price {
-            HStack(spacing: 5) {
+        HStack(spacing: 5) {
+            if let price = item.price {
                 Text("\(Formatting.count(price)) 円").foregroundStyle(.tint).fontWeight(.semibold)
                 if let discount = item.discountRate, let official = item.officialPrice {
                     Text("\(Formatting.count(official)) 円").strikethrough().foregroundStyle(.secondary)
@@ -201,10 +223,12 @@ struct PriceLine: View {
                         .padding(.horizontal, 4)
                         .background(.red, in: .rect(cornerRadius: 3))
                 }
+            } else {
+                Text(" ")
             }
-            .font(.caption)
-            .lineLimit(1)
         }
+        .font(.caption)
+        .lineLimit(1)
     }
 }
 
@@ -224,7 +248,7 @@ struct RemoteCover: View {
         Color(.secondarySystemBackground)
             .aspectRatio(4 / 3, contentMode: .fit)
             .overlay {
-                AsyncImage(url: url) { image in
+                RemoteImage(url: url) { image in
                     image.resizable().scaledToFill()
                 } placeholder: {
                     EmptyView()
@@ -238,5 +262,53 @@ extension CatalogItem {
     /// Circle · voice actors, whichever the list gave.
     var creditLine: String {
         ([circle].compactMap(\.self) + voiceActors.prefix(2)).joined(separator: " · ")
+    }
+}
+
+/// Stands where a row will be while its list loads, the same size, so
+/// nothing moves when the works arrive.
+struct CatalogRowPlaceholder: View {
+    let rank: Int?
+
+    var body: some View {
+        HStack(spacing: 12) {
+            if let rank {
+                Text("\(rank)").font(.headline.monospacedDigit()).foregroundStyle(.tertiary).frame(width: 28)
+            }
+            PlaceholderCover().frame(width: 96)
+            VStack(alignment: .leading, spacing: 3) {
+                Text("作品标题作品标题作品标题作品标题作品标题作品标题").font(.subheadline.weight(.medium)).lineLimit(2, reservesSpace: true)
+                Text("社团 · 声优").font(.caption)
+                Text("0,000 円").font(.caption)
+                Text("售出 0,000").font(.caption)
+            }
+            .redacted(reason: .placeholder)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.vertical, 2)
+    }
+}
+
+struct CatalogTilePlaceholder: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            PlaceholderCover().padding(.bottom, 4)
+            Group {
+                Text("作品标题作品标题").font(.subheadline)
+                Text("社团 · 声优").font(.caption)
+                Text("0,000 円").font(.caption)
+            }
+            .lineLimit(1)
+            .redacted(reason: .placeholder)
+        }
+        .frame(width: 150)
+    }
+}
+
+private struct PlaceholderCover: View {
+    var body: some View {
+        RoundedRectangle(cornerRadius: 8)
+            .fill(Color(.secondarySystemBackground))
+            .aspectRatio(4 / 3, contentMode: .fit)
     }
 }

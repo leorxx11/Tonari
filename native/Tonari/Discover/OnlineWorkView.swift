@@ -2,8 +2,10 @@ import SwiftUI
 import TonariCore
 
 /// A work read live from DLsite, laid out like the library's work page;
-/// nothing enters the library and images load over the network. A copy
-/// opened before shows at once while a fresh one loads. The description
+/// nothing enters the library and images load over the network. A work
+/// opened before shows from disk; after a day its sales, rating and price
+/// are fetched again (the rest hardly changes), and pull to refresh fetches
+/// everything. The description
 /// starts open: the page is one lazy stack with a row per paragraph, so a
 /// long description lays out only as it scrolls in. The chobit preview, if
 /// any, plays in the page.
@@ -52,6 +54,10 @@ struct OnlineWorkView: View {
         }
         .task { await load() }
         .onDisappear { samples.stop() }
+        // The preview and the app's players never sound together: starting
+        // the preview pauses them, and either of them starting ends it.
+        .onChange(of: player.isPlaying) { _, playing in if playing { samples.stop() } }
+        .onChange(of: video.isPlaying) { _, playing in if playing { samples.stop() } }
         .task {
             if model.wishlist.isSignedIn, model.wishlist.ids == nil { await model.wishlist.load(details: false) }
         }
@@ -68,15 +74,31 @@ struct OnlineWorkView: View {
         }
     }
 
-    /// The saved copy first, then the work and its preview fetched side by
-    /// side so the preview doesn't pop in after everything else.
+    static let statsStaleAfter: TimeInterval = 24 * 3600
+
     private func load() async {
         error = nil
-        if work == nil {
-            work = OnlineWorkCache.work(productId)
-            OnlineWorkCache.sample(productId).map(samples.load)
+        guard let cached = OnlineWorkCache.work(productId) else { return await reload() }
+        if work == nil { work = cached.work }
+        if let sample = OnlineWorkCache.sample(productId) {
+            samples.load(sample)
+        } else {
+            await loadSample()
         }
-        async let sample = fetchSample(productId)
+        guard Date.now.timeIntervalSince(cached.savedAt) > Self.statsStaleAfter else { return }
+        do {
+            let fresh = try await enrichment.service.refreshStats(of: cached.work)
+            work = fresh
+            OnlineWorkCache.save(fresh)
+        } catch {
+            DiagnosticLog.shared.write("discover", "stats_failed", ["productId": productId, "error": "\(error)"])
+        }
+    }
+
+    /// The whole work and its preview, fetched side by side so the preview
+    /// doesn't pop in after everything else.
+    private func reload() async {
+        async let sample: Void = loadSample()
         do {
             let fresh = try await enrichment.service.preview(productId)
             work = fresh
@@ -85,23 +107,26 @@ struct OnlineWorkView: View {
             DiagnosticLog.shared.write("discover", "work_failed", ["productId": productId, "error": "\(error)"])
             if work == nil { self.error = error.localizedDescription }
         }
-        // A translation edition's preview lives under the original.
-        var found = await sample
-        if found == nil, let original = work?.originalProductId { found = await fetchSample(original) }
-        if let found {
-            samples.load(found)
-            OnlineWorkCache.save(found, for: productId)
+        await sample
+    }
+
+    /// A translation edition's preview lives under the original. "None" is
+    /// kept too, so a work without one isn't asked again.
+    private func loadSample() async {
+        do {
+            var found = try await fetchSample(productId)
+            if found == nil, let original = work?.originalProductId { found = try await fetchSample(original) }
+            let sample = found ?? ChobitSample(tracks: [])
+            samples.load(sample)
+            OnlineWorkCache.save(sample, for: productId)
+        } catch {
+            DiagnosticLog.shared.write("discover", "sample_failed", ["productId": productId, "error": "\(error)"])
         }
     }
 
-    private nonisolated func fetchSample(_ workno: String) async -> ChobitSample? {
+    private nonisolated func fetchSample(_ workno: String) async throws -> ChobitSample? {
         let client = DLsiteClient()
-        do {
-            return try await ChobitSample.fetch(workno, get: { try await client.fetch($0) })
-        } catch {
-            DiagnosticLog.shared.write("discover", "sample_failed", ["productId": workno, "error": "\(error)"])
-            return nil
-        }
+        return try await ChobitSample.fetch(workno, get: { try await client.fetch($0) })
     }
 
     private func page(_ work: Work) -> some View {
@@ -139,7 +164,7 @@ struct OnlineWorkView: View {
                         case .heading(let text): Text(text).font(.subheadline.bold()).textSelection(.enabled)
                         case .paragraph(let text): Text(text).font(.subheadline).textSelection(.enabled)
                         case .image(let url):
-                            AsyncImage(url: url) { image in
+                            RemoteImage(url: url) { image in
                                 image.resizable().scaledToFit().clipShape(.rect(cornerRadius: 6))
                             } placeholder: {
                                 Color(.secondarySystemBackground).aspectRatio(16 / 10, contentMode: .fit)
@@ -151,6 +176,7 @@ struct OnlineWorkView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
         }
+        .refreshable { await reload() }
     }
 
     /// 待入库 · the DLsite wishlist · DLsite, where the library page has
@@ -259,7 +285,7 @@ struct OnlineWorkView: View {
         let urls = ([work.mainImageUrl].compactMap(\.self) + work.sampleImageUrls).compactMap(URL.init(string:))
         return TabView {
             ForEach(urls, id: \.self) { url in
-                AsyncImage(url: url) { image in
+                RemoteImage(url: url) { image in
                     image.resizable().scaledToFit()
                 } placeholder: {
                     ProgressView()

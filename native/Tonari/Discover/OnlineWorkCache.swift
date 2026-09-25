@@ -2,15 +2,19 @@ import Foundation
 import TonariCore
 
 /// Works read from DLsite and their chobit previews, a JSON file each under
-/// Caches, so a page opened before shows at once (and offline) while fresh
-/// copies load.
+/// Caches, so a page opened before shows at once and offline. A work's file
+/// date says when it was last brought up to date.
 enum OnlineWorkCache {
     nonisolated static let directory = URL.cachesDirectory.appending(path: "dlsite-works")
 
-    static func work(_ productId: String) -> Work? {
-        load(Work.self, "\(productId).json")
+    static func work(_ productId: String) -> (work: Work, savedAt: Date)? {
+        let name = "\(productId).json"
+        guard let work = load(Work.self, name) else { return nil }
+        let date = try! FileManager.default.attributesOfItem(atPath: directory.appending(path: name).path)[.modificationDate] as! Date
+        return (work, date)
     }
 
+    /// Nil when never looked up; no tracks when the work has no preview.
     static func sample(_ productId: String) -> ChobitSample? {
         load(ChobitSample.self, "\(productId).sample.json")
     }

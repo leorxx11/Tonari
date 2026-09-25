@@ -44,10 +44,14 @@ struct DiscoverView: View {
     }
 
     private func load(refresh: Bool) async {
-        async let ranking: Void = model.discover.load(.ranking(term), floor: floor, refresh: refresh)
-        async let popular: Void = model.discover.load(.all(.popular), floor: floor, refresh: refresh)
-        async let new: Void = model.discover.load(.newReleases, floor: floor, refresh: refresh)
-        async let sale: Void = model.discover.load(.onSale, floor: floor, refresh: refresh)
+        let store = model.discover
+        func run(_ query: CatalogQuery) async {
+            if refresh { await store.refresh(query, floor: floor) } else { await store.load(query, floor: floor) }
+        }
+        async let ranking: Void = run(.ranking(term))
+        async let popular: Void = run(.all(.popular))
+        async let new: Void = run(.newReleases)
+        async let sale: Void = run(.onSale)
         _ = await (ranking, popular, new, sale)
     }
 
@@ -74,17 +78,24 @@ struct DiscoverView: View {
             .pickerStyle(.segmented)
             .padding(.horizontal, 16)
             VStack(spacing: 0) {
-                ForEach(Array(list.items.prefix(Self.rankingPreview).enumerated()), id: \.element.id) { index, item in
-                    NavigationLink(value: Route.onlineWork(item.productId)) {
-                        CatalogRow(item: item, rank: index + 1, owned: owned.contains(item.productId)).contentShape(.rect)
+                ForEach(0..<Self.rankingPreview, id: \.self) { index in
+                    Group {
+                        if index < list.items.count {
+                            let item = list.items[index]
+                            NavigationLink(value: Route.onlineWork(item.productId)) {
+                                CatalogRow(item: item, rank: index + 1, owned: owned.contains(item.productId)).contentShape(.rect)
+                            }
+                            .buttonStyle(.plain)
+                        } else {
+                            CatalogRowPlaceholder(rank: index + 1)
+                        }
                     }
-                    .buttonStyle(.plain)
                     .padding(.vertical, 6)
-                    if index < min(list.items.count, Self.rankingPreview) - 1 { Divider().padding(.leading, 40) }
+                    if index < Self.rankingPreview - 1 { Divider().padding(.leading, 40) }
                 }
             }
             .padding(.horizontal, 16)
-            .overlay { status(list, query: .ranking(term)) }
+            .overlay { retry(list, query: .ranking(term)) }
         }
     }
 
@@ -94,28 +105,30 @@ struct DiscoverView: View {
             header(title, query: query)
             ScrollView(.horizontal) {
                 LazyHStack(alignment: .top, spacing: 12) {
-                    ForEach(list.items) { CatalogTile(item: $0, owned: owned.contains($0.productId)) }
+                    if list.items.isEmpty {
+                        ForEach(0..<3, id: \.self) { _ in CatalogTilePlaceholder() }
+                    } else {
+                        ForEach(list.items) { CatalogTile(item: $0, owned: owned.contains($0.productId)) }
+                    }
                 }
                 .scrollTargetLayout()
             }
             .scrollIndicators(.hidden)
             .scrollTargetBehavior(.viewAligned)
             .contentMargins(.horizontal, 16, for: .scrollContent)
-            .frame(minHeight: list.items.isEmpty ? 120 : nil)
-            .overlay { status(list, query: query) }
+            .scrollDisabled(list.items.isEmpty)
+            .overlay { retry(list, query: query) }
         }
     }
 
-    @ViewBuilder private func status(_ list: DiscoverStore.List, query: CatalogQuery) -> some View {
-        if list.items.isEmpty {
-            if list.loading {
-                ProgressView()
-            } else if list.error != nil {
-                Button("加载失败，点此重试", systemImage: "arrow.clockwise") {
-                    Task { await model.discover.load(query, floor: floor, refresh: true) }
-                }
-                .font(.subheadline)
+    /// Over the placeholders of a list that failed to load.
+    @ViewBuilder private func retry(_ list: DiscoverStore.List, query: CatalogQuery) -> some View {
+        if list.items.isEmpty, !list.loading, list.error != nil {
+            Button("加载失败，点此重试", systemImage: "arrow.clockwise") {
+                Task { await model.discover.refresh(query, floor: floor) }
             }
+            .font(.subheadline)
+            .buttonStyle(.bordered)
         }
     }
 }
