@@ -33,17 +33,23 @@ public final class AppDatabase: Sendable {
     }
 
     /// Continues Drift's `user_version` numbering: 0 is a fresh file, 17 is the
-    /// Flutter schema; native schema changes bump it from 18 on.
+    /// Flutter schema (a restored Flutter backup starts there); native schema
+    /// changes count up from 18.
     private func migrate() throws {
         try writer.write { db in
             if try Self.userVersion(db) == 0 {
                 for sql in Schema.tables {
                     try db.execute(sql: sql)
                 }
-                try db.execute(sql: "PRAGMA user_version = \(Schema.version)")
+                try db.execute(sql: "PRAGMA user_version = \(Schema.flutterVersion)")
             }
-            let version = try Self.userVersion(db)
-            precondition(version == Schema.version, "Unsupported database schema \(version)")
+            var version = try Self.userVersion(db)
+            precondition((Schema.flutterVersion...Schema.version).contains(version), "Unsupported database schema \(version)")
+            while version < Schema.version {
+                try db.execute(sql: Schema.migrations[version - Schema.flutterVersion])
+                version += 1
+                try db.execute(sql: "PRAGMA user_version = \(version)")
+            }
         }
     }
 

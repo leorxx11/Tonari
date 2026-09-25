@@ -1,9 +1,69 @@
 import SwiftUI
 import TonariCore
 
-/// A DLsite list as its own page: rankings with their numbers, the rest
-/// loading more as the end scrolls in.
+/// A DLsite list as its own page, with DLsite's sort menu when the list
+/// can be reordered.
 struct CatalogListView: View {
+    @State private var query: CatalogQuery
+
+    init(query: CatalogQuery) {
+        _query = State(initialValue: query)
+    }
+
+    var body: some View {
+        CatalogList(query: query)
+            .navigationTitle(query.title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                if let sort = query.sort { CatalogSortMenu(sort: sort) { query = query.sorted($0) } }
+            }
+    }
+}
+
+/// Searches DLsite (with the account's usual conditions) from the discover
+/// tab, apart from the library search.
+struct CatalogSearchView: View {
+    @State private var text = ""
+    @State private var query: CatalogQuery?
+    @State private var searching = true
+
+    var body: some View {
+        Group {
+            if let query {
+                CatalogList(query: query)
+            } else {
+                ContentUnavailableView("搜索 DLsite", systemImage: "magnifyingglass", description: Text("在音声・ASMR 里按标题、社团、声优、标签搜索"))
+            }
+        }
+        .searchable(text: $text, isPresented: $searching, prompt: "搜索 DLsite")
+        .onSubmit(of: .search) {
+            let keyword = text.trimmingCharacters(in: .whitespaces)
+            if !keyword.isEmpty { query = .search(keyword, query?.sort ?? .popular) }
+        }
+        .navigationTitle("搜索 DLsite")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if let query, let sort = query.sort { CatalogSortMenu(sort: sort) { self.query = query.sorted($0) } }
+        }
+    }
+}
+
+struct CatalogSortMenu: View {
+    let sort: CatalogSort
+    let pick: (CatalogSort) -> Void
+
+    var body: some View {
+        Menu("排序", systemImage: "arrow.up.arrow.down") {
+            Picker("排序", selection: Binding(get: { sort }, set: pick)) {
+                ForEach(CatalogSort.allCases, id: \.self) { Text($0.label) }
+            }
+        }
+    }
+}
+
+/// One DLsite list: rankings with their numbers, the rest loading more as
+/// the end scrolls in.
+private struct CatalogList: View {
     let query: CatalogQuery
 
     @Environment(AppModel.self) private var model
@@ -42,11 +102,14 @@ struct CatalogListView: View {
             }
         }
         .refreshable { await model.discover.load(query, floor: floor, refresh: true) }
-        .navigationTitle(query.title)
-        .navigationBarTitleDisplayMode(.inline)
-        .task(id: floor) { await model.discover.load(query, floor: floor) }
+        .task(id: QueryKey(query: query, floor: floor)) { await model.discover.load(query, floor: floor) }
         .task { await database.observe(LibraryIds.fetch) { owned = $0 } }
     }
+}
+
+private struct QueryKey: Hashable {
+    let query: CatalogQuery
+    let floor: DLsiteFloor
 }
 
 /// Product ids in the library, to mark what's already owned.

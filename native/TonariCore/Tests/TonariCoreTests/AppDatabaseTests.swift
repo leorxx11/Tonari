@@ -4,7 +4,7 @@ import Testing
 @testable import TonariCore
 
 struct AppDatabaseTests {
-    @Test func freshDatabaseGetsSchema17() throws {
+    @Test func freshDatabaseGetsTheLatestSchema() throws {
         let db = try AppDatabase.inMemory()
         let (version, tables) = try db.reader.read { db in
             (
@@ -12,12 +12,25 @@ struct AppDatabaseTests {
                 try String.fetchAll(db, sql: "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")
             )
         }
-        #expect(version == 17)
+        #expect(version == 18)
         #expect(tables == [
             "app_events", "collection_videos", "collection_works", "collections", "imported_folders",
             "listen_logs", "llm_providers", "play_history_entries", "subtitles", "tracks",
-            "video_items", "webdav_servers", "work_files", "works",
+            "video_items", "wanted_works", "webdav_servers", "work_files", "works",
         ])
+    }
+
+    @Test func flutterSchemaMigratesKeepingData() throws {
+        let queue = try DatabaseQueue(configuration: AppDatabase.configuration)
+        try queue.write { db in
+            for sql in Schema.tables { try db.execute(sql: sql) }
+            try db.execute(sql: "PRAGMA user_version = 17")
+            try Fixtures.work("RJ01000001").insert(db)
+        }
+        let (version, works, wanted) = try AppDatabase(queue).reader.read { db in
+            (try AppDatabase.userVersion(db), try Work.fetchCount(db), try db.tableExists("wanted_works"))
+        }
+        #expect(version == 18 && works == 1 && wanted)
     }
 
     @Test func reopeningKeepsData() throws {

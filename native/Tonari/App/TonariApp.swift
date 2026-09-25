@@ -16,6 +16,9 @@ struct TonariApp: App {
 
     init() {
         try! AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio)
+        // DLsite covers and samples load straight from the web; the default
+        // cache is too small to keep even one list's worth.
+        URLCache.shared = URLCache(memoryCapacity: 50_000_000, diskCapacity: 500_000_000)
         let documents = URL.documentsDirectory
         do {
             // Must run before the database opens: it may replace the file.
@@ -94,9 +97,7 @@ struct RootView: View {
             }
         }
         .background { SubtitlePiPHost(pip: player.pip).frame(width: 1, height: 1) }
-        .overlay(alignment: .top) {
-            NoticeBanner(notices: model.notices).animation(.snappy, value: model.notices.current)
-        }
+        .onAppear { NoticeWindow.install(model.notices) }
         .tabBarMinimizeBehavior(.onScrollDown)
         .tabViewBottomAccessory(isEnabled: nowPlaying.front == .video ? video.hasCurrent : player.hasCurrent) {
             MiniPlayer().matchedTransitionSource(id: "player", in: playerTransition)
@@ -120,7 +121,13 @@ struct RootView: View {
             Text(player.errorMessage ?? "")
         }
         .sheet(item: $model.collectionPicker) { CollectionPickerSheet(member: $0) }
-        .sheet(isPresented: $model.showingSettings) { SettingsView() }
+        .sheet(isPresented: $model.showingSettings) {
+            SettingsView().sheet(isPresented: $model.showingDLsiteLogin) { DLsiteLoginSheet() }
+        }
+        .sheet(isPresented: Binding(
+            get: { model.showingDLsiteLogin && !model.showingSettings },
+            set: { model.showingDLsiteLogin = $0 }
+        )) { DLsiteLoginSheet() }
         .alert(
             "从媒体库移除",
             isPresented: Binding(get: { model.removingWork != nil }, set: { if !$0 { model.removingWork = nil } })

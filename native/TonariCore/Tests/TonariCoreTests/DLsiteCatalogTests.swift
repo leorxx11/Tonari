@@ -33,11 +33,20 @@ struct DLsiteCatalogTests {
         #expect(first.sales != nil)
     }
 
-    @Test func searchURLsFilterVoiceWorks() {
+    @Test func searchURLsCarryTheAccountConditions() {
+        let base = "sex_category%5B0%5D/male/work_category%5B0%5D/doujin/work_type_category%5B0%5D/audio/options_and_or/or/options%5B0%5D/JPN/options%5B1%5D/CHI/options%5B2%5D/CHI_HANS/options%5B3%5D/CHI_HANT/options%5B4%5D/NM"
         #expect(DLsiteCatalog.searchURL(.onSale, floor: .maniax, page: 2).absoluteString
-            == "https://www.dlsite.com/maniax/fsr/ajax/=/work_type_category%5B0%5D/audio/campaign/campaign/order/trend/per_page/30/page/2")
+            == "https://www.dlsite.com/maniax/fsr/ajax/=/\(base)/campaign/campaign/order/trend/per_page/30/page/2")
         #expect(DLsiteCatalog.searchURL(.creator("天知遥"), floor: .home, page: 1).absoluteString
-            == "https://www.dlsite.com/home/fsr/ajax/=/work_type_category%5B0%5D/audio/keyword_creater/%22%E5%A4%A9%E7%9F%A5%E9%81%A5%22/order/trend/per_page/30/page/1")
+            == "https://www.dlsite.com/home/fsr/ajax/=/\(base)/keyword_creater/%22%E5%A4%A9%E7%9F%A5%E9%81%A5%22/order/trend/per_page/30/page/1")
+        #expect(DLsiteCatalog.searchURL(.search("耳 かき", .reviews), floor: .maniax, page: 1).absoluteString
+            == "https://www.dlsite.com/maniax/fsr/ajax/=/\(base)/keyword/%E8%80%B3%20%E3%81%8B%E3%81%8D/order/review_d/per_page/30/page/1")
+    }
+
+    @Test func sortingKeepsTheListButChangesTheOrder() {
+        #expect(CatalogQuery.all(.popular).sorted(.cheapest) == .all(.cheapest))
+        #expect(CatalogQuery.search("x", .popular).sorted(.rating).sort == .rating)
+        #expect(CatalogQuery.newReleases.sorted(.rating) == .newReleases)
     }
 
     @Test func pagesJoinListAndInfo() async throws {

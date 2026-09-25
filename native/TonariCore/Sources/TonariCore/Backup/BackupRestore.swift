@@ -42,8 +42,10 @@ public enum BackupRestore {
         guard manifest.formatVersion == formatVersion else {
             throw Invalid("不支持的备份格式版本 \(manifest.formatVersion)")
         }
-        guard manifest.schemaVersion == Schema.version else {
-            throw Invalid("备份的数据库版本是 \(manifest.schemaVersion)，需要 \(Schema.version)，请从最新的 Flutter 版重新导出")
+        guard (Schema.flutterVersion...Schema.version).contains(manifest.schemaVersion) else {
+            throw Invalid(manifest.schemaVersion > Schema.version
+                ? "备份来自更新版本的 Tonari（数据库版本 \(manifest.schemaVersion)），请先升级 App 再恢复"
+                : "备份的数据库版本是 \(manifest.schemaVersion)，太旧了，请从最新的 Flutter 版重新导出")
         }
         return manifest
     }

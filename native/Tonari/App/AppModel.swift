@@ -42,6 +42,10 @@ enum Route: Hashable {
     case catalog(CatalogQuery)
     /// A work read live from DLsite, in the library or not.
     case onlineWork(String)
+    /// The DLsite wishlist and the local 待入库 list.
+    case wishlist
+    case dlsiteAccount
+    case catalogSearch
 }
 
 /// App-wide navigation plus the library's filter and display preferences,
@@ -74,6 +78,7 @@ final class AppModel {
     var tab = AppTab.home
     var showingPlayer = false
     var showingSettings = false
+    var showingDLsiteLogin = false
     var showingVideo = false
     /// The work or video whose group membership sheet is showing.
     var collectionPicker: CollectionMember?
@@ -82,6 +87,7 @@ final class AppModel {
     let tasks: LibraryTasks
     let notices: Notices
     let discover = DiscoverStore()
+    let wishlist: WishlistStore
     var homePath = NavigationPath()
     var discoverPath = NavigationPath()
     var libraryPath = NavigationPath()
@@ -101,6 +107,7 @@ final class AppModel {
         let notices = Notices()
         self.notices = notices
         tasks = LibraryTasks(database: database, notices: notices)
+        wishlist = WishlistStore(database: database, notices: notices)
         let defaults = UserDefaults.standard
         sort = WorkSort(preference: defaults.string(forKey: WorkSort.preferenceKey))
         viewMode = ViewMode(rawValue: defaults.string(forKey: Self.viewModeKey) ?? "") ?? .grid
@@ -197,6 +204,9 @@ extension View {
             case .categories(let kind): CategoryBrowseView(kind: kind)
             case .catalog(let query): CatalogListView(query: query)
             case .onlineWork(let id): OnlineWorkView(productId: id)
+            case .wishlist: WishlistView()
+            case .dlsiteAccount: DLsiteAccountView()
+            case .catalogSearch: CatalogSearchView()
             }
         }
     }

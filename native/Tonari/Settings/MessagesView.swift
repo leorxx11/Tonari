@@ -81,6 +81,10 @@ struct MessagesView: View {
             Button("重新登录") { model.push(.p115Login) }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
+        case .dlsiteLogin:
+            Button("登录 DLsite") { model.showingDLsiteLogin = true }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
         }
     }
 }

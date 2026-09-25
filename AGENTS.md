@@ -43,6 +43,7 @@
 - 不做后端、账号、云同步。
 - 不做 Share Extension / Widget / Action Extension。
 - LLM 用途：作品标题、简介、曲目名翻译；不做字幕翻译，新用途先问。
+- DLsite 在线：发现（排行 / 人气 / 新作 / 特价 / 搜索，固定用户账号默认条件：男性向、同人、音声、日中文及无语言限制）、在线作品详情与 chobit 试听、DLsite 网页登录（只存 Cookie 与登录页 UA）、账号愿望单、本地待入库；不做购买。
 - 云存储：WebDAV 直连 + 115 网盘 cookie 扫码登录；115 OpenAPI、Alist 中间层已弃。
 - 远程作品走快照式导入，远程目录结构按“根目录 -> RJ 子目录”处理。
 
@@ -51,7 +52,7 @@
 - `native/Tonari.xcodeproj`：App target，`Tonari/` 为同步文件夹，加文件不改 `.pbxproj`；图标是 `Tonari/AppIcon.icon`（Icon Composer）。
 - `native/TonariCore/`：纯逻辑 SPM 包，可在 macOS 上 `swift test`。
 - `native/Packages/MDK/`：mdk 二进制 + Swift 封装。
-- 数据库沿用 Flutter 版 Drift schema：snake_case 列名、日期存 Unix 秒、字符串列表存 JSON 文本；备份格式与 Flutter 版互通。
+- 数据库沿用 Flutter 版 Drift schema（17）：snake_case 列名、日期存 Unix 秒、字符串列表存 JSON 文本；原生新增改动写成迁移（`Schema.migrations`，当前 18：`wanted_works`）。Flutter 版备份（17）可恢复进原生版并自动迁移，原生版备份 Flutter 版无法恢复。GRDB 查询条件里的 Date 会按文本绑定，与日期列比较要传 Unix 秒。
 - App target 默认 `@MainActor` 隔离（`SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`）。
 
 ## 开发与验收

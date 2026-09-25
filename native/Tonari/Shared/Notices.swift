@@ -51,3 +51,39 @@ struct NoticeBanner: View {
         }
     }
 }
+
+/// Hosts the banner in a window of its own above sheets and full-screen
+/// players, which cover anything drawn in the main window. Touches outside
+/// the banner fall through to the app.
+final class NoticeWindow: UIWindow {
+    private static var shared: NoticeWindow?
+
+    static func install(_ notices: Notices) {
+        guard shared == nil else { return }
+        let window = NoticeWindow(windowScene: UIApplication.shared.connectedScenes.first as! UIWindowScene)
+        window.windowLevel = .alert
+        let host = UIHostingController(rootView: NoticeHost(notices: notices))
+        host.view.backgroundColor = .clear
+        window.rootViewController = host
+        window.isHidden = false
+        shared = window
+    }
+
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        let view = super.hitTest(point, with: event)
+        return view === rootViewController?.view ? nil : view
+    }
+}
+
+private struct NoticeHost: View {
+    let notices: Notices
+    @AppStorage(Appearance.preferenceKey) private var appearance = Appearance.system
+
+    var body: some View {
+        Color.clear
+            .overlay(alignment: .top) {
+                NoticeBanner(notices: notices).animation(.snappy, value: notices.current)
+            }
+            .preferredColorScheme(appearance.colorScheme)
+    }
+}

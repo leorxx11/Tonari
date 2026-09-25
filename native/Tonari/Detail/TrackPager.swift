@@ -14,31 +14,10 @@ struct TrackPager: View {
     let reveal: (Track) -> Void
 
     @Environment(PlaybackController.self) private var player
-    @State private var column: Int?
-
-    private static let rows = 4
-    private static let rowHeight: CGFloat = 52
 
     var body: some View {
-        let columns = stride(from: 0, to: tracks.count, by: Self.rows).map { Array($0..<min($0 + Self.rows, tracks.count)) }
-        ScrollView(.horizontal) {
-            LazyHStack(alignment: .top, spacing: 16) {
-                ForEach(columns.indices, id: \.self) { index in
-                    VStack(spacing: 0) {
-                        ForEach(columns[index], id: \.self) { row($0, last: $0 == columns[index].last) }
-                    }
-                    .containerRelativeFrame(.horizontal) { width, _ in columns.count > 1 ? width * 0.88 : width }
-                }
-            }
-            .scrollTargetLayout()
-        }
-        .scrollTargetBehavior(.viewAligned)
-        .scrollPosition(id: $column, anchor: .leading)
-        .scrollIndicators(.hidden)
-        .contentMargins(.horizontal, 16, for: .scrollContent)
-        .frame(height: CGFloat(min(tracks.count, Self.rows)) * Self.rowHeight)
-        .onChange(of: tracks.map(\.id), initial: true) {
-            column = (tracks.firstIndex { $0.id == focusId } ?? 0) / Self.rows
+        ColumnPager(count: tracks.count, focus: tracks.firstIndex { $0.id == focusId }, identity: tracks.map(\.id)) { index, last in
+            row(index, last: last)
         }
     }
 
@@ -68,7 +47,7 @@ struct TrackPager: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            .frame(height: Self.rowHeight)
+            .frame(height: PagerRow.height)
             .overlay(alignment: .bottom) {
                 if !last { Divider().padding(.leading, 36) }
             }
@@ -87,4 +66,46 @@ struct TrackPager: View {
     private func title(_ track: Track) -> String {
         if !showsOriginal, let zh = track.titleZh, !zh.isEmpty { zh } else { track.title }
     }
+}
+
+/// Rows in columns of four that page sideways, after Apple Music's top
+/// songs: the next column peeks in, and the page opens at the column
+/// holding `focus`.
+struct ColumnPager<Row: View>: View {
+    let count: Int
+    let focus: Int?
+    /// Refocuses when this changes, e.g. another folder's tracks.
+    let identity: [String]
+    @ViewBuilder let row: (_ index: Int, _ last: Bool) -> Row
+
+    @State private var column: Int?
+
+    private static var rows: Int { 4 }
+
+    var body: some View {
+        let columns = stride(from: 0, to: count, by: Self.rows).map { Array($0..<min($0 + Self.rows, count)) }
+        ScrollView(.horizontal) {
+            LazyHStack(alignment: .top, spacing: 16) {
+                ForEach(columns.indices, id: \.self) { index in
+                    VStack(spacing: 0) {
+                        ForEach(columns[index], id: \.self) { row($0, $0 == columns[index].last) }
+                    }
+                    .containerRelativeFrame(.horizontal) { width, _ in columns.count > 1 ? width * 0.88 : width }
+                }
+            }
+            .scrollTargetLayout()
+        }
+        .scrollTargetBehavior(.viewAligned)
+        .scrollPosition(id: $column, anchor: .leading)
+        .scrollIndicators(.hidden)
+        .contentMargins(.horizontal, 16, for: .scrollContent)
+        .frame(height: CGFloat(min(count, Self.rows)) * PagerRow.height)
+        .onChange(of: identity, initial: true) {
+            column = (focus ?? 0) / Self.rows
+        }
+    }
+}
+
+enum PagerRow {
+    static let height: CGFloat = 52
 }

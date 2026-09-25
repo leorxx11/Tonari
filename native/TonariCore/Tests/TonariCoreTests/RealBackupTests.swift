@@ -34,8 +34,8 @@ struct RealBackupTests {
                 })
             }
         }
-        #expect(try columns(dbQueue) == columns(native.reader))
-        #expect(try dbQueue.read { try AppDatabase.userVersion($0) } == Schema.version)
+        #expect(try columns(dbQueue) == columns(native.reader).filter { $0.key != "wanted_works" })
+        #expect(try dbQueue.read { try AppDatabase.userVersion($0) } == Schema.flutterVersion)
     }
 
     @Test func everyRowOfEveryTableDecodes() throws {

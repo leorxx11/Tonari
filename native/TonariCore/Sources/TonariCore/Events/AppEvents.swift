@@ -17,6 +17,8 @@ public enum AppEvents {
         case enrich
         /// Sign in to 115 again.
         case reauth
+        /// Sign in to DLsite again.
+        case dlsiteLogin
     }
 
     public static func all(_ db: Database) throws -> [AppEvent] {

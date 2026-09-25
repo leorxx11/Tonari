@@ -14,7 +14,7 @@ public enum DLsiteFloor: String, CaseIterable, Sendable {
 }
 
 /// A work as a DLsite list shows it, before its page is opened.
-public struct CatalogItem: Sendable, Hashable, Identifiable {
+public struct CatalogItem: Codable, Sendable, Hashable, Identifiable {
     public let productId: String
     public let title: String
     public let circle: String?
@@ -26,6 +26,31 @@ public struct CatalogItem: Sendable, Hashable, Identifiable {
     public let sales: Int?
 
     public var id: String { productId }
+}
+
+/// The orders DLsite's own list offers.
+public enum CatalogSort: String, CaseIterable, Sendable, Hashable {
+    case popular = "trend"
+    case newest = "release_d"
+    case oldest = "release"
+    case sales = "dl_d"
+    case cheapest = "price"
+    case priciest = "price_d"
+    case rating = "rate_d"
+    case reviews = "review_d"
+
+    public var label: String {
+        switch self {
+        case .popular: "人气顺序"
+        case .newest: "发售日期最新"
+        case .oldest: "发售日期最旧"
+        case .sales: "销量最高"
+        case .cheapest: "价格最低"
+        case .priciest: "价格最高"
+        case .rating: "评分最高"
+        case .reviews: "赏析最多"
+        }
+    }
 }
 
 /// The lists the discover tab reads. Voice works only.
@@ -50,6 +75,9 @@ public enum CatalogQuery: Sendable, Hashable {
     case circle(String)
     case genre(id: String, name: String)
     case series(id: String, name: String)
+    /// Every voice work, in the order picked.
+    case all(CatalogSort)
+    case search(String, CatalogSort)
 
     public var title: String {
         switch self {
@@ -57,6 +85,25 @@ public enum CatalogQuery: Sendable, Hashable {
         case .newReleases: "新作"
         case .onSale: "特价中"
         case .creator(let name), .circle(let name), .genre(_, let name), .series(_, let name): name
+        case .all: "音声・ASMR 作品一览"
+        case .search(let keyword, _): "“\(keyword)”"
+        }
+    }
+
+    /// The order a sortable list is in; nil for lists with their own.
+    public var sort: CatalogSort? {
+        switch self {
+        case .all(let sort), .search(_, let sort): sort
+        default: nil
+        }
+    }
+
+    /// The same list in another order.
+    public func sorted(_ sort: CatalogSort) -> CatalogQuery {
+        switch self {
+        case .all: .all(sort)
+        case .search(let keyword, _): .search(keyword, sort)
+        default: self
         }
     }
 
@@ -107,6 +154,18 @@ public struct DLsiteCatalog: Sendable {
         guard !entries.isEmpty else { return CatalogPage(items: [], total: total) }
         let info = try await transport.get(Self.infoURL(entries.map(\.productId), floor: floor))
         return CatalogPage(items: try Self.merge(entries, info: info), total: total)
+    }
+
+    /// Works by product id (e.g. a wishlist), in that order; the info
+    /// endpoint knows no circles, so those stay empty.
+    public func items(_ ids: [String], floor: DLsiteFloor) async throws -> [CatalogItem] {
+        var items: [CatalogItem] = []
+        for start in stride(from: 0, to: ids.count, by: Self.pageSize) {
+            let chunk = Array(ids[start..<min(start + Self.pageSize, ids.count)])
+            let info = try await transport.get(Self.infoURL(chunk, floor: floor))
+            items += try Self.merge(chunk.map { Entry(productId: $0, circle: nil, voiceActors: []) }, info: info)
+        }
+        return items
     }
 
     // MARK: - Parsing
@@ -182,8 +241,16 @@ public struct DLsiteCatalog: Sendable {
 
     // MARK: - URLs
 
+    /// The user's DLsite account defaults: male-oriented doujin voice
+    /// works in Japanese, Chinese (either script) or no language.
+    static let conditions = [
+        "sex_category%5B0%5D/male", "work_category%5B0%5D/doujin", "work_type_category%5B0%5D/audio",
+        "options_and_or/or", "options%5B0%5D/JPN", "options%5B1%5D/CHI", "options%5B2%5D/CHI_HANS",
+        "options%5B3%5D/CHI_HANT", "options%5B4%5D/NM",
+    ].joined(separator: "/")
+
     static func searchURL(_ query: CatalogQuery, floor: DLsiteFloor, page: Int) -> URL {
-        var path = "work_type_category%5B0%5D/audio"
+        var path = conditions
         switch query {
         case .ranking: preconditionFailure("Rankings are not a search")
         case .newReleases: path += "/order/release_d"
@@ -192,6 +259,8 @@ public struct DLsiteCatalog: Sendable {
         case .circle(let name): path += "/keyword_maker_name/\(escape(name))/order/trend"
         case .genre(let id, _): path += "/genre%5B0%5D/\(id)/order/trend"
         case .series(let id, _): path += "/title_id/\(id)/order/release_d"
+        case .all(let sort): path += "/order/\(sort.rawValue)"
+        case .search(let keyword, let sort): path += "/keyword/\(escape(keyword))/order/\(sort.rawValue)"
         }
         return URL(string: "https://www.dlsite.com/\(floor.rawValue)/fsr/ajax/=/\(path)/per_page/\(pageSize)/page/\(page)")!
     }

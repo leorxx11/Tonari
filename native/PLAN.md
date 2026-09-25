@@ -81,6 +81,8 @@
 
 - **N9a（2026-09-25）**：发现 Tab。`DLsiteCatalog`：排行榜读 `/{floor}/ranking/{term}?category=voice` 的 HTML，新作 / 特价 / 创作者 / 社团 / 标签 / 系列读 `fsr/ajax`（特价 = `campaign/campaign`，创作者 = `keyword_creater/"名字"`，社团 = `keyword_maker_name`，标签 = `genre[0]/<id>`，系列 = `title_id`），列表页只取顺序、社团、声优，标题 / 主图 / 价格 / 折扣 / 售出统一由 `product/info/ajax` 批量补全（列表缩略图是方形裁切、标题可能打码）；全年龄区没有日榜，会跳到周榜。在线作品详情由 `MetadataEnrichment.preview` 组装不入库的 `Work`，复用资料库详情的信息 / 标签 / 演职员区块（点击去向由环境值 `chipRoute` 决定），简介默认展开、整页 `LazyVStack` 按段落懒排版，图片在线加载（DLsite 图片无需 Referer）。
 
+- **N9b（2026-09-25）**：DLsite 登录：App 内 `WKWebView`（非持久数据存储）打开 `maniax/login/=/skip_register/1`，见到 `loginchecked` 即保存发往 www.dlsite.com 的 Cookie（同名去重）与登录页 UA 到钥匙串；每次请求把 DLsite 续发的 Cookie 写回（`dlloginjp` / `loginchecked` 一年、`__DLsite_SID` 60 天）。愿望单：`GET maniax/load/favorite/product`（`{"favorites": [...]}`，以 text/html 返回）读取，`POST maniax/cart/ajax` 的 `mode=wishlist` / `wishlist_remove` 加入移出（XML，`result_code` -1 为失败）。本地「待入库」加表 `wanted_works`，数据库升到 18（迁移）。发现页：所有 fsr 列表统一带账号默认条件（`sex_category male`、`doujin`、`audio`、`options` JPN/CHI/CHI_HANS/CHI_HANT/NM，与网站 89322 部一致），新增「音声・ASMR 人气作品」与 DLsite 搜索，8 种排序；列表存盘、启动先显示后刷新替换。在线作品：详情与 chobit 试听（`chobit.cc/api/v1/dlsite/embed` → 嵌入页 `.track-list li[data-src]`，翻译版用原作）存盘、并行加载；试听与资料库曲目区共用 `ColumnPager`；`URLCache` 50MB / 500MB；存储空间新增「DLsite 在线缓存」。提示条改为独立最上层窗口，设置 sheet 与全屏播放页上也可见。
+
 ## 5. 风险与时间点
 
 - 旧正式证书 2026-10-30 到期，Flutter 正式版届时打不开，N7 需在此之前完成；新证书（2027-09-14 到期）已于 2026-09-25 验证可签原生版并装机。

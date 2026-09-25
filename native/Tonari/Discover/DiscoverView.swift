@@ -19,14 +19,17 @@ struct DiscoverView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 26) {
                     rankingSection
-                    rowSection(.newReleases)
-                    rowSection(.onSale)
+                    rowSection(.all(.popular), title: "音声・ASMR 人气作品")
+                    rowSection(.newReleases, title: "新作")
+                    rowSection(.onSale, title: "特价中")
                 }
                 .padding(.vertical, 8)
             }
             .refreshable { await load(refresh: true) }
             .navigationTitle("发现")
             .toolbar {
+                NavigationLink(value: Route.catalogSearch) { Label("搜索 DLsite", systemImage: "magnifyingglass") }
+                NavigationLink(value: Route.wishlist) { Label("愿望单", systemImage: "heart") }
                 Menu("筛选", systemImage: "line.3.horizontal.decrease") {
                     Picker("分区", selection: $floor) {
                         ForEach(DLsiteFloor.allCases, id: \.self) { Text($0.label) }
@@ -42,9 +45,10 @@ struct DiscoverView: View {
 
     private func load(refresh: Bool) async {
         async let ranking: Void = model.discover.load(.ranking(term), floor: floor, refresh: refresh)
+        async let popular: Void = model.discover.load(.all(.popular), floor: floor, refresh: refresh)
         async let new: Void = model.discover.load(.newReleases, floor: floor, refresh: refresh)
         async let sale: Void = model.discover.load(.onSale, floor: floor, refresh: refresh)
-        _ = await (ranking, new, sale)
+        _ = await (ranking, popular, new, sale)
     }
 
     // MARK: - Sections
@@ -84,10 +88,10 @@ struct DiscoverView: View {
         }
     }
 
-    private func rowSection(_ query: CatalogQuery) -> some View {
+    private func rowSection(_ query: CatalogQuery, title: String) -> some View {
         let list = model.discover.list(query, floor: floor)
         return VStack(alignment: .leading, spacing: 10) {
-            header(query.title, query: query)
+            header(title, query: query)
             ScrollView(.horizontal) {
                 LazyHStack(alignment: .top, spacing: 12) {
                     ForEach(list.items) { CatalogTile(item: $0, owned: owned.contains($0.productId)) }

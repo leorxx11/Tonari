@@ -50,6 +50,7 @@ struct SettingsView: View {
                 }
                 Section("账户与服务") {
                     row(P115Client.sourceName, systemImage: "icloud.fill", tint: .blue, value: p115.label, route: .p115Settings)
+                    row("DLsite", systemImage: "cart.fill", tint: .blue, value: model.wishlist.isSignedIn ? "已登录" : "未登录", route: .dlsiteAccount)
                     row("翻译", systemImage: "character.bubble.fill", tint: .indigo, value: translator ?? "未设置", route: .translation)
                 }
                 Section("媒体库") {

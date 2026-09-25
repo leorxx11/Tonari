@@ -6,7 +6,7 @@ import TonariCore
 /// library and detail pages have nothing to fall back on without them.
 struct StorageView: View {
     enum Area: CaseIterable, Identifiable {
-        case p115Files, descriptionImages, temporary
+        case p115Files, descriptionImages, dlsiteOnline, temporary
 
         var id: Self { self }
 
@@ -14,6 +14,7 @@ struct StorageView: View {
             switch self {
             case .p115Files: "115 文件预览"
             case .descriptionImages: "DLsite 简介图片"
+            case .dlsiteOnline: "DLsite 在线缓存"
             case .temporary: "临时文件"
             }
         }
@@ -22,7 +23,8 @@ struct StorageView: View {
             switch self {
             case .p115Files: "在资源页打开过的 115 图片、文本和字幕。清理后再次打开会重新下载。"
             case .descriptionImages: "作品简介里的长图。清理后简介里对应位置显示「未下载」，可逐部作品点击下载回本地。"
-            case .temporary: "导出诊断日志、备份时生成的文件，以及旧版本在线加载图片留下的缓存。"
+            case .dlsiteOnline: "发现页的列表、看过的在线作品，以及在线加载的封面、样图和试听。清理后再次打开会重新下载。"
+            case .temporary: "导出诊断日志、备份时生成的文件。"
             }
         }
 
@@ -30,6 +32,7 @@ struct StorageView: View {
             switch self {
             case .p115Files: "icloud"
             case .descriptionImages: "photo.on.rectangle"
+            case .dlsiteOnline: "safari"
             case .temporary: "clock.arrow.circlepath"
             }
         }
@@ -38,6 +41,7 @@ struct StorageView: View {
             switch self {
             case .p115Files: .blue
             case .descriptionImages: .orange
+            case .dlsiteOnline: .indigo
             case .temporary: .gray
             }
         }
@@ -54,6 +58,8 @@ struct StorageView: View {
                     ((try? manager.contentsOfDirectory(at: work, includingPropertiesForKeys: nil)) ?? [])
                         .filter { $0.lastPathComponent.hasPrefix("desc") }
                 }
+            case .dlsiteOnline:
+                return [OnlineWorkCache.directory, DiscoverStore.file].filter { manager.fileExists(atPath: $0.path) }
             case .temporary:
                 return (try? manager.contentsOfDirectory(at: URL.temporaryDirectory, includingPropertiesForKeys: nil)) ?? []
             }
@@ -131,13 +137,13 @@ struct StorageView: View {
     }
 
     private static func size(of area: Area) async -> Int {
-        await size(of: area.files) + (area == .temporary ? URLCache.shared.currentDiskUsage : 0)
+        await size(of: area.files) + (area == .dlsiteOnline ? URLCache.shared.currentDiskUsage : 0)
     }
 
     private func clear(_ areas: [Area]) async {
         for area in areas {
             await Self.remove(area.files)
-            if area == .temporary { URLCache.shared.removeAllCachedResponses() }
+            if area == .dlsiteOnline { URLCache.shared.removeAllCachedResponses() }
             DiagnosticLog.shared.write("storage", "cleared", ["area": area.title, "bytes": sizes[area] ?? 0])
         }
         await measure()
