@@ -18,6 +18,8 @@ enum Route: Hashable {
     case backup
     case diagnostics
     case storage
+    case appearance
+    case about
     case work(String)
     case files(String, folder: [String] = [], highlight: String? = nil)
     /// Works sharing a voice actor, circle, series or tag.
@@ -138,6 +140,8 @@ extension View {
             case .backup: BackupView()
             case .diagnostics: DiagnosticLogView()
             case .storage: StorageView()
+            case .appearance: AppearanceSettingsView()
+            case .about: AboutView()
             case .work(let id): WorkDetailView(productId: id)
             case .files(let id, let folder, let highlight): WorkFilesView(productId: id, path: folder, highlight: highlight)
             case .chip(let chip): ChipWorksView(chip: chip)

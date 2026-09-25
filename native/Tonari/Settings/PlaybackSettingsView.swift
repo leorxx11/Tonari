@@ -23,6 +23,13 @@ struct PlaybackSettingsView: View {
             } footer: {
                 Text("播放页的前进、后退按钮每次跳过的时长。")
             }
+            Section {
+                Toggle("默认播完本曲再停", isOn: $prefs.sleepFinishCurrentTrack)
+            } header: {
+                Text("睡眠定时")
+            } footer: {
+                Text("定时结束时若正在播放，等这一首播完再停止。")
+            }
         }
         .navigationTitle("播放")
         .navigationBarTitleDisplayMode(.inline)

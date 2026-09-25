@@ -14,11 +14,39 @@ enum Appearance: String, CaseIterable {
         }
     }
 
+    var systemImage: String {
+        switch self {
+        case .system: "circle.lefthalf.filled"
+        case .light: "sun.max"
+        case .dark: "moon"
+        }
+    }
+
     var colorScheme: ColorScheme? {
         switch self {
         case .system: nil
         case .light: .light
         case .dark: .dark
         }
+    }
+}
+
+struct AppearanceSettingsView: View {
+    @AppStorage(Appearance.preferenceKey) private var appearance = Appearance.system
+
+    var body: some View {
+        List {
+            Section {
+                Picker("主题", selection: $appearance) {
+                    ForEach(Appearance.allCases, id: \.self) { Label($0.label, systemImage: $0.systemImage) }
+                }
+                .pickerStyle(.inline)
+                .labelsHidden()
+            } footer: {
+                Text("「跟随系统」随 iPhone 的深浅色设置切换。")
+            }
+        }
+        .navigationTitle("外观")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }

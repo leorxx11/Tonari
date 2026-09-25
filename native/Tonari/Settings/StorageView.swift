@@ -119,8 +119,19 @@ struct StorageView: View {
 
     private func measure() async {
         for area in Area.allCases {
-            sizes[area] = await Self.size(of: area.files) + (area == .temporary ? URLCache.shared.currentDiskUsage : 0)
+            sizes[area] = await Self.size(of: area)
         }
+    }
+
+    /// Everything the page could clear, for the settings row.
+    static func clearableBytes() async -> Int {
+        var total = 0
+        for area in Area.allCases { total += await size(of: area) }
+        return total
+    }
+
+    private static func size(of area: Area) async -> Int {
+        await size(of: area.files) + (area == .temporary ? URLCache.shared.currentDiskUsage : 0)
     }
 
     private func clear(_ areas: [Area]) async {
