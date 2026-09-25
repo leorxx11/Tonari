@@ -218,6 +218,9 @@ struct SearchView: View {
         case .circle: "building.2.fill"
         case .genre: "number"
         case .series: "books.vertical.fill"
+        case .scenarioWriter: "pencil"
+        case .illustrator: "paintbrush.fill"
+        case .musician: "music.note"
         }
     }
 }

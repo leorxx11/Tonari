@@ -51,7 +51,7 @@ struct PlaybackStoreTests {
     @Test func restoresTheLastPlayedTrackInPlaybackOrder() throws {
         let (database, store) = try database()
         #expect(try store.lastPlayed() == nil)
-        let queue = try store.queue(for: "RJ01000001")
+        let queue = try store.queue(for: "RJ01000001", folder: [])
         #expect(queue.tracks.map(\.id) == ["t1", "t2"])
         try store.trackStarted(queue.tracks[1], of: queue.work, at: Fixtures.date)
         try store.savePosition(42_000, of: queue.tracks[1], in: queue.work, at: Fixtures.date)
@@ -83,7 +83,7 @@ struct PlaybackStoreTests {
 
     @Test func restoresAFilePlayedAfterAWork() throws {
         let (_, store) = try database()
-        let queue = try store.queue(for: "RJ01000001")
+        let queue = try store.queue(for: "RJ01000001", folder: [])
         try store.trackStarted(queue.tracks[0], of: queue.work, at: Fixtures.date)
         let entry = RemoteEntry(id: "9", path: "9", name: "a.mp3", kind: .audio, size: 10, pickcode: "pc", sourceId: P115Client.sourceId)
         try store.recordFile(entry, sourceName: "115 网盘", at: Fixtures.date.addingTimeInterval(1))
@@ -98,7 +98,7 @@ struct PlaybackStoreTests {
 
     @Test func countsCompletionsAndLearnsDurations() throws {
         let (database, store) = try database()
-        let track = try store.queue(for: "RJ01000001").tracks[0]
+        let track = try store.queue(for: "RJ01000001", folder: []).tracks[0]
         try store.trackCompleted(track)
         try store.recordDuration(61_000, of: track)
         let row = try database.reader.read { try Track.fetchOne($0, key: track.id)! }

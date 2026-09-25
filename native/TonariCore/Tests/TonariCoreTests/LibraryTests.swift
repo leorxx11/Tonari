@@ -157,6 +157,24 @@ struct WorkTreeTests {
         let split = WorkTree.build(tracks: [track("SEあり/1.wav", bytes: 50), track("SEなし/1.wav", bytes: 50)], files: [])
         #expect(WorkTree.autoPath(split).isEmpty)
     }
+
+    @Test func audioFoldersListOwnTracksAndDefaultInsideAutoPath() {
+        let tree = WorkTree.build(
+            tracks: [
+                track("本編/WAV/2.wav", bytes: 700), track("本編/WAV/1.wav", bytes: 700), track("本編/MP3/1.mp3", bytes: 70),
+                track("特典/1.mp3", bytes: 30), track("root.mp3", bytes: 1),
+            ],
+            files: []
+        )
+        let folders = WorkTree.audioFolders(tree)
+        #expect(folders.map(\.path) == [[], ["本編", "MP3"], ["本編", "WAV"], ["特典"]])
+        #expect(folders[2].tracks.map(\.fileName) == ["1.wav", "2.wav"])
+        #expect(WorkTree.defaultAudioFolder(tree)?.path == ["本編", "WAV"])
+        #expect(track("本編/WAV/1.wav", bytes: 1).folderPath == ["本編", "WAV"])
+
+        let split = WorkTree.build(tracks: [track("SEあり/1.wav", bytes: 50), track("SEなし/1.wav", bytes: 50)], files: [])
+        #expect(WorkTree.defaultAudioFolder(split)?.path == ["SEあり"])
+    }
 }
 
 struct WorkDescriptionTests {

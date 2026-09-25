@@ -79,7 +79,7 @@ public enum SourceFilter: String, CaseIterable, Sendable {
 /// that share it.
 public struct WorkChip: Hashable, Sendable, Codable {
     public enum Kind: String, Sendable, Codable {
-        case genre, voiceActor, series, circle
+        case genre, voiceActor, series, circle, scenarioWriter, illustrator, musician
 
         public var label: String {
             switch self {
@@ -87,6 +87,9 @@ public struct WorkChip: Hashable, Sendable, Codable {
             case .voiceActor: "声优"
             case .series: "系列"
             case .circle: "社团"
+            case .scenarioWriter: "剧情"
+            case .illustrator: "插画"
+            case .musician: "音乐"
             }
         }
     }
@@ -105,6 +108,7 @@ public struct WorkChip: Hashable, Sendable, Codable {
         case .voiceActor: "CV：\(value)"
         case .series: "系列：\(value)"
         case .circle: "社团：\(value)"
+        case .scenarioWriter, .illustrator, .musician: "\(kind.label)：\(value)"
         }
     }
 
@@ -114,6 +118,9 @@ public struct WorkChip: Hashable, Sendable, Codable {
         case .voiceActor: work.voiceActors.contains(value)
         case .series: work.seriesName == value
         case .circle: work.circleName == value
+        case .scenarioWriter: work.scenarioWriters.contains(value)
+        case .illustrator: work.illustrators.contains(value)
+        case .musician: work.musicians.contains(value)
         }
     }
 }
@@ -169,15 +176,15 @@ public enum WorkQueries {
         try Set(String.fetchAll(db, ImportedFolder.filter(Column("type") != "local").select(Column("id"))))
     }
 
-    /// Total audio length per work.
-    public static func durations(_ db: Database) throws -> [String: Int] {
-        let rows = try Row.fetchAll(db, sql: "SELECT work_id, SUM(duration_ms) AS total FROM tracks GROUP BY work_id")
-        return Dictionary(uniqueKeysWithValues: rows.map { ($0["work_id"], $0["total"] ?? 0) })
-    }
-
     public static func trackCounts(_ db: Database) throws -> [String: Int] {
         let rows = try Row.fetchAll(db, sql: "SELECT work_id, COUNT(*) AS count FROM tracks GROUP BY work_id")
         return Dictionary(uniqueKeysWithValues: rows.map { ($0["work_id"], $0["count"]) })
+    }
+
+    public static func subtitledTrackIds(of productId: String, _ db: Database) throws -> Set<String> {
+        try Set(String.fetchAll(db, sql: """
+            SELECT DISTINCT s.track_id FROM subtitles s JOIN tracks t ON t.id = s.track_id WHERE t.work_id = ?
+            """, arguments: [productId]))
     }
 
     /// Picks from the whole audio library, ignoring the library's filters.

@@ -14,7 +14,7 @@ struct LocalImage: View {
         GeometryReader { proxy in
             ZStack {
                 Color(.secondarySystemBackground)
-                if let image {
+                if let image = image ?? ThumbnailCache.shared.anySize(path: path) {
                     Image(uiImage: image)
                         .resizable()
                         .aspectRatio(contentMode: contentMode)
@@ -76,6 +76,12 @@ final class ThumbnailCache {
         generation += 1
     }
 
+    /// Whatever size of `path` was prepared last, to show while the right
+    /// size decodes, e.g. the library thumbnail on the way into a detail page.
+    func anySize(path: String?) -> UIImage? {
+        path.flatMap { cache.object(forKey: $0 as NSString) }
+    }
+
     func fitted(path: String, width: CGFloat, scale: CGFloat) async -> UIImage? {
         let url = URL.documentsDirectory.appending(path: path)
         guard let source = UIImage(contentsOfFile: url.path) else { return nil }
@@ -94,7 +100,9 @@ final class ThumbnailCache {
         let target = CGSize(width: source.size.width * factor, height: source.size.height * factor)
         guard let thumbnail = await source.byPreparingThumbnail(ofSize: target) else { return nil }
         cache.setObject(thumbnail, forKey: key)
+        cache.setObject(thumbnail, forKey: path as NSString)
         keys.insert(key as String)
+        keys.insert(path)
         return thumbnail
     }
 }

@@ -36,7 +36,7 @@ public struct LibraryStats: Sendable, Equatable {
         case .circle: circles
         case .voiceActor: voiceActors
         case .genre: genres
-        case .series: []
+        case .series, .scenarioWriter, .illustrator, .musician: []
         }
     }
 

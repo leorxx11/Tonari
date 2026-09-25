@@ -56,7 +56,6 @@ final class AppModel {
     }
 
     static let viewModeKey = "library.view.works"
-    static let fileEntryKey = "appearance.fileEntryPosition"
 
     var tab = AppTab.library
     /// Work whose group membership sheet is showing.
@@ -108,12 +107,6 @@ final class AppModel {
     func openWork(_ productId: String) {
         libraryPath = NavigationPath([Route.work(productId)])
         tab = .library
-    }
-
-    /// The seal that opens a work's files sits in the cover's bottom-left
-    /// corner unless the user moved it right.
-    var fileEntryOnLeft: Bool {
-        UserDefaults.standard.string(forKey: Self.fileEntryKey) != "bottomRight"
     }
 }
 

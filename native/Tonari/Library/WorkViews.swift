@@ -60,51 +60,6 @@ struct RatingStars: View {
     }
 }
 
-/// Tappable CV (green), series (orange) and tag (gray) capsules; tapping one
-/// opens the works that share it.
-struct WorkChipsView: View {
-    let work: Work
-    var includeGenres = true
-    var limit: Int?
-
-    @Environment(AppModel.self) private var model
-
-    var body: some View {
-        let chips = allChips
-        FlowLayout(spacing: 6, lineSpacing: 6) {
-            ForEach(Array(chips.prefix(limit ?? chips.count)), id: \.self) { chip in
-                Button(chip.value) { model.push(.chip(chip)) }
-                    .buttonStyle(ChipButtonStyle(kind: chip.kind))
-            }
-        }
-    }
-
-    private var allChips: [WorkChip] {
-        var chips = work.voiceActors.map { WorkChip(.voiceActor, $0) }
-        if let series = work.seriesName, !series.isEmpty { chips.append(WorkChip(.series, series)) }
-        if includeGenres { chips += work.genreNames.map { WorkChip(.genre, $0) } }
-        return chips
-    }
-}
-
-struct ChipButtonStyle: ButtonStyle {
-    let kind: WorkChip.Kind
-
-    func makeBody(configuration: ButtonStyleConfiguration) -> some View {
-        let (background, foreground): (Color, Color) = switch kind {
-        case .voiceActor: (.teal, .white)
-        case .series: (.orange, .white)
-        case .genre, .circle: (Color(.systemGray5), .primary)
-        }
-        configuration.label
-            .font(.caption.weight(.medium))
-            .foregroundStyle(foreground)
-            .padding(.horizontal, 9)
-            .padding(.vertical, 4)
-            .background(background.opacity(configuration.isPressed ? 0.7 : 1), in: .capsule)
-    }
-}
-
 struct WorkGridCell: View {
     let work: Work
     let isRemote: Bool
@@ -226,10 +181,8 @@ private struct WorkContextMenu: ViewModifier {
         }
     }
 
-    /// Picks up at the track last played, from its start.
     private func play() {
-        let queue = try! PlaybackStore(database: database).queue(for: work.productId)
-        player.play(queue, at: queue.tracks.firstIndex { $0.id == work.lastPlayedTrackId } ?? 0)
+        player.playWork(work.productId, database: database)
     }
 
     private func rescan() {

@@ -27,16 +27,28 @@ public struct PlaybackStore: Sendable {
         self.database = database
     }
 
-    public func queue(for productId: String) throws -> WorkQueue {
+    /// A work's tracks in one folder: what a play from that folder queues.
+    public func queue(for productId: String, folder: [String]) throws -> WorkQueue {
         try database.reader.read { db in
             let work = try Work.fetchOne(db, key: productId)!
-            let tracks = try WorkQueries.tracks(of: productId).fetchAll(db)
+            let tracks = try WorkQueries.tracks(of: productId).fetchAll(db).filter { $0.folderPath == folder }
             return WorkQueue(
                 work: work,
                 tracks: WorkTree.playbackOrder(WorkTree.build(tracks: tracks, files: [])),
                 source: try work.importedFolderId.flatMap { try ImportedFolder.fetchOne(db, key: $0) }
             )
         }
+    }
+
+    /// Where a work picks up: its last track, queued with that track's
+    /// folder; the track carries the position it was left at.
+    public func resumePoint(for productId: String) throws -> (queue: WorkQueue, index: Int)? {
+        let track = try database.reader.read { db in
+            try Work.fetchOne(db, key: productId)?.lastPlayedTrackId.flatMap { try Track.fetchOne(db, key: $0) }
+        }
+        guard let track else { return nil }
+        let queue = try queue(for: productId, folder: track.folderPath)
+        return (queue, queue.tracks.firstIndex { $0.id == track.id }!)
     }
 
     /// Whatever was played last, work or remote file, judged by the play
@@ -53,10 +65,8 @@ public struct PlaybackStore: Sendable {
         let work = try database.reader.read { db in
             try entry.workId.flatMap { try Work.filter(key: $0).filter(Column("is_removed") == false).fetchOne(db) }
         }
-        guard let work, let trackId = work.lastPlayedTrackId else { return nil }
-        let queue = try queue(for: work.productId)
-        guard let index = queue.tracks.firstIndex(where: { $0.id == trackId }) else { return nil }
-        return .work(queue, index: index)
+        guard let work, let resume = try resumePoint(for: work.productId) else { return nil }
+        return .work(resume.queue, index: resume.index)
     }
 
     public func trackStarted(_ track: Track, of work: Work, at date: Date = .now) throws {

@@ -2,7 +2,7 @@ import SwiftUI
 import TonariCore
 
 /// A work's files as folders, opening at the folder most likely to hold the
-/// main audio. Tapping a track plays the whole work from it.
+/// main audio. Tapping a track plays its folder from it.
 struct WorkFilesView: View {
     let productId: String
 
@@ -62,8 +62,9 @@ struct WorkFilesView: View {
     }
 
     private func play(_ track: Track) {
-        let queue = try! PlaybackStore(database: database).queue(for: productId)
+        let queue = try! PlaybackStore(database: database).queue(for: productId, folder: track.folderPath)
         player.play(queue, at: queue.tracks.firstIndex { $0.id == track.id }!)
+        TrackFolderMemory.remember(track.folderPath, for: productId)
     }
 
     private var currentLevel: [WorkTreeNode] {

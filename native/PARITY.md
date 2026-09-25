@@ -22,7 +22,7 @@
 - [x] 作品详情：封面、演职员、标签、系列、价格 / 评分 / 售出 / 收藏数 / 排名、简介、图片画廊（`work_detail_page.dart`）
 - [x] 详情页操作：刷新元数据、只刷新图片、更新统计数据、在 DLsite 中打开、从媒体库移除、重新扫描此作品（「下载图片」即刷新图片）
 - [ ] 作品文件浏览：目录树、音频数 ✅；字幕状态、字幕预览（N3）（`work_files_page.dart`）
-- [x] 作品文件入口位置：左下角 / 右下角（`file_entry_prefs.dart`）
+- ~~作品文件入口位置：左下角 / 右下角（`file_entry_prefs.dart`）~~ 原生版详情页改为「全部文件」行，印章与设置一并取消
 - [x] 收藏与分组：全部收藏、新建 / 重命名 / 删除分组，作品和视频都可加入（`collections_page.dart`、`collection_detail_page.dart`、`collection_picker_sheet.dart`）
 - [x] 分类页：社团 / 声优 / 标签，搜索，按作品数 / 名称排序（`stats_page.dart`）。原生版并入搜索 Tab 的「分类浏览」
 - [~] 导入本地文件夹（已实现，待 115 接入后真机验证）：security-scoped bookmark、递归扫描、RJ 识别、音质归并（`folder_bookmark.dart`、`core/scanner/`、`import_service.dart`）

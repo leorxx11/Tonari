@@ -1,43 +1,56 @@
 import SwiftUI
 import TonariCore
 
+/// A work after Apple Music's album page: cover, title and a play button,
+/// the tracks of one folder paging sideways, then App Store style info.
 struct WorkDetailView: View {
     let productId: String
 
     @Environment(AppModel.self) private var model
     @Environment(EnrichmentQueue.self) private var enrichment
+    @Environment(PlaybackController.self) private var player
     @Environment(\.appDatabase) private var database
     @Environment(\.dismiss) private var dismiss
     @State private var fetching = false
     @State private var work: Work?
+    @State private var tracks: [Track] = []
     @State private var fileCount = 0
-    @State private var durationMs = 0
+    @State private var subtitled: Set<String> = []
+    @State private var chosenFolder: [String]?
+    @State private var showsOriginal = false
     @State private var gallery: GallerySelection?
+    @State private var loaded = false
 
     var body: some View {
         ScrollView {
             if let work {
-                VStack(alignment: .leading, spacing: 0) {
-                    header(work)
-                    VStack(alignment: .leading, spacing: 14) {
-                        if fetching {
-                            Label("正在获取 DLsite 资料…", systemImage: "arrow.down.circle")
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                        }
+                VStack(alignment: .leading, spacing: 28) {
+                    VStack(alignment: .leading, spacing: 16) {
+                        cover(work)
                         titleBlock(work)
-                        WorkStatsView(work: work, durationMs: durationMs)
-                        WorkChipsView(work: work)
-                        fileInfo(work)
-                        actions(work)
+                        if loaded { playButtons(work) }
                     }
-                    .padding(16)
-                    CreditsView(work: work)
-                    DescriptionView(work: work) { gallery = $0 }
+                    .padding(.horizontal, 16)
+                    if loaded {
+                        trackSection(work)
+                        Group {
+                            WorkInfoSection(work: work)
+                            WorkTagsSection(work: work)
+                            WorkCreditsSection(work: work)
+                            WorkDescriptionSection(work: work, showsOriginal: showsOriginal) { gallery = $0 }
+                        }
+                        .padding(.horizontal, 16)
+                    }
                 }
+                .padding(.vertical, 8)
             }
         }
-        .background(Color(.systemBackground))
+        .onAppear {
+            // Only the cover and title go into the push transition's first
+            // frame: a primary-key read keeps the tap responsive, and the rest
+            // arrives from the observation a few frames later.
+            if work == nil { work = try! database.reader.read { try WorkQueries.work(productId).fetchOne($0) } }
+        }
         .navigationTitle(productId)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { toolbar }
@@ -59,32 +72,232 @@ struct WorkDetailView: View {
             fetching = false
         }
         .task {
-            await database.observe({ db in
-                (
-                    try WorkQueries.work(productId).fetchOne(db),
-                    try WorkQueries.tracks(of: productId).fetchCount(db) + WorkQueries.files(of: productId).fetchCount(db),
-                    try WorkQueries.durations(db)[productId] ?? 0
-                )
-            }) {
-                work = $0.0
-                fileCount = $0.1
-                durationMs = $0.2
+            await database.observe(fetch, update: apply)
+        }
+    }
+
+    private struct Snapshot: Sendable {
+        let work: Work?
+        let tracks: [Track]
+        let fileCount: Int
+        let subtitled: Set<String>
+    }
+
+    private var fetch: @Sendable (Database) throws -> Snapshot {
+        { [productId] db in
+            Snapshot(
+                work: try WorkQueries.work(productId).fetchOne(db),
+                tracks: try WorkQueries.tracks(of: productId).fetchAll(db),
+                fileCount: try WorkQueries.tracks(of: productId).fetchCount(db) + WorkQueries.files(of: productId).fetchCount(db),
+                subtitled: try WorkQueries.subtitledTrackIds(of: productId, db)
+            )
+        }
+    }
+
+    private func apply(_ snapshot: Snapshot) {
+        work = snapshot.work
+        tracks = snapshot.tracks
+        fileCount = snapshot.fileCount
+        subtitled = snapshot.subtitled
+        loaded = true
+    }
+
+    // MARK: - Folders
+
+    private var tree: [WorkTreeNode] { WorkTree.build(tracks: tracks, files: []) }
+
+    private var folders: [AudioFolder] { WorkTree.audioFolders(tree) }
+
+    private var folder: AudioFolder? {
+        folders.first { $0.path == chosenFolder } ?? TrackFolderMemory.resolve(folders, tree: tree, productId: productId)
+    }
+
+    private func folderName(_ folder: AudioFolder) -> String {
+        folder.path.isEmpty ? "根目录" : folder.path.joined(separator: " · ")
+    }
+
+    private func trackTitle(_ track: Track) -> String {
+        if !showsOriginal, let zh = track.titleZh, !zh.isEmpty { zh } else { track.title }
+    }
+
+    // MARK: - Sections
+
+    private func cover(_ work: Work) -> some View {
+        let images = [work.mainImageLocalPath].compactMap(\.self) + work.sampleImageLocalPaths
+        return TabView {
+            ForEach(Array(images.enumerated()), id: \.offset) { index, path in
+                LocalImage(path: path, contentMode: .fit)
+                    .onTapGesture {
+                        gallery = GallerySelection(images: images.map(GalleryImage.local), index: index)
+                    }
+            }
+        }
+        .tabViewStyle(.page(indexDisplayMode: images.count > 1 ? .always : .never))
+        .aspectRatio(4 / 3, contentMode: .fit)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(.rect(cornerRadius: 10))
+    }
+
+    private func titleBlock(_ work: Work) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if fetching {
+                Label("正在获取 DLsite 资料…", systemImage: "arrow.down.circle")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            Text(showsOriginal ? work.title : work.displayTitle)
+                .font(.title2.bold())
+                .textSelection(.enabled)
+            if !work.voiceActors.isEmpty {
+                FlowLayout(spacing: 0, lineSpacing: 2) {
+                    ForEach(Array(work.voiceActors.enumerated()), id: \.offset) { index, name in
+                        Button((index > 0 ? "、" : "") + name) { model.push(.chip(WorkChip(.voiceActor, name))) }
+                    }
+                }
+                .font(.body)
+            }
+            HStack(spacing: 0) {
+                let circle = work.circleName.flatMap { $0.isEmpty ? nil : $0 }
+                if let circle {
+                    Button(circle) { model.push(.chip(WorkChip(.circle, circle))) }
+                        .foregroundStyle(.secondary)
+                }
+                let rest = [work.releaseDate.map(Formatting.date), work.supportedLanguages.isEmpty ? nil : work.supportedLanguages.joined(separator: "、")]
+                    .compactMap(\.self)
+                ForEach(Array(rest.enumerated()), id: \.offset) { index, part in
+                    Text((circle == nil && index == 0 ? "" : " · ") + part)
+                }
+            }
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+        }
+    }
+
+    /// Apple Music's black capsule (white in dark mode) between shuffle and
+    /// favorite: resumes a work already started, else plays the shown folder.
+    /// Works without audio still get the favorite button; play and shuffle
+    /// are disabled.
+    private func playButtons(_ work: Work) -> some View {
+        let resumeTrack = tracks.first { $0.id == work.lastPlayedTrackId }
+        return HStack(spacing: 14) {
+            circleButton("随机播放", systemImage: "shuffle", tint: .primary) { shuffle(folder!) }
+                .disabled(folder == nil)
+            Button {
+                if resumeTrack != nil { player.playWork(productId, database: database) } else { playFromStart(folder!) }
+            } label: {
+                Label(resumeTrack.map { "继续播放 · \(trackTitle($0))" } ?? "播放", systemImage: "play.fill")
+                    .font(.headline)
+                    .lineLimit(1)
+                    .foregroundStyle(Color(.systemBackground))
+                    .padding(.horizontal, 20)
+                    .frame(maxWidth: .infinity, minHeight: 50)
+                    .background(Color.primary.opacity(folder == nil ? 0.3 : 1), in: .capsule)
+            }
+            .buttonStyle(.plain)
+            .disabled(folder == nil)
+            circleButton(
+                work.isFavorite ? "取消收藏" : "添加收藏", systemImage: work.isFavorite ? "heart.fill" : "heart",
+                tint: work.isFavorite ? .pink : .primary
+            ) {
+                try! database.setFavorite(productId, !work.isFavorite)
             }
         }
     }
 
+    private func circleButton(_ title: String, systemImage: String, tint: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(tint)
+                .frame(width: 50, height: 50)
+                .background(Color(.tertiarySystemFill), in: .circle)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title)
+    }
+
+    @ViewBuilder private func trackSection(_ work: Work) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if let folder {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text("曲目").font(.title3.bold())
+                    Text("\(folder.tracks.count) 首").font(.subheadline).foregroundStyle(.secondary)
+                    Spacer(minLength: 12)
+                    if folders.count > 1 { folderMenu(folder) }
+                }
+                .padding(.horizontal, 16)
+                TrackPager(
+                    tracks: folder.tracks,
+                    focusId: [player.currentTrack?.id, work.lastPlayedTrackId].compactMap(\.self)
+                        .first { id in folder.tracks.contains { $0.id == id } },
+                    subtitled: subtitled,
+                    showsOriginal: showsOriginal
+                ) { index in
+                    let queue = try! PlaybackStore(database: database).queue(for: productId, folder: folder.path)
+                    player.play(queue, at: index)
+                }
+            }
+            if fileCount > 0 {
+                NavigationLink(value: Route.files(productId)) {
+                    HStack {
+                        Text("全部文件")
+                        Spacer()
+                        Text("\(fileCount) 项").foregroundStyle(.secondary)
+                        Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+                    }
+                    .padding(.vertical, 8)
+                    .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 16)
+            }
+        }
+    }
+
+    private func folderMenu(_ folder: AudioFolder) -> some View {
+        Menu {
+            ForEach(folders, id: \.path) { option in
+                Toggle(isOn: Binding(get: { option.path == folder.path }, set: { _ in
+                    chosenFolder = option.path
+                    TrackFolderMemory.remember(option.path, for: productId)
+                })) {
+                    Text(folderName(option))
+                    Text("\(option.tracks.count) 首")
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Text(folderName(folder)).lineLimit(1)
+                Image(systemName: "chevron.down").font(.caption.weight(.semibold))
+            }
+            .font(.subheadline)
+        }
+    }
+
+    /// Turns shuffle on and starts the folder at a random track.
+    private func shuffle(_ folder: AudioFolder) {
+        player.prefs.mode = .shuffle
+        let queue = try! PlaybackStore(database: database).queue(for: productId, folder: folder.path)
+        player.play(queue, at: queue.tracks.indices.randomElement()!)
+    }
+
+    private func playFromStart(_ folder: AudioFolder) {
+        let queue = try! PlaybackStore(database: database).queue(for: productId, folder: folder.path)
+        if player.currentTrack?.id == queue.tracks[0].id { player.seek(to: 0) }
+        player.play(queue, at: 0)
+    }
+
+    // MARK: - Toolbar
+
     @ToolbarContentBuilder private var toolbar: some ToolbarContent {
         if let work {
             ToolbarItemGroup(placement: .topBarTrailing) {
-                Button(work.isFavorite ? "取消收藏" : "添加收藏", systemImage: work.isFavorite ? "heart.fill" : "heart") {
-                    try! database.setFavorite(productId, !work.isFavorite)
-                }
-                .tint(work.isFavorite ? .pink : nil)
-                Link(destination: DLsite.workURL(productId)) {
-                    Label("在 DLsite 中打开", systemImage: "safari")
-                }
                 Menu("更多", systemImage: "ellipsis") {
                     Button("加入分组…", systemImage: "folder.badge.plus") { model.collectionPickerWork = work }
+                    Link(destination: DLsite.workURL(productId)) {
+                        Label("在 DLsite 中打开", systemImage: "safari")
+                    }
                     Section("DLsite") {
                         Button("刷新元数据", systemImage: "arrow.triangle.2.circlepath") {
                             runRefresh("刷新元数据", done: "元数据已刷新") { try await $0.refreshMetadata(productId, onImage: $1) }
@@ -97,16 +310,21 @@ struct WorkDetailView: View {
                         }
                     }
                     .disabled(model.tasks.isBusy)
-                    Button("重新扫描此作品", systemImage: "arrow.clockwise") {
-                        Task {
-                            await model.tasks.run("重新扫描作品", detail: work.productId) {
-                                let summary = try await model.reimport(work, database: database)
-                                return "作品已重新扫描：\(summary.tracksTotal) 个音轨"
+                    Section {
+                        Button(showsOriginal ? "显示译文" : "显示原文", systemImage: "character.book.closed") {
+                            showsOriginal.toggle()
+                        }
+                        Button("重新扫描此作品", systemImage: "arrow.clockwise") {
+                            Task {
+                                await model.tasks.run("重新扫描作品", detail: work.productId) {
+                                    let summary = try await model.reimport(work, database: database)
+                                    return "作品已重新扫描：\(summary.tracksTotal) 个音轨"
+                                }
                             }
                         }
+                        .disabled(model.tasks.isBusy)
+                        Button("从媒体库移除", systemImage: "trash", role: .destructive) { model.removingWork = work }
                     }
-                    .disabled(model.tasks.isBusy)
-                    Button("从媒体库移除", systemImage: "trash", role: .destructive) { model.removingWork = work }
                 }
             }
         }
@@ -128,294 +346,10 @@ struct WorkDetailView: View {
             }
         }
     }
-
-    private func header(_ work: Work) -> some View {
-        let images = [work.mainImageLocalPath].compactMap(\.self) + work.sampleImageLocalPaths
-        return TabView {
-            ForEach(Array(images.enumerated()), id: \.offset) { index, path in
-                LocalImage(path: path, contentMode: .fit)
-                    .onTapGesture {
-                        gallery = GallerySelection(images: images.map(GalleryImage.local), index: index)
-                    }
-            }
-        }
-        .tabViewStyle(.page(indexDisplayMode: images.count > 1 ? .always : .never))
-        .aspectRatio(4 / 3, contentMode: .fit)
-        .background(Color(.secondarySystemBackground))
-        .overlay(alignment: model.fileEntryOnLeft ? .bottomLeading : .bottomTrailing) {
-            if fileCount > 0 {
-                NavigationLink(value: Route.files(productId)) {
-                    Image("FilesSeal")
-                        .resizable()
-                        .frame(width: 64, height: 64)
-                        .shadow(color: .black.opacity(0.35), radius: 8, y: 4)
-                }
-                .padding(10)
-                .accessibilityLabel("浏览文件")
-            }
-        }
-    }
-
-    private func titleBlock(_ work: Work) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(work.displayTitle)
-                .font(.title3.weight(.semibold))
-                .textSelection(.enabled)
-            HStack(spacing: 6) {
-                if let circle = work.circleName, !circle.isEmpty {
-                    Button(circle) { model.push(.chip(WorkChip(.circle, circle))) }
-                }
-                if work.circleName != nil, work.releaseDate != nil {
-                    Text("·").foregroundStyle(.secondary)
-                }
-                if let date = work.releaseDate {
-                    Text(Formatting.date(date)).foregroundStyle(.secondary)
-                }
-            }
-            .font(.subheadline)
-            if let original = work.originalProductId {
-                Link(destination: DLsite.workURL(original)) {
-                    Label("翻译自 \(original)", systemImage: "character.book.closed")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .underline()
-                }
-            }
-            let badges = badges(work)
-            if !badges.isEmpty {
-                FlowLayout(spacing: 6, lineSpacing: 6) {
-                    ForEach(badges, id: \.text) { badge in
-                        Text(badge.text)
-                            .font(.caption)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .foregroundStyle(badge.adult ? .red : .secondary)
-                            .background(badge.adult ? Color.red.opacity(0.12) : Color(.systemGray6), in: .rect(cornerRadius: 4))
-                    }
-                }
-                .padding(.top, 4)
-            }
-        }
-    }
-
-    private func badges(_ work: Work) -> [(text: String, adult: Bool)] {
-        var out: [(String, Bool)] = []
-        if let age = work.ageRating, !age.isEmpty {
-            out.append((age, ["R18", "18禁", "成人"].contains { age.contains($0) }))
-        }
-        if let type = work.workTypeName, !type.isEmpty { out.append((type, false)) }
-        out += work.supportedLanguages.map { ($0, false) }
-        return out
-    }
-
-    @ViewBuilder private func fileInfo(_ work: Work) -> some View {
-        let parts = [work.fileSize, work.fileFormats.isEmpty ? nil : work.fileFormats.joined(separator: " + ")]
-            .compactMap(\.self).filter { !$0.isEmpty }
-        if !parts.isEmpty {
-            Label(parts.joined(separator: " · "), systemImage: "doc")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-        }
-    }
-
-    private func actions(_ work: Work) -> some View {
-        HStack(spacing: 10) {
-            NavigationLink(value: Route.files(productId)) {
-                Label("浏览文件", systemImage: "folder")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(fileCount == 0)
-            Button {
-                model.collectionPickerWork = work
-            } label: {
-                Label("加入分组", systemImage: "folder.badge.plus").frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.bordered)
-            Button {
-                try! database.setFavorite(productId, !work.isFavorite)
-            } label: {
-                Label(work.isFavorite ? "已收藏" : "收藏", systemImage: work.isFavorite ? "heart.fill" : "heart")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.bordered)
-            .tint(.pink)
-        }
-        .controlSize(.regular)
-        .lineLimit(1)
-    }
 }
 
 enum DLsite {
     static func workURL(_ productId: String) -> URL {
         URL(string: "https://www.dlsite.com/maniax/work/=/product_id/\(productId).html/?locale=zh_CN")!
-    }
-}
-
-/// Ranking, rating, sales, wishlist, total length and price.
-struct WorkStatsView: View {
-    let work: Work
-    let durationMs: Int
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            let ranks = [("24h", work.rankDay), ("7日", work.rankWeek), ("30日", work.rankMonth)]
-                .compactMap { label, rank in rank.map { (label, $0) } }
-            if !ranks.isEmpty {
-                HStack(spacing: 10) {
-                    Image(systemName: "trophy").foregroundStyle(.secondary)
-                    ForEach(ranks, id: \.0) { label, rank in
-                        Text("\(label) 第 \(rank) 名")
-                    }
-                }
-                .font(.subheadline)
-            }
-            HStack(spacing: 10) {
-                if let rating = work.rating {
-                    RatingStars(rating: rating, size: 14)
-                    Text(rating.formatted(.number.precision(.fractionLength(2))))
-                        .font(.headline)
-                        .foregroundStyle(.orange)
-                    if let count = work.ratingCount {
-                        Text("(\(count))").font(.caption).foregroundStyle(.secondary)
-                    }
-                }
-                if let sales = work.dlCount {
-                    Text("售出 \(Formatting.count(sales))")
-                }
-                if let wishlist = work.wishlistCount {
-                    Text("收藏 \(Formatting.count(wishlist))")
-                }
-                if durationMs > 0 {
-                    Label(Formatting.clock(ms: durationMs), systemImage: "clock")
-                }
-            }
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
-            if let price = work.currentPrice {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text("\(price) JPY").font(.title3.weight(.semibold)).foregroundStyle(.red)
-                    if let discount = work.discountRate, discount > 0, let official = work.officialPrice {
-                        Text("\(official) JPY").font(.caption).strikethrough().foregroundStyle(.secondary)
-                        Text("-\(discount)%")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.red)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(.red.opacity(0.12), in: .rect(cornerRadius: 4))
-                    }
-                }
-            }
-        }
-    }
-}
-
-struct CreditsView: View {
-    let work: Work
-
-    var body: some View {
-        let rows = [("剧情", work.scenarioWriters), ("插画", work.illustrators), ("音乐", work.musicians)]
-            .filter { !$0.1.isEmpty }
-        if !rows.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("演职员").font(.headline)
-                ForEach(rows, id: \.0) { label, names in
-                    HStack(alignment: .firstTextBaseline, spacing: 12) {
-                        Text(label).foregroundStyle(.secondary).frame(width: 40, alignment: .leading)
-                        Text(names.joined(separator: "、")).textSelection(.enabled)
-                    }
-                    .font(.subheadline)
-                }
-            }
-            .padding(16)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(.secondarySystemBackground))
-        }
-    }
-}
-
-struct DescriptionView: View {
-    let work: Work
-    let openGallery: (GallerySelection) -> Void
-
-    @State private var items: [WorkDescription.Item] = []
-
-    var body: some View {
-        let html = work.descriptionHtmlZh.flatMap { $0.isEmpty ? nil : $0 } ?? work.descriptionHtml
-        VStack(alignment: .leading, spacing: 10) {
-            if !items.isEmpty {
-                Text("简介").font(.headline)
-            }
-            let images = galleryImages
-            ForEach(Array(items.enumerated()), id: \.offset) { _, item in
-                switch item {
-                case .text(let blocks):
-                    Text(attributed(blocks))
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                case .image(let url):
-                    let index = WorkDescription.imageURLs(items).firstIndex(of: url)!
-                    descriptionImage(images[index])
-                        .onTapGesture { openGallery(GallerySelection(images: images, index: index)) }
-                }
-            }
-        }
-        .padding(16)
-        .task(id: html) {
-            guard let html else { return items = [] }
-            do {
-                items = try WorkDescription.parse(html)
-            } catch {
-                DiagnosticLog.shared.write("detail", "description_parse_failed", ["productId": work.productId, "error": "\(error)"])
-                items = []
-            }
-        }
-    }
-
-    /// Downloaded copies first, falling back to the DLsite URL.
-    private var galleryImages: [GalleryImage] {
-        let local = work.descriptionImageLocalPaths
-        return WorkDescription.imageURLs(items).enumerated().map { index, url in
-            if index < local.count, FileManager.default.fileExists(atPath: URL.documentsDirectory.appending(path: local[index]).path) {
-                .local(local[index])
-            } else {
-                .remote(URL(string: url)!)
-            }
-        }
-    }
-
-    @ViewBuilder private func descriptionImage(_ image: GalleryImage) -> some View {
-        switch image {
-        case .local(let path):
-            FittedLocalImage(path: path)
-                .clipShape(.rect(cornerRadius: 6))
-        case .remote(let url):
-            AsyncImage(url: url) { phase in
-                if let image = phase.image {
-                    image.resizable().scaledToFit()
-                } else {
-                    Color(.secondarySystemBackground).aspectRatio(16 / 9, contentMode: .fit)
-                }
-            }
-            .clipShape(.rect(cornerRadius: 6))
-        }
-    }
-
-    private func attributed(_ blocks: [WorkDescription.Block]) -> AttributedString {
-        var out = AttributedString()
-        for (index, block) in blocks.enumerated() {
-            if index > 0 { out += AttributedString("\n\n") }
-            switch block {
-            case .heading(let text):
-                var run = AttributedString(text)
-                run.font = .subheadline.bold()
-                out += run
-            case .paragraph(let text):
-                var run = AttributedString(text)
-                run.font = .subheadline
-                out += run
-            }
-        }
-        return out
     }
 }

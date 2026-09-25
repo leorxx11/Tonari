@@ -113,6 +113,43 @@ public enum WorkTree {
     }
 }
 
+/// A folder holding audio directly, as offered by the detail page's track
+/// list; `path` is empty for audio at the work's root.
+public struct AudioFolder: Sendable, Hashable {
+    public let path: [String]
+    public let tracks: [Track]
+}
+
+extension WorkTree {
+    /// Every folder with tracks of its own, in tree order.
+    public static func audioFolders(_ nodes: [WorkTreeNode]) -> [AudioFolder] {
+        func walk(_ nodes: [WorkTreeNode], _ path: [String]) -> [AudioFolder] {
+            let tracks = nodes.compactMap { node -> Track? in
+                if case .track(let track) = node { track } else { nil }
+            }
+            let own = tracks.isEmpty ? [] : [AudioFolder(path: path, tracks: tracks)]
+            return own + nodes.flatMap { node -> [AudioFolder] in
+                if case .folder(let name, let children) = node { walk(children, path + [name]) } else { [] }
+            }
+        }
+        return walk(nodes, [])
+    }
+
+    /// The folder the track list opens at: the first one inside `autoPath`.
+    public static func defaultAudioFolder(_ nodes: [WorkTreeNode]) -> AudioFolder? {
+        let folders = audioFolders(nodes)
+        let preferred = autoPath(nodes)
+        return folders.first { $0.path.starts(with: preferred) } ?? folders.first
+    }
+}
+
+extension Track {
+    /// Folders from the work's root down to this track.
+    public var folderPath: [String] {
+        relativePath.split(separator: "/").dropLast().map(String.init)
+    }
+}
+
 /// Natural-order compare: digit runs compare numerically (leading zeros
 /// ignored), everything else by UTF-16 code unit, like the Flutter build.
 public enum NaturalOrder {

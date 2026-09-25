@@ -136,9 +136,9 @@ final class PlaybackController {
 
     // MARK: - Starting
 
-    /// Plays a work from `index`. Tapping the track already playing only
-    /// resumes it; any other tap starts from the beginning.
-    func play(_ workQueue: WorkQueue, at index: Int) {
+    /// Plays a work from `index` at `positionMs`. Tapping the track already
+    /// playing only resumes it.
+    func play(_ workQueue: WorkQueue, at index: Int, from positionMs: Int = 0) {
         if currentTrack?.id == workQueue.tracks[index].id {
             if !isPlaying { play() }
             return
@@ -147,7 +147,7 @@ final class PlaybackController {
         if work?.productId != workQueue.work.productId { access(workQueue.source) }
         queue = .work(workQueue)
         self.index = index
-        startCurrent()
+        startCurrent(from: positionMs)
     }
 
     func play(files: [RemoteEntry], at index: Int, sourceName: String) {
@@ -168,15 +168,15 @@ final class PlaybackController {
         startCurrent()
     }
 
-    private func startCurrent() {
+    private func startCurrent(from startMs: Int = 0) {
         switch queue! {
         case .work(let queue): try! store.trackStarted(queue.tracks[index], of: queue.work)
         case .files(let files, let sourceName): try! store.recordFile(files[index], sourceName: sourceName)
         }
         retried = false
-        positionMs = 0
+        positionMs = startMs
         durationMs = currentTrack?.durationMs ?? 0
-        load(from: 0, andPlay: true)
+        load(from: startMs, andPlay: true)
     }
 
     // MARK: - Transport
