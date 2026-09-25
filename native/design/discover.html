@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>发现与愿望单</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css">
+<style>
+:root{--surface-0:#f5f5f4;--surface-2:#fff;--border:rgba(0,0,0,.1);--text-primary:#1a1a19;--text-secondary:#5f5e5a;--text-muted:#888780;
+--phone:#fff;--phone-text:#111;--phone-sub:#8a8a8e;--fill:#f2f2f7;--sep:rgba(60,60,67,.18);--glass:rgba(250,250,252,.84);--accent:#e0493f;--dim:rgba(0,0,0,.28)}
+@media (prefers-color-scheme:dark){:root{--surface-0:#161615;--surface-2:#2c2c2a;--border:rgba(255,255,255,.1);--text-primary:#f1efe8;--text-secondary:#b4b2a9;--text-muted:#888780;
+--phone:#000;--phone-text:#f5f5f7;--phone-sub:#8e8e93;--fill:#1c1c1e;--sep:rgba(84,84,88,.5);--glass:rgba(38,38,42,.84);--dim:rgba(0,0,0,.5)}}
+body{margin:0;padding:24px 16px;background:var(--surface-0);color:var(--text-primary);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif}
+main{max-width:1000px;margin:0 auto}
+h1{font-size:18px;font-weight:600;margin:0 0 4px}
+.meta{font-size:13px;color:var(--text-secondary);margin:0 0 22px;line-height:1.65}
+.screen{display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start;background:var(--surface-2);border:0.5px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px}
+.notes{flex:1;min-width:260px}
+.notes h2{font-size:15px;font-weight:600;margin:0 0 8px}
+.notes ol,.notes ul{font-size:13px;color:var(--text-secondary);margin:0;padding-left:18px;line-height:1.7}
+.notes li{margin-bottom:4px}
+.notes b{color:var(--text-primary);font-weight:600}
+/* phone */
+.phone{width:300px;border-radius:40px;background:var(--phone);color:var(--phone-text);position:relative;overflow:hidden;
+  box-shadow:0 0 0 7px #1d1d1f,0 10px 30px rgba(0,0,0,.18);font-size:12px;flex:none;padding-bottom:124px}
+.phone.fixed{height:620px;padding-bottom:0}
+.status{height:44px;display:flex;justify-content:space-between;align-items:center;padding:0 28px;font-size:12px;font-weight:600}
+.body{padding:0 16px}
+.nav{display:flex;justify-content:space-between;align-items:center;margin:2px 0 12px}
+.nav.inline{justify-content:center;position:relative;height:30px;margin-bottom:8px}
+.nav.inline .l,.nav.inline .r{position:absolute;top:0;display:flex;gap:8px}
+.nav.inline .l{left:0}.nav.inline .r{right:0}
+.nav.inline b{font-size:15px;line-height:30px}
+.title{font-size:28px;font-weight:700;letter-spacing:-.3px}
+.cbtn{width:32px;height:32px;border-radius:50%;background:var(--fill);display:flex;align-items:center;justify-content:center;font-size:17px;position:relative}
+.badge{position:absolute;top:-3px;right:-4px;background:#ff3b30;color:#fff;font-size:9.5px;font-weight:600;min-width:15px;height:15px;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0 3px;box-sizing:border-box}
+.sec{display:flex;justify-content:space-between;align-items:baseline;margin:20px 0 9px}
+.sec b{font-size:17px;font-weight:700}.sec span{color:var(--accent);font-size:12.5px}
+.sec b i{font-size:13px;color:var(--phone-sub);margin-left:2px}
+.cover{border-radius:8px;aspect-ratio:4/3;flex:none}
+.c1{background:linear-gradient(135deg,#f3b5a8,#a24a5a)}.c2{background:linear-gradient(135deg,#9fc3e8,#46628f)}
+.c3{background:linear-gradient(135deg,#f0d9a0,#b27b3a)}.c4{background:linear-gradient(135deg,#c7b6ee,#6b55a8)}
+.c5{background:linear-gradient(135deg,#a8e0c8,#3e8a70)}.c6{background:linear-gradient(135deg,#f5c2d8,#b0507a)}
+.c7{background:linear-gradient(135deg,#d6d0c4,#7d7466)}.c8{background:linear-gradient(135deg,#b9e3f0,#3f86a3)}
+.row{display:flex;gap:10px;overflow:hidden;margin-right:-16px}
+.item{width:124px;flex:none}.item .cover{width:124px}
+.item.video{width:170px}.item.video .cover{width:170px;aspect-ratio:16/9;position:relative}
+.bar{position:absolute;left:8px;right:8px;bottom:7px;height:3px;border-radius:2px;background:rgba(255,255,255,.4)}
+.bar::after{content:"";position:absolute;left:0;top:0;bottom:0;width:var(--p);background:#fff;border-radius:2px}
+.t1{font-size:12px;margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t2{font-size:11px;color:var(--phone-sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.hero{position:relative;border-radius:14px;overflow:hidden}
+.hero .cover{border-radius:0;width:100%}
+.hero .over{position:absolute;inset:auto 0 0 0;padding:40px 92px 13px 13px;background:linear-gradient(transparent,rgba(0,0,0,.72));color:#fff}
+.hero .kicker{font-size:10.5px;opacity:.8;letter-spacing:.3px}
+.hero .ht{font-size:14.5px;font-weight:600;margin:2px 0 2px;line-height:1.3}
+.hero .hs{font-size:11px;opacity:.85}
+.pill{position:absolute;right:13px;bottom:15px;background:#fff;color:#111;border-radius:99px;padding:7px 13px;font-weight:600;font-size:12px;display:flex;gap:4px;align-items:center}
+.chips{display:flex;gap:7px;flex-wrap:wrap}
+.chip{background:var(--fill);border-radius:99px;padding:7px 10px;font-size:11.5px;white-space:nowrap}
+.chip.on{background:var(--phone-text);color:var(--phone)}
+.chip i{font-size:12px;margin-right:2px}
+.duo{display:flex;gap:10px;margin-top:12px}
+.duo div{flex:1;background:var(--fill);border-radius:12px;padding:11px 8px;font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:6px;justify-content:center}
+.duo i{font-size:16px;color:var(--accent)}
+.avatars{display:flex;gap:14px;overflow:hidden;margin-right:-16px}
+.avatar{width:60px;text-align:center;font-size:10.5px;flex:none}
+.avatar .mono{width:60px;height:60px;border-radius:50%;margin-bottom:5px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:600;color:#fff}
+.list{border-top:0.5px solid var(--sep)}
+.li{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:0.5px solid var(--sep);font-size:15px}
+.li i.ic{color:var(--accent);font-size:20px;width:24px;text-align:center}
+.li em{margin-left:auto;font-style:normal;color:var(--phone-sub);font-size:13px}
+.li .chev{color:var(--phone-sub);font-size:14px;opacity:.6}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 10px}
+.grid .cover{width:100%}
+.collage{display:grid;grid-template-columns:1fr 1fr;border-radius:8px;overflow:hidden;aspect-ratio:1}
+.collage div{aspect-ratio:1}
+.new{aspect-ratio:1;border-radius:8px;border:1.5px dashed var(--sep);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;color:var(--phone-sub);font-size:11px}
+.new i{font-size:22px}
+.mini{position:absolute;left:12px;right:12px;bottom:70px;height:46px;border-radius:99px;background:var(--glass);backdrop-filter:blur(20px);
+  box-shadow:0 2px 12px rgba(0,0,0,.14);display:flex;align-items:center;gap:8px;padding:0 15px 0 6px}
+.mini .cover{width:34px;border-radius:6px}
+.mini .mt{flex:1;min-width:0}.mini .mt .t1{margin:0}
+.mini i{font-size:17px}
+.tabbar{position:absolute;left:12px;right:12px;bottom:16px;height:48px;display:flex;gap:8px}
+.tabs{flex:1;border-radius:99px;background:var(--glass);backdrop-filter:blur(20px);box-shadow:0 2px 12px rgba(0,0,0,.14);display:flex;align-items:center;justify-content:space-around}
+.tab{display:flex;flex-direction:column;align-items:center;font-size:9.5px;color:var(--phone-sub);gap:1px}
+.tab i{font-size:19px}.tab.on{color:var(--accent)}
+.search{width:48px;border-radius:50%;background:var(--glass);backdrop-filter:blur(20px);box-shadow:0 2px 12px rgba(0,0,0,.14);display:flex;align-items:center;justify-content:center;font-size:19px}
+.dim{position:absolute;inset:0;background:var(--dim)}
+.sheet{position:absolute;left:0;right:0;bottom:0;top:58px;background:var(--phone);border-radius:22px 22px 0 0;padding:8px 16px 0;box-shadow:0 -4px 20px rgba(0,0,0,.2)}
+.sheet.half{top:auto;height:330px}
+.grab{width:36px;height:5px;border-radius:3px;background:var(--sep);margin:0 auto 10px}
+.group{background:var(--fill);border-radius:12px;padding:0 12px;margin-bottom:14px}
+.group .li{font-size:13.5px;padding:9px 0;gap:10px}
+.group .li:last-child{border-bottom:none}
+.tile{width:26px;height:26px;border-radius:7px;color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px}
+.gh{font-size:11px;color:var(--phone-sub);margin:0 0 5px 12px}
+.redcount{background:#ff3b30;color:#fff;border-radius:99px;padding:1px 7px;font-size:11.5px;font-weight:600;margin-left:auto}
+.tagcloud{display:flex;flex-wrap:wrap;gap:8px}
+.tagcloud .chip em{font-style:normal;color:var(--phone-sub);margin-left:4px;font-size:11px}
+.toolbar-note{font-size:11px;color:var(--phone-sub);margin:-4px 0 10px}
+.caption{font-size:12px;color:var(--text-muted);text-align:center;margin-top:12px}
+</style>
+<style>
+.seg{display:flex;background:var(--fill);border-radius:9px;padding:2px;margin-bottom:12px}
+.seg div{flex:1;text-align:center;padding:6px 0;border-radius:7px;font-size:12px}
+.seg .on{background:var(--phone);box-shadow:0 1px 3px rgba(0,0,0,.12);font-weight:600}
+.rank{display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--sep)}
+.rank .no{width:18px;text-align:center;font-weight:700;font-size:14px}
+.rank .cover{width:72px;border-radius:6px}
+.rank .info{flex:1;min-width:0}
+.rank .t1{margin:0;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.3}
+.price{font-size:11px;margin-top:2px;display:flex;gap:5px;align-items:baseline}
+.price b{color:var(--accent);font-weight:600}
+.price s{color:var(--phone-sub)}
+.off{background:var(--accent);color:#fff;border-radius:4px;padding:0 4px;font-size:10px;font-weight:600}
+.owned{display:inline-flex;align-items:center;gap:2px;font-size:10px;color:#34c759;font-weight:600}
+.ownedbadge{position:absolute;left:6px;top:6px;background:rgba(0,0,0,.55);color:#fff;border-radius:5px;padding:1px 5px;font-size:9.5px;display:flex;gap:2px;align-items:center}
+.cov{position:relative}
+.item .price{font-size:10.5px}
+.btns{display:flex;gap:12px;align-items:center;margin-top:14px}
+.capsule{flex:1;background:var(--phone-text);color:var(--phone);border-radius:99px;height:46px;display:flex;align-items:center;justify-content:center;gap:6px;font-weight:600;font-size:14px}
+.round{width:46px;height:46px;border-radius:50%;background:var(--fill);display:flex;align-items:center;justify-content:center;font-size:19px;flex:none}
+.round.on{color:var(--accent)}
+.dtitle{font-size:19px;font-weight:700;line-height:1.3;margin:12px 0 5px}
+.cv{color:var(--accent);font-size:14px}
+.sub{color:var(--phone-sub);font-size:12px;margin-top:3px}
+.info2{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:12px;margin-top:4px}
+.info2 span:nth-child(odd){color:var(--phone-sub)}
+.desc{font-size:12.5px;line-height:1.65}
+.desc h4{font-size:13px;margin:10px 0 4px}
+.descimg{aspect-ratio:16/10;border-radius:8px;margin:8px 0}
+.banner{display:flex;align-items:center;gap:8px;background:rgba(52,199,89,.12);color:#1f8a3b;border-radius:12px;padding:9px 12px;font-size:12px;margin-top:12px}
+@media (prefers-color-scheme:dark){.banner{color:#5bd47a}}
+.banner span{margin-left:auto;font-weight:600}
+.wrow{display:flex;gap:10px;align-items:center;padding:9px 0;border-bottom:0.5px solid var(--sep)}
+.wrow .cover{width:78px;border-radius:6px}
+.wrow .info{flex:1;min-width:0}
+.wrow .t1{margin:0}
+.state{font-size:10.5px;border-radius:5px;padding:1px 6px;display:inline-block;margin-top:3px}
+.state.todo{background:var(--fill);color:var(--phone-sub)}
+.state.done{background:rgba(52,199,89,.14);color:#1f8a3b}
+.web{position:absolute;left:0;right:0;top:58px;bottom:0;background:#fff;color:#111;border-radius:22px 22px 0 0;overflow:hidden}
+.web .bar2{height:40px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;border-bottom:0.5px solid #ddd;font-size:12px;background:#f7f7f8}
+.web .url{font-size:11px;color:#666;display:flex;gap:4px;align-items:center}
+.web .form{padding:22px 20px}
+.web .logo{font-weight:800;font-size:22px;color:#1a5ab8;margin-bottom:18px;letter-spacing:.5px}
+.web .field{border:1px solid #ccc;border-radius:6px;height:36px;margin-bottom:10px;display:flex;align-items:center;padding:0 10px;color:#999;font-size:12px}
+.web .go{background:#1a5ab8;color:#fff;border-radius:6px;height:38px;display:flex;align-items:center;justify-content:center;font-weight:600;margin-top:6px}
+.web .hint{font-size:11px;color:#888;margin-top:14px;line-height:1.6}
+</style>
+</head>
+<body><main>
+<h1>发现与愿望单</h1>
+<p class="meta">2026-09-25 待确认，与 <a href="home.html">home.html</a> 一起定稿，实现排在主页改版之后。数据来自 DLsite 网页（maniax 成人区、音声类别）：实测只带「已确认年龄」Cookie 不登录也能拿到排行和新作；登录用于 DLsite 账号愿望单。手机内均为示意数据。</p>
+
+<section class="screen">
+  <div>
+    <div class="phone">
+      <div class="status"><span>22:15</span><span><i class="ti ti-antenna-bars-5"></i> <i class="ti ti-battery-3"></i></span></div>
+      <div class="body">
+        <div class="nav"><span class="title">发现</span><span style="display:flex;gap:8px"><span class="cbtn"><i class="ti ti-heart"></i></span><span class="cbtn"><i class="ti ti-adjustments-horizontal"></i></span></span></div>
+        <div class="sec" style="margin-top:4px"><b>排行榜 <i class="ti ti-chevron-right"></i></b></div>
+        <div class="seg"><div class="on">日榜</div><div>周榜</div><div>月榜</div></div>
+        <div class="rank"><span class="no">1</span><div class="cover c1"></div><div class="info"><div class="t1">【5時間半×4姉妹】ハーレムパラダイス ～サキュバス4姉妹～</div><div class="t2">ししどラボ · 天知遥 等</div><div class="price"><b>1,848 円</b> <s>3,080 円</s> <span class="off">40%OFF</span></div><div class="t2">售出 351</div></div></div>
+        <div class="rank"><span class="no">2</span><div class="cover c2"></div><div class="info"><div class="t1">耳かき専門店 ～月の雫～ 睡眠導入コース</div><div class="t2">月雫庵 · 涼花みなせ</div><div class="price"><b>1,320 円</b></div><div class="t2">售出 298 · <span class="owned"><i class="ti ti-check"></i>已在资料库</span></div></div></div>
+        <div class="rank"><span class="no">3</span><div class="cover c4"></div><div class="info"><div class="t1">夜更かしの放課後 ～図書委員の囁き～</div><div class="t2">ささやき堂 · 陽向葵ゅか</div><div class="price"><b>990 円</b></div><div class="t2">售出 241</div></div></div>
+        <div class="sec"><b>新作 <i class="ti ti-chevron-right"></i></b></div>
+        <div class="row"><div class="item"><div class="cov"><div class="cover c5"></div></div><div class="t1">癒しの森の宿 ～湯けむり添い寝～</div><div class="t2">分倍河原</div><div class="price"><b>1,100 円</b></div></div><div class="item"><div class="cov"><div class="cover c8"></div></div><div class="t1">雨の日の図書室</div><div class="t2">秋野かえで</div><div class="price"><b>770 円</b></div></div><div class="item"><div class="cov"><div class="cover c6"></div></div><div class="t1">幼なじみと夏祭り</div><div class="t2">陽向葵ゅか</div><div class="price"><b>1,210 円</b></div></div></div>
+        <div class="sec"><b>特价中 <i class="ti ti-chevron-right"></i></b></div>
+        <div class="row"><div class="item"><div class="cov"><div class="cover c3"></div><span class="ownedbadge"><i class="ti ti-check"></i>已有</span></div><div class="t1">囁き睡眠導入</div><div class="t2">秋野かえで</div><div class="price"><b>495 円</b> <span class="off">50%OFF</span></div></div><div class="item"><div class="cov"><div class="cover c7"></div></div><div class="t1">秋の夜長の子守唄</div><div class="t2">涼花みなせ</div><div class="price"><b>660 円</b> <span class="off">30%OFF</span></div></div><div class="item"><div class="cov"><div class="cover c2"></div></div><div class="t1">ささやき喫茶</div><div class="t2">涼花みなせ</div><div class="price"><b>880 円</b> <span class="off">20%OFF</span></div></div></div>
+      </div>
+      <div class="mini"><div class="cover c1"></div><div class="mt"><div class="t1">03. 添い寝</div><div class="t2">ほら、こっちにおいで</div></div><i class="ti ti-player-play"></i><i class="ti ti-player-track-next"></i></div><div class="tabbar"><div class="tabs"><div class="tab"><i class="ti ti-home"></i>主页</div><div class="tab on"><i class="ti ti-compass"></i>发现</div><div class="tab"><i class="ti ti-books"></i>资料库</div><div class="tab"><i class="ti ti-folder"></i>浏览</div></div><div class="search"><i class="ti ti-search"></i></div></div>
+    </div>
+    <div class="caption">发现（整页）</div>
+  </div>
+  <div class="notes">
+    <h2>发现：DLsite 上有什么新的</h2>
+    <ol>
+      <li><b>排行榜</b>：日 / 周 / 月榜切换，首页显示前 5（示意只画 3），标题箭头 → 完整排行（100 名，下拉刷新）。每行：名次、封面、标题（两行）、社团 · 声优、价格（折扣时原价划线 + 折扣标）、售出数。</li>
+      <li><b>新作</b>：按发售日倒序的横条，箭头 → 完整列表（分页加载）。</li>
+      <li><b>特价中</b>：正在打折的音声，按折扣力度或售出排序。</li>
+      <li>已在资料库的作品在列表里标「已在资料库」/ 封面角标「已有」（按 RJ 号比对本地库，不额外请求）。</li>
+      <li>右上角：<b>♡</b> 进入愿望单；<b>筛选</b>里切换 成人向（maniax）/ 全年龄（home），默认成人向、只看音声，选择会记住。</li>
+      <li>点任一作品 → 在线作品详情（下一屏）。内容每次进入时刷新，页面内缓存到下次打开 App。</li>
+    </ol>
+  </div>
+</section>
+
+<section class="screen">
+  <div>
+    <div class="phone">
+      <div class="status"><span>22:15</span><span><i class="ti ti-antenna-bars-5"></i> <i class="ti ti-battery-3"></i></span></div>
+      <div class="body">
+        <div class="nav inline"><span class="l"><span class="cbtn"><i class="ti ti-chevron-left"></i></span></span><b>RJ01601234</b><span class="r"><span class="cbtn"><i class="ti ti-dots"></i></span></span></div>
+        <div class="cover c4" style="width:100%;border-radius:10px"></div>
+        <div class="dtitle">夜更かしの放課後 ～図書委員の囁き～</div>
+        <div class="cv">陽向葵ゅか</div>
+        <div class="sub">ささやき堂 · 2026-09-20 · 日文</div>
+        <div class="btns"><div class="round"><i class="ti ti-inbox"></i></div><div class="capsule"><i class="ti ti-heart"></i>加入愿望单</div><div class="round"><i class="ti ti-world"></i></div></div>
+        <div class="sec"><b>信息</b></div>
+        <div class="info2"><span>价格</span><span><b style="color:var(--accent)">990 円</b></span><span>评分</span><span>★ 4.72（318）</span><span>售出</span><span>2,410 · 心愿单 5,120</span><span>文件</span><span>WAV / MP3 · 1.2 GB</span></div>
+        <div class="sec"><b>标签</b></div>
+        <div class="chips"><span class="chip">囁き</span><span class="chip">バイノーラル</span><span class="chip">学園もの</span></div>
+        <div class="sec"><b>简介</b></div>
+        <div class="desc">放課後の図書室。閉館までの30分だけ、あなたの隣で図書委員の彼女が小さな声で本を読んでくれます。<h4>トラック一覧</h4>01. 閉館前の図書室（12:30）<br>02. 耳元で朗読（18:05）<br>03. こっそり耳かき（21:40）
+          <div class="descimg c8"></div>ささやき声とページをめくる音、窓の外の雨音をバイノーラルで収録しました。</div>
+      </div>
+      <div class="mini"><div class="cover c1"></div><div class="mt"><div class="t1">03. 添い寝</div><div class="t2">ほら、こっちにおいで</div></div><i class="ti ti-player-play"></i><i class="ti ti-player-track-next"></i></div><div class="tabbar"><div class="tabs"><div class="tab"><i class="ti ti-home"></i>主页</div><div class="tab on"><i class="ti ti-compass"></i>发现</div><div class="tab"><i class="ti ti-books"></i>资料库</div><div class="tab"><i class="ti ti-folder"></i>浏览</div></div><div class="search"><i class="ti ti-search"></i></div></div>
+    </div>
+    <div class="caption">在线作品详情（整页）</div>
+  </div>
+  <div class="notes">
+    <h2>在线作品详情</h2>
+    <ol>
+      <li>与资料库作品详情同一套布局（封面左右滑样图、标题区、信息、标签、简介），数据直接从 DLsite 实时拉取，图片在线加载不落盘。</li>
+      <li><b>简介默认展开</b>、图片跟随正文；按段落懒加载，避免长简介一次排版卡住。</li>
+      <li>按钮行（沿用资料库详情的「随机 · 播放 · 收藏」位置）：中间黑色胶囊「加入愿望单」→ DLsite 账号愿望单，已加入时变「已在愿望单」，再点移出；未登录时先引导登录。左 <b>收件箱</b> 加入 / 移出本地「待入库」（加入后图标变红）。右 <b>地球</b> 在 DLsite 中打开。</li>
+      <li>已在资料库的作品：按钮行上方显示绿色条「已在资料库 · 打开」，点击跳到资料库那部。</li>
+      <li>「⋯」：复制 RJ 号、翻译简介（沿用 LLM 翻译，结果只留在本页）。</li>
+      <li>声优 / 社团 / 标签可点，进入 DLsite 上对应的作品列表（在线版列表，与发现页同样式）。</li>
+      <li>不做购买、试听下载；买完在「浏览」里导入，入库后自动从「待入库」勾掉。</li>
+    </ol>
+  </div>
+</section>
+
+<section class="screen">
+  <div>
+    <div class="phone fixed">
+      <div class="status"><span>22:15</span><span><i class="ti ti-antenna-bars-5"></i> <i class="ti ti-battery-3"></i></span></div>
+      <div class="body">
+        <div class="nav inline"><span class="l"><span class="cbtn"><i class="ti ti-chevron-left"></i></span></span><b>愿望单</b><span class="r"><span class="cbtn"><i class="ti ti-arrows-sort"></i></span></span></div>
+        <div class="seg"><div class="on">DLsite 愿望单 · 18</div><div>待入库 · 6</div></div>
+        <div class="wrow"><div class="cover c1"></div><div class="info"><div class="t1">【5時間半×4姉妹】ハーレムパラダイス</div><div class="t2">ししどラボ</div><div class="price"><b>1,848 円</b> <s>3,080 円</s> <span class="off">40%OFF</span></div></div></div>
+        <div class="wrow"><div class="cover c4"></div><div class="info"><div class="t1">夜更かしの放課後</div><div class="t2">ささやき堂</div><div class="price"><b>990 円</b></div></div></div>
+        <div class="wrow"><div class="cover c7"></div><div class="info"><div class="t1">秋の夜長の子守唄</div><div class="t2">涼花みなせ</div><div class="price"><b>660 円</b> <s>943 円</s> <span class="off">30%OFF</span></div></div></div>
+        <div class="sec" style="margin-top:16px"><b style="font-size:13px;color:var(--phone-sub);font-weight:500">待入库（切换后）</b></div>
+        <div class="wrow"><div class="cover c5"></div><div class="info"><div class="t1">癒しの森の宿</div><div class="t2">分倍河原 · 9 月 20 日加入</div><span class="state todo">待入库</span></div></div>
+        <div class="wrow"><div class="cover c3"></div><div class="info"><div class="t1">囁き睡眠導入</div><div class="t2">秋野かえで</div><span class="state done">已入库 · 打开</span></div></div>
+      </div>
+      <div class="mini"><div class="cover c1"></div><div class="mt"><div class="t1">03. 添い寝</div><div class="t2">ほら、こっちにおいで</div></div><i class="ti ti-player-play"></i><i class="ti ti-player-track-next"></i></div><div class="tabbar"><div class="tabs"><div class="tab"><i class="ti ti-home"></i>主页</div><div class="tab on"><i class="ti ti-compass"></i>发现</div><div class="tab"><i class="ti ti-books"></i>资料库</div><div class="tab"><i class="ti ti-folder"></i>浏览</div></div><div class="search"><i class="ti ti-search"></i></div></div>
+    </div>
+    <div class="caption">发现 ♡ → 愿望单</div>
+  </div>
+  <div class="notes">
+    <h2>愿望单：两份清单</h2>
+    <ul>
+      <li><b>DLsite 愿望单</b>：登录后读取 / 修改账号里的愿望单，和网站、官方 App 同步；显示当前价格与折扣，排序：加入时间 / 折扣 / 价格。左滑移出。未登录时显示「登录 DLsite」按钮。</li>
+      <li><b>待入库</b>（本地）：记下打算以后放进资料库的作品，不需要登录。资料库里出现同一 RJ 号后自动标「已入库 · 打开」，左滑移除；「清除已入库」一键清理。</li>
+      <li>两份互相独立：愿望单偏「想买」，待入库偏「已有 / 买了，等我整理」。</li>
+      <li>本地清单要存进数据库，需要加表、数据库版本升级；恢复 Flutter 版备份时按旧版本迁移（实现时再定细节）。</li>
+    </ul>
+  </div>
+</section>
+
+<section class="screen">
+  <div>
+    <div class="phone fixed">
+      <div class="status"><span>22:15</span><span><i class="ti ti-antenna-bars-5"></i> <i class="ti ti-battery-3"></i></span></div>
+      <div class="body" style="opacity:.5"><div class="nav inline"><b>DLsite</b></div></div>
+      <div class="dim"></div>
+      <div class="web">
+        <div class="bar2"><span>取消</span><span class="url"><i class="ti ti-lock"></i>login.dlsite.com</span><span style="width:24px"></span></div>
+        <div class="form">
+          <div class="logo">DLsite</div>
+          <div class="field">登录 ID / 邮箱</div>
+          <div class="field">密码</div>
+          <div class="go">登录</div>
+          <div class="hint">这是 DLsite 官方登录页（App 内网页）。Tonari 不读取也不保存你的账号密码，只在登录成功后保存 DLsite 下发的登录 Cookie（存入钥匙串）。</div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">设置 → DLsite → 登录</div>
+  </div>
+  <div class="notes">
+    <h2>DLsite 登录</h2>
+    <ul>
+      <li>入口：设置 → 账户与服务 → <b>DLsite</b>（右侧「未登录 / 账号名」），与 115 并列；愿望单页、详情页 ♡ 在未登录时也引导到这里。</li>
+      <li>点「登录」弹出 App 内网页，直接打开 DLsite 官方登录页，验证码、二步验证照常在网页里完成；登录成功后自动关闭，保存 Cookie 到钥匙串。</li>
+      <li>DLsite 页面：账号名、「退出登录」（清除 Cookie）。Cookie 失效时愿望单操作失败 → 提示重新登录，并写一条消息（同 115 的「重新登录」快捷操作）。</li>
+      <li>备份照常带上这份 Cookie（和 115 Cookie 一样在 secrets.json 里）。</li>
+    </ul>
+  </div>
+</section>
+</main></body></html>

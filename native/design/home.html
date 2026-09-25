@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>主页与资料库</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css">
+<style>
+:root{--surface-0:#f5f5f4;--surface-2:#fff;--border:rgba(0,0,0,.1);--text-primary:#1a1a19;--text-secondary:#5f5e5a;--text-muted:#888780;
+--phone:#fff;--phone-text:#111;--phone-sub:#8a8a8e;--fill:#f2f2f7;--sep:rgba(60,60,67,.18);--glass:rgba(250,250,252,.84);--accent:#e0493f;--dim:rgba(0,0,0,.28)}
+@media (prefers-color-scheme:dark){:root{--surface-0:#161615;--surface-2:#2c2c2a;--border:rgba(255,255,255,.1);--text-primary:#f1efe8;--text-secondary:#b4b2a9;--text-muted:#888780;
+--phone:#000;--phone-text:#f5f5f7;--phone-sub:#8e8e93;--fill:#1c1c1e;--sep:rgba(84,84,88,.5);--glass:rgba(38,38,42,.84);--dim:rgba(0,0,0,.5)}}
+body{margin:0;padding:24px 16px;background:var(--surface-0);color:var(--text-primary);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif}
+main{max-width:1000px;margin:0 auto}
+h1{font-size:18px;font-weight:600;margin:0 0 4px}
+.meta{font-size:13px;color:var(--text-secondary);margin:0 0 22px;line-height:1.65}
+.screen{display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start;background:var(--surface-2);border:0.5px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px}
+.notes{flex:1;min-width:260px}
+.notes h2{font-size:15px;font-weight:600;margin:0 0 8px}
+.notes ol,.notes ul{font-size:13px;color:var(--text-secondary);margin:0;padding-left:18px;line-height:1.7}
+.notes li{margin-bottom:4px}
+.notes b{color:var(--text-primary);font-weight:600}
+/* phone */
+.phone{width:300px;border-radius:40px;background:var(--phone);color:var(--phone-text);position:relative;overflow:hidden;
+  box-shadow:0 0 0 7px #1d1d1f,0 10px 30px rgba(0,0,0,.18);font-size:12px;flex:none;padding-bottom:124px}
+.phone.fixed{height:620px;padding-bottom:0}
+.status{height:44px;display:flex;justify-content:space-between;align-items:center;padding:0 28px;font-size:12px;font-weight:600}
+.body{padding:0 16px}
+.nav{display:flex;justify-content:space-between;align-items:center;margin:2px 0 12px}
+.nav.inline{justify-content:center;position:relative;height:30px;margin-bottom:8px}
+.nav.inline .l,.nav.inline .r{position:absolute;top:0;display:flex;gap:8px}
+.nav.inline .l{left:0}.nav.inline .r{right:0}
+.nav.inline b{font-size:15px;line-height:30px}
+.title{font-size:28px;font-weight:700;letter-spacing:-.3px}
+.cbtn{width:32px;height:32px;border-radius:50%;background:var(--fill);display:flex;align-items:center;justify-content:center;font-size:17px;position:relative}
+.badge{position:absolute;top:-3px;right:-4px;background:#ff3b30;color:#fff;font-size:9.5px;font-weight:600;min-width:15px;height:15px;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0 3px;box-sizing:border-box}
+.sec{display:flex;justify-content:space-between;align-items:baseline;margin:20px 0 9px}
+.sec b{font-size:17px;font-weight:700}.sec span{color:var(--accent);font-size:12.5px}
+.sec b i{font-size:13px;color:var(--phone-sub);margin-left:2px}
+.cover{border-radius:8px;aspect-ratio:4/3;flex:none}
+.c1{background:linear-gradient(135deg,#f3b5a8,#a24a5a)}.c2{background:linear-gradient(135deg,#9fc3e8,#46628f)}
+.c3{background:linear-gradient(135deg,#f0d9a0,#b27b3a)}.c4{background:linear-gradient(135deg,#c7b6ee,#6b55a8)}
+.c5{background:linear-gradient(135deg,#a8e0c8,#3e8a70)}.c6{background:linear-gradient(135deg,#f5c2d8,#b0507a)}
+.c7{background:linear-gradient(135deg,#d6d0c4,#7d7466)}.c8{background:linear-gradient(135deg,#b9e3f0,#3f86a3)}
+.row{display:flex;gap:10px;overflow:hidden;margin-right:-16px}
+.item{width:124px;flex:none}.item .cover{width:124px}
+.item.video{width:170px}.item.video .cover{width:170px;aspect-ratio:16/9;position:relative}
+.bar{position:absolute;left:8px;right:8px;bottom:7px;height:3px;border-radius:2px;background:rgba(255,255,255,.4)}
+.bar::after{content:"";position:absolute;left:0;top:0;bottom:0;width:var(--p);background:#fff;border-radius:2px}
+.t1{font-size:12px;margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t2{font-size:11px;color:var(--phone-sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.hero{position:relative;border-radius:14px;overflow:hidden}
+.hero .cover{border-radius:0;width:100%}
+.hero .over{position:absolute;inset:auto 0 0 0;padding:40px 92px 13px 13px;background:linear-gradient(transparent,rgba(0,0,0,.72));color:#fff}
+.hero .kicker{font-size:10.5px;opacity:.8;letter-spacing:.3px}
+.hero .ht{font-size:14.5px;font-weight:600;margin:2px 0 2px;line-height:1.3}
+.hero .hs{font-size:11px;opacity:.85}
+.pill{position:absolute;right:13px;bottom:15px;background:#fff;color:#111;border-radius:99px;padding:7px 13px;font-weight:600;font-size:12px;display:flex;gap:4px;align-items:center}
+.chips{display:flex;gap:7px;flex-wrap:wrap}
+.chip{background:var(--fill);border-radius:99px;padding:7px 10px;font-size:11.5px;white-space:nowrap}
+.chip.on{background:var(--phone-text);color:var(--phone)}
+.chip i{font-size:12px;margin-right:2px}
+.duo{display:flex;gap:10px;margin-top:12px}
+.duo div{flex:1;background:var(--fill);border-radius:12px;padding:11px 8px;font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:6px;justify-content:center}
+.duo i{font-size:16px;color:var(--accent)}
+.avatars{display:flex;gap:14px;overflow:hidden;margin-right:-16px}
+.avatar{width:60px;text-align:center;font-size:10.5px;flex:none}
+.avatar .mono{width:60px;height:60px;border-radius:50%;margin-bottom:5px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:600;color:#fff}
+.list{border-top:0.5px solid var(--sep)}
+.li{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:0.5px solid var(--sep);font-size:15px}
+.li i.ic{color:var(--accent);font-size:20px;width:24px;text-align:center}
+.li em{margin-left:auto;font-style:normal;color:var(--phone-sub);font-size:13px}
+.li .chev{color:var(--phone-sub);font-size:14px;opacity:.6}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 10px}
+.grid .cover{width:100%}
+.collage{display:grid;grid-template-columns:1fr 1fr;border-radius:8px;overflow:hidden;aspect-ratio:1}
+.collage div{aspect-ratio:1}
+.new{aspect-ratio:1;border-radius:8px;border:1.5px dashed var(--sep);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;color:var(--phone-sub);font-size:11px}
+.new i{font-size:22px}
+.mini{position:absolute;left:12px;right:12px;bottom:70px;height:46px;border-radius:99px;background:var(--glass);backdrop-filter:blur(20px);
+  box-shadow:0 2px 12px rgba(0,0,0,.14);display:flex;align-items:center;gap:8px;padding:0 15px 0 6px}
+.mini .cover{width:34px;border-radius:6px}
+.mini .mt{flex:1;min-width:0}.mini .mt .t1{margin:0}
+.mini i{font-size:17px}
+.tabbar{position:absolute;left:12px;right:12px;bottom:16px;height:48px;display:flex;gap:8px}
+.tabs{flex:1;border-radius:99px;background:var(--glass);backdrop-filter:blur(20px);box-shadow:0 2px 12px rgba(0,0,0,.14);display:flex;align-items:center;justify-content:space-around}
+.tab{display:flex;flex-direction:column;align-items:center;font-size:9.5px;color:var(--phone-sub);gap:1px}
+.tab i{font-size:19px}.tab.on{color:var(--accent)}
+.search{width:48px;border-radius:50%;background:var(--glass);backdrop-filter:blur(20px);box-shadow:0 2px 12px rgba(0,0,0,.14);display:flex;align-items:center;justify-content:center;font-size:19px}
+.dim{position:absolute;inset:0;background:var(--dim)}
+.sheet{position:absolute;left:0;right:0;bottom:0;top:58px;background:var(--phone);border-radius:22px 22px 0 0;padding:8px 16px 0;box-shadow:0 -4px 20px rgba(0,0,0,.2)}
+.sheet.half{top:auto;height:330px}
+.grab{width:36px;height:5px;border-radius:3px;background:var(--sep);margin:0 auto 10px}
+.group{background:var(--fill);border-radius:12px;padding:0 12px;margin-bottom:14px}
+.group .li{font-size:13.5px;padding:9px 0;gap:10px}
+.group .li:last-child{border-bottom:none}
+.tile{width:26px;height:26px;border-radius:7px;color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px}
+.gh{font-size:11px;color:var(--phone-sub);margin:0 0 5px 12px}
+.redcount{background:#ff3b30;color:#fff;border-radius:99px;padding:1px 7px;font-size:11.5px;font-weight:600;margin-left:auto}
+.tagcloud{display:flex;flex-wrap:wrap;gap:8px}
+.tagcloud .chip em{font-style:normal;color:var(--phone-sub);margin-left:4px;font-size:11px}
+.toolbar-note{font-size:11px;color:var(--phone-sub);margin:-4px 0 10px}
+.caption{font-size:12px;color:var(--text-muted);text-align:center;margin-top:12px}
+</style>
+</head>
+<body><main>
+<h1>主页与资料库</h1>
+<p class="meta">2026-09-25 待确认，由 A「主页 + 资料库」与 B「今晚」合并而来。Tab 改为 主页 · 发现 · 资料库 · 浏览 · 搜索（「发现」见 <a href="discover.html">discover.html</a>，实现排在主页改版之后）。设置移到主页右上角。封面 4:3，手机内均为示意数据；长屏展示整页滚动内容。</p>
+
+<!-- 主页 -->
+<section class="screen">
+  <div>
+    <div class="phone">
+      <div class="status"><span>23:08</span><span><i class="ti ti-antenna-bars-5"></i> <i class="ti ti-battery-2"></i></span></div>
+      <div class="body">
+        <div class="nav"><span class="title">主页</span><span class="cbtn"><i class="ti ti-settings"></i><span class="badge">2</span></span></div>
+        <div class="hero"><div class="cover c1"></div>
+          <div class="over"><div class="kicker">继续收听</div><div class="ht">添い寝ASMR～あなたの隣で～</div><div class="hs">第 3 首 · 剩 12 分钟</div></div>
+          <div class="pill"><i class="ti ti-player-play"></i>播放</div></div>
+        <div class="sec"><b>睡眠定时</b></div>
+        <div class="chips"><span class="chip">15 分钟</span><span class="chip on"><i class="ti ti-moon"></i>30 分钟</span><span class="chip">1 小时</span><span class="chip">播完本曲</span></div>
+        <div class="duo"><div><i class="ti ti-arrows-shuffle"></i>随机一部</div><div><i class="ti ti-tag"></i>按标签挑</div></div>
+        <div class="sec"><b>最近播放 <i class="ti ti-chevron-right"></i></b></div>
+        <div class="row">
+          <div class="item"><div class="cover c2"></div><div class="t1">耳かき専門店 ～月の雫～</div><div class="t2">昨天 · 看到第 5 首</div></div>
+          <div class="item"><div class="cover c3"></div><div class="t1">囁き睡眠導入</div><div class="t2">3 天前</div></div>
+          <div class="item"><div class="cover c8"></div><div class="t1">雨の日の図書室</div><div class="t2">上周</div></div>
+        </div>
+        <div class="sec"><b>继续观看</b></div>
+        <div class="row">
+          <div class="item video"><div class="cover c5"><div class="bar" style="--p:40%"></div></div><div class="t1">live_2026_09.mkv</div><div class="t2">115 · 剩 38 分钟</div></div>
+          <div class="item video"><div class="cover c7"><div class="bar" style="--p:75%"></div></div><div class="t1">特典映像</div><div class="t2">本地 · 剩 6 分钟</div></div>
+        </div>
+        <div class="sec"><b>好久没听 <i class="ti ti-chevron-right"></i></b></div>
+        <div class="row">
+          <div class="item"><div class="cover c6"></div><div class="t1">雨音と膝枕</div><div class="t2">2 个月前</div></div>
+          <div class="item"><div class="cover c3"></div><div class="t1">秋の夜長の子守唄</div><div class="t2">3 个月前</div></div>
+          <div class="item"><div class="cover c4"></div><div class="t1">星降る丘で</div><div class="t2">半年前</div></div>
+        </div>
+        <div class="sec"><b>最近添加 <i class="ti ti-chevron-right"></i></b></div>
+        <div class="row">
+          <div class="item"><div class="cover c4"></div><div class="t1">夜更かしの放課後</div><div class="t2">115 · 今天</div></div>
+          <div class="item"><div class="cover c5"></div><div class="t1">癒しの森の宿</div><div class="t2">本地 · 今天</div></div>
+          <div class="item"><div class="cover c2"></div><div class="t1">ささやき喫茶</div><div class="t2">115 · 昨天</div></div>
+        </div>
+        <div class="sec"><b>常听声优</b></div>
+        <div class="avatars">
+          <div class="avatar"><div class="mono c6">陽</div>陽向葵ゅか</div><div class="avatar"><div class="mono c2">涼</div>涼花みなせ</div>
+          <div class="avatar"><div class="mono c3">秋</div>秋野かえで</div><div class="avatar"><div class="mono c5">分</div>分倍河原</div>
+        </div>
+      </div>
+      <div class="mini"><div class="cover c1"></div><div class="mt"><div class="t1">03. 添い寝</div><div class="t2">ほら、こっちにおいで</div></div><i class="ti ti-moon" style="font-size:13px;opacity:.6"></i><i class="ti ti-player-pause"></i><i class="ti ti-player-track-next"></i></div>
+      <div class="tabbar"><div class="tabs"><div class="tab on"><i class="ti ti-home"></i>主页</div><div class="tab"><i class="ti ti-compass"></i>发现</div><div class="tab"><i class="ti ti-books"></i>资料库</div><div class="tab"><i class="ti ti-folder"></i>浏览</div></div><div class="search"><i class="ti ti-search"></i></div></div>
+    </div>
+    <div class="caption">主页（整页）</div>
+  </div>
+  <div class="notes">
+    <h2>主页：现在听什么</h2>
+    <ol>
+      <li><b>继续收听</b>：最近一次播放的音频作品。点封面进作品详情，点「播放」从记住的那首、那个位置续播；正在播放这部时按钮变「打开播放页」。没有播放记录时整块不出现。</li>
+      <li><b>睡眠定时</b>：四个快捷档，当前生效的一档高亮、带小月亮；再点一次取消。没在播放时点任一档 = 续播上面那部并开始计时。「自定义」仍在播放页和迷你播放栏长按菜单里。</li>
+      <li><b>随机一部</b>：从资料库随机打开一部作品详情（与现在的随机相同）。<b>按标签挑</b>：弹出标签面板（见下）。</li>
+      <li><b>最近播放</b>：最多 10 项，副标题「看到第 N 首」或相对时间；标题右侧箭头 → 播放历史。</li>
+      <li><b>继续观看</b>：看了一半的视频，16:9 带进度条；没有时整块不出现。</li>
+      <li><b>好久没听</b>：30 天以上没播放过的作品，最久的在前；箭头 → 完整列表。</li>
+      <li><b>最近添加</b>：按导入时间，箭头 → 资料库「作品」按添加时间排序。</li>
+      <li><b>常听声优</b>：近 30 天收听时长前 8 位（来自收听统计）。声优没有头像，用名字首字 + 固定配色的圆；点 → 该声优的作品列表。</li>
+      <li>右上角<b>齿轮</b>打开设置（弹出页），未读消息数显示在齿轮角标上。</li>
+      <li>各横条左右滑动，长按作品封面沿用媒体库的菜单（播放、收藏、加入分组…）。</li>
+    </ol>
+  </div>
+</section>
+
+<!-- 资料库 -->
+<section class="screen">
+  <div>
+    <div class="phone">
+      <div class="status"><span>21:41</span><span><i class="ti ti-antenna-bars-5"></i> <i class="ti ti-battery-3"></i></span></div>
+      <div class="body">
+        <div class="nav"><span class="title">资料库</span><span class="cbtn"><i class="ti ti-plus"></i></span></div>
+        <div class="list">
+          <div class="li"><i class="ti ti-headphones ic"></i>作品<em>219</em><i class="ti ti-chevron-right chev"></i></div>
+          <div class="li"><i class="ti ti-movie ic"></i>视频<em>12</em><i class="ti ti-chevron-right chev"></i></div>
+          <div class="li"><i class="ti ti-heart ic"></i>收藏<em>34</em><i class="ti ti-chevron-right chev"></i></div>
+          <div class="li"><i class="ti ti-microphone-2 ic"></i>声优<i class="ti ti-chevron-right chev" style="margin-left:auto"></i></div>
+          <div class="li"><i class="ti ti-users ic"></i>社团<i class="ti ti-chevron-right chev" style="margin-left:auto"></i></div>
+          <div class="li"><i class="ti ti-tag ic"></i>标签<i class="ti ti-chevron-right chev" style="margin-left:auto"></i></div>
+          <div class="li"><i class="ti ti-history ic"></i>播放历史<i class="ti ti-chevron-right chev" style="margin-left:auto"></i></div>
+          <div class="li"><i class="ti ti-chart-bar ic"></i>收听统计<em>本周 6 小时</em><i class="ti ti-chevron-right chev"></i></div>
+        </div>
+        <div class="sec"><b>分组</b><span>排序</span></div>
+        <div class="grid">
+          <div><div class="collage"><div class="c1"></div><div class="c2"></div><div class="c3"></div><div class="c4"></div></div><div class="t1">睡前必听</div><div class="t2">9 部 · 2 视频</div></div>
+          <div><div class="collage"><div class="c5"></div><div class="c6"></div><div class="c8"></div><div class="c7"></div></div><div class="t1">耳かき</div><div class="t2">14 部</div></div>
+          <div><div class="collage" style="grid-template-columns:1fr"><div class="c3" style="aspect-ratio:1"></div></div><div class="t1">待补完</div><div class="t2">1 部</div></div>
+          <div><div class="new"><i class="ti ti-plus"></i>新建分组</div></div>
+        </div>
+        <div class="sec"><b>最近添加</b></div>
+        <div class="grid">
+          <div><div class="cover c4"></div><div class="t1">夜更かしの放課後</div><div class="t2">陽向葵ゅか</div></div>
+          <div><div class="cover c5"></div><div class="t1">癒しの森の宿</div><div class="t2">分倍河原</div></div>
+          <div><div class="cover c2"></div><div class="t1">ささやき喫茶</div><div class="t2">涼花みなせ</div></div>
+          <div><div class="cover c8"></div><div class="t1">雨の日の図書室</div><div class="t2">秋野かえで</div></div>
+        </div>
+      </div>
+      <div class="mini"><div class="cover c1"></div><div class="mt"><div class="t1">03. 添い寝</div><div class="t2">ほら、こっちにおいで</div></div><i class="ti ti-player-play"></i><i class="ti ti-player-track-next"></i></div>
+      <div class="tabbar"><div class="tabs"><div class="tab"><i class="ti ti-home"></i>主页</div><div class="tab"><i class="ti ti-compass"></i>发现</div><div class="tab on"><i class="ti ti-books"></i>资料库</div><div class="tab"><i class="ti ti-folder"></i>浏览</div></div><div class="search"><i class="ti ti-search"></i></div></div>
+    </div>
+    <div class="caption">资料库（整页）</div>
+  </div>
+  <div class="notes">
+    <h2>资料库：我有什么</h2>
+    <ol>
+      <li><b>分类行</b>（参照 Apple Music 资料库）：作品、视频、收藏带数量；收听统计右侧「本周 x 小时」。声优 / 社团 / 标签进入现有的分类浏览（按作品数或名称排序），搜索页的「分类浏览」保留不变。</li>
+      <li><b>分组</b>：从收藏页整体搬来——拼贴封面、组名与「9 部 · 2 视频」、末格虚线「新建分组」、长按重命名 / 删除、「排序」菜单。</li>
+      <li><b>最近添加</b>：两列，显示最近 8 部；想看全部走「作品」按添加时间排。</li>
+      <li>右上角 <b>＋</b>：从「文件」导入文件夹 / 从 115 导入 / 导入视频（原媒体库与视频库的导入入口集中到这里）。</li>
+      <li>原「收藏」Tab 与媒体库顶部「音声 / 视频」切换取消；收藏页里的「全部收藏 / 播放历史 / 收听统计」入口都落在分类行里。</li>
+    </ol>
+  </div>
+</section>
+
+<!-- 作品 -->
+<section class="screen">
+  <div>
+    <div class="phone fixed">
+      <div class="status"><span>21:42</span><span><i class="ti ti-antenna-bars-5"></i> <i class="ti ti-battery-3"></i></span></div>
+      <div class="body">
+        <div class="nav inline"><span class="l"><span class="cbtn"><i class="ti ti-chevron-left"></i></span></span><b>作品</b><span class="r"><span class="cbtn"><i class="ti ti-arrows-shuffle"></i></span><span class="cbtn"><i class="ti ti-dots"></i></span></span></div>
+        <div class="chips" style="margin-bottom:12px"><span class="chip on">全部</span><span class="chip">本地</span><span class="chip">115</span></div>
+        <div class="grid">
+          <div><div class="cover c1"></div><div class="t1">添い寝ASMR～あなたの隣で～</div><div class="t2">陽向葵ゅか</div></div>
+          <div><div class="cover c2"></div><div class="t1">耳かき専門店 ～月の雫～</div><div class="t2">涼花みなせ</div></div>
+          <div><div class="cover c3"></div><div class="t1">囁き睡眠導入</div><div class="t2">秋野かえで</div></div>
+          <div><div class="cover c4"></div><div class="t1">夜更かしの放課後</div><div class="t2">陽向葵ゅか</div></div>
+          <div><div class="cover c5"></div><div class="t1">癒しの森の宿</div><div class="t2">分倍河原</div></div>
+          <div><div class="cover c6"></div><div class="t1">雨音と膝枕</div><div class="t2">涼花みなせ 等</div></div>
+        </div>
+      </div>
+      <div class="mini"><div class="cover c1"></div><div class="mt"><div class="t1">03. 添い寝</div><div class="t2">ほら、こっちにおいで</div></div><i class="ti ti-player-play"></i><i class="ti ti-player-track-next"></i></div>
+      <div class="tabbar"><div class="tabs"><div class="tab"><i class="ti ti-home"></i>主页</div><div class="tab"><i class="ti ti-compass"></i>发现</div><div class="tab on"><i class="ti ti-books"></i>资料库</div><div class="tab"><i class="ti ti-folder"></i>浏览</div></div><div class="search"><i class="ti ti-search"></i></div></div>
+    </div>
+    <div class="caption">资料库 → 作品</div>
+  </div>
+  <div class="notes">
+    <h2>作品：原媒体库原样搬过来</h2>
+    <ul>
+      <li>就是现在的媒体库作品墙：网格 / 列表 / 大封面三种视图、排序（点当前字段切换升降序）、来源筛选、长按菜单、DLsite 资料补全进度条，全部不变。</li>
+      <li>右上角：随机一部；「⋯」里放视图、排序、导入（与资料库 ＋ 相同）。</li>
+      <li>「视频」行进入现在的视频库（继续观看 + 16:9 网格），同样原样搬过来。</li>
+      <li>各处点作品、声优、社团、标签的跳转，改为推进当前所在 Tab 的页面栈；「查看作品」「在文件中显示」等从播放页发起的跳转，统一进资料库 Tab。</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 按标签挑 -->
+<section class="screen">
+  <div>
+    <div class="phone fixed">
+      <div class="status"><span>23:10</span><span><i class="ti ti-antenna-bars-5"></i> <i class="ti ti-battery-2"></i></span></div>
+      <div class="body" style="opacity:.5">
+        <div class="nav"><span class="title">主页</span><span class="cbtn"><i class="ti ti-settings"></i></span></div>
+        <div class="hero"><div class="cover c1"></div></div>
+      </div>
+      <div class="dim"></div>
+      <div class="sheet half">
+        <div class="grab"></div>
+        <div class="nav inline"><b>按标签挑</b><span class="r"><span class="cbtn"><i class="ti ti-x"></i></span></span></div>
+        <div class="toolbar-note">常听的在前（按收听时长），其余按作品数</div>
+        <div class="tagcloud">
+          <span class="chip">添い寝<em>42</em></span><span class="chip">耳かき<em>38</em></span><span class="chip">囁き<em>61</em></span>
+          <span class="chip">癒し<em>55</em></span><span class="chip">睡眠<em>27</em></span><span class="chip">バイノーラル<em>180</em></span>
+          <span class="chip">耳舐め<em>33</em></span><span class="chip">年上<em>29</em></span><span class="chip">ささやき<em>19</em></span>
+          <span class="chip">ラブラブ<em>24</em></span><span class="chip">方言<em>8</em></span>
+        </div>
+        <div class="duo" style="margin-top:18px"><div><i class="ti ti-arrows-shuffle"></i>在所选标签里随机</div></div>
+      </div>
+    </div>
+    <div class="caption">按标签挑（半屏面板）</div>
+  </div>
+  <div class="notes">
+    <h2>按标签挑</h2>
+    <ul>
+      <li>半屏面板，可上拉到全屏。标签取自资料库作品的 DLsite 类别，常听的在前（按近 30 天收听时长），其余按作品数。</li>
+      <li>点一个标签 → 关闭面板并进入该标签的作品列表（现有的标签作品页）。</li>
+      <li>可多选标签后点「在所选标签里随机」：同时带这些标签的作品里随机打开一部。</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 设置 -->
+<section class="screen">
+  <div>
+    <div class="phone fixed">
+      <div class="status"><span>21:43</span><span><i class="ti ti-antenna-bars-5"></i> <i class="ti ti-battery-3"></i></span></div>
+      <div class="body" style="opacity:.5">
+        <div class="nav"><span class="title">主页</span><span class="cbtn"><i class="ti ti-settings"></i></span></div>
+      </div>
+      <div class="dim"></div>
+      <div class="sheet" style="background:var(--phone)">
+        <div class="grab"></div>
+        <div class="nav inline"><b>设置</b><span class="r"><span class="cbtn"><i class="ti ti-check"></i></span></span></div>
+        <div class="group"><div class="li"><span class="tile" style="background:#ff3b30"><i class="ti ti-bell"></i></span>消息<span class="redcount">2</span><i class="ti ti-chevron-right chev"></i></div></div>
+        <div class="gh">通用</div>
+        <div class="group">
+          <div class="li"><span class="tile" style="background:#0a84ff"><i class="ti ti-circle-half-2"></i></span>外观<em>跟随系统</em><i class="ti ti-chevron-right chev"></i></div>
+          <div class="li"><span class="tile" style="background:#ff3b30"><i class="ti ti-player-play"></i></span>播放<em>步长 15 秒</em><i class="ti ti-chevron-right chev"></i></div>
+          <div class="li"><span class="tile" style="background:#0a84ff"><i class="ti ti-hand-stop"></i></span>隐私<em>后台模糊</em><i class="ti ti-chevron-right chev"></i></div>
+        </div>
+        <div class="gh">账户与服务</div>
+        <div class="group">
+          <div class="li"><span class="tile" style="background:#0a84ff"><i class="ti ti-cloud"></i></span>115 网盘<em>已登录</em><i class="ti ti-chevron-right chev"></i></div>
+          <div class="li"><span class="tile" style="background:#5e5ce6"><i class="ti ti-language"></i></span>翻译<em>DeepSeek</em><i class="ti ti-chevron-right chev"></i></div>
+        </div>
+        <div class="gh">媒体库</div>
+        <div class="group">
+          <div class="li"><span class="tile" style="background:#ff9f0a"><i class="ti ti-folder"></i></span>媒体来源<em>3</em><i class="ti ti-chevron-right chev"></i></div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">主页齿轮 → 设置（弹出页）</div>
+  </div>
+  <div class="notes">
+    <h2>设置：从 Tab 移到主页右上角</h2>
+    <ul>
+      <li>内容与现在的设置页完全相同（消息、通用、账户与服务、媒体库、数据、支持），只是换成从主页齿轮弹出的整页 sheet，右上角「完成」关闭，下拉也能关闭。</li>
+      <li>未读消息：齿轮角标 + 设置里「消息」行的红色数字，取代原来设置 Tab 上的角标。</li>
+      <li>DLsite 登录出现在「账户与服务」里，和 115 并列（见 discover.html）。</li>
+    </ul>
+  </div>
+</section>
+</main></body></html>
