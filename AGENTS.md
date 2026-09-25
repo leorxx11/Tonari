@@ -68,7 +68,8 @@
 
 - 源码层 `PRODUCT_BUNDLE_IDENTIFIER` 保持 `com.leo.tonari`。
 - 正式分发走 `tools/sign-ipa.sh`，脚本产物为 `build/ios/iphoneos/tonari-signed.ipa`。
-- 调试版 `com.leo.tonari` 与正式使用版 `com.wangshaikang` 是两个独立 App，数据沙盒隔离。
+- 调试版 `com.leo.tonari` 与正式使用版 `com.wangshaikang`（Flutter，旧证书 2026-10-30 到期）是两个独立 App，数据沙盒隔离。
+- 2026-09-25 换了新证书（Team `Q7866CL7FU`，2027-09-14 到期），profile 锁定 Bundle ID `com.nuownqyyy990.ct12215`，与 `com.wangshaikang` 是不同 App。
 - `p12`、`mobileprovision`、`证书_*` 目录永远不要进版本库。
 - 发版验收重点检查文件 App 导入文件夹时“打开”按钮有反应；签名 entitlements 配错最容易破坏这个功能。
 
@@ -85,4 +86,4 @@
   - `cd native && xcodebuild -project Tonari.xcodeproj -scheme Tonari -configuration Release -destination 'generic/platform=iOS' -derivedDataPath build/DerivedData -allowProvisioningUpdates -quiet build`
 - 真机安装：`xcrun devicectl device install app --device <coredevice-uuid> native/build/DerivedData/Build/Products/Release-iphoneos/Tonari.app`，再 `xcrun devicectl device process launch --device <coredevice-uuid> com.leo.tonari.native`。
 - 原生调试版 Bundle ID `com.leo.tonari.native`（免费证书），与 Flutter 调试版、正式版并存。
-- 正式包用 `ios-resign` skill 签原生 .app，产物 Bundle ID 为 `com.wangshaikang`，装机会覆盖 Flutter 正式版；N7 切换前不要装。
+- 正式包用 `ios-resign` skill 签原生 .app（新证书），产物 Bundle ID 为 `com.nuownqyyy990.ct12215`，与 Flutter 正式版并存、互不覆盖，可以直接装机；切换方式是在 Flutter 正式版导出备份、原生正式版里恢复。

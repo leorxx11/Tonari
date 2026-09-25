@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>App 图标</title>
+<style>
+:root{--surface-0:#f5f5f4;--surface-1:#ebebea;--surface-2:#fff;--border:rgba(0,0,0,.1);
+--text-primary:#1a1a19;--text-secondary:#5f5e5a;--text-muted:#888780}
+@media (prefers-color-scheme:dark){:root{--surface-0:#161615;--surface-1:#232322;--surface-2:#2c2c2a;--border:rgba(255,255,255,.1);
+--text-primary:#f1efe8;--text-secondary:#b4b2a9;--text-muted:#888780}}
+body{margin:0;padding:24px 16px;background:var(--surface-0);color:var(--text-primary);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif}
+main{max-width:820px;margin:0 auto}
+h1{font-size:18px;font-weight:600;margin:0 0 4px}
+h2{font-size:15px;font-weight:600;margin:0}
+.meta{font-size:13px;color:var(--text-secondary);margin:0 0 20px;line-height:1.6}
+.card{background:var(--surface-2);border:0.5px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px}
+.head{display:flex;align-items:baseline;gap:8px;margin-bottom:4px}
+.tag{font-size:12px;color:var(--text-muted)}
+.desc{font-size:13px;color:var(--text-secondary);margin:0 0 14px;line-height:1.6}
+.variants{display:flex;gap:18px;flex-wrap:wrap}
+.variant{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;color:var(--text-secondary)}
+.icon{position:relative;border-radius:22.4%;overflow:hidden;flex:none;box-shadow:0 1px 2px rgba(0,0,0,.18)}
+.icon svg{display:block;width:100%;height:100%}
+.icon::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background:linear-gradient(160deg,rgba(255,255,255,.22),rgba(255,255,255,0) 42%);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
+.big{width:112px;height:112px}
+.screen{border-radius:18px;padding:18px 14px;margin-bottom:12px}
+.screen.light{background:linear-gradient(160deg,#cfe0f3,#f2d9e3 60%,#f7eed8)}
+.screen.dark{background:linear-gradient(160deg,#1c2340,#2a1631 60%,#120f18)}
+.row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;justify-items:center}
+.app{display:flex;flex-direction:column;align-items:center;gap:5px;font-size:11px}
+.screen.light .app{color:#1a1a19}.screen.dark .app{color:#f1efe8}
+.app .icon{width:60px;height:60px}
+.cap{font-size:12px;color:var(--text-secondary);margin:18px 0 8px}
+.pair{display:flex;gap:28px;flex-wrap:wrap}
+</style>
+</head>
+<body><main>
+<h1>App 图标方案</h1>
+<p class="meta">原生正式版（<code>com.nuownqyyy990.ct12215</code>）会和 Flutter 正式版在主屏上并存一段时间，两者需要一眼分得清。iOS 26 图标用 Icon Composer 分层制作：背景一层、图形一层，系统自动加上液态玻璃高光，并生成深色、着色、透明三种外观。下面的高光和着色效果只是近似示意。</p>
+
+<div id="concepts"></div>
+
+<p class="cap">主屏效果（浅色壁纸）</p>
+<div class="screen light"><div class="row" id="home-light"></div></div>
+<p class="cap">主屏效果（深色壁纸，深色外观）</p>
+<div class="screen dark"><div class="row" id="home-dark"></div></div>
+<p class="cap">与 Flutter 正式版并排（左为 Flutter 版现有图标）</p>
+<div class="card"><div class="pair" id="pairs"></div></div>
+</main>
+
+<script>
+const glyph = `font-family="'Songti SC','STSong','Hiragino Mincho ProN','Noto Serif SC',serif" font-weight="900" text-anchor="middle" dominant-baseline="central"`;
+
+// Each concept draws itself for one appearance: light, dark or tinted.
+const concepts = [
+  {
+    key: "A", name: "印章（现有）", tag: "参照",
+    desc: "Flutter 版现在的图标：深色底上的朱红圆章。沿用它等于两个版本在主屏上长得一样，过渡期容易点错。",
+    colors: {
+      light: {bg1:"#1d1f29", bg2:"#0a0b10", disc1:"#d63d33", disc2:"#a8231f", ring:"rgba(0,0,0,.16)", ink:"#f5e6c4"},
+      dark:  {bg1:"#0d0d10", bg2:"#000", disc1:"#c9372e", disc2:"#8f1e1a", ring:"rgba(0,0,0,.2)", ink:"#f0dfb9"},
+      tinted:{bg1:"#26262a", bg2:"#161618", disc1:"rgba(255,255,255,.2)", disc2:"rgba(255,255,255,.12)", ring:"rgba(255,255,255,.08)", ink:"#f2f2f2"},
+    },
+    draw: (c, id) => `
+      <defs>
+        <linearGradient id="${id}b" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${c.bg1}"/><stop offset="1" stop-color="${c.bg2}"/></linearGradient>
+        <radialGradient id="${id}d" cx=".35" cy=".3" r=".9"><stop offset="0" stop-color="${c.disc1}"/><stop offset="1" stop-color="${c.disc2}"/></radialGradient>
+      </defs>
+      <rect width="1024" height="1024" fill="url(#${id}b)"/>
+      <circle cx="512" cy="512" r="400" fill="url(#${id}d)"/>
+      <circle cx="512" cy="512" r="372" fill="none" stroke="${c.ring}" stroke-width="5"/>
+      <text x="512" y="530" font-size="500" fill="${c.ink}" ${glyph}>隣</text>`,
+  },
+  {
+    key: "B", name: "满版朱红", tag: "延续字形",
+    desc: "去掉深色外框，整块朱红做底，「隣」放大到满版，外加一圈淡淡的篆刻边框。仍然是同一个字，但颜色面积完全不同，并排时一眼能分开；小尺寸下字也更清楚。",
+    colors: {
+      light: {bg1:"#e04b40", bg2:"#a3221d", ink:"#f7e9c8", frame:"rgba(247,233,200,.5)"},
+      dark:  {bg1:"#17181d", bg2:"#0b0b0e", ink:"#e5544a", frame:"rgba(229,84,74,.45)"},
+      tinted:{bg1:"#2a2a2e", bg2:"#18181a", ink:"#efefef", frame:"rgba(255,255,255,.3)"},
+    },
+    draw: (c, id) => `
+      <defs><linearGradient id="${id}b" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${c.bg1}"/><stop offset="1" stop-color="${c.bg2}"/></linearGradient></defs>
+      <rect width="1024" height="1024" fill="url(#${id}b)"/>
+      <rect x="132" y="132" width="760" height="760" rx="96" fill="none" stroke="${c.frame}" stroke-width="18"/>
+      <text x="512" y="534" font-size="600" fill="${c.ink}" ${glyph}>隣</text>`,
+  },
+  {
+    key: "C", name: "耳边", tag: "抽象图形",
+    desc: "一个圆点，旁边三道声波：声音从身边传过来，对应「隣（となり）」和耳边低语。没有文字，液态玻璃的分层效果最好，着色模式下也最干净；缺点是和字形相关的印象断开了。",
+    colors: {
+      light: {bg1:"#342c63", bg2:"#130f28", dot:"#f06a5a", wave:"#f5e6c4"},
+      dark:  {bg1:"#141220", bg2:"#050409", dot:"#e45b4c", wave:"#e9d9b4"},
+      tinted:{bg1:"#2a2a2e", bg2:"#18181a", dot:"#f2f2f2", wave:"#bdbdbd"},
+    },
+    draw: (c, id) => {
+      const cx = 360, cy = 512;
+      const arc = (r, o) => {
+        const a = Math.PI / 4.2, x1 = cx + r * Math.cos(-a), y1 = cy + r * Math.sin(-a), x2 = cx + r * Math.cos(a), y2 = cy + r * Math.sin(a);
+        return `<path d="M${x1} ${y1} A${r} ${r} 0 0 1 ${x2} ${y2}" fill="none" stroke="${c.wave}" stroke-width="58" stroke-linecap="round" opacity="${o}"/>`;
+      };
+      return `
+        <defs><linearGradient id="${id}b" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${c.bg1}"/><stop offset="1" stop-color="${c.bg2}"/></linearGradient></defs>
+        <rect width="1024" height="1024" fill="url(#${id}b)"/>
+        <circle cx="${cx}" cy="${cy}" r="104" fill="${c.dot}"/>
+        ${arc(220, 1)}${arc(336, .7)}${arc(452, .42)}`;
+    },
+  },
+  {
+    key: "D", name: "纸本朱字", tag: "浅色",
+    desc: "米白纸色做底，朱红「隣」，像盖在纸上的印。在一屏深色图标中很显眼，和 Flutter 版的深底红章正好相反；深色外观下切换成深底红字。",
+    colors: {
+      light: {bg1:"#f7efdd", bg2:"#e8d9b9", ink:"#c4322a", seal:"#c4322a"},
+      dark:  {bg1:"#1b1a17", bg2:"#0e0d0b", ink:"#e0564b", seal:"#e0564b"},
+      tinted:{bg1:"#2a2a2e", bg2:"#18181a", ink:"#efefef", seal:"#efefef"},
+    },
+    draw: (c, id) => `
+      <defs><linearGradient id="${id}b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${c.bg1}"/><stop offset="1" stop-color="${c.bg2}"/></linearGradient></defs>
+      <rect width="1024" height="1024" fill="url(#${id}b)"/>
+      <text x="480" y="520" font-size="580" fill="${c.ink}" ${glyph}>隣</text>
+      <rect x="742" y="712" width="120" height="120" rx="18" fill="${c.seal}"/>
+      <text x="802" y="774" font-size="82" fill="${c.bg1}" ${glyph}>音</text>`,
+  },
+];
+
+let uid = 0;
+const icon = (concept, mode, cls) =>
+  `<span class="icon ${cls}"><svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">${concept.draw(concept.colors[mode], "g" + (uid++))}</svg></span>`;
+
+document.getElementById("concepts").innerHTML = concepts.map(c => `
+  <div class="card">
+    <div class="head"><h2>${c.key} · ${c.name}</h2><span class="tag">${c.tag}</span></div>
+    <p class="desc">${c.desc}</p>
+    <div class="variants">
+      ${[["light","默认"],["dark","深色"],["tinted","着色"]].map(([m, l]) => `<div class="variant">${icon(c, m, "big")}${l}</div>`).join("")}
+    </div>
+  </div>`).join("");
+
+const home = mode => concepts.map(c => `<div class="app">${icon(c, mode, "")}${c.key} Tonari</div>`).join("")
+  + `<div class="app"><span class="icon" style="background:linear-gradient(#fa5c6c,#e8264a)"></span>音乐</div>`;
+document.getElementById("home-light").innerHTML = home("light");
+document.getElementById("home-dark").innerHTML = home("dark");
+
+document.getElementById("pairs").innerHTML = concepts.slice(1).map(c => `
+  <div class="variant"><div style="display:flex;gap:10px">${icon(concepts[0], "light", "")}${icon(c, "light", "")}</div>Flutter 版 · ${c.key}</div>`).join("")
+  .replaceAll('class="icon "', 'class="icon" style="width:60px;height:60px"');
+</script>
+</body></html>

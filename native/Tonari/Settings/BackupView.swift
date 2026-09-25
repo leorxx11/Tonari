@@ -50,34 +50,31 @@ struct BackupView: View {
                     picking = true
                 }
                 .disabled(isBusy)
+                switch phase {
+                case .staging(let done, let total):
+                    VStack(alignment: .leading, spacing: 6) {
+                        ProgressView("正在复制备份", value: Double(done), total: Double(max(total, 1)))
+                        Text("\(done.formatted(.byteCount(style: .file))) / \(total.formatted(.byteCount(style: .file)))")
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
+                case .staged:
+                    VStack(alignment: .leading, spacing: 6) {
+                        Label("备份已就绪", systemImage: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                        Text("请完全关闭 App（从后台上滑移除），再重新打开即完成恢复。本地文件夹来源之后需要重新授权一次才能访问。")
+                            .font(.subheadline)
+                    }
+                case .failed(let message):
+                    Label(message, systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.red)
+                case .idle, .confirming:
+                    EmptyView()
+                }
             } header: {
                 Text("恢复")
             } footer: {
                 Text("选择导出的「Tonari备份」文件夹，Flutter 版导出的也可以（zip 需先在「文件」App 里解压）。恢复会覆盖当前的媒体库数据和设置，且无法撤销。")
-            }
-
-            switch phase {
-            case .staging(let done, let total):
-                Section("正在复制备份") {
-                    ProgressView(value: Double(done), total: Double(max(total, 1)))
-                    Text("\(done.formatted(.byteCount(style: .file))) / \(total.formatted(.byteCount(style: .file)))")
-                        .font(.caption.monospacedDigit())
-                        .foregroundStyle(.secondary)
-                }
-            case .staged:
-                Section {
-                    Label("备份已就绪", systemImage: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                } footer: {
-                    Text("请完全关闭 App（从后台上滑移除），再重新打开即完成恢复。本地文件夹来源之后需要重新授权一次才能访问。")
-                }
-            case .failed(let message):
-                Section {
-                    Label(message, systemImage: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.red)
-                }
-            case .idle, .confirming:
-                EmptyView()
             }
 
             Section("当前数据") {
