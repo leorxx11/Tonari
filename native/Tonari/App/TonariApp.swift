@@ -72,25 +72,20 @@ struct RootView: View {
     @Environment(NowPlaying.self) private var nowPlaying
     @Environment(\.appDatabase) private var database
     @Namespace private var playerTransition
-    @State private var unreadEvents = 0
 
     var body: some View {
         @Bindable var model = model
         @Bindable var player = player
         TabView(selection: $model.tab) {
-            Tab("媒体库", systemImage: "music.note.list", value: AppTab.library) {
-                LibraryView()
+            Tab("Tonari", image: "TabSeal", value: AppTab.home) {
+                HomeView()
             }
-            Tab("收藏", systemImage: "heart", value: AppTab.favorites) {
-                FavoritesView()
+            Tab("资料库", systemImage: "books.vertical", value: AppTab.library) {
+                LibraryView()
             }
             Tab("浏览", systemImage: "folder", value: AppTab.browse) {
                 BrowseView()
             }
-            Tab("设置", systemImage: "gearshape", value: AppTab.settings) {
-                SettingsView()
-            }
-            .badge(unreadEvents)
             Tab("搜索", systemImage: "magnifyingglass", value: AppTab.search, role: .search) {
                 SearchView()
             }
@@ -122,6 +117,7 @@ struct RootView: View {
             Text(player.errorMessage ?? "")
         }
         .sheet(item: $model.collectionPicker) { CollectionPickerSheet(member: $0) }
+        .sheet(isPresented: $model.showingSettings) { SettingsView() }
         .alert(
             "从媒体库移除",
             isPresented: Binding(get: { model.removingWork != nil }, set: { if !$0 { model.removingWork = nil } })
@@ -132,9 +128,6 @@ struct RootView: View {
             }
         } message: {
             Text("将清除该作品在 App 内的快照（音轨、文件、字幕），云盘/本地的原文件不受影响。重新导入可找回。")
-        }
-        .task {
-            await database.observe(AppEvents.unreadCount) { unreadEvents = $0 }
         }
         .task {
             await LocalImport(database: database).rescanFlaggedLocalWorks()

@@ -2,7 +2,8 @@ import SwiftUI
 import TonariCore
 
 /// After the iOS Settings app: tinted icon tiles, the current value on the
-/// right. 消息 sits on top with the unread count the tab badge shows too.
+/// right. Opens as a sheet from the home tab's gear; 消息 sits on top with
+/// the unread count the gear shows too.
 struct SettingsView: View {
     @Environment(AppModel.self) private var model
     @Environment(EnrichmentQueue.self) private var enrichment
@@ -78,6 +79,11 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("设置")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("完成", systemImage: "checkmark") { model.showingSettings = false }
+                }
+            }
             .appDestinations()
             .safeAreaInset(edge: .bottom) { TaskBanner() }
             .alert("更新统计数据", isPresented: $confirmingStats) {

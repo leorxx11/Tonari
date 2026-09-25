@@ -87,9 +87,10 @@ struct P115LoginView: View {
         }
     }
 
-    /// From the browse tab, go on to the file browser; elsewhere, go back.
+    /// From the browse tab, go on to the file browser; elsewhere (settings
+    /// included, even over the browse tab), go back.
     private func finished() {
-        if model.tab == .browse {
+        if model.tab == .browse && !model.showingSettings {
             model.openP115()
         } else {
             dismiss()

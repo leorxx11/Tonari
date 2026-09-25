@@ -18,6 +18,9 @@ final class SleepTimer {
 
     /// Seconds left in a countdown.
     private(set) var remaining: Int?
+    /// The length the running countdown started with, for the home tab's
+    /// preset chips.
+    private(set) var countdown: Int?
     /// Stop once this many tracks finish (1 = the current one).
     private(set) var remainingTracks: Int?
     /// The countdown ended but the current track is allowed to finish.
@@ -45,6 +48,7 @@ final class SleepTimer {
     func start(seconds: Int) {
         reset()
         remaining = seconds
+        countdown = seconds
         ticker = Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(1))
@@ -106,6 +110,7 @@ final class SleepTimer {
         ticker?.cancel()
         ticker = nil
         remaining = nil
+        countdown = nil
         remainingTracks = nil
         waitingTrackEnd = false
         if let fadeBase {

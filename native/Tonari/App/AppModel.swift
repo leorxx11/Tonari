@@ -3,7 +3,7 @@ import SwiftUI
 import TonariCore
 
 enum AppTab: Hashable {
-    case library, favorites, browse, settings, search
+    case home, library, browse, search
 }
 
 enum Route: Hashable {
@@ -31,6 +31,13 @@ enum Route: Hashable {
     case chip(WorkChip)
     case favoriteItems
     case collection(String)
+    /// The library's full work wall, formerly the 媒体库 tab.
+    case works
+    case videos
+    /// Works not played for a month, longest ago first.
+    case forgotten
+    /// Every voice actor, circle or tag in the library.
+    case categories(WorkChip.Kind)
 }
 
 /// App-wide navigation plus the library's filter and display preferences,
@@ -38,11 +45,6 @@ enum Route: Hashable {
 /// filtered by it.
 @Observable
 final class AppModel {
-    enum LibraryKind: String, CaseIterable {
-        case audio = "音声"
-        case video = "视频"
-    }
-
     enum ViewMode: String, CaseIterable {
         case grid, list, cover
 
@@ -65,8 +67,9 @@ final class AppModel {
 
     static let viewModeKey = "library.view.works"
 
-    var tab = AppTab.library
+    var tab = AppTab.home
     var showingPlayer = false
+    var showingSettings = false
     var showingVideo = false
     /// The work or video whose group membership sheet is showing.
     var collectionPicker: CollectionMember?
@@ -74,13 +77,12 @@ final class AppModel {
     var removingWork: Work?
     let tasks: LibraryTasks
     let notices: Notices
+    var homePath = NavigationPath()
     var libraryPath = NavigationPath()
-    var favoritesPath = NavigationPath()
     var browsePath = NavigationPath()
     var searchPath = NavigationPath()
     var settingsPath = NavigationPath()
 
-    var libraryKind = LibraryKind.audio
     var source = SourceFilter.all
     var sort: WorkSort {
         didSet { UserDefaults.standard.set(sort.preference, forKey: WorkSort.preferenceKey) }
@@ -106,15 +108,16 @@ final class AppModel {
         tab = .browse
     }
 
-    /// Pushes onto whichever tab is showing, for links inside views that
-    /// are themselves links, like the chips on a library card.
+    /// Pushes onto whichever stack is showing (the settings sheet over a
+    /// tab), for links inside views that are themselves links, like the
+    /// chips on a library card.
     func push(_ route: Route) {
+        if showingSettings { return settingsPath.append(route) }
         switch tab {
+        case .home: homePath.append(route)
         case .library: libraryPath.append(route)
-        case .favorites: favoritesPath.append(route)
         case .browse: browsePath.append(route)
         case .search: searchPath.append(route)
-        case .settings: settingsPath.append(route)
         }
     }
 
@@ -124,20 +127,32 @@ final class AppModel {
         showingVideo = true
     }
 
-    /// Pops `count` pages off whichever tab is showing.
+    /// Pops `count` pages off whichever stack is showing.
     func pop(_ count: Int) {
+        if showingSettings { return settingsPath.removeLast(count) }
         switch tab {
+        case .home: homePath.removeLast(count)
         case .library: libraryPath.removeLast(count)
-        case .favorites: favoritesPath.removeLast(count)
         case .browse: browsePath.removeLast(count)
         case .search: searchPath.removeLast(count)
-        case .settings: settingsPath.removeLast(count)
         }
     }
 
     func openWork(_ productId: String) {
         libraryPath = NavigationPath([Route.work(productId)])
         tab = .library
+    }
+
+    /// Opens a random work on the stack showing, or says the library is empty.
+    func openRandomWork(tagged tags: Set<String> = [], database: AppDatabase) {
+        let work = try! database.reader.read { db in
+            tags.isEmpty ? try WorkQueries.random(db) : try HomeQueries.random(tagged: tags, db)
+        }
+        if let work {
+            push(.work(work.productId))
+        } else {
+            notices.show(tags.isEmpty ? "资料库还是空的" : "没有同时带这些标签的作品", .info)
+        }
     }
 }
 
@@ -168,6 +183,10 @@ extension View {
             case .chip(let chip): ChipWorksView(chip: chip)
             case .favoriteItems: CollectionDetailView(collectionId: nil)
             case .collection(let id): CollectionDetailView(collectionId: id)
+            case .works: WorksView()
+            case .videos: VideoLibraryView()
+            case .forgotten: ForgottenWorksView()
+            case .categories(let kind): CategoryBrowseView(kind: kind)
             }
         }
     }

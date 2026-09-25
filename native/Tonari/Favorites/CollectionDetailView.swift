@@ -15,8 +15,13 @@ struct CollectionDetailView: View {
     @State private var videos: [VideoItem] = []
     @State private var trackCounts: [String: Int] = [:]
     @State private var remoteIds: Set<String> = []
-    @State private var kind = AppModel.LibraryKind.audio
+    @State private var kind = Kind.audio
     @AppStorage(CollectionWorkSort.preferenceKey) private var sort = CollectionWorkSort.addedAt
+
+    private enum Kind: String, CaseIterable {
+        case audio = "作品"
+        case video = "视频"
+    }
 
     var body: some View {
         List {
@@ -24,7 +29,7 @@ struct CollectionDetailView: View {
                 header
                 if !works.isEmpty && !videos.isEmpty {
                     Picker("类型", selection: $kind) {
-                        ForEach(AppModel.LibraryKind.allCases, id: \.self) { Text($0.rawValue) }
+                        ForEach(Kind.allCases, id: \.self) { Text($0.rawValue) }
                     }
                     .pickerStyle(.segmented)
                 }

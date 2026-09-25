@@ -2,15 +2,14 @@ import SwiftUI
 import TonariCore
 import UniformTypeIdentifiers
 
-/// The media library's video side: what's half watched (library or not,
-/// straight from the play history), then the videos the user kept, as a
-/// two-column 16:9 grid; the + in the bar adds more.
+/// The library's videos: what's half watched (library or not, straight
+/// from the play history), then the videos the user kept, as a two-column
+/// 16:9 grid; the + in the bar adds more.
 struct VideoLibraryView: View {
     @Environment(AppModel.self) private var model
     @Environment(VideoController.self) private var video
     @Environment(\.appDatabase) private var database
-    @State private var progress: [VideoProgress] = []
-    @State private var covers: [String: String] = [:]
+    @State private var watching = ContinueWatching()
     @State private var items: [VideoItem] = []
     @State private var importing = false
     @State private var renaming: VideoItem?
@@ -20,16 +19,23 @@ struct VideoLibraryView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
-                if !progress.isEmpty { continueSection }
+                if !watching.progress.isEmpty {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("继续观看").font(.title3.bold()).padding(.horizontal, 16)
+                        ContinueWatchingRow(watching: watching)
+                    }
+                }
                 librarySection
             }
             .padding(.vertical, 8)
         }
         .overlay {
-            if progress.isEmpty && items.isEmpty {
+            if watching.progress.isEmpty && items.isEmpty {
                 ContentUnavailableView("还没有视频", systemImage: "film", description: Text("点右上角的 ＋ 从「文件」导入，或在 115 浏览里长按视频加入"))
             }
         }
+        .navigationTitle("视频")
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu("添加视频", systemImage: "plus") {
@@ -41,7 +47,7 @@ struct VideoLibraryView: View {
         }
         .fileImporter(isPresented: $importing, allowedContentTypes: LocalVideoImport.contentTypes, allowsMultipleSelection: true) { result in
             guard case .success(let urls) = result, !urls.isEmpty else { return }
-            Task { await importVideos(urls) }
+            Task { await model.importVideos(urls, database: database) }
         }
         .alert("重命名", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
             TextField("标题", text: $newTitle)
@@ -57,67 +63,15 @@ struct VideoLibraryView: View {
         }
         .task {
             await database.observe({ db in
-                let progress = try PlaybackStore.continueWatching(limit: 12, db)
-                let rows = try VideoItem.filter(keys: progress.map(\.id)).fetchAll(db)
-                return (
-                    progress,
-                    Dictionary(uniqueKeysWithValues: rows.compactMap { row in row.coverPath.map { (row.id, $0) } }),
-                    try VideoItem.order(Column("added_at").desc).fetchAll(db)
-                )
+                (try ContinueWatching.fetch(db), try VideoItem.order(Column("added_at").desc).fetchAll(db))
             }) {
-                progress = $0.0
-                covers = $0.1
-                items = $0.2
+                watching = $0.0
+                items = $0.1
             }
         }
     }
 
     // MARK: - Sections
-
-    private var continueSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("继续观看").font(.title3.bold()).padding(.horizontal, 16)
-            ScrollView(.horizontal) {
-                LazyHStack(alignment: .top, spacing: 12) {
-                    ForEach(progress) { item in
-                        Button { model.playVideo(item.video, with: video) } label: {
-                            VStack(alignment: .leading, spacing: 2) {
-                                VideoThumbnail(coverPath: covers[item.id])
-                                    .overlay(alignment: .bottom) { progressBar(item) }
-                                    .padding(.bottom, 4)
-                                Text(item.video.title).font(.subheadline).lineLimit(1)
-                                Text("\(item.video.sourceName) · 剩 \(Self.remaining(item))")
-                                    .font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
-                            }
-                            .frame(width: 220)
-                            .contentShape(.rect)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .scrollTargetLayout()
-            }
-            .scrollIndicators(.hidden)
-            .scrollTargetBehavior(.viewAligned)
-            .contentMargins(.horizontal, 16, for: .scrollContent)
-        }
-    }
-
-    private func progressBar(_ item: VideoProgress) -> some View {
-        GeometryReader { proxy in
-            ZStack(alignment: .leading) {
-                Capsule().fill(.white.opacity(0.35))
-                Capsule().fill(.white).frame(width: proxy.size.width * Double(item.positionMs) / Double(item.durationMs))
-            }
-        }
-        .frame(height: 4)
-        .padding(8)
-    }
-
-    private static func remaining(_ item: VideoProgress) -> String {
-        let minutes = max(1, (item.durationMs - item.positionMs) / 60_000)
-        return minutes >= 60 ? "\(minutes / 60) 小时 \(minutes % 60) 分钟" : "\(minutes) 分钟"
-    }
 
     private var librarySection: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -168,21 +122,74 @@ struct VideoLibraryView: View {
 
     // MARK: - Actions
 
-    private func importVideos(_ urls: [URL]) async {
-        await model.tasks.run("导入视频", detail: "0 / \(urls.count)") {
-            for (index, url) in urls.enumerated() {
-                let video = try await LocalVideoImport.adopt(url)
-                try database.addVideo(video)
-                model.tasks.report("\(index + 1) / \(urls.count)")
-            }
-            return "已导入 \(urls.count) 个视频"
-        }
-    }
-
     private func remove(_ item: VideoItem) {
         if video.video?.id == item.id, item.sourceKind == "local" { video.close() }
         try! database.removeVideo(item.id)
         if item.sourceKind == "local" { LocalVideoImport.discard(item.path) }
+    }
+}
+
+/// Videos half watched, library or not, straight from the play history.
+nonisolated struct ContinueWatching: Sendable {
+    var progress: [VideoProgress] = []
+    var covers: [String: String] = [:]
+
+    static func fetch(_ db: Database) throws -> ContinueWatching {
+        let progress = try PlaybackStore.continueWatching(limit: 12, db)
+        let rows = try VideoItem.filter(keys: progress.map(\.id)).fetchAll(db)
+        return ContinueWatching(
+            progress: progress,
+            covers: Dictionary(uniqueKeysWithValues: rows.compactMap { row in row.coverPath.map { (row.id, $0) } })
+        )
+    }
+}
+
+/// 16:9 frames with a progress bar, paging sideways; a tap resumes.
+struct ContinueWatchingRow: View {
+    let watching: ContinueWatching
+    @Environment(AppModel.self) private var model
+    @Environment(VideoController.self) private var video
+
+    var body: some View {
+        ScrollView(.horizontal) {
+            LazyHStack(alignment: .top, spacing: 12) {
+                ForEach(watching.progress) { item in
+                    Button { model.playVideo(item.video, with: video) } label: {
+                        VStack(alignment: .leading, spacing: 2) {
+                            VideoThumbnail(coverPath: watching.covers[item.id])
+                                .overlay(alignment: .bottom) { progressBar(item) }
+                                .padding(.bottom, 4)
+                            Text(item.video.title).font(.subheadline).lineLimit(1)
+                            Text("\(item.video.sourceName) · 剩 \(Self.remaining(item))")
+                                .font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                        }
+                        .frame(width: 220)
+                        .contentShape(.rect)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .scrollTargetLayout()
+        }
+        .scrollIndicators(.hidden)
+        .scrollTargetBehavior(.viewAligned)
+        .contentMargins(.horizontal, 16, for: .scrollContent)
+    }
+
+    private func progressBar(_ item: VideoProgress) -> some View {
+        GeometryReader { proxy in
+            ZStack(alignment: .leading) {
+                Capsule().fill(.white.opacity(0.35))
+                Capsule().fill(.white).frame(width: proxy.size.width * Double(item.positionMs) / Double(item.durationMs))
+            }
+        }
+        .frame(height: 4)
+        .padding(8)
+    }
+
+    private static func remaining(_ item: VideoProgress) -> String {
+        let minutes = max(1, (item.durationMs - item.positionMs) / 60_000)
+        return minutes >= 60 ? "\(minutes / 60) 小时 \(minutes % 60) 分钟" : "\(minutes) 分钟"
     }
 }
 

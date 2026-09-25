@@ -77,6 +77,18 @@ extension AppModel {
         }
         await enrichment.runPending()
     }
+    /// Copies videos picked in Files into the app and adds them to the library.
+    func importVideos(_ urls: [URL], database: AppDatabase) async {
+        let tasks = tasks
+        await tasks.run("导入视频", detail: "0 / \(urls.count)") {
+            for (index, url) in urls.enumerated() {
+                try database.addVideo(try await LocalVideoImport.adopt(url))
+                tasks.report("\(index + 1) / \(urls.count)")
+            }
+            return "已导入 \(urls.count) 个视频"
+        }
+    }
+
     /// Rescans one work from its source, reviving it if removed.
     func reimport(_ work: Work, database: AppDatabase) async throws -> ImportSummary {
         let folder = try await database.reader.read { db in
