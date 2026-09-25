@@ -5,7 +5,7 @@
 ## N1 数据层 + 骨架
 
 - [x] 14 张表 GRDB 模型，结构与 Drift schema v17 一致（`lib/core/db/`）
-- [ ] 偏好设置读写（`lib/core/prefs/`、各 `*_prefs.dart`）
+- [x] 偏好设置读写：UserDefaults，键名沿用 Flutter 版（不带 `flutter.` 前缀），备份双向可用（`lib/core/prefs/`、各 `*_prefs.dart`）
 - [x] Keychain：WebDAV 密码、115 Cookie、LLM API Key
 - [x] 底部 Tab：媒体库（音声 / 视频切换）、收藏、浏览、设置 + 独立的搜索 Tab（替代 Flutter 版侧边抽屉 `lib/shared/widgets/app_drawer.dart`；分类并入搜索，播放历史在收藏，随机在媒体库右上角）
 - [x] 主题跟随系统浅色 / 深色；播放页固定深色（参照 Apple Music）；Kikoeru 配色不做
@@ -21,7 +21,7 @@
 - [x] 随机来一部（`app_drawer.dart`）
 - [x] 作品详情：封面、演职员、标签、系列、价格 / 评分 / 售出 / 收藏数 / 排名、简介、图片画廊（`work_detail_page.dart`）
 - [x] 详情页操作：刷新元数据、只刷新图片、更新统计数据、在 DLsite 中打开、从媒体库移除、重新扫描此作品（「下载图片」即刷新图片）
-- [ ] 作品文件浏览：目录树、音频数 ✅；字幕状态、字幕预览（N3）（`work_files_page.dart`）
+- [x] 作品文件浏览：逐层目录、音频数、字幕状态、字幕 / 图片 / 文本预览（`work_files_page.dart`）
 - ~~作品文件入口位置：左下角 / 右下角（`file_entry_prefs.dart`）~~ 原生版详情页改为「全部文件」行，印章与设置一并取消
 - [x] 收藏与分组：全部收藏、新建 / 重命名 / 删除分组，作品和视频都可加入（`collections_page.dart`、`collection_detail_page.dart`、`collection_picker_sheet.dart`）
 - [x] 分类页：社团 / 声优 / 标签，搜索，按作品数 / 名称排序（`stats_page.dart`）。原生版并入搜索 Tab 的「分类浏览」
