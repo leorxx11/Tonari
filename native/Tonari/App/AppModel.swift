@@ -17,8 +17,9 @@ enum Route: Hashable {
     case removedWorks
     case backup
     case diagnostics
+    case storage
     case work(String)
-    case files(String)
+    case files(String, folder: [String] = [], highlight: String? = nil)
     /// Works sharing a voice actor, circle, series or tag.
     case chip(WorkChip)
     case favoriteItems
@@ -104,6 +105,17 @@ final class AppModel {
         }
     }
 
+    /// Pops `count` pages off whichever tab is showing.
+    func pop(_ count: Int) {
+        switch tab {
+        case .library: libraryPath.removeLast(count)
+        case .favorites: favoritesPath.removeLast(count)
+        case .browse: browsePath.removeLast(count)
+        case .search: searchPath.removeLast(count)
+        case .settings: break
+        }
+    }
+
     func openWork(_ productId: String) {
         libraryPath = NavigationPath([Route.work(productId)])
         tab = .library
@@ -125,8 +137,9 @@ extension View {
             case .removedWorks: RemovedWorksView()
             case .backup: BackupView()
             case .diagnostics: DiagnosticLogView()
+            case .storage: StorageView()
             case .work(let id): WorkDetailView(productId: id)
-            case .files(let id): WorkFilesView(productId: id)
+            case .files(let id, let folder, let highlight): WorkFilesView(productId: id, path: folder, highlight: highlight)
             case .chip(let chip): ChipWorksView(chip: chip)
             case .favoriteItems: CollectionDetailView(collectionId: nil)
             case .collection(let id): CollectionDetailView(collectionId: id)

@@ -1,56 +1,90 @@
 import SwiftUI
+import TonariCore
 import UIKit
 
 enum GalleryImage: Hashable {
     case local(String)
-    case remote(URL)
+    /// An image bundled with a work, read through `WorkFileAccess`.
+    case workFile(WorkFile, source: ImportedFolder?)
+
+    /// Also the zoom transition's source id: whatever shows this image on
+    /// the page underneath marks itself with it.
+    var id: String {
+        switch self {
+        case .local(let path): path
+        case .workFile(let file, _): file.id
+        }
+    }
 }
 
 struct GallerySelection: Identifiable {
     let images: [GalleryImage]
     let index: Int
+    /// Keeps the page underneath on the same image, so closing shrinks back
+    /// into something on screen (the detail cover pager).
+    var follow: ((Int) -> Void)?
     var id: Int { index }
 }
 
-/// Black full-screen pager; pinch or double-tap to zoom.
+/// Full-screen pager after Photos: zooms out of the tapped image and back
+/// into it when dragged down; tap hides the chrome, pinch or double-tap
+/// zooms, and a zoomed image pans instead of closing.
 struct GalleryView: View {
     let selection: GallerySelection
+    let namespace: Namespace.ID
 
     @Environment(\.dismiss) private var dismiss
     @State private var index: Int
+    @State private var showsChrome = true
+    @State private var zoomed = false
 
-    init(selection: GallerySelection) {
+    init(selection: GallerySelection, namespace: Namespace.ID) {
         self.selection = selection
+        self.namespace = namespace
         _index = State(initialValue: selection.index)
     }
 
     var body: some View {
         TabView(selection: $index) {
             ForEach(Array(selection.images.enumerated()), id: \.offset) { offset, image in
-                ZoomableImage(image: image).tag(offset)
+                ZoomableImage(image: image, zoomed: $zoomed) {
+                    withAnimation(.easeInOut(duration: 0.2)) { showsChrome.toggle() }
+                }
+                .tag(offset)
             }
         }
         .tabViewStyle(.page(indexDisplayMode: .never))
         .background(.black)
         .ignoresSafeArea()
         .overlay(alignment: .top) {
-            HStack {
-                Text("\(index + 1) / \(selection.images.count)")
-                    .font(.subheadline.monospacedDigit())
-                    .foregroundStyle(.white)
-                Spacer()
-                Button("关闭", systemImage: "xmark") { dismiss() }
-                    .labelStyle(.iconOnly)
-                    .buttonStyle(.glass)
+            if showsChrome {
+                HStack {
+                    Text("\(index + 1) / \(selection.images.count)")
+                        .font(.subheadline.monospacedDigit())
+                        .foregroundStyle(.white)
+                    Spacer()
+                    Button("关闭", systemImage: "xmark") { dismiss() }
+                        .labelStyle(.iconOnly)
+                        .buttonStyle(.glass)
+                }
+                .padding(.horizontal)
+                .transition(.opacity)
             }
-            .padding(.horizontal)
         }
         .statusBarHidden()
+        .interactiveDismissDisabled(zoomed)
+        .onChange(of: index) { _, index in
+            zoomed = false
+            selection.follow?(index)
+        }
+        .navigationTransition(.zoom(sourceID: selection.images[index].id, in: namespace))
     }
 }
 
 private struct ZoomableImage: View {
     let image: GalleryImage
+    @Binding var zoomed: Bool
+    let toggleChrome: () -> Void
 
     @State private var uiImage: UIImage?
     @State private var failed = false
@@ -79,6 +113,7 @@ private struct ZoomableImage: View {
             .onChanged { scale = max(1, committedScale * $0.magnification) }
             .onEnded { _ in
                 committedScale = scale
+                zoomed = scale > 1
                 if scale == 1 { resetPan() }
             })
         .simultaneousGesture(scale > 1 ? DragGesture()
@@ -93,9 +128,11 @@ private struct ZoomableImage: View {
             withAnimation(.snappy) {
                 scale = scale > 1 ? 1 : 2.5
                 committedScale = scale
+                zoomed = scale > 1
                 resetPan()
             }
         }
+        .onTapGesture(perform: toggleChrome)
         .task {
             uiImage = await load()
             failed = uiImage == nil
@@ -111,11 +148,11 @@ private struct ZoomableImage: View {
         switch image {
         case .local(let path):
             return UIImage(contentsOfFile: URL.documentsDirectory.appending(path: path).path)
-        case .remote(let url):
+        case .workFile(let file, let source):
             do {
-                let (data, _) = try await URLSession.shared.data(from: url)
-                return UIImage(data: data)
+                return UIImage(data: try await WorkFileAccess.data(file, source: source))
             } catch {
+                DiagnosticLog.shared.write("files", "image_load_failed", ["file": file.fileName, "error": "\(error)"])
                 return nil
             }
         }

@@ -149,6 +149,22 @@ struct MetadataEnrichmentTests {
         #expect(downloads.count == firstCount)
     }
 
+    @Test func downloadMissingImagesFetchesOnlyWhatIsGone() async throws {
+        let db = try AppDatabase.inMemory()
+        try await db.writer.write { try Work.shell("RJ01560714", folderPath: "/x", folderId: nil, at: .now).insert($0) }
+        let downloads = Downloads()
+        let enrichment = try service(db, downloads: downloads)
+        try await enrichment.enrich("RJ01560714")
+        let work = try await db.reader.read { try Work.fetchOne($0, key: "RJ01560714")! }
+        let removed = documents.appending(path: work.sampleImageLocalPaths[0])
+        try FileManager.default.removeItem(at: removed)
+
+        let before = downloads.count
+        try await enrichment.downloadMissingImages("RJ01560714")
+        #expect(downloads.count == before + 1)
+        #expect(FileManager.default.fileExists(atPath: removed.path))
+    }
+
     @Test func refreshMetadataKeepsTranslationWhenTextIsUnchanged() async throws {
         let db = try AppDatabase.inMemory()
         try await db.writer.write { try Work.shell("RJ01560714", folderPath: "/x", folderId: nil, at: .now).insert($0) }

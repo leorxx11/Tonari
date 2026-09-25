@@ -144,14 +144,19 @@ struct WorkCreditsSection: View {
 }
 
 /// The DLsite description folded to three lines; images join it once
-/// expanded and open the gallery.
+/// expanded and open the gallery, or offer a download where missing.
 struct WorkDescriptionSection: View {
     let work: Work
     let showsOriginal: Bool
+    let galleryZoom: Namespace.ID
     let openGallery: (GallerySelection) -> Void
 
+    @Environment(AppModel.self) private var model
+    @Environment(EnrichmentQueue.self) private var enrichment
     @State private var items: [WorkDescription.Item] = []
     @State private var expanded = false
+    /// Bumped after a download so the files on disk are looked at again.
+    @State private var downloads = 0
 
     var body: some View {
         let translated = work.descriptionHtmlZh.flatMap { $0.isEmpty ? nil : $0 }
@@ -159,7 +164,7 @@ struct WorkDescriptionSection: View {
         VStack(alignment: .leading, spacing: 12) {
             if !items.isEmpty {
                 SectionTitle(text: "简介")
-                if expanded { full } else { folded }
+                if expanded { full.id(downloads) } else { folded }
             }
         }
         .task(id: html) {
@@ -201,8 +206,8 @@ struct WorkDescriptionSection: View {
     }
 
     private var full: some View {
-        let images = galleryImages
-        let urls = WorkDescription.imageURLs(items)
+        let local = localImages
+        let shown = local.compactMap(\.self)
         return VStack(alignment: .leading, spacing: 10) {
             ForEach(Array(items.enumerated()), id: \.offset) { _, item in
                 switch item {
@@ -211,40 +216,59 @@ struct WorkDescriptionSection: View {
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 case .image(let url):
-                    let index = urls.firstIndex(of: url)!
-                    descriptionImage(images[index])
-                        .onTapGesture { openGallery(GallerySelection(images: images, index: index)) }
+                    if let path = local[WorkDescription.imageURLs(items).firstIndex(of: url)!] {
+                        FittedLocalImage(path: path)
+                            .clipShape(.rect(cornerRadius: 6))
+                            .matchedTransitionSource(id: path, in: galleryZoom)
+                            .onTapGesture {
+                                openGallery(GallerySelection(images: shown.map(GalleryImage.local), index: shown.firstIndex(of: path)!))
+                            }
+                    } else {
+                        missingImage
+                    }
                 }
             }
         }
     }
 
-    /// Downloaded copies first, falling back to the DLsite URL.
-    private var galleryImages: [GalleryImage] {
-        let local = work.descriptionImageLocalPaths
-        return WorkDescription.imageURLs(items).enumerated().map { index, url in
-            if index < local.count, FileManager.default.fileExists(atPath: URL.documentsDirectory.appending(path: local[index]).path) {
-                .local(local[index])
-            } else {
-                .remote(URL(string: url)!)
-            }
+    /// Each description image's downloaded copy, nil where there is none.
+    /// Images only ever show from disk, so what's on screen never depends
+    /// on being online.
+    private var localImages: [String?] {
+        let paths = work.descriptionImageLocalPaths
+        return WorkDescription.imageURLs(items).indices.map { index in
+            guard index < paths.count, !paths[index].isEmpty else { return nil }
+            return FileManager.default.fileExists(atPath: URL.documentsDirectory.appending(path: paths[index]).path) ? paths[index] : nil
         }
     }
 
-    @ViewBuilder private func descriptionImage(_ image: GalleryImage) -> some View {
-        switch image {
-        case .local(let path):
-            FittedLocalImage(path: path)
-                .clipShape(.rect(cornerRadius: 6))
-        case .remote(let url):
-            AsyncImage(url: url) { phase in
-                if let image = phase.image {
-                    image.resizable().scaledToFit()
-                } else {
-                    Color(.secondarySystemBackground).aspectRatio(16 / 9, contentMode: .fit)
+    private var missingImage: some View {
+        HStack(spacing: 12) {
+            Label("简介图片未下载", systemImage: "photo.badge.exclamationmark")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 0)
+            Button("下载", action: downloadImages)
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.capsule)
+                .disabled(model.tasks.isBusy)
+        }
+        .padding(12)
+        .background(Color(.secondarySystemBackground), in: .rect(cornerRadius: 8))
+    }
+
+    /// Fetches whatever images the work is missing; ones on disk are kept.
+    private func downloadImages() {
+        let tasks = model.tasks
+        let productId = work.productId
+        Task {
+            await tasks.run("下载简介图片", detail: productId) {
+                try await enrichment.service.downloadMissingImages(productId) { completed, total, label in
+                    Task { @MainActor in tasks.report("\(label)（\(completed)/\(total)）") }
                 }
+                return "简介图片已下载"
             }
-            .clipShape(.rect(cornerRadius: 6))
+            downloads += 1
         }
     }
 

@@ -175,6 +175,39 @@ struct WorkTreeTests {
         let split = WorkTree.build(tracks: [track("SEあり/1.wav", bytes: 50), track("SEなし/1.wav", bytes: 50)], files: [])
         #expect(WorkTree.defaultAudioFolder(split)?.path == ["SEあり"])
     }
+
+    @Test func folderEntriesSkipFoldersHoldingOnlyFolders() {
+        let tree = WorkTree.build(
+            tracks: [track("本編/WAV/1.wav", bytes: 1), track("本編/MP3/1.mp3", bytes: 1), track("おまけ/1.mp3", bytes: 1)],
+            files: [file("おまけ/a.srt", kind: "subtitle"), file("イラスト/1.jpg", kind: "image"), file("readme.txt", kind: "text")]
+        )
+        let entries = WorkTree.folderEntries(tree, at: [])
+        #expect(entries.map(\.label) == ["おまけ", "イラスト", "本編 · MP3", "本編 · WAV"])
+        #expect(entries[3].path == ["本編", "WAV"])
+        #expect(entries[0].node.kindCounts == ["audio": 1, "subtitle": 1])
+        #expect(WorkTree.steps(tree, to: ["本編", "WAV"]).map(\.label) == ["本編 · WAV"])
+        #expect(WorkTree.level(tree, at: ["本編", "WAV"]).map(\.name) == ["1.wav"])
+    }
+
+    private func file(_ path: String, kind: String) -> WorkFile {
+        WorkFile(
+            id: path, workId: "RJ", filePath: "/x/\(path)", relativePath: path, fileName: String(path.split(separator: "/").last!),
+            fileKind: kind, fileSizeBytes: 1, createdAt: Fixtures.date, updatedAt: Fixtures.date
+        )
+    }
+}
+
+struct TextDecodingTests {
+    @Test func detectsUTF8ShiftJISAndGB18030() {
+        let japanese = "おかえりなさい、今日もお疲れさま"
+        let chinese = "欢迎回来，今天也辛苦了"
+        let sjis = String.Encoding(rawValue: CFStringConvertEncodingToNSStringEncoding(CFStringEncoding(CFStringEncodings.dosJapanese.rawValue)))
+        let gb = String.Encoding(rawValue: CFStringConvertEncodingToNSStringEncoding(CFStringEncoding(CFStringEncodings.GB_18030_2000.rawValue)))
+        #expect(TextDecoding.decode(Data(japanese.utf8)) == japanese)
+        #expect(TextDecoding.decode(Data([0xEF, 0xBB, 0xBF]) + Data(japanese.utf8)) == japanese)
+        #expect(TextDecoding.decode(japanese.data(using: sjis)!) == japanese)
+        #expect(TextDecoding.decode(chinese.data(using: gb)!) == chinese)
+    }
 }
 
 struct WorkDescriptionTests {

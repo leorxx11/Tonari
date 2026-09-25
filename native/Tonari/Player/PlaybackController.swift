@@ -419,8 +419,7 @@ final class PlaybackController {
         scopedFolder = nil
         guard let source, source.type == "local" else { return }
         do {
-            var stale = false
-            let url = try URL(resolvingBookmarkData: Data(base64Encoded: source.bookmarkBase64)!, bookmarkDataIsStale: &stale)
+            let url = try source.scopedURL()
             if url.startAccessingSecurityScopedResource() { scopedFolder = url }
         } catch {
             DiagnosticLog.shared.write("player", "bookmark_unresolved", ["source": source.displayName, "error": "\(error)"])

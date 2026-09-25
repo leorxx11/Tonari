@@ -46,6 +46,9 @@ struct SettingsView: View {
                     NavigationLink(value: Route.backup) {
                         Label("备份与恢复", systemImage: "externaldrive")
                     }
+                    NavigationLink(value: Route.storage) {
+                        Label("存储空间", systemImage: "internaldrive")
+                    }
                 }
                 Section("支持") {
                     NavigationLink(value: Route.diagnostics) {

@@ -87,14 +87,24 @@ public actor MetadataEnrichment {
 
     /// Re-downloads a work's images, leaving every other column alone.
     public func refreshImages(_ productId: String, onImage: ImageProgress? = nil) async throws {
+        try await downloadImages(productId, replacing: true, onImage: onImage)
+    }
+
+    /// Downloads only the images missing on disk, e.g. description images
+    /// cleared from storage; the cover and samples stay where they are.
+    public func downloadMissingImages(_ productId: String, onImage: ImageProgress? = nil) async throws {
+        try await downloadImages(productId, replacing: false, onImage: onImage)
+    }
+
+    private func downloadImages(_ productId: String, replacing: Bool, onImage: ImageProgress?) async throws {
         try await serially {
             guard let row = try await self.row(productId) else { return }
             guard let mainUrl = row.mainImageUrl else {
-                throw DLsiteClient.Failure("\(productId) 还没有抓取过元数据，无法刷新图片")
+                throw DLsiteClient.Failure("\(productId) 还没有抓取过元数据，无法下载图片")
             }
             let descriptionUrls = try row.descriptionHtml.map(WorkDescription.parse).map(WorkDescription.imageURLs) ?? []
             let dir = self.documents.appending(path: "images/\(productId)")
-            if FileManager.default.fileExists(atPath: dir.path) {
+            if replacing, FileManager.default.fileExists(atPath: dir.path) {
                 try FileManager.default.removeItem(at: dir)
             }
             let images = try await self.cacheImages(productId, main: mainUrl, samples: row.sampleImageUrls, descriptions: descriptionUrls, onImage: onImage)

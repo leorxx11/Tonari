@@ -154,6 +154,11 @@ extension Work {
     }
 }
 
+public struct MatchedSubtitle: Sendable, Hashable {
+    public let trackId: String
+    public let lineCount: Int
+}
+
 public enum WorkQueries {
     /// Visible (non-removed) works from the chosen sources in the chosen
     /// order. Missing sort values sink to the bottom in both directions; the
@@ -185,6 +190,15 @@ public enum WorkQueries {
         try Set(String.fetchAll(db, sql: """
             SELECT DISTINCT s.track_id FROM subtitles s JOIN tracks t ON t.id = s.track_id WHERE t.work_id = ?
             """, arguments: [productId]))
+    }
+
+    /// Each subtitle file matched to a track, keyed by the file's path.
+    public static func matchedSubtitles(of productId: String, _ db: Database) throws -> [String: MatchedSubtitle] {
+        let rows = try Row.fetchAll(db, sql: """
+            SELECT s.file_path, s.track_id, json_array_length(s.original_lines_json) AS count
+            FROM subtitles s JOIN tracks t ON t.id = s.track_id WHERE t.work_id = ?
+            """, arguments: [productId])
+        return Dictionary(rows.map { ($0["file_path"], MatchedSubtitle(trackId: $0["track_id"], lineCount: $0["count"])) }, uniquingKeysWith: { $1 })
     }
 
     /// Picks from the whole audio library, ignoring the library's filters.

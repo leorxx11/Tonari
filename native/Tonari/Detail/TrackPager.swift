@@ -10,6 +10,8 @@ struct TrackPager: View {
     let subtitled: Set<String>
     let showsOriginal: Bool
     let play: (Int) -> Void
+    let previewSubtitle: (Track) -> Void
+    let reveal: (Track) -> Void
 
     @Environment(PlaybackController.self) private var player
     @State private var column: Int?
@@ -75,6 +77,10 @@ struct TrackPager: View {
         .buttonStyle(.plain)
         .contextMenu {
             Button("从这首播放", systemImage: "play") { play(index) }
+            if subtitled.contains(track.id) {
+                Button("预览字幕", systemImage: "captions.bubble") { previewSubtitle(track) }
+            }
+            Button("在文件中显示", systemImage: "folder") { reveal(track) }
         }
     }
 

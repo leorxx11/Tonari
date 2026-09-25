@@ -19,7 +19,10 @@ struct WorkDetailView: View {
     @State private var chosenFolder: [String]?
     @State private var showsOriginal = false
     @State private var gallery: GallerySelection?
+    @State private var coverIndex = 0
+    @Namespace private var galleryZoom
     @State private var loaded = false
+    @State private var subtitlePreview: SubtitlePreviewSource?
 
     var body: some View {
         ScrollView {
@@ -37,7 +40,7 @@ struct WorkDetailView: View {
                             WorkInfoSection(work: work)
                             WorkTagsSection(work: work)
                             WorkCreditsSection(work: work)
-                            WorkDescriptionSection(work: work, showsOriginal: showsOriginal) { gallery = $0 }
+                            WorkDescriptionSection(work: work, showsOriginal: showsOriginal, galleryZoom: galleryZoom) { gallery = $0 }
                         }
                         .padding(.horizontal, 16)
                     }
@@ -54,7 +57,8 @@ struct WorkDetailView: View {
         .navigationTitle(productId)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { toolbar }
-        .fullScreenCover(item: $gallery) { GalleryView(selection: $0) }
+        .fullScreenCover(item: $gallery) { GalleryView(selection: $0, namespace: galleryZoom) }
+        .sheet(item: $subtitlePreview) { SubtitlePreviewSheet(source: $0) }
         .safeAreaInset(edge: .bottom) { TaskBanner() }
         .onChange(of: work?.isRemoved) { _, removed in
             if removed == true { dismiss() }
@@ -124,12 +128,14 @@ struct WorkDetailView: View {
 
     private func cover(_ work: Work) -> some View {
         let images = [work.mainImageLocalPath].compactMap(\.self) + work.sampleImageLocalPaths
-        return TabView {
+        return TabView(selection: $coverIndex) {
             ForEach(Array(images.enumerated()), id: \.offset) { index, path in
                 LocalImage(path: path, contentMode: .fit)
+                    .matchedTransitionSource(id: path, in: galleryZoom)
                     .onTapGesture {
-                        gallery = GallerySelection(images: images.map(GalleryImage.local), index: index)
+                        gallery = GallerySelection(images: images.map(GalleryImage.local), index: index) { coverIndex = $0 }
                     }
+                    .tag(index)
             }
         }
         .tabViewStyle(.page(indexDisplayMode: images.count > 1 ? .always : .never))
@@ -236,6 +242,10 @@ struct WorkDetailView: View {
                 ) { index in
                     let queue = try! PlaybackStore(database: database).queue(for: productId, folder: folder.path)
                     player.play(queue, at: index)
+                } previewSubtitle: {
+                    subtitlePreview = .track($0)
+                } reveal: {
+                    reveal($0)
                 }
             }
             if fileCount > 0 {
@@ -280,6 +290,17 @@ struct WorkDetailView: View {
         player.prefs.mode = .shuffle
         let queue = try! PlaybackStore(database: database).queue(for: productId, folder: folder.path)
         player.play(queue, at: queue.tracks.indices.randomElement()!)
+    }
+
+    /// Opens the files page one folder at a time down to the track, so back
+    /// steps up through each level, and flashes the track there.
+    private func reveal(_ track: Track) {
+        let files = try! database.reader.read { try WorkQueries.files(of: productId).fetchAll($0) }
+        let steps = WorkTree.steps(WorkTree.build(tracks: tracks, files: files), to: track.folderPath)
+        model.push(.files(productId, highlight: steps.isEmpty ? track.id : nil))
+        for (index, step) in steps.enumerated() {
+            model.push(.files(productId, folder: step.path, highlight: index == steps.count - 1 ? track.id : nil))
+        }
     }
 
     private func playFromStart(_ folder: AudioFolder) {
