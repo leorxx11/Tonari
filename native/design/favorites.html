@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>收藏页</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css">
+<style>
+:root{--surface-0:#f5f5f4;--surface-1:#ebebea;--surface-2:#fff;--border:rgba(0,0,0,.1);--border-strong:rgba(0,0,0,.18);
+--text-primary:#1a1a19;--text-secondary:#5f5e5a;--text-muted:#888780;--text-accent:#185fa5;--text-danger:#a32d2d;--text-warning:#854f0b;--text-success:#3b6d11;--text-pro:#534ab7;
+--bg-accent:#e6f1fb;--bg-danger:#fcebeb;--bg-warning:#faeeda;--bg-success:#eaf3de;--bg-pro:#eeedfe}
+@media (prefers-color-scheme:dark){:root{--surface-0:#161615;--surface-1:#232322;--surface-2:#2c2c2a;--border:rgba(255,255,255,.1);--border-strong:rgba(255,255,255,.2);
+--text-primary:#f1efe8;--text-secondary:#b4b2a9;--text-muted:#888780;--text-accent:#85b7eb;--text-danger:#f09595;--text-warning:#ef9f27;--text-success:#97c459;--text-pro:#afa9ec;
+--bg-accent:#0c447c;--bg-danger:#501313;--bg-warning:#412402;--bg-success:#173404;--bg-pro:#26215c}}
+body{margin:0;padding:24px;background:var(--surface-0);color:var(--text-primary);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif}
+main{max-width:760px;margin:0 auto}
+h1{font-size:18px;font-weight:600;margin:0 0 4px}
+.meta{font-size:13px;color:var(--text-secondary);margin:0 0 16px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</head>
+<body><main>
+<h1>收藏页</h1>
+<p class="meta">2026-09-25 确认 · 见 PLAN.md 第 6 节「收藏页」。参照 Apple Music「资料库」与播放列表。</p>
+<style>
+.ph{background:var(--surface-1);border-radius:16px;padding:12px 14px;min-width:0}
+.k{font-size:12px;color:var(--text-secondary)}
+.cat{display:flex;align-items:center;gap:10px;font-size:13px;padding:8px 0;border-bottom:0.5px solid var(--border)}
+.cat i{font-size:17px;color:var(--text-danger);width:20px;text-align:center}
+.h{font-size:14px;font-weight:500;margin:14px 0 6px;display:flex;justify-content:space-between;align-items:center}
+.cv{background:var(--border-strong);border-radius:7px;aspect-ratio:4/3}
+.t{font-size:11px;margin:4px 0 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.s{font-size:11px;color:var(--text-secondary);margin:1px 0 0}
+.mos{display:grid;grid-template-columns:1fr 1fr;gap:2px;border-radius:8px;overflow:hidden;aspect-ratio:1}
+.mos span{background:var(--border-strong)}
+.lbl{font-size:13px;font-weight:500;margin:8px 0 2px;text-align:center}
+.sub{font-size:11px;color:var(--text-secondary);text-align:center;margin:0}
+</style>
+<div style="display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,0.85fr);gap:14px">
+  <div>
+    <div class="ph">
+      <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:18px;font-weight:500">收藏</span><span class="k"><i class="ti ti-plus"></i></span></div>
+      <div class="cat"><i class="ti ti-heart"></i><span style="flex:1">全部收藏</span><span class="k">36 <i class="ti ti-chevron-right"></i></span></div>
+      <div class="cat"><i class="ti ti-history"></i><span style="flex:1">播放历史</span><span class="k"><i class="ti ti-chevron-right"></i></span></div>
+      <div class="cat" style="border-bottom:none"><i class="ti ti-chart-bar"></i><span style="flex:1">收听统计</span><span class="k">本周 3 小时 <i class="ti ti-chevron-right"></i></span></div>
+      <p class="h"><span>最近播放</span><span class="k" style="font-weight:400">全部 <i class="ti ti-chevron-right"></i></span></p>
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) 0.4fr;gap:8px">
+        <div><div class="cv"></div><p class="t">被低音高冷…</p><p class="s">看到第 3 首</p></div>
+        <div><div class="cv"></div><p class="t">双重分身惩罚</p><p class="s">昨天</p></div>
+        <div><div class="cv"></div><p class="t">耳かき専門店</p><p class="s">3 天前</p></div>
+        <div><div class="cv" style="opacity:.5"></div></div>
+      </div>
+      <p class="h"><span>分组</span><span class="k" style="font-weight:400">排序 <i class="ti ti-arrows-sort"></i></span></p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div><div class="mos"><span></span><span></span><span></span><span></span></div><p class="t" style="font-size:12px">哄睡专用</p><p class="s">14 部</p></div>
+        <div><div class="mos"><span></span><span></span><span></span><span></span></div><p class="t" style="font-size:12px">柚木つばめ</p><p class="s">9 部 · 2 视频</p></div>
+        <div><div class="mos" style="grid-template-columns:1fr"><span></span></div><p class="t" style="font-size:12px">通勤</p><p class="s">1 部</p></div>
+        <div><div style="aspect-ratio:1;border-radius:8px;border:1px dashed var(--border-strong);display:flex;align-items:center;justify-content:center" class="k"><i class="ti ti-plus" style="font-size:20px"></i></div><p class="t" style="font-size:12px;color:var(--text-secondary)">新建分组</p></div>
+      </div>
+    </div>
+    <p class="lbl">收藏页</p><p class="sub">分类入口 · 最近播放 · 分组网格</p>
+  </div>
+  <div>
+    <div class="ph">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><span class="k"><i class="ti ti-chevron-left"></i></span><span class="k"><i class="ti ti-dots"></i></span></div>
+      <div class="mos" style="width:62%;margin:0 auto"><span></span><span></span><span></span><span></span></div>
+      <p style="text-align:center;font-size:15px;font-weight:500;margin:10px 0 0">哄睡专用</p>
+      <p class="k" style="text-align:center;margin:2px 0 10px">14 部作品</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div style="background:var(--surface-2);border:0.5px solid var(--border);border-radius:99px;text-align:center;font-size:12px;padding:6px 0"><i class="ti ti-dice-3"></i> 随机一部</div>
+        <div style="background:var(--surface-2);border:0.5px solid var(--border);border-radius:99px;text-align:center;font-size:12px;padding:6px 0"><i class="ti ti-arrows-sort"></i> 排序</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">
+        <div><div class="cv"></div><p class="t">被低音高冷…</p><p class="s">声优 A</p></div>
+        <div><div class="cv"></div><p class="t">添い寝ボイス</p><p class="s">声优 E</p></div>
+      </div>
+    </div>
+    <p class="lbl">分组详情</p><p class="sub">拼贴封面 + 媒体库同款网格</p>
+  </div>
+</div>
+</main></body></html>

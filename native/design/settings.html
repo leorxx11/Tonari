@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>设置页</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css">
+<style>
+:root{--surface-0:#f5f5f4;--surface-1:#ebebea;--surface-2:#fff;--border:rgba(0,0,0,.1);--border-strong:rgba(0,0,0,.18);
+--text-primary:#1a1a19;--text-secondary:#5f5e5a;--text-muted:#888780;--text-accent:#185fa5;--text-danger:#a32d2d;--text-warning:#854f0b;--text-success:#3b6d11;--text-pro:#534ab7;
+--bg-accent:#e6f1fb;--bg-danger:#fcebeb;--bg-warning:#faeeda;--bg-success:#eaf3de;--bg-pro:#eeedfe}
+@media (prefers-color-scheme:dark){:root{--surface-0:#161615;--surface-1:#232322;--surface-2:#2c2c2a;--border:rgba(255,255,255,.1);--border-strong:rgba(255,255,255,.2);
+--text-primary:#f1efe8;--text-secondary:#b4b2a9;--text-muted:#888780;--text-accent:#85b7eb;--text-danger:#f09595;--text-warning:#ef9f27;--text-success:#97c459;--text-pro:#afa9ec;
+--bg-accent:#0c447c;--bg-danger:#501313;--bg-warning:#412402;--bg-success:#173404;--bg-pro:#26215c}}
+body{margin:0;padding:24px;background:var(--surface-0);color:var(--text-primary);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif}
+main{max-width:760px;margin:0 auto}
+h1{font-size:18px;font-weight:600;margin:0 0 4px}
+.meta{font-size:13px;color:var(--text-secondary);margin:0 0 16px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</head>
+<body><main>
+<h1>设置页</h1>
+<p class="meta">2026-09-25 确认 · 见 PLAN.md 第 6 节「设置页」。标「N6」的项做到 N6 时才出现。</p>
+<style>
+.ph{background:var(--surface-1);border-radius:16px;padding:12px 14px;max-width:340px}
+.grp{background:var(--surface-2);border-radius:12px;padding:0 10px;margin-bottom:14px}
+.row{display:flex;align-items:center;gap:10px;font-size:13px;padding:7px 0;border-bottom:0.5px solid var(--border)}
+.row:last-child{border-bottom:none}
+.tile{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:15px;flex:none;color:#fff}
+.v{font-size:12px;color:var(--text-secondary)}
+.cap{font-size:11px;color:var(--text-secondary);margin:0 0 5px 10px}
+.new{font-size:11px;color:var(--text-accent);margin-left:4px}
+</style>
+<div class="ph">
+  <p style="font-size:18px;font-weight:500;margin:2px 0 12px">设置</p>
+  <div class="grp">
+    <div class="row"><span class="tile" style="background:#E24B4A"><i class="ti ti-bell"></i></span><span style="flex:1">消息</span><span style="background:#E24B4A;color:#fff;border-radius:99px;font-size:11px;padding:0 7px">3</span><i class="ti ti-chevron-right v"></i></div>
+  </div>
+  <p class="cap">通用</p>
+  <div class="grp">
+    <div class="row"><span class="tile" style="background:#534AB7"><i class="ti ti-contrast"></i></span><span style="flex:1">外观</span><span class="v">跟随系统</span><i class="ti ti-chevron-right v"></i></div>
+    <div class="row"><span class="tile" style="background:#D4537E"><i class="ti ti-player-play"></i></span><span style="flex:1">播放</span><span class="v">步长 15 秒</span><i class="ti ti-chevron-right v"></i></div>
+    <div class="row"><span class="tile" style="background:#5F5E5A"><i class="ti ti-eye-off"></i></span><span style="flex:1">隐私<span class="new">N6</span></span><span class="v">后台模糊</span><i class="ti ti-chevron-right v"></i></div>
+  </div>
+  <p class="cap">账户与服务</p>
+  <div class="grp">
+    <div class="row"><span class="tile" style="background:#378ADD"><i class="ti ti-cloud"></i></span><span style="flex:1">115 网盘</span><span class="v">已登录</span><i class="ti ti-chevron-right v"></i></div>
+    <div class="row"><span class="tile" style="background:#1D9E75"><i class="ti ti-language"></i></span><span style="flex:1">翻译<span class="new">N6</span></span><span class="v">DeepSeek</span><i class="ti ti-chevron-right v"></i></div>
+  </div>
+  <p class="cap">媒体库</p>
+  <div class="grp">
+    <div class="row"><span class="tile" style="background:#BA7517"><i class="ti ti-folders"></i></span><span style="flex:1">媒体来源</span><span class="v">3</span><i class="ti ti-chevron-right v"></i></div>
+    <div class="row"><span class="tile" style="background:#888780"><i class="ti ti-trash"></i></span><span style="flex:1">已移除作品</span><span class="v">5</span><i class="ti ti-chevron-right v"></i></div>
+    <div class="row"><span class="tile" style="background:#639922"><i class="ti ti-refresh"></i></span><span style="flex:1">更新 DLsite 统计数据</span><span class="v">3 天前</span></div>
+  </div>
+  <p class="cap">数据</p>
+  <div class="grp">
+    <div class="row"><span class="tile" style="background:#185FA5"><i class="ti ti-database-export"></i></span><span style="flex:1">备份与恢复</span><span class="v">上次 9 月 24 日</span><i class="ti ti-chevron-right v"></i></div>
+  </div>
+  <div class="grp">
+    <div class="row"><span class="tile" style="background:#444441"><i class="ti ti-stethoscope"></i></span><span style="flex:1">诊断日志</span><i class="ti ti-chevron-right v"></i></div>
+    <div class="row"><span class="tile" style="background:#444441"><i class="ti ti-info-circle"></i></span><span style="flex:1">关于 Tonari</span><span class="v">1.0 (N3)</span><i class="ti ti-chevron-right v"></i></div>
+  </div>
+</div>
+</main></body></html>

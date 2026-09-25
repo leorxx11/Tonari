@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>视频库与视频播放页</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css">
+<style>
+:root{--surface-0:#f5f5f4;--surface-1:#ebebea;--surface-2:#fff;--border:rgba(0,0,0,.1);--border-strong:rgba(0,0,0,.18);
+--text-primary:#1a1a19;--text-secondary:#5f5e5a;--text-muted:#888780;--text-accent:#185fa5;--text-danger:#a32d2d;--text-warning:#854f0b;--text-success:#3b6d11;--text-pro:#534ab7;
+--bg-accent:#e6f1fb;--bg-danger:#fcebeb;--bg-warning:#faeeda;--bg-success:#eaf3de;--bg-pro:#eeedfe}
+@media (prefers-color-scheme:dark){:root{--surface-0:#161615;--surface-1:#232322;--surface-2:#2c2c2a;--border:rgba(255,255,255,.1);--border-strong:rgba(255,255,255,.2);
+--text-primary:#f1efe8;--text-secondary:#b4b2a9;--text-muted:#888780;--text-accent:#85b7eb;--text-danger:#f09595;--text-warning:#ef9f27;--text-success:#97c459;--text-pro:#afa9ec;
+--bg-accent:#0c447c;--bg-danger:#501313;--bg-warning:#412402;--bg-success:#173404;--bg-pro:#26215c}}
+body{margin:0;padding:24px;background:var(--surface-0);color:var(--text-primary);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif}
+main{max-width:760px;margin:0 auto}
+h1{font-size:18px;font-weight:600;margin:0 0 4px}
+.meta{font-size:13px;color:var(--text-secondary);margin:0 0 16px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</head>
+<body><main>
+<h1>视频库与视频播放页（N5）</h1>
+<p class="meta">2026-09-25 确认 · 见 PLAN.md 第 6 节「视频库与视频播放页」。快进 / 快退与双击跳转沿用「设置 → 播放」的步长。</p>
+<style>
+.ph{background:var(--surface-1);border-radius:16px;padding:12px 14px;min-width:0}
+.dark{background:#0b0b0b;border-radius:16px;padding:10px 12px;color:#f1efe8;min-width:0}
+.k{font-size:12px;color:var(--text-secondary)}
+.dk{font-size:11px;color:#b4b2a9}
+.th{background:var(--border-strong);border-radius:8px;aspect-ratio:16/9;position:relative;overflow:hidden}
+.pb{position:absolute;left:6px;right:6px;bottom:5px;height:3px;border-radius:99px;background:rgba(255,255,255,.35)}
+.pb span{display:block;height:100%;border-radius:99px;background:#fff}
+.t{font-size:11px;margin:4px 0 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.s{font-size:11px;color:var(--text-secondary);margin:1px 0 0}
+.h{font-size:13px;font-weight:500;margin:12px 0 6px;display:flex;justify-content:space-between}
+.glass{background:rgba(255,255,255,.14);border-radius:99px;display:inline-flex;align-items:center;justify-content:center}
+.lbl{font-size:13px;font-weight:500;margin:8px 0 2px;text-align:center}
+.sub{font-size:11px;color:var(--text-secondary);text-align:center;margin:0}
+</style>
+<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,0.85fr);gap:14px">
+  <div>
+    <div class="ph">
+      <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:11px;border:0.5px solid var(--border-strong);border-radius:99px;padding:2px 8px;color:var(--text-secondary)">音声 | <b style="font-weight:500;color:var(--text-primary)">视频</b></span><span class="k"><i class="ti ti-plus"></i>&nbsp;<i class="ti ti-dots"></i></span></div>
+      <p class="h"><span>继续观看</span><span class="k" style="font-weight:400">全部 <i class="ti ti-chevron-right"></i></span></p>
+      <div style="display:grid;grid-template-columns:1fr 1fr 0.35fr;gap:8px">
+        <div><div class="th"><div class="pb"><span style="width:62%"></span></div></div><p class="t">第4章『神社』双人篇</p><p class="s">115 · 剩 18 分钟</p></div>
+        <div><div class="th"><div class="pb"><span style="width:25%"></span></div></div><p class="t">xxx_part2.mkv</p><p class="s">115 · 剩 41 分钟</p></div>
+        <div><div class="th" style="opacity:.5"></div></div>
+      </div>
+      <p class="h"><span>视频库</span><span class="k" style="font-weight:400">1 个</span></p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div><div class="th"><span style="position:absolute;right:5px;top:5px;font-size:11px;color:#fff"><i class="ti ti-heart"></i></span></div><p class="t">收藏的某个视频</p><p class="s">115 网盘</p></div>
+        <div><div style="aspect-ratio:16/9;border-radius:8px;border:1px dashed var(--border-strong);display:flex;align-items:center;justify-content:center" class="k"><i class="ti ti-plus"></i></div><p class="t" style="color:var(--text-secondary)">从 115 或文件添加</p></div>
+      </div>
+    </div>
+    <p class="lbl">视频库</p><p class="sub">继续观看在上，入库视频在下</p>
+  </div>
+  <div>
+    <div class="dark" style="aspect-ratio:9/16.5;display:flex;flex-direction:column">
+      <div style="display:flex;justify-content:space-between;align-items:center"><span class="glass" style="width:26px;height:26px"><i class="ti ti-chevron-down"></i></span><span class="dk" style="flex:1;margin:0 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#f1efe8">第4章『神社』双人篇</span><span class="glass" style="width:26px;height:26px"><i class="ti ti-cast"></i></span>&nbsp;<span class="glass" style="width:26px;height:26px"><i class="ti ti-dots"></i></span></div>
+      <div style="flex:1;display:flex;align-items:center"><div style="width:100%;aspect-ratio:16/9;background:#2c2c2a;border-radius:4px;display:flex;align-items:center;justify-content:center;gap:16px">
+        <span class="glass" style="width:30px;height:30px"><i class="ti ti-rewind-backward-10"></i></span><span class="glass" style="width:40px;height:40px;font-size:18px"><i class="ti ti-player-pause"></i></span><span class="glass" style="width:30px;height:30px"><i class="ti ti-rewind-forward-10"></i></span>
+      </div></div>
+      <div style="height:6px;border-radius:99px;background:rgba(255,255,255,.2)"><div style="width:62%;height:100%;border-radius:99px;background:#f1efe8"></div></div>
+      <div style="display:flex;justify-content:space-between;margin-top:4px" class="dk"><span>28:12</span><span>-18:03</span></div>
+      <div style="display:flex;justify-content:space-around;margin-top:8px;font-size:15px;color:#b4b2a9"><i class="ti ti-moon"></i><span style="font-size:12px">1x</span><i class="ti ti-lock"></i><i class="ti ti-rotate-clockwise"></i></div>
+    </div>
+    <p class="lbl">播放页 · 竖屏</p><p class="sub">全屏黑底，画面居中</p>
+  </div>
+</div>
+<div class="dark" style="aspect-ratio:19.5/9;display:flex;flex-direction:column;justify-content:space-between;margin-top:14px">
+  <div style="display:flex;justify-content:space-between;align-items:center"><span class="glass" style="width:28px;height:28px"><i class="ti ti-chevron-down"></i></span><span style="flex:1;margin:0 10px;font-size:13px">第4章『神社』双人篇</span><span class="glass" style="width:28px;height:28px"><i class="ti ti-cast"></i></span>&nbsp;<span class="glass" style="width:28px;height:28px"><i class="ti ti-dots"></i></span></div>
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:0 6%">
+    <span class="dk" style="border:1px dashed rgba(255,255,255,.25);border-radius:12px;padding:18px 16px">双击快退</span>
+    <span style="background:rgba(0,0,0,.55);border-radius:10px;padding:6px 12px;font-size:13px">+0:32 · 28:44</span>
+    <span class="dk" style="border:1px dashed rgba(255,255,255,.25);border-radius:12px;padding:18px 16px">双击快进</span>
+  </div>
+  <div>
+    <div style="height:6px;border-radius:99px;background:rgba(255,255,255,.2)"><div style="width:62%;height:100%;border-radius:99px;background:#f1efe8"></div></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px" class="dk"><span>28:12 / 46:15</span><span style="display:flex;gap:18px;font-size:15px"><i class="ti ti-moon"></i><span style="font-size:12px">1x</span><i class="ti ti-lock"></i><i class="ti ti-rotate-clockwise"></i></span></div>
+  </div>
+</div>
+<p class="lbl">播放页 · 横屏</p><p class="sub">横滑微调进度（中间显示目标时间，抬手才跳）；左右半边双击快退 / 快进</p>
+</main></body></html>

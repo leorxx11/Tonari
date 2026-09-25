@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>作品详情页</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css">
+<style>
+:root{--surface-0:#f5f5f4;--surface-1:#ebebea;--surface-2:#fff;--border:rgba(0,0,0,.1);--border-strong:rgba(0,0,0,.18);
+--text-primary:#1a1a19;--text-secondary:#5f5e5a;--text-muted:#888780;--text-accent:#185fa5;--text-danger:#a32d2d;--text-warning:#854f0b;--text-success:#3b6d11;--text-pro:#534ab7;
+--bg-accent:#e6f1fb;--bg-danger:#fcebeb;--bg-warning:#faeeda;--bg-success:#eaf3de;--bg-pro:#eeedfe}
+@media (prefers-color-scheme:dark){:root{--surface-0:#161615;--surface-1:#232322;--surface-2:#2c2c2a;--border:rgba(255,255,255,.1);--border-strong:rgba(255,255,255,.2);
+--text-primary:#f1efe8;--text-secondary:#b4b2a9;--text-muted:#888780;--text-accent:#85b7eb;--text-danger:#f09595;--text-warning:#ef9f27;--text-success:#97c459;--text-pro:#afa9ec;
+--bg-accent:#0c447c;--bg-danger:#501313;--bg-warning:#412402;--bg-success:#173404;--bg-pro:#26215c}}
+body{margin:0;padding:24px;background:var(--surface-0);color:var(--text-primary);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif}
+main{max-width:760px;margin:0 auto}
+h1{font-size:18px;font-weight:600;margin:0 0 4px}
+.meta{font-size:13px;color:var(--text-secondary);margin:0 0 16px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</head>
+<body><main>
+<h1>作品详情页</h1>
+<p class="meta">2026-09-25 确认 · 见 PLAN.md 第 6 节「作品详情页」。曲目区为横向翻页，细节见 track-pager.html。</p>
+<style>
+.ph{background:var(--surface-1);border-radius:16px;padding:12px 14px}
+.k{font-size:12px;color:var(--text-secondary)}
+.row{display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:6px 0;border-bottom:0.5px solid var(--border)}
+.h{font-size:13px;font-weight:500;margin:14px 0 4px;display:flex;justify-content:space-between;align-items:center}
+.chip{font-size:11px;border-radius:99px;padding:2px 8px;background:var(--surface-2);color:var(--text-secondary);border:0.5px solid var(--border)}
+.n{width:16px;color:var(--text-muted);font-size:12px;display:inline-block;text-align:center}
+.num{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--bg-accent);color:var(--text-accent);font-size:11px;font-weight:500;flex:none}
+.sec{position:relative}
+.tag{position:absolute;left:-26px;top:2px}
+.ann{display:flex;gap:8px;align-items:flex-start;margin:0 0 10px;font-size:13px;line-height:1.55;color:var(--text-secondary)}
+.ann b{color:var(--text-primary);font-weight:500}
+.col{flex:none;width:78%}
+.pr{display:flex;gap:8px;align-items:center;font-size:12px;padding:6px 0;border-bottom:0.5px solid var(--border)}
+.pt{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+</style>
+<div style="display:grid;grid-template-columns:minmax(0,330px) minmax(0,1fr);gap:22px;align-items:start;padding-left:26px">
+<div class="ph" style="overflow:hidden">
+  <div class="sec"><span class="num tag">1</span>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span class="k"><i class="ti ti-chevron-left"></i></span><span class="k">RJ01098024</span><span class="k"><i class="ti ti-heart"></i>&nbsp;&nbsp;<i class="ti ti-dots"></i></span></div>
+  </div>
+  <div class="sec"><span class="num tag">2</span>
+    <div style="background:var(--border-strong);border-radius:10px;aspect-ratio:4/3;display:flex;align-items:flex-end;justify-content:center;padding-bottom:6px"><span class="k">● ○ ○ ○</span></div>
+  </div>
+  <div class="sec"><span class="num tag" style="top:12px">3</span>
+    <p style="font-size:15px;font-weight:500;margin:10px 0 2px;line-height:1.35">被低音高冷暗黑骑士那臭烘烘的…</p>
+    <p style="font-size:12px;color:var(--text-accent);margin:0">声优 A、声优 B</p>
+    <p class="k" style="margin:2px 0 10px">社团 A · 2025-06-12 · 简体中文</p>
+  </div>
+  <div class="sec"><span class="num tag" style="top:6px">4</span>
+    <div style="background:var(--text-primary);color:var(--surface-2);border-radius:99px;text-align:center;font-size:13px;padding:8px 0"><i class="ti ti-player-play"></i> 继续播放 · 03. 添い寝</div>
+    <p class="k" style="text-align:center;margin:6px 0 2px">从头播放</p>
+  </div>
+  <div class="sec"><span class="num tag" style="top:16px">5</span>
+    <p class="h"><span>曲目 <span class="k" style="font-weight:400">24 首</span></span><span style="font-size:12px;color:var(--text-accent);font-weight:400">本編 · WAV <i class="ti ti-chevron-down"></i></span></p>
+    <div style="display:flex;gap:14px;margin-right:-14px">
+      <div class="col">
+        <div class="pr"><span class="n">1</span><span class="pt">01. 序章</span><i class="ti ti-message-2 k"></i></div>
+        <div class="pr"><span class="n">2</span><span class="pt">02. 耳舐め</span><i class="ti ti-message-2 k"></i></div>
+        <div class="pr"><span class="n" style="color:var(--text-accent)"><i class="ti ti-wave-sine"></i></span><span class="pt" style="color:var(--text-accent)">03. 添い寝</span></div>
+        <div class="pr"><span class="n">4</span><span class="pt">04. 囁き</span></div>
+      </div>
+      <div class="col" style="opacity:.55">
+        <div class="pr"><span class="n">5</span><span class="pt">05. おやすみ</span></div>
+        <div class="pr"><span class="n">6</span><span class="pt">06. 朝</span></div>
+        <div class="pr"><span class="n">7</span><span class="pt">07. …</span></div>
+        <div class="pr"><span class="n">8</span><span class="pt">08. …</span></div>
+      </div>
+    </div>
+    <div class="row"><span class="k"><i class="ti ti-folder"></i> 全部文件</span><span class="k">86 项 <i class="ti ti-chevron-right"></i></span></div>
+  </div>
+  <div class="sec"><span class="num tag" style="top:16px">6</span>
+    <p class="h"><span>信息</span></p>
+    <div class="row"><span class="k">评分</span><span>★ 4.72（318）</span></div>
+    <div class="row"><span class="k">销量 · 心愿单</span><span>12,345 · 6,789</span></div>
+    <div class="row"><span class="k">排名</span><span>7 日第 3 名</span></div>
+    <div class="row"><span class="k">价格</span><span>1,320 JPY <span style="color:var(--text-danger)">-30%</span></span></div>
+    <div class="row"><span class="k">文件</span><span>1.36GB · WAV</span></div>
+    <div class="row"><span class="k">类型 · 年龄</span><span>音声 · 全年龄</span></div>
+    <div class="row"><span class="k">翻译自</span><span style="color:var(--text-accent)">RJ01011111 <i class="ti ti-external-link"></i></span></div>
+  </div>
+  <div class="sec"><span class="num tag" style="top:16px">7</span>
+    <p class="h"><span>标签</span></p>
+    <div style="display:flex;gap:5px;flex-wrap:wrap"><span class="chip">舔耳</span><span class="chip">哄睡</span><span class="chip">治愈</span><span class="chip">系列：某系列</span></div>
+  </div>
+  <div class="sec"><span class="num tag" style="top:16px">8</span>
+    <p class="h"><span>演职员</span></p>
+    <div class="row"><span class="k">剧情</span><span>某某 <i class="ti ti-chevron-right"></i></span></div>
+    <div class="row"><span class="k">插画</span><span>某某 <i class="ti ti-chevron-right"></i></span></div>
+  </div>
+  <div class="sec"><span class="num tag" style="top:16px">9</span>
+    <p class="h"><span>简介</span></p>
+    <p class="k" style="margin:0;line-height:1.5">大家好，这里是……<br>今晚也请让我陪在你身边……<br>本作包含以下内容……<span style="color:var(--text-accent)"> 更多</span></p>
+  </div>
+</div>
+<div>
+  <div class="ann"><span class="num">1</span><span><b>顶栏</b>：RJ 号；♡ 收藏、⋯（加入分组 · DLsite 打开与刷新 · 重新扫描 · 移除 · 显示原文 / 译文）</span></div>
+  <div class="ann"><span class="num">2</span><span><b>封面</b>：主图 + 样图左右滑，点开图集；无文件印章</span></div>
+  <div class="ann"><span class="num">3</span><span><b>标题区</b>：声优主题色可点；社团 · 发售日 · 语言</span></div>
+  <div class="ann"><span class="num">4</span><span><b>播放</b>：继续播放 · 曲名 + 小字从头播放；按作品记</span></div>
+  <div class="ann"><span class="num">5</span><span><b>曲目</b>：目录菜单（按作品记住）；每列 4 首横向翻页，定位到当前曲；💬 有字幕；长按：从这首播放 · 预览字幕 · 在文件中显示；全部文件 → 资源页</span></div>
+  <div class="ann"><span class="num">6</span><span><b>信息</b>：只列有值的行</span></div>
+  <div class="ann"><span class="num">7</span><span><b>标签</b>：类别 + 系列，可点</span></div>
+  <div class="ann"><span class="num">8</span><span><b>演职员</b>：剧情 / 插画 / 音乐，可点</span></div>
+  <div class="ann"><span class="num">9</span><span><b>简介</b>：折叠 3 行，「更多」展开；原文 / 译文随整页开关</span></div>
+</div>
+</div>
+</main></body></html>

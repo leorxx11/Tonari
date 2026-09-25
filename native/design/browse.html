@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>浏览页</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css">
+<style>
+:root{--surface-0:#f5f5f4;--surface-1:#ebebea;--surface-2:#fff;--border:rgba(0,0,0,.1);--border-strong:rgba(0,0,0,.18);
+--text-primary:#1a1a19;--text-secondary:#5f5e5a;--text-muted:#888780;--text-accent:#185fa5;--text-danger:#a32d2d;--text-warning:#854f0b;--text-success:#3b6d11;--text-pro:#534ab7;
+--bg-accent:#e6f1fb;--bg-danger:#fcebeb;--bg-warning:#faeeda;--bg-success:#eaf3de;--bg-pro:#eeedfe}
+@media (prefers-color-scheme:dark){:root{--surface-0:#161615;--surface-1:#232322;--surface-2:#2c2c2a;--border:rgba(255,255,255,.1);--border-strong:rgba(255,255,255,.2);
+--text-primary:#f1efe8;--text-secondary:#b4b2a9;--text-muted:#888780;--text-accent:#85b7eb;--text-danger:#f09595;--text-warning:#ef9f27;--text-success:#97c459;--text-pro:#afa9ec;
+--bg-accent:#0c447c;--bg-danger:#501313;--bg-warning:#412402;--bg-success:#173404;--bg-pro:#26215c}}
+body{margin:0;padding:24px;background:var(--surface-0);color:var(--text-primary);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif}
+main{max-width:760px;margin:0 auto}
+h1{font-size:18px;font-weight:600;margin:0 0 4px}
+.meta{font-size:13px;color:var(--text-secondary);margin:0 0 16px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</head>
+<body><main>
+<h1>浏览页</h1>
+<p class="meta">2026-09-25 确认 · 见 PLAN.md 第 6 节「浏览页」。行样式与资源页一致。</p>
+<style>
+.ph{background:var(--surface-1);border-radius:16px;padding:12px 14px;min-width:0}
+.k{font-size:12px;color:var(--text-secondary)}
+.row{display:flex;gap:9px;align-items:center;font-size:12px;padding:6px 0;border-bottom:0.5px solid var(--border)}
+.ic{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px;flex:none}
+.cv{width:34px;height:26px;border-radius:5px;background:var(--border-strong);flex:none}
+.t{flex:1;min-width:0}
+.t p{margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.s{font-size:11px;color:var(--text-secondary)}
+.lbl{font-size:13px;font-weight:500;margin:8px 0 2px;text-align:center}
+.sub{font-size:11px;color:var(--text-secondary);text-align:center;margin:0}
+.nav{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:12px}
+.ok{font-size:11px;color:var(--text-success)}
+</style>
+<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px">
+  <div>
+    <div class="ph">
+      <p style="font-size:17px;font-weight:500;margin:4px 0 10px">浏览</p>
+      <p class="s" style="margin:0 0 2px">位置</p>
+      <div class="row"><span class="ic" style="background:var(--bg-accent);color:var(--text-accent)"><i class="ti ti-cloud"></i></span><div class="t"><p>115 网盘</p><p class="s">已登录 · 上次在 ASMR / 2025</p></div><i class="ti ti-chevron-right k"></i></div>
+      <div class="row" style="border-bottom:none"><span class="ic" style="background:var(--bg-warning);color:var(--text-warning)"><i class="ti ti-device-mobile"></i></span><div class="t"><p>本机文件夹</p><p class="s">从「文件」App 选取并导入</p></div><i class="ti ti-chevron-right k"></i></div>
+    </div>
+    <p class="lbl">浏览首页</p><p class="sub">位置列表</p>
+  </div>
+  <div>
+    <div class="ph">
+      <div class="nav"><span class="k"><i class="ti ti-chevron-left"></i> <b style="color:var(--text-primary);font-weight:500">2025</b></span><span class="k"><i class="ti ti-home"></i></span></div>
+      <div class="row"><span class="ic" style="background:var(--text-primary);color:var(--surface-2)"><i class="ti ti-download"></i></span><div class="t"><p style="font-weight:500">导入此文件夹</p><p class="s">扫描其中的 RJ 作品 · 已导入 2 / 4</p></div></div>
+      <div class="row"><span class="cv"></span><div class="t"><p>被低音高冷暗黑骑士…</p><p class="s">RJ01098024 · <span class="ok">已导入</span></p></div><i class="ti ti-chevron-right k"></i></div>
+      <div class="row"><span class="cv"></span><div class="t"><p>双重分身惩罚</p><p class="s">RJ01011111 · <span class="ok">已导入</span></p></div><i class="ti ti-chevron-right k"></i></div>
+      <div class="row"><span class="ic" style="background:var(--bg-accent);color:var(--text-accent)"><i class="ti ti-folder"></i></span><div class="t"><p>RJ01234567 耳かき…</p><p class="s">RJ01234567 · 未导入（左滑导入）</p></div><i class="ti ti-chevron-right k"></i></div>
+      <div class="row" style="border-bottom:none"><span class="ic" style="background:var(--bg-accent);color:var(--text-accent)"><i class="ti ti-folder"></i></span><div class="t"><p>其他资料</p><p class="s">文件夹</p></div><i class="ti ti-chevron-right k"></i></div>
+    </div>
+    <p class="lbl">115 文件夹</p><p class="sub">已导入的 RJ 显示封面与标题</p>
+  </div>
+  <div>
+    <div class="ph">
+      <div class="nav"><span class="k"><i class="ti ti-chevron-left"></i> <b style="color:var(--text-primary);font-weight:500">本編</b></span><span class="k"><i class="ti ti-home"></i></span></div>
+      <div class="row"><span class="ic" style="background:var(--text-primary);color:var(--surface-2)"><i class="ti ti-player-play"></i></span><div class="t"><p style="font-weight:500">播放本文件夹</p><p class="s">12 首</p></div></div>
+      <div class="row"><span class="ic" style="background:var(--bg-danger);color:var(--text-danger)"><i class="ti ti-music"></i></span><div class="t"><p>01. 序章.wav</p><p class="s">45 MB</p></div></div>
+      <div class="row"><span class="ic" style="background:var(--bg-accent);color:var(--text-accent)"><i class="ti ti-wave-sine"></i></span><div class="t"><p style="color:var(--text-accent)">02. 耳舐め.wav</p><p class="s">正在播放</p></div></div>
+      <div class="row"><span class="ic" style="background:var(--bg-success);color:var(--text-success)"><i class="ti ti-message-2"></i></span><div class="t"><p>01. 序章.srt</p><p class="s">12 KB</p></div></div>
+      <div class="row" style="border-bottom:none"><span class="ic" style="background:var(--bg-pro);color:var(--text-pro)"><i class="ti ti-photo"></i></span><div class="t"><p>cover.jpg</p><p class="s">1.2 MB</p></div></div>
+    </div>
+    <p class="lbl">含音频的文件夹</p><p class="sub">与资源页同一套行样式</p>
+  </div>
+</div>
+</main></body></html>

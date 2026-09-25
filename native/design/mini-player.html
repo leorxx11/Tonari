@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>迷你播放栏</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css">
+<style>
+:root{--surface-0:#f5f5f4;--surface-1:#ebebea;--surface-2:#fff;--border:rgba(0,0,0,.1);--border-strong:rgba(0,0,0,.18);
+--text-primary:#1a1a19;--text-secondary:#5f5e5a;--text-muted:#888780;--text-accent:#185fa5;--text-danger:#a32d2d;--text-warning:#854f0b;--text-success:#3b6d11;--text-pro:#534ab7;
+--bg-accent:#e6f1fb;--bg-danger:#fcebeb;--bg-warning:#faeeda;--bg-success:#eaf3de;--bg-pro:#eeedfe}
+@media (prefers-color-scheme:dark){:root{--surface-0:#161615;--surface-1:#232322;--surface-2:#2c2c2a;--border:rgba(255,255,255,.1);--border-strong:rgba(255,255,255,.2);
+--text-primary:#f1efe8;--text-secondary:#b4b2a9;--text-muted:#888780;--text-accent:#85b7eb;--text-danger:#f09595;--text-warning:#ef9f27;--text-success:#97c459;--text-pro:#afa9ec;
+--bg-accent:#0c447c;--bg-danger:#501313;--bg-warning:#412402;--bg-success:#173404;--bg-pro:#26215c}}
+body{margin:0;padding:24px;background:var(--surface-0);color:var(--text-primary);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif}
+main{max-width:760px;margin:0 auto}
+h1{font-size:18px;font-weight:600;margin:0 0 4px}
+.meta{font-size:13px;color:var(--text-secondary);margin:0 0 16px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</head>
+<body><main>
+<h1>迷你播放栏</h1>
+<p class="meta">2026-09-25 确认 · 见 PLAN.md 第 6 节「迷你播放栏」。方案 C：第二行显示当前字幕句。</p>
+<style>
+.bar{display:flex;align-items:center;gap:9px;background:var(--surface-2);border:0.5px solid var(--border);border-radius:99px;padding:6px 12px 6px 7px;max-width:380px}
+.cv{width:30px;height:30px;border-radius:7px;background:var(--border-strong);flex:none}
+.t{flex:1;min-width:0}
+.t p{margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.a{font-size:12px}
+.b{font-size:11px;color:var(--text-secondary)}
+.ic{font-size:17px;color:var(--text-primary)}
+.tabs{display:flex;align-items:center;gap:8px;max-width:380px}
+.tabpill{background:var(--surface-2);border:0.5px solid var(--border);border-radius:99px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;flex:none}
+.cap{font-size:12px;color:var(--text-secondary);margin:16px 0 6px}
+.menu{background:var(--surface-2);border:0.5px solid var(--border);border-radius:12px;padding:4px 12px;font-size:13px;max-width:240px}
+.menu div{padding:7px 0;border-bottom:0.5px solid var(--border);display:flex;gap:8px;align-items:center}
+.menu div:last-child{border-bottom:none}
+</style>
+<p class="cap" style="margin-top:0">正常（有字幕：第二行为当前字幕句）</p>
+<div class="bar"><span class="cv"></span><div class="t"><p class="a">03. 添い寝</p><p class="b" style="color:var(--text-primary)">ほら、こっちにおいで</p></div><i class="ti ti-moon b"></i><i class="ti ti-player-play ic"></i><i class="ti ti-player-track-next ic"></i></div>
+<p class="cap">正常（无字幕：第二行为作品名）</p>
+<div class="bar"><span class="cv"></span><div class="t"><p class="a">03. 添い寝</p><p class="b">被低音高冷暗黑骑士那臭烘烘的…</p></div><i class="ti ti-player-play ic"></i><i class="ti ti-player-track-next ic"></i></div>
+<p class="cap">Tab 栏收起（只显示字幕句，无字幕时曲名）</p>
+<div class="tabs"><span class="tabpill"><i class="ti ti-music b"></i></span><div class="bar" style="flex:1"><span class="cv" style="width:24px;height:24px"></span><div class="t"><p class="a">ほら、こっちにおいで</p></div><i class="ti ti-player-play ic"></i></div><span class="tabpill"><i class="ti ti-search b"></i></span></div>
+<p class="cap">长按菜单 · 左右滑切歌 · 睡眠定时开启时显示小月亮</p>
+<div class="menu">
+  <div><i class="ti ti-moon"></i>睡眠定时</div>
+  <div><i class="ti ti-gauge"></i>播放速度</div>
+  <div><i class="ti ti-picture-in-picture"></i>画中画字幕</div>
+  <div><i class="ti ti-info-circle"></i>查看作品</div>
+</div>
+</main></body></html>

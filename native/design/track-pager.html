@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>详情页曲目区：横向翻页</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css">
+<style>
+:root{--surface-0:#f5f5f4;--surface-1:#ebebea;--surface-2:#fff;--border:rgba(0,0,0,.1);--border-strong:rgba(0,0,0,.18);
+--text-primary:#1a1a19;--text-secondary:#5f5e5a;--text-muted:#888780;--text-accent:#185fa5;--text-danger:#a32d2d;--text-warning:#854f0b;--text-success:#3b6d11;--text-pro:#534ab7;
+--bg-accent:#e6f1fb;--bg-danger:#fcebeb;--bg-warning:#faeeda;--bg-success:#eaf3de;--bg-pro:#eeedfe}
+@media (prefers-color-scheme:dark){:root{--surface-0:#161615;--surface-1:#232322;--surface-2:#2c2c2a;--border:rgba(255,255,255,.1);--border-strong:rgba(255,255,255,.2);
+--text-primary:#f1efe8;--text-secondary:#b4b2a9;--text-muted:#888780;--text-accent:#85b7eb;--text-danger:#f09595;--text-warning:#ef9f27;--text-success:#97c459;--text-pro:#afa9ec;
+--bg-accent:#0c447c;--bg-danger:#501313;--bg-warning:#412402;--bg-success:#173404;--bg-pro:#26215c}}
+body{margin:0;padding:24px;background:var(--surface-0);color:var(--text-primary);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif}
+main{max-width:760px;margin:0 auto}
+h1{font-size:18px;font-weight:600;margin:0 0 4px}
+.meta{font-size:13px;color:var(--text-secondary);margin:0 0 16px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</head>
+<body><main>
+<h1>详情页曲目区：横向翻页</h1>
+<p class="meta">2026-09-25 确认 · 参照 Apple Music 歌手页「热门歌曲」。</p>
+<style>
+.ph{background:var(--surface-1);border-radius:16px;padding:12px 0 12px 14px;max-width:360px;overflow:hidden}
+.k{font-size:12px;color:var(--text-secondary)}
+.col{flex:none;width:78%;display:flex;flex-direction:column}
+.row{display:flex;gap:8px;align-items:center;font-size:12px;padding:6px 0;border-bottom:0.5px solid var(--border)}
+.n{width:16px;color:var(--text-muted);font-size:12px;flex:none;text-align:center}
+.t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ann{font-size:13px;color:var(--text-secondary);line-height:1.6;margin:0 0 8px}
+.ann b{color:var(--text-primary);font-weight:500}
+.menu{background:var(--surface-2);border:0.5px solid var(--border);border-radius:12px;padding:4px 10px;font-size:12px;margin-top:8px}
+.menu div{padding:5px 0;border-bottom:0.5px solid var(--border);display:flex;justify-content:space-between}
+</style>
+<div style="display:grid;grid-template-columns:minmax(0,360px) minmax(0,1fr);gap:22px;align-items:start">
+<div>
+<div class="ph">
+  <div style="display:flex;justify-content:space-between;align-items:center;padding-right:14px;margin-bottom:4px"><span style="font-size:13px;font-weight:500">曲目 <span class="k" style="font-weight:400">24 首</span></span><span style="font-size:12px;color:var(--text-accent)">本編 · WAV <i class="ti ti-chevron-down"></i></span></div>
+  <div style="display:flex;gap:14px">
+    <div class="col">
+      <div class="row"><span class="n">1</span><span class="t">01. 序章</span><i class="ti ti-message-2 k"></i><span class="k">4:12</span></div>
+      <div class="row"><span class="n">2</span><span class="t">02. 耳舐め</span><i class="ti ti-message-2 k"></i></div>
+      <div class="row"><span class="n" style="color:var(--text-accent)"><i class="ti ti-wave-sine"></i></span><span class="t" style="color:var(--text-accent)">03. 添い寝</span></div>
+      <div class="row"><span class="n">4</span><span class="t">04. 囁き</span><i class="ti ti-message-2 k"></i></div>
+    </div>
+    <div class="col" style="opacity:0.55">
+      <div class="row"><span class="n">5</span><span class="t">05. おやすみ</span></div>
+      <div class="row"><span class="n">6</span><span class="t">06. 朝の…</span></div>
+      <div class="row"><span class="n">7</span><span class="t">07. 二度寝</span></div>
+      <div class="row"><span class="n">8</span><span class="t">08. …</span></div>
+    </div>
+  </div>
+  <div style="display:flex;justify-content:center;gap:5px;margin:8px 14px 0 0" class="k">● ○ ○ ○ ○ ○</div>
+  <div style="display:flex;justify-content:space-between;padding:8px 14px 0 0;margin-top:6px;border-top:0.5px solid var(--border)"><span class="k"><i class="ti ti-folder"></i> 全部文件</span><span class="k">86 项 <i class="ti ti-chevron-right"></i></span></div>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:360px;margin-top:12px">
+  <div><p class="k" style="margin:0">点「本編 · WAV ⌄」</p><div class="menu">
+    <div><span><i class="ti ti-check"></i> 本編 · WAV</span><span class="k">24</span></div>
+    <div><span style="padding-left:16px">本編 · MP3</span><span class="k">24</span></div>
+    <div style="border-bottom:none"><span style="padding-left:16px">おまけ</span><span class="k">3</span></div></div></div>
+  <div><p class="k" style="margin:0">长按曲目</p><div class="menu">
+    <div><span><i class="ti ti-player-play"></i> 从这首播放</span></div>
+    <div><span><i class="ti ti-message-2"></i> 预览字幕</span></div>
+    <div style="border-bottom:none"><span><i class="ti ti-folder"></i> 在文件中显示</span></div></div></div>
+</div>
+</div>
+<div>
+  <p class="ann"><b>每列 4 首</b>，下一列露出一截</p>
+  <p class="ann"><b>左右翻页</b>按列吸附；上下滑动始终滚动整页</p>
+  <p class="ann"><b>自动定位</b>到正在播或上次播的那首所在列</p>
+  <p class="ann"><b>高度固定</b>，与曲目数量无关</p>
+  <p class="ann"><b>目录选择</b>按作品记住；继续播放按作品记，与目录无关</p>
+</div>
+</div>
+</main></body></html>

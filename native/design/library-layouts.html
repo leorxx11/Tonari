@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>媒体库三种视图</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css">
+<style>
+:root{--surface-0:#f5f5f4;--surface-1:#ebebea;--surface-2:#fff;--border:rgba(0,0,0,.1);--border-strong:rgba(0,0,0,.18);
+--text-primary:#1a1a19;--text-secondary:#5f5e5a;--text-muted:#888780;--text-accent:#185fa5;--text-danger:#a32d2d;--text-warning:#854f0b;--text-success:#3b6d11;--text-pro:#534ab7;
+--bg-accent:#e6f1fb;--bg-danger:#fcebeb;--bg-warning:#faeeda;--bg-success:#eaf3de;--bg-pro:#eeedfe}
+@media (prefers-color-scheme:dark){:root{--surface-0:#161615;--surface-1:#232322;--surface-2:#2c2c2a;--border:rgba(255,255,255,.1);--border-strong:rgba(255,255,255,.2);
+--text-primary:#f1efe8;--text-secondary:#b4b2a9;--text-muted:#888780;--text-accent:#85b7eb;--text-danger:#f09595;--text-warning:#ef9f27;--text-success:#97c459;--text-pro:#afa9ec;
+--bg-accent:#0c447c;--bg-danger:#501313;--bg-warning:#412402;--bg-success:#173404;--bg-pro:#26215c}}
+body{margin:0;padding:24px;background:var(--surface-0);color:var(--text-primary);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif}
+main{max-width:760px;margin:0 auto}
+h1{font-size:18px;font-weight:600;margin:0 0 4px}
+.meta{font-size:13px;color:var(--text-secondary);margin:0 0 16px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</head>
+<body><main>
+<h1>媒体库三种视图</h1>
+<p class="meta">2026-09-25 确认 · 见 PLAN.md 第 6 节「媒体库三种视图」。</p>
+<style>
+.ph{background:var(--surface-1);border-radius:16px;padding:12px;min-width:0}
+.bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.seg{font-size:11px;border:0.5px solid var(--border-strong);border-radius:99px;padding:2px 8px;color:var(--text-secondary)}
+.ic{font-size:14px;color:var(--text-secondary)}
+.cv{background:var(--border-strong);border-radius:8px;aspect-ratio:4/3;position:relative}
+.t{font-size:11px;color:var(--text-primary);line-height:1.35;margin:5px 0 0}
+.s{font-size:11px;color:var(--text-secondary);margin:1px 0 0}
+.lbl{font-size:13px;font-weight:500;margin:8px 0 2px;text-align:center}
+.sub{font-size:11px;color:var(--text-secondary);text-align:center;margin:0}
+.badge{position:absolute;right:5px;bottom:5px;font-size:11px;color:var(--text-secondary);background:var(--surface-2);border-radius:99px;padding:0 5px}
+</style>
+<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px">
+  <div>
+    <div class="ph">
+      <div class="bar"><span class="seg">音声 | 视频</span><span class="ic"><i class="ti ti-dice-3"></i> <i class="ti ti-dots"></i></span></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div><div class="cv"><span class="badge"><i class="ti ti-cloud"></i></span></div><p class="t">被低音高冷暗黑骑士…</p><p class="s">声优 A、声优 B</p></div>
+        <div><div class="cv"></div><p class="t">双重分身惩罚</p><p class="s">声优 C</p></div>
+        <div><div class="cv"></div><p class="t">耳かき専門店</p><p class="s">声优 D 等</p></div>
+        <div><div class="cv"><span class="badge"><i class="ti ti-heart"></i></span></div><p class="t">添い寝ボイス</p><p class="s">声优 E</p></div>
+      </div>
+    </div>
+    <p class="lbl">A · 封面网格（默认）</p><p class="sub">第二行：声优，无声优时社团</p>
+  </div>
+  <div>
+    <div class="ph">
+      <div class="bar"><span class="seg">音声 | 视频</span><span class="ic"><i class="ti ti-dice-3"></i> <i class="ti ti-dots"></i></span></div>
+      <div style="display:flex;flex-direction:column">
+        <div style="display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:0.5px solid var(--border)"><div class="cv" style="width:52px;flex:none"></div><div style="min-width:0;flex:1"><p class="t" style="margin:0">被低音高冷暗黑骑士…</p><p class="s">声优 A · 社团 A</p></div><span class="s">12 首</span></div>
+        <div style="display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:0.5px solid var(--border)"><div class="cv" style="width:52px;flex:none"></div><div style="min-width:0;flex:1"><p class="t" style="margin:0">双重分身惩罚</p><p class="s">声优 C · 社团 B</p></div><span class="s">8 首</span></div>
+        <div style="display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:0.5px solid var(--border)"><div class="cv" style="width:52px;flex:none"></div><div style="min-width:0;flex:1"><p class="t" style="margin:0">耳かき専門店</p><p class="s">声优 D · 社团 C</p></div><span class="s">24 首</span></div>
+        <div style="display:flex;gap:8px;align-items:center;padding:6px 0"><div class="cv" style="width:52px;flex:none"></div><div style="min-width:0;flex:1"><p class="t" style="margin:0">添い寝ボイス</p><p class="s">声优 E · 社团 D</p></div><span class="s">5 首</span></div>
+      </div>
+    </div>
+    <p class="lbl">B · 列表</p><p class="sub">右滑收藏，左滑移除</p>
+  </div>
+  <div>
+    <div class="ph">
+      <div class="bar"><span class="seg">音声 | 视频</span><span class="ic"><i class="ti ti-dice-3"></i> <i class="ti ti-dots"></i></span></div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div><div class="cv" style="border-radius:12px"></div><p class="t" style="font-size:12px;font-weight:500">被低音高冷暗黑骑士那臭烘烘…</p><p class="s">声优 A · 社团 A · 2025-06-12</p></div>
+        <div><div class="cv" style="border-radius:12px"></div><p class="t" style="font-size:12px;font-weight:500">双重分身惩罚</p><p class="s">声优 C · 社团 B · 2024-11-02</p></div>
+      </div>
+    </div>
+    <p class="lbl">C · 大封面</p><p class="sub">替代原「大卡片」</p>
+  </div>
+</div>
+</main></body></html>
