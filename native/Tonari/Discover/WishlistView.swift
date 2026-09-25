@@ -141,13 +141,13 @@ struct DLsiteAccountView: View {
         List {
             Section {
                 LabeledContent("状态", value: model.wishlist.isSignedIn ? "已登录" : "未登录")
+            }
+            Section {
                 if model.wishlist.isSignedIn {
                     Button("退出登录", role: .destructive) { model.wishlist.signOut() }
                 } else {
                     Button("登录 DLsite") { model.showingDLsiteLogin = true }
                 }
-            } footer: {
-                Text("在 App 内打开 DLsite 官方登录页，账号密码只在 DLsite 页面里输入；Tonari 只保存登录后的 Cookie（存入钥匙串），用于读写你账号里的愿望单。浏览排行、新作不需要登录。")
             }
         }
         .navigationTitle("DLsite")

@@ -42,8 +42,6 @@ struct AppearanceSettingsView: View {
                 }
                 .pickerStyle(.inline)
                 .labelsHidden()
-            } footer: {
-                Text("「跟随系统」随 iPhone 的深浅色设置切换。")
             }
         }
         .navigationTitle("外观")

@@ -12,17 +12,10 @@ struct MessagesView: View {
 
     var body: some View {
         List {
-            Section {
-                ForEach(events) { row($0) }
-                    .onDelete { offsets in
-                        for index in offsets { try! database.dismissEvent(events[index].id) }
-                    }
-            }
-            Section {
-                NavigationLink(value: Route.diagnostics) {
-                    Label("导出诊断日志", systemImage: "stethoscope")
+            ForEach(events) { row($0) }
+                .onDelete { offsets in
+                    for index in offsets { try! database.dismissEvent(events[index].id) }
                 }
-            }
         }
         .overlay {
             if events.isEmpty { ContentUnavailableView("暂无消息", systemImage: "bell") }

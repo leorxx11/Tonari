@@ -39,10 +39,6 @@ struct TranslationSettingsView: View {
                         Button("删除", systemImage: "trash", role: .destructive) { deleting = provider }
                     }
                 }
-            } footer: {
-                if !providers.isEmpty {
-                    Text("作品详情页「⋯ → 翻译为中文」使用带星标的服务，翻译标题、简介和曲目名。")
-                }
             }
         }
         .overlay {
@@ -122,37 +118,40 @@ struct LlmProviderEditView: View {
                         .autocorrectionDisabled()
                 }
                 LabeledContent("API Key") {
-                    SecureField(storedKeyHint ?? "必填", text: $apiKey)
+                    SecureField(storedKeyHint.map { "\($0)（留空保留）" } ?? "必填", text: $apiKey)
                 }
-            } footer: {
-                if providerId != nil { Text("API Key 留空则保留原值。") }
             }
             .multilineTextAlignment(.trailing)
             Section {
-                TextField("术语表、风格偏好等", text: $systemPrompt, axis: .vertical)
+                TextField("追加在内置提示词之后，如术语表、风格偏好", text: $systemPrompt, axis: .vertical)
                     .lineLimit(3...8)
             } header: {
                 Text("附加提示词（可选）")
-            } footer: {
-                Text("追加在内置提示词之后。")
             }
             Section {
                 Button {
                     Task { await test() }
                 } label: {
                     HStack {
-                        Text("测试连接")
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("测试连接")
+                            if case .failure(let error) = testResult {
+                                Text(error.localizedDescription).font(.caption).foregroundStyle(.red).lineLimit(3)
+                            }
+                        }
                         Spacer()
-                        if testing { ProgressView() }
+                        if testing {
+                            ProgressView()
+                        } else {
+                            switch testResult {
+                            case .success: Label("成功", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
+                            case .failure: Label("失败", systemImage: "xmark.circle.fill").foregroundStyle(.red)
+                            case nil: EmptyView()
+                            }
+                        }
                     }
                 }
                 .disabled(testing || baseUrl.trimmed.isEmpty || model.trimmed.isEmpty)
-            } footer: {
-                switch testResult {
-                case .success: Label("连接成功", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
-                case .failure(let error): Text("连接失败：\(error.localizedDescription)").foregroundStyle(.red)
-                case nil: EmptyView()
-                }
             }
         }
         .navigationTitle(providerId == nil ? "添加服务" : "编辑服务")

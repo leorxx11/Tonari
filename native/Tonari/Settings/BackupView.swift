@@ -19,7 +19,7 @@ struct BackupView: View {
     @State private var pickingForExport = false
     @State private var included = Set(BackupDir.allCases)
     @State private var sizes: [BackupDir: Int64] = [:]
-    @State private var keychainSummary = ""
+    @State private var confirmingExport = false
 
     var body: some View {
         List {
@@ -33,19 +33,14 @@ struct BackupView: View {
                         Text(sizes[dir].map { Formatting.bytes(Int($0)) } ?? "计算中…")
                     }
                 }
-                Button("导出备份…") {
-                    pickingForExport = true
-                    picking = true
-                }
-                .disabled(model.tasks.isBusy)
+                Button("导出备份…") { confirmingExport = true }
+                    .disabled(model.tasks.isBusy)
             } header: {
                 Text("导出")
-            } footer: {
-                Text("数据库、设置和账号凭据（115 登录、API Key）总会导出，请妥善保管备份。导出在后台进行，完成后会在消息里通知。")
             }
 
             Section {
-                Button("从备份恢复") {
+                Button("从备份恢复…") {
                     pickingForExport = false
                     picking = true
                 }
@@ -59,11 +54,10 @@ struct BackupView: View {
                             .foregroundStyle(.secondary)
                     }
                 case .staged:
-                    VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: 2) {
                         Label("备份已就绪", systemImage: "checkmark.circle.fill")
                             .foregroundStyle(.green)
-                        Text("请完全关闭 App（从后台上滑移除），再重新打开即完成恢复。本地文件夹来源之后需要重新授权一次才能访问。")
-                            .font(.subheadline)
+                        Text("从后台完全关闭 App 再打开，即完成恢复").font(.subheadline).foregroundStyle(.secondary)
                     }
                 case .failed(let message):
                     Label(message, systemImage: "exclamationmark.triangle.fill")
@@ -73,12 +67,6 @@ struct BackupView: View {
                 }
             } header: {
                 Text("恢复")
-            } footer: {
-                Text("选择导出的「Tonari备份」文件夹，Flutter 版导出的也可以（zip 需先在「文件」App 里解压）。恢复会覆盖当前的媒体库数据和设置，且无法撤销。")
-            }
-
-            Section("当前数据") {
-                LabeledContent("钥匙串凭据", value: keychainSummary)
             }
         }
         .navigationTitle("备份与恢复")
@@ -86,12 +74,13 @@ struct BackupView: View {
         .task {
             sizes = await Self.sizes()
         }
-        .task {
-            do {
-                keychainSummary = "\(try KeychainStore.shared.allKeys().count) 个"
-            } catch {
-                keychainSummary = "读取失败 \(error)"
+        .confirmationDialog("导出备份", isPresented: $confirmingExport, titleVisibility: .visible) {
+            Button("选择保存位置…") {
+                pickingForExport = true
+                picking = true
             }
+        } message: {
+            Text("备份包含 115、DLsite 登录和翻译 API Key 等账号凭据，请妥善保管。导出在后台进行，完成后会在消息里通知。")
         }
         .fileImporter(isPresented: $picking, allowedContentTypes: [.folder]) { result in
             guard case .success(let url) = result else { return }
@@ -107,7 +96,7 @@ struct BackupView: View {
             }
         } message: {
             if case .confirming(_, let manifest) = phase {
-                Text("备份时间：\(manifest.createdAt.prefix(16).replacingOccurrences(of: "T", with: " "))\n恢复会覆盖当前的媒体库数据和设置，且无法撤销。")
+                Text("备份时间：\(manifest.createdAt.prefix(16).replacingOccurrences(of: "T", with: " "))\n恢复会覆盖当前的媒体库数据和设置，且无法撤销。本地文件夹来源之后需要重新授权一次。")
             }
         }
     }

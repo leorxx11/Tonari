@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>设置整改</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css">
+<style>
+:root{--surface-0:#f5f5f4;--surface-2:#fff;--border:rgba(0,0,0,.1);--text-primary:#1a1a19;--text-secondary:#5f5e5a;--text-muted:#888780;
+--phone:#f2f2f7;--cell:#fff;--phone-text:#111;--phone-sub:#8a8a8e;--sep:rgba(60,60,67,.18);--red:#ff3b30;--accent:#e0493f}
+@media (prefers-color-scheme:dark){:root{--surface-0:#161615;--surface-2:#2c2c2a;--border:rgba(255,255,255,.1);--text-primary:#f1efe8;--text-secondary:#b4b2a9;--text-muted:#888780;
+--phone:#000;--cell:#1c1c1e;--phone-text:#f5f5f7;--phone-sub:#8e8e93;--sep:rgba(84,84,88,.6);--red:#ff453a}}
+body{margin:0;padding:24px 16px;background:var(--surface-0);color:var(--text-primary);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif}
+main{max-width:1000px;margin:0 auto}
+h1{font-size:18px;font-weight:600;margin:0 0 4px}
+h2{font-size:15px;font-weight:600;margin:0 0 8px}
+.meta{font-size:13px;color:var(--text-secondary);margin:0 0 20px;line-height:1.65}
+.card{background:var(--surface-2);border:0.5px solid var(--border);border-radius:16px;padding:18px;margin-bottom:16px}
+.card p,.card li{font-size:13px;color:var(--text-secondary);line-height:1.7}
+.card ul{margin:0;padding-left:18px}
+.phones{display:flex;gap:26px;flex-wrap:wrap;margin-top:8px}
+.phone{width:290px;border-radius:38px;background:var(--phone);color:var(--phone-text);overflow:hidden;box-shadow:0 0 0 7px #1d1d1f,0 10px 30px rgba(0,0,0,.18);font-size:12px;padding:0 0 24px}
+.status{height:40px;display:flex;justify-content:space-between;align-items:center;padding:0 26px;font-size:12px;font-weight:600}
+.nav{display:flex;align-items:center;justify-content:center;position:relative;height:36px;margin:0 14px 8px}
+.nav b{font-size:15px}
+.nav .l,.nav .r{position:absolute;top:3px;width:30px;height:30px;border-radius:50%;background:var(--cell);display:flex;align-items:center;justify-content:center;font-size:15px}
+.nav .l{left:0}.nav .r{right:0;width:auto;padding:0 10px;border-radius:15px;font-size:12px}
+.group{background:var(--cell);border-radius:12px;margin:0 14px 18px;overflow:hidden}
+.row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:0.5px solid var(--sep);font-size:13.5px}
+.row:last-child{border-bottom:none}
+.row em{margin-left:auto;font-style:normal;color:var(--phone-sub);font-size:13px}
+.row .chev{color:var(--phone-sub);opacity:.6;font-size:13px}
+.row .sub{display:block;color:var(--phone-sub);font-size:11px;margin-top:1px}
+.tile{width:28px;height:28px;border-radius:7px;color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;flex:none}
+.bar{display:flex;height:10px;border-radius:5px;overflow:hidden;margin:6px 0 8px;background:var(--sep)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:10.5px;color:var(--phone-sub)}
+.legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px;vertical-align:0}
+.big{font-size:22px;font-weight:700}
+.danger{color:var(--red);justify-content:center}
+.btn{margin-left:auto;font-size:12px;color:var(--accent);background:var(--sep);border-radius:12px;padding:3px 10px}
+.sheet{margin:6px 14px 0;background:var(--cell);border-radius:14px;padding:12px;text-align:center;font-size:12px}
+.sheet .t{font-weight:600;font-size:13px;margin-bottom:4px}
+.sheet .d{color:var(--phone-sub);font-size:11.5px;line-height:1.5;margin-bottom:10px}
+.sheet .a{color:var(--red);font-weight:600;padding:8px 0;border-top:0.5px solid var(--sep);font-size:14px}
+.caption{font-size:12px;color:var(--text-muted);text-align:center;margin-top:10px;width:290px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+td,th{padding:8px 6px;border-bottom:0.5px solid var(--border);vertical-align:top;text-align:left;color:var(--text-secondary)}
+th{color:var(--text-primary);font-weight:600}
+td:first-child{white-space:nowrap;color:var(--text-primary)}
+</style>
+</head>
+<body><main>
+<h1>设置整改</h1>
+<p class="meta">2026-09-25 待确认。参照 iOS「设置」与「iPhone 储存空间」：说明文字只在真正需要时出现，破坏性操作的解释放进确认弹窗而不是常驻页脚，操作做成行本身或导航栏按钮。</p>
+
+<div class="card">
+  <h2>原则</h2>
+  <ul>
+    <li><b>去掉页脚说明</b>：看标题就懂的（播放步长、外观、隐私开关……）不再解释；必须知道的后果（恢复会覆盖数据、清理后要重新下载）移到点击后的确认弹窗里。</li>
+    <li><b>一行一件事</b>：动作就是一行（主题色或红色文字），不再「标题行 + 下面单独一行按钮」。</li>
+    <li><b>需要补充信息时用行内副标题</b>（第二行小字，紧贴标题），不用离得很远的页脚。</li>
+    <li><b>不放调试信息</b>：「钥匙串凭据数」这类只对开发有意义的内容去掉。</li>
+    <li><b>诊断日志只有一个入口</b>：设置 → 支持 → 诊断日志；消息页和关于页里的导出入口删掉。</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h2>存储空间（两个版本）</h2>
+  <div class="phones">
+    <div>
+      <div class="phone">
+        <div class="status"><span>22:49</span><span><i class="ti ti-wifi"></i></span></div>
+        <div class="nav"><span class="l"><i class="ti ti-chevron-left"></i></span><b>存储空间</b></div>
+        <div class="group" style="padding:12px">
+          <div class="big">1.27 GB</div>
+          <div style="font-size:11px;color:var(--phone-sub)">可清理，封面、样图和媒体库数据不在其中</div>
+          <div class="bar"><div style="width:96%;background:#ff9f0a"></div><div style="width:1%;background:#5e5ce6"></div><div style="width:1%;background:#0a84ff"></div><div style="width:2%;background:#8e8e93"></div></div>
+          <div class="legend"><span><i style="background:#ff9f0a"></i>简介图片</span><span><i style="background:#5e5ce6"></i>DLsite 在线</span><span><i style="background:#0a84ff"></i>115 预览</span><span><i style="background:#8e8e93"></i>临时文件</span></div>
+        </div>
+        <div class="group">
+          <div class="row"><span class="tile" style="background:#ff9f0a"><i class="ti ti-photo"></i></span>DLsite 简介图片<em>1.26 GB</em><i class="ti ti-chevron-right chev"></i></div>
+          <div class="row"><span class="tile" style="background:#5e5ce6"><i class="ti ti-compass"></i></span>DLsite 在线缓存<em>7.2 MB</em><i class="ti ti-chevron-right chev"></i></div>
+          <div class="row"><span class="tile" style="background:#0a84ff"><i class="ti ti-cloud"></i></span>115 文件预览<em>0 KB</em><i class="ti ti-chevron-right chev"></i></div>
+          <div class="row"><span class="tile" style="background:#8e8e93"><i class="ti ti-clock"></i></span>临时文件<em>1.2 MB</em><i class="ti ti-chevron-right chev"></i></div>
+        </div>
+        <div class="group"><div class="row danger">全部清理</div></div>
+        <div class="sheet"><div class="t">清理 DLsite 简介图片？</div><div class="d">1.26 GB · 作品简介里的长图。清理后对应位置显示「未下载」，可在作品页一键下载回来。</div><div class="a">清理 1.26 GB</div></div>
+      </div>
+      <div class="caption">A · iPhone 储存空间式（推荐）：顶部总量 + 占比条，点一行弹出说明与确认（下方示意弹窗）</div>
+    </div>
+    <div>
+      <div class="phone">
+        <div class="status"><span>22:49</span><span><i class="ti ti-wifi"></i></span></div>
+        <div class="nav"><span class="l"><i class="ti ti-chevron-left"></i></span><b>存储空间</b><span class="r" style="color:var(--red)">全部清理</span></div>
+        <div class="group">
+          <div class="row"><span class="tile" style="background:#ff9f0a"><i class="ti ti-photo"></i></span><span>DLsite 简介图片<span class="sub">1.26 GB</span></span><span class="btn">清理</span></div>
+          <div class="row"><span class="tile" style="background:#5e5ce6"><i class="ti ti-compass"></i></span><span>DLsite 在线缓存<span class="sub">7.2 MB</span></span><span class="btn">清理</span></div>
+          <div class="row"><span class="tile" style="background:#0a84ff"><i class="ti ti-cloud"></i></span><span>115 文件预览<span class="sub">无</span></span><span class="btn" style="opacity:.4">清理</span></div>
+          <div class="row"><span class="tile" style="background:#8e8e93"><i class="ti ti-clock"></i></span><span>临时文件<span class="sub">1.2 MB</span></span><span class="btn">清理</span></div>
+        </div>
+      </div>
+      <div class="caption">B · 紧凑列表：大小作副标题，行尾小按钮直接清理（同样弹确认），全部清理放导航栏</div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>其他页面逐页改法</h2>
+  <table>
+    <tr><th>页面</th><th>去掉</th><th>改成</th></tr>
+    <tr><td>消息</td><td>底部「导出诊断日志」</td><td>只剩消息列表</td></tr>
+    <tr><td>关于 Tonari</td><td>「导出诊断日志」与页脚</td><td>版本、构建号、数据库版本三行</td></tr>
+    <tr><td>备份与恢复</td><td>两段长页脚、「当前数据 · 钥匙串凭据」</td><td>导出：图片 / 视频封面开关（大小作副标题）+「导出备份…」行；恢复：「从备份恢复…」行。备份含账号凭据、恢复会覆盖数据等说明放进确认弹窗；进度与「已就绪，请重启」原位显示</td></tr>
+    <tr><td>播放</td><td>三段页脚</td><td>分组标题保留（快进 / 快退步长、睡眠定时、视频）；「默认播完本曲再停」开关、默认封面行不再解释</td></tr>
+    <tr><td>外观 / 隐私</td><td>页脚</td><td>外观只剩主题选择；隐私「后台模糊」开关加一行副标题「多任务界面里不显示内容」</td></tr>
+    <tr><td>翻译 / 服务编辑</td><td>三处页脚</td><td>列表星标即默认，不再说明；API Key 输入框占位写「留空保留原值」；附加提示词占位写「追加在内置提示词之后」</td></tr>
+    <tr><td>DLsite</td><td>长页脚</td><td>状态行 + 登录 / 退出行；隐私说明放进登录页顶部一行</td></tr>
+    <tr><td>115 网盘</td><td>「钥匙串中的凭据」页脚</td><td>状态与退出登录</td></tr>
+    <tr><td>诊断日志</td><td>—</td><td>保持（行内副标题已是正确用法）</td></tr>
+  </table>
+</div>
+</main></body></html>

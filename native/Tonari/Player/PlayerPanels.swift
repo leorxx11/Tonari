@@ -201,15 +201,11 @@ struct SleepTimerSheet: View {
                         Button("\(minutes) 分钟") { start(seconds: minutes * 60) }
                     }
                     NavigationLink("自定义") { CustomSleepView(start: start) }
-                } header: {
-                    Text("按时间")
-                } footer: {
                     Toggle("播完当前曲目再停止", isOn: $prefs.sleepFinishCurrentTrack)
                         // The list tints rows with the label color, which is white here.
                         .tint(.green)
-                        .font(.subheadline)
-                        .foregroundStyle(.primary)
-                        .padding(.top, 4)
+                } header: {
+                    Text("按时间")
                 }
                 Section("按曲数") {
                     ForEach(SleepTimer.presetTrackCounts, id: \.self) { count in

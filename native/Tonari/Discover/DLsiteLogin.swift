@@ -12,11 +12,17 @@ struct DLsiteLoginSheet: View {
 
     var body: some View {
         NavigationStack {
-            LoginWebView { cookies, userAgent in
-                try! DLsiteAccount.save(cookies, userAgent: userAgent)
-                model.wishlist.signedIn()
-                model.notices.show("已登录 DLsite")
-                dismiss()
+            VStack(spacing: 0) {
+                Label("账号密码只在 DLsite 的页面里输入，Tonari 只保存登录后的 Cookie", systemImage: "lock.fill")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.vertical, 8)
+                LoginWebView { cookies, userAgent in
+                    try! DLsiteAccount.save(cookies, userAgent: userAgent)
+                    model.wishlist.signedIn()
+                    model.notices.show("已登录 DLsite")
+                    dismiss()
+                }
             }
             .ignoresSafeArea(edges: .bottom)
             .navigationTitle("登录 DLsite")

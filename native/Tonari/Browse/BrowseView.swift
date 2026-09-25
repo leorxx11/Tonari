@@ -53,7 +53,6 @@ struct BrowseView: View {
 /// Reached from settings, whose stack navigates by value like every other.
 struct P115SettingsView: View {
     @State private var state = P115Client.LoginState.loggedOut
-    @State private var storedKeys = ""
     @State private var confirmingLogout = false
 
     var body: some View {
@@ -63,8 +62,6 @@ struct P115SettingsView: View {
                 if case .unreadable(let error) = state {
                     Text(error).font(.caption).foregroundStyle(.red)
                 }
-            } footer: {
-                Text("钥匙串中的凭据：\(storedKeys)")
             }
             Section {
                 if state == .loggedIn {
@@ -78,11 +75,6 @@ struct P115SettingsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             state = P115Client.shared.loginState
-            do {
-                storedKeys = try KeychainStore.shared.allKeys().sorted().joined(separator: "、")
-            } catch {
-                storedKeys = "读取失败 \(error)"
-            }
         }
         .alert("退出登录", isPresented: $confirmingLogout) {
             Button("取消", role: .cancel) {}
