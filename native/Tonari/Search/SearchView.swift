@@ -1,9 +1,10 @@
 import SwiftUI
 import TonariCore
 
-/// The search tab, after Apple Music: recent searches and the circles,
-/// voice actors and tags to browse while the field is empty; works and
-/// names grouped by kind once something is typed.
+/// The search tab, after Apple Music, in three states: browsing circles,
+/// voice actors and tags before the field is touched; recent searches
+/// once it is focused; works and names grouped by kind once something is
+/// typed, with the scope bar appearing only then.
 struct SearchView: View {
     enum Scope: String, CaseIterable {
         case all = "全部"
@@ -29,16 +30,20 @@ struct SearchView: View {
         @Bindable var model = model
         NavigationStack(path: $model.searchPath) {
             List {
-                if query.trimmingCharacters(in: .whitespaces).isEmpty {
-                    idle
-                } else {
-                    results
+                SearchPhase { searching in
+                    if !query.trimmingCharacters(in: .whitespaces).isEmpty {
+                        results
+                    } else if searching {
+                        recent
+                    } else {
+                        browse
+                    }
                 }
             }
             .listStyle(.plain)
             .navigationTitle("搜索")
             .searchable(text: $query, prompt: "作品、声优、社团、#标签")
-            .searchScopes($scope, activation: .onSearchPresentation) {
+            .searchScopes($scope, activation: .onTextEntry) {
                 ForEach(Scope.allCases, id: \.self) { Text($0.rawValue) }
             }
             .onSubmit(of: .search) {
@@ -60,8 +65,15 @@ struct SearchView: View {
 
     // MARK: - Empty field
 
-    @ViewBuilder private var idle: some View {
-        if !recents.items.isEmpty {
+    @ViewBuilder private var recent: some View {
+        if recents.items.isEmpty {
+            Text("输入作品名、RJ 号、声优、社团，或用 # 搜标签")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity)
+                .padding(.top, 40)
+                .listRowSeparator(.hidden)
+        } else {
             Section {
                 ForEach(recents.items) { item in
                     recentRow(item)
@@ -76,6 +88,9 @@ struct SearchView: View {
                 .textCase(nil)
             }
         }
+    }
+
+    private var browse: some View {
         Section {
             ForEach(browseEntries, id: \.name) { entry in
                 chipRow(WorkChip(browseKind, entry.name), count: entry.count, showsKind: false)
@@ -223,6 +238,15 @@ struct SearchView: View {
         case .musician: "music.note"
         }
     }
+}
+
+/// Hands `isSearching` to the list; it is only set for views inside the
+/// searchable container, not the view that declares it.
+private struct SearchPhase<Content: View>: View {
+    @Environment(\.isSearching) private var isSearching
+    @ViewBuilder let content: (Bool) -> Content
+
+    var body: some View { content(isSearching) }
 }
 
 /// Searches picked on this device, newest first. Kept in user defaults, not
