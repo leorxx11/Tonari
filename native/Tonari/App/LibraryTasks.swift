@@ -3,9 +3,11 @@ import SwiftUI
 import TonariCore
 
 /// The import or rescan currently running, shown as a banner over the
-/// library, and the result of the last one.
+/// library, and the result of the last one. Failures also go to the
+/// message inbox, where they outlive the alert.
 @Observable
 final class LibraryTasks {
+    private let database: AppDatabase
     struct Running: Equatable {
         let title: String
         var detail: String
@@ -16,6 +18,10 @@ final class LibraryTasks {
     var result: String?
 
     var isBusy: Bool { running != nil }
+
+    init(database: AppDatabase) {
+        self.database = database
+    }
 
     /// Updates the running task's detail line, e.g. with progress.
     func report(_ detail: String) {
@@ -31,6 +37,10 @@ final class LibraryTasks {
         } catch {
             result = "\(title)失败：\(error.localizedDescription)"
             DiagnosticLog.shared.write("library_task", "failed", ["title": title, "error": "\(error)"])
+            try! database.logEvent(
+                category: "task", title: "\(title)失败", detail: error.localizedDescription,
+                action: error as? P115Error == .authExpired ? .reauth : nil
+            )
         }
         running = nil
     }
@@ -56,6 +66,12 @@ extension AppModel {
         await tasks.run("导入 115 网盘", detail: folder.name) {
             let summary = try await importer.importFolder(folder) { found, current in
                 Task { @MainActor in tasks.report("已找到 \(found) 个作品 · \(current)") }
+            }
+            if !summary.incompleteWorks.isEmpty {
+                try database.logEvent(
+                    category: "import", severity: .warning, title: "\(summary.incompleteWorks.count) 个作品扫描失败",
+                    detail: "疑似 115 风控，已跳过，可稍后重新导入整个文件夹。", sourceName: folder.name
+                )
             }
             return summary.resultText
         }

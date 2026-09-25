@@ -1,6 +1,8 @@
 import SwiftUI
 import TonariCore
 
+/// Export runs as a background task (progress in the task banner, outcome
+/// in the inbox); restore stages the copy here and applies on next launch.
 struct BackupView: View {
     private enum Phase {
         case idle
@@ -10,17 +12,48 @@ struct BackupView: View {
         case failed(String)
     }
 
+    @Environment(AppModel.self) private var model
+    @Environment(\.appDatabase) private var database
     @State private var phase = Phase.idle
     @State private var picking = false
+    @State private var pickingForExport = false
+    @State private var included = Set(BackupDir.allCases)
+    @State private var sizes: [BackupDir: Int64] = [:]
     @State private var keychainSummary = ""
 
     var body: some View {
         List {
             Section {
-                Button("从备份恢复") { picking = true }
-                    .disabled(isBusy)
+                ForEach(BackupDir.allCases, id: \.self) { dir in
+                    Toggle(isOn: Binding(
+                        get: { included.contains(dir) },
+                        set: { if $0 { included.insert(dir) } else { included.remove(dir) } }
+                    )) {
+                        Text(dir.label)
+                        Text(sizes[dir].map { Formatting.bytes(Int($0)) } ?? "计算中…")
+                    }
+                }
+                Button("导出备份…") {
+                    pickingForExport = true
+                    picking = true
+                }
+                .disabled(model.tasks.isBusy)
+            } header: {
+                Text("导出")
             } footer: {
-                Text("选择 Flutter 版导出的「Tonari备份」文件夹（zip 需先在「文件」App 里解压）。恢复会覆盖当前的媒体库数据和设置，且无法撤销。")
+                Text("数据库、设置和账号凭据（115 登录、API Key）总会导出，请妥善保管备份。导出在后台进行，完成后会在消息里通知。")
+            }
+
+            Section {
+                Button("从备份恢复") {
+                    pickingForExport = false
+                    picking = true
+                }
+                .disabled(isBusy)
+            } header: {
+                Text("恢复")
+            } footer: {
+                Text("选择导出的「Tonari备份」文件夹，Flutter 版导出的也可以（zip 需先在「文件」App 里解压）。恢复会覆盖当前的媒体库数据和设置，且无法撤销。")
             }
 
             switch phase {
@@ -54,6 +87,9 @@ struct BackupView: View {
         .navigationTitle("备份与恢复")
         .navigationBarTitleDisplayMode(.inline)
         .task {
+            sizes = await Self.sizes()
+        }
+        .task {
             do {
                 keychainSummary = "\(try KeychainStore.shared.allKeys().count) 个"
             } catch {
@@ -62,7 +98,7 @@ struct BackupView: View {
         }
         .fileImporter(isPresented: $picking, allowedContentTypes: [.folder]) { result in
             guard case .success(let url) = result else { return }
-            inspect(url)
+            if pickingForExport { export(to: url) } else { inspect(url) }
         }
         .alert("确认恢复？", isPresented: isConfirming) {
             Button("取消", role: .cancel) {
@@ -76,6 +112,48 @@ struct BackupView: View {
             if case .confirming(_, let manifest) = phase {
                 Text("备份时间：\(manifest.createdAt.prefix(16).replacingOccurrences(of: "T", with: " "))\n恢复会覆盖当前的媒体库数据和设置，且无法撤销。")
             }
+        }
+    }
+
+    @concurrent
+    private static func sizes() async -> [BackupDir: Int64] {
+        Dictionary(uniqueKeysWithValues: BackupDir.allCases.map { ($0, try! $0.size(in: .documentsDirectory)) })
+    }
+
+    private func export(to url: URL) {
+        let tasks = model.tasks
+        let database = database
+        let dirs = BackupDir.allCases.filter(included.contains)
+        Task {
+            await tasks.run("备份", detail: "准备中") {
+                let backup = try await Self.write(database: database, into: url, dirs: dirs, tasks: tasks)
+                UserDefaults.standard.set(Date.now.timeIntervalSince1970, forKey: BackupExport.lastExportedKey)
+                try database.logEvent(category: "backup", severity: .info, title: "备份完成", detail: backup.lastPathComponent)
+                return "备份完成：\(backup.lastPathComponent)"
+            }
+        }
+    }
+
+    @concurrent
+    private static func write(database: AppDatabase, into url: URL, dirs: [BackupDir], tasks: LibraryTasks) async throws -> URL {
+        let accessing = url.startAccessingSecurityScopedResource()
+        defer { if accessing { url.stopAccessingSecurityScopedResource() } }
+        var reported = ""
+        return try BackupExport.run(
+            database: database,
+            documents: .documentsDirectory,
+            into: url,
+            dirs: dirs,
+            prefs: UserDefaults.standard.persistentDomain(forName: Bundle.main.bundleIdentifier!)!,
+            secrets: try KeychainStore.shared.all()
+        ) { stage, done, total in
+            // Image folders are thousands of small files; report per percent.
+            let text = total > 1
+                ? "\(stage) \(done * 100 / total)% · \(total.formatted(.byteCount(style: .file)))"
+                : stage
+            guard text != reported else { return }
+            reported = text
+            Task { @MainActor in tasks.report(text) }
         }
     }
 

@@ -2,7 +2,7 @@ import SwiftUI
 import TonariCore
 
 /// After the iOS Settings app: tinted icon tiles, the current value on the
-/// right. N6 items (privacy, translation, messages) appear once built.
+/// right. 消息 sits on top with the unread count the tab badge shows too.
 struct SettingsView: View {
     @Environment(AppModel.self) private var model
     @Environment(EnrichmentQueue.self) private var enrichment
@@ -13,17 +13,38 @@ struct SettingsView: View {
     @State private var sourceCount = 0
     @State private var removedCount = 0
     @State private var clearable: Int?
+    @State private var unread = 0
     @AppStorage(Appearance.preferenceKey) private var appearance = Appearance.system
+    @AppStorage(PrivacyShield.preferenceKey) private var blur = true
     @AppStorage(Self.statsRefreshedKey) private var statsRefreshedAt = 0.0
+    @AppStorage(BackupExport.lastExportedKey) private var lastBackupAt = 0.0
 
     private static let statsRefreshedKey = "dlsite.statsRefreshedAt"
 
     var body: some View {
-        NavigationStack {
+        @Bindable var model = model
+        NavigationStack(path: $model.settingsPath) {
             List {
+                Section {
+                    NavigationLink(value: Route.messages) {
+                        LabeledContent {
+                            if unread > 0 {
+                                Text("\(unread)")
+                                    .font(.callout.weight(.medium))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 2)
+                                    .background(.red, in: .capsule)
+                            }
+                        } label: {
+                            Label { Text("消息") } icon: { SettingsIcon(systemImage: "bell.fill", tint: .red) }
+                        }
+                    }
+                }
                 Section("通用") {
                     row("外观", systemImage: "circle.lefthalf.filled", tint: .blue, value: appearance.label, route: .appearance)
                     row("播放", systemImage: "play.fill", tint: .red, value: "步长 \(player.prefs.seekStep) 秒", route: .playbackSettings)
+                    row("隐私", systemImage: "hand.raised.fill", tint: .blue, value: blur ? "后台模糊" : nil, route: .privacy)
                 }
                 Section("账户与服务") {
                     row(P115Client.sourceName, systemImage: "icloud.fill", tint: .blue, value: p115.label, route: .p115Settings)
@@ -42,7 +63,11 @@ struct SettingsView: View {
                     .disabled(model.tasks.isBusy)
                 }
                 Section("数据") {
-                    row("备份与恢复", systemImage: "externaldrive.fill", tint: .teal, value: nil, route: .backup)
+                    row(
+                        "备份与恢复", systemImage: "externaldrive.fill", tint: .teal,
+                        value: lastBackupAt > 0 ? Date(timeIntervalSince1970: lastBackupAt).formatted(.relative(presentation: .named)) : nil,
+                        route: .backup
+                    )
                     row("存储空间", systemImage: "internaldrive.fill", tint: .gray, value: clearable.map(Formatting.bytes), route: .storage)
                 }
                 Section("支持") {
@@ -65,10 +90,11 @@ struct SettingsView: View {
             }
             .task {
                 await database.observe({ db in
-                    (try SourceQueries.all(db).count, try SourceQueries.removedWorks(db).count)
+                    (try SourceQueries.all(db).count, try SourceQueries.removedWorks(db).count, try AppEvents.unreadCount(db))
                 }) {
                     sourceCount = $0.0
                     removedCount = $0.1
+                    unread = $0.2
                 }
             }
         }

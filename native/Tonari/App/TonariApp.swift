@@ -6,7 +6,7 @@ import TonariCore
 struct TonariApp: App {
     @UIApplicationDelegateAdaptor private var appDelegate: AppDelegate
     @Environment(\.scenePhase) private var scenePhase
-    @State private var model = AppModel()
+    @State private var model: AppModel
     @State private var enrichment: EnrichmentQueue
     @State private var player: PlaybackController
     @State private var video: VideoController
@@ -29,6 +29,7 @@ struct TonariApp: App {
                 ])
             }
             database = try AppDatabase.open(in: documents)
+            _model = State(initialValue: AppModel(database: database))
             _enrichment = State(initialValue: EnrichmentQueue(database: database))
             let player = PlaybackController(database: database)
             let video = VideoController(database: database, sleep: player.sleep)
@@ -53,6 +54,7 @@ struct TonariApp: App {
         }
         .onChange(of: scenePhase) { _, phase in
             DiagnosticLog.shared.write("app", "lifecycle", ["phase": "\(phase)"])
+            PrivacyShield.update(phase)
             if phase == .background { player.savePosition() }
         }
     }
@@ -70,6 +72,7 @@ struct RootView: View {
     @Environment(NowPlaying.self) private var nowPlaying
     @Environment(\.appDatabase) private var database
     @Namespace private var playerTransition
+    @State private var unreadEvents = 0
 
     var body: some View {
         @Bindable var model = model
@@ -87,6 +90,7 @@ struct RootView: View {
             Tab("设置", systemImage: "gearshape", value: AppTab.settings) {
                 SettingsView()
             }
+            .badge(unreadEvents)
             Tab("搜索", systemImage: "magnifyingglass", value: AppTab.search, role: .search) {
                 SearchView()
             }
@@ -130,6 +134,9 @@ struct RootView: View {
             model.tasks.result ?? "",
             isPresented: Binding(get: { model.tasks.result != nil }, set: { if !$0 { model.tasks.result = nil } })
         ) {}
+        .task {
+            await database.observe(AppEvents.unreadCount) { unreadEvents = $0 }
+        }
         .task {
             await LocalImport(database: database).rescanFlaggedLocalWorks()
             await enrichment.runPending()

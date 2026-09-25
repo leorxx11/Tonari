@@ -18,7 +18,7 @@ struct RealBackupTests {
 
     @Test func manifestIsAccepted() throws {
         let manifest = try BackupRestore.inspect(backup)
-        #expect(manifest.dirs.allSatisfy { BackupRestore.dirs[$0] != nil })
+        #expect(manifest.dirs.allSatisfy { BackupDir(rawValue: $0) != nil })
     }
 
     @Test func schemaMatchesNativeDefinition() throws {

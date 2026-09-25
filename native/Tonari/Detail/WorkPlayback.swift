@@ -2,18 +2,23 @@ import Foundation
 import TonariCore
 
 /// The folder each work's track list shows once the user picks one; works
-/// never picked open at `WorkTree.defaultAudioFolder`.
+/// never picked open at `WorkTree.defaultAudioFolder`. Stored as a JSON
+/// string, the one shape of map a backup's prefs can carry.
 enum TrackFolderMemory {
     private static let key = "detail.trackFolders"
 
     static func folder(for productId: String) -> [String]? {
-        (UserDefaults.standard.dictionary(forKey: key) as? [String: [String]])?[productId]
+        all[productId]
     }
 
     static func remember(_ folder: [String], for productId: String) {
-        var all = UserDefaults.standard.dictionary(forKey: key) ?? [:]
+        var all = all
         all[productId] = folder
-        UserDefaults.standard.set(all, forKey: key)
+        UserDefaults.standard.set(String(decoding: try! JSONEncoder().encode(all), as: UTF8.self), forKey: key)
+    }
+
+    private static var all: [String: [String]] {
+        UserDefaults.standard.string(forKey: key).map { try! JSONDecoder().decode([String: [String]].self, from: Data($0.utf8)) } ?? [:]
     }
 
     /// The remembered folder while it still holds audio, else the default.

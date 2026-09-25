@@ -63,4 +63,19 @@ public struct KeychainStore: Sendable {
         guard status == errSecSuccess else { throw Failure(status: status) }
         return (result as! [[String: Any]]).map { $0[kSecAttrAccount as String] as! String }
     }
+
+    /// Every credential by key, for a backup.
+    public func all() throws -> [String: String] {
+        var query = base
+        query[kSecReturnAttributes as String] = true
+        query[kSecReturnData as String] = true
+        query[kSecMatchLimit as String] = kSecMatchLimitAll
+        var result: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        if status == errSecItemNotFound { return [:] }
+        guard status == errSecSuccess else { throw Failure(status: status) }
+        return Dictionary(uniqueKeysWithValues: (result as! [[String: Any]]).map {
+            ($0[kSecAttrAccount as String] as! String, String(decoding: $0[kSecValueData as String] as! Data, as: UTF8.self))
+        })
+    }
 }

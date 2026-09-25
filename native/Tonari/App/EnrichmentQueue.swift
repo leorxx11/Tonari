@@ -12,8 +12,6 @@ final class EnrichmentQueue {
     private(set) var current: String?
     private(set) var done = 0
     private(set) var total = 0
-    /// Works that used up their attempts, with the reason.
-    private(set) var failures: [String: String] = [:]
     private var attempts: [String: Int] = [:]
     private var running = false
 
@@ -29,10 +27,7 @@ final class EnrichmentQueue {
     /// Enriches every pending work, re-querying after each pass so works
     /// imported meanwhile are picked up too.
     func runPending(reset: Bool = false) async {
-        if reset {
-            attempts = [:]
-            failures = [:]
-        }
+        if reset { attempts = [:] }
         guard !running else { return }
         running = true
         defer {
@@ -44,19 +39,23 @@ final class EnrichmentQueue {
                 try Work.filter(Column("is_removed") == false).fetchAll(db)
             }
             .filter { MetadataEnrichment.needsEnrichment($0, documents: .documentsDirectory) && attempts[$0.productId, default: 0] < Self.maxAttempts }
-            .map(\.productId)
             guard !pending.isEmpty else { return }
             total = pending.count
-            for (index, id) in pending.enumerated() {
+            for (index, work) in pending.enumerated() {
+                let id = work.productId
                 current = id
                 done = index
                 attempts[id, default: 0] += 1
                 do {
                     try await service.enrich(id)
-                    failures[id] = nil
                 } catch {
                     DiagnosticLog.shared.write("metadata", "enrich_failed", ["productId": id, "attempt": attempts[id]!, "error": "\(error)"])
-                    if attempts[id]! >= Self.maxAttempts { failures[id] = error.localizedDescription }
+                    if attempts[id]! >= Self.maxAttempts {
+                        try! database.logEvent(
+                            category: "metadata", title: "资料补全失败", detail: error.localizedDescription,
+                            productId: id, workTitle: work.displayTitle, action: .enrich
+                        )
+                    }
                 }
             }
         }

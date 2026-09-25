@@ -16,6 +16,8 @@ enum Route: Hashable {
     case mediaSources
     case removedWorks
     case backup
+    case messages
+    case privacy
     case diagnostics
     case storage
     case appearance
@@ -67,11 +69,12 @@ final class AppModel {
     var collectionPicker: CollectionMember?
     /// Work awaiting confirmation to be removed from the library.
     var removingWork: Work?
-    let tasks = LibraryTasks()
+    let tasks: LibraryTasks
     var libraryPath = NavigationPath()
     var favoritesPath = NavigationPath()
     var browsePath = NavigationPath()
     var searchPath = NavigationPath()
+    var settingsPath = NavigationPath()
 
     var libraryKind = LibraryKind.audio
     var source = SourceFilter.all
@@ -82,7 +85,8 @@ final class AppModel {
         didSet { UserDefaults.standard.set(viewMode.rawValue, forKey: Self.viewModeKey) }
     }
 
-    init() {
+    init(database: AppDatabase) {
+        tasks = LibraryTasks(database: database)
         let defaults = UserDefaults.standard
         sort = WorkSort(preference: defaults.string(forKey: WorkSort.preferenceKey))
         viewMode = ViewMode(rawValue: defaults.string(forKey: Self.viewModeKey) ?? "") ?? .grid
@@ -104,7 +108,7 @@ final class AppModel {
         case .favorites: favoritesPath.append(route)
         case .browse: browsePath.append(route)
         case .search: searchPath.append(route)
-        case .settings: break
+        case .settings: settingsPath.append(route)
         }
     }
 
@@ -121,7 +125,7 @@ final class AppModel {
         case .favorites: favoritesPath.removeLast(count)
         case .browse: browsePath.removeLast(count)
         case .search: searchPath.removeLast(count)
-        case .settings: break
+        case .settings: settingsPath.removeLast(count)
         }
     }
 
@@ -145,6 +149,8 @@ extension View {
             case .mediaSources: MediaSourcesView()
             case .removedWorks: RemovedWorksView()
             case .backup: BackupView()
+            case .messages: MessagesView()
+            case .privacy: PrivacySettingsView()
             case .diagnostics: DiagnosticLogView()
             case .storage: StorageView()
             case .appearance: AppearanceSettingsView()

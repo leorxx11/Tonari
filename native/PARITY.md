@@ -83,9 +83,9 @@
 - [ ] LLM Provider 管理：快速模板、测试连接、设为默认、删除（`translation_settings_page.dart`、`provider_edit_page.dart`）
 - [ ] 简介翻译：翻译为中文、显示原文、失败重试（`work_detail_page.dart`、`features/translation/`）
 - [ ] 音轨名翻译、显示 / 隐藏译名（`work_files_page.dart`）
-- [ ] 备份导出：后台进行、字节进度、完成后写入消息（`backup_page.dart`、`backup_controller.dart`）
-- [ ] 消息盒子：未读数、重新扫描 / 补全资料 / 重新登录等快捷操作、清空（`app_events_sheet.dart`）
+- [x] 备份导出：后台进行、字节进度、完成后写入消息；格式与 Flutter 版一致，两边可互相恢复（`backup_page.dart`、`backup_controller.dart`）
+- [x] 消息盒子：未读数（设置行 + Tab 角标）、补全资料 / 重新登录快捷操作、左滑删除、清空；Flutter 版的「重新扫描」没有写入方，不移植（`app_events_sheet.dart`）
 - [x] 诊断日志：会话、停止 / 继续采集、复制、导出 txt（N0 提前移植）（`diagnostic_log_page.dart`）
-- [ ] 后台模糊（`appearance_settings_page.dart`、`privacy_prefs.dart`）
-- [ ] 右边缘左滑前进（`ForwardNavigationPlugin`）
-- [ ] 简介文本可选中复制（`IosSelectableTextView`）
+- [x] 后台模糊：设置 → 隐私，独立最上层窗口，全屏播放页也覆盖（`appearance_settings_page.dart`、`privacy_prefs.dart`）
+- [-] 右边缘左滑前进：不做（2026-09-25 用户决定）（`ForwardNavigationPlugin`）
+- [x] 标题、简介文本可选中复制（系统文本选择，可直接调系统翻译）（`IosSelectableTextView`）

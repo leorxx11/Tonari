@@ -273,7 +273,7 @@ final class RecentSearches {
     private(set) var items: [Item]
 
     init() {
-        items = UserDefaults.standard.data(forKey: Self.key).map { try! JSONDecoder().decode([Item].self, from: $0) } ?? []
+        items = UserDefaults.standard.string(forKey: Self.key).map { try! JSONDecoder().decode([Item].self, from: Data($0.utf8)) } ?? []
     }
 
     func record(_ item: Item) {
@@ -294,7 +294,8 @@ final class RecentSearches {
     }
 
     private func save() {
-        UserDefaults.standard.set(try! JSONEncoder().encode(items), forKey: Self.key)
+        // A JSON string rather than data, so backups (string / number / list prefs only) carry it.
+        UserDefaults.standard.set(String(decoding: try! JSONEncoder().encode(items), as: UTF8.self), forKey: Self.key)
     }
 }
 

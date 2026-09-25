@@ -2,7 +2,7 @@ import Foundation
 
 /// `tonari_backup.json` at the root of a backup folder, written last by the
 /// exporter as its completion marker.
-public struct BackupManifest: Decodable, Sendable {
+public struct BackupManifest: Codable, Sendable {
     public let formatVersion: Int
     public let schemaVersion: Int
     /// Local time without offset, e.g. `2026-09-24T20:46:35.730600`.
@@ -18,8 +18,6 @@ public enum BackupRestore {
     public static let manifestName = "tonari_backup.json"
     static let pendingDirName = "restore_pending"
     static let formatVersion = 2
-    /// Manifest dir names mapped to their Documents subdirectory.
-    static let dirs = ["images": "images", "videoCovers": "video_covers"]
     /// Diagnostic capture state belongs to the device it runs on; restoring it
     /// would silently end a capture in progress.
     static let skippedPrefPrefix = "diagnostic."
@@ -107,7 +105,7 @@ public enum BackupRestore {
 
         // A directory the backup left out keeps its live copy.
         var restoredDirs: [String] = []
-        for dir in dirs.values.sorted() {
+        for dir in BackupDir.allCases.map(\.folder) {
             let staged = pending.appending(path: dir)
             guard fm.fileExists(atPath: staged.path) else { continue }
             let live = documents.appending(path: dir)
@@ -147,7 +145,7 @@ public enum BackupRestore {
         }
     }
 
-    private static func regularFiles(under root: URL) throws -> [(url: URL, relative: String, size: Int64)] {
+    static func regularFiles(under root: URL) throws -> [(url: URL, relative: String, size: Int64)] {
         let keys: [URLResourceKey] = [.isRegularFileKey, .fileSizeKey]
         let enumerator = FileManager.default.enumerator(at: root, includingPropertiesForKeys: keys)!
         let rootPath = root.resolvingSymlinksInPath().path + "/"
