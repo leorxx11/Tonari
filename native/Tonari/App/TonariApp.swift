@@ -80,6 +80,9 @@ struct RootView: View {
             Tab("Tonari", image: "TabSeal", value: AppTab.home) {
                 HomeView()
             }
+            Tab("发现", systemImage: "safari", value: AppTab.discover) {
+                DiscoverView()
+            }
             Tab("资料库", systemImage: "books.vertical", value: AppTab.library) {
                 LibraryView()
             }

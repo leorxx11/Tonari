@@ -75,11 +75,18 @@ struct WorkInfoSection: View {
     }
 }
 
+extension EnvironmentValues {
+    /// Where a tapped tag, series or creator leads: the library's works by
+    /// default, DLsite's list on an online work.
+    @Entry var chipRoute: (WorkChip) -> Route = { .chip($0) }
+}
+
 /// Tags and series as capsules that open the works sharing them.
 struct WorkTagsSection: View {
     let work: Work
 
     @Environment(AppModel.self) private var model
+    @Environment(\.chipRoute) private var chipRoute
 
     var body: some View {
         let chips = work.genreNames.map { WorkChip(.genre, $0) }
@@ -89,7 +96,7 @@ struct WorkTagsSection: View {
                 SectionTitle(text: "标签")
                 FlowLayout(spacing: 8, lineSpacing: 8) {
                     ForEach(chips, id: \.self) { chip in
-                        Button(chip.kind == .series ? chip.label : chip.value) { model.push(.chip(chip)) }
+                        Button(chip.kind == .series ? chip.label : chip.value) { model.push(chipRoute(chip)) }
                             .buttonStyle(TagButtonStyle())
                     }
                 }
@@ -113,6 +120,7 @@ struct WorkCreditsSection: View {
     let work: Work
 
     @Environment(AppModel.self) private var model
+    @Environment(\.chipRoute) private var chipRoute
 
     var body: some View {
         let rows: [(WorkChip.Kind, [String])] = [
@@ -127,7 +135,7 @@ struct WorkCreditsSection: View {
                         Spacer(minLength: 0)
                         FlowLayout(spacing: 0, lineSpacing: 2) {
                             ForEach(Array(row.1.enumerated()), id: \.offset) { index, name in
-                                Button((index > 0 ? "、" : "") + name) { model.push(.chip(WorkChip(row.0, name))) }
+                                Button((index > 0 ? "、" : "") + name) { model.push(chipRoute(WorkChip(row.0, name))) }
                             }
                         }
                         .fixedSize(horizontal: false, vertical: true)

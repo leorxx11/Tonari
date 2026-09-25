@@ -129,6 +129,17 @@ struct MetadataEnrichmentTests {
         var count: Int { lock.withLock { urls.count } }
     }
 
+    @Test func previewLeavesTheLibraryAlone() async throws {
+        let db = try AppDatabase.inMemory()
+        let downloads = Downloads()
+        let work = try await service(db, downloads: downloads).preview("RJ01560714")
+        #expect(work.circleName == "Rad.Revel")
+        #expect(work.mainImageUrl != nil && work.mainImageLocalPath == nil)
+        #expect(work.currentPrice != nil)
+        #expect(downloads.count == 0)
+        #expect(try await db.reader.read { try Work.fetchCount($0) } == 0)
+    }
+
     @Test func enrichFillsWorkAndCachesImagesOnce() async throws {
         let db = try AppDatabase.inMemory()
         try await db.writer.write { try Work.shell("RJ01560714", folderPath: "/x", folderId: nil, at: .now).insert($0) }

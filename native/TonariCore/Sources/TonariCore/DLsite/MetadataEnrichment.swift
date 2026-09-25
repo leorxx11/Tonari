@@ -161,6 +161,17 @@ public actor MetadataEnrichment {
         }
     }
 
+    /// A work straight from DLsite and not stored, for works outside the
+    /// library; its images stay remote (`mainImageUrl`, `sampleImageUrls`).
+    public func preview(_ productId: String) async throws -> Work {
+        let work = try await fetchWork(productId)
+        let stats = try? await fetchStats(productId)
+        var row = Work.shell(productId, folderPath: "", folderId: nil, at: .now)
+        Self.apply(work, stats, to: &row)
+        row.scrapedAt = .now
+        return row
+    }
+
     /// DLsite translation editions (e.g. 大家一起来翻译) have their own RJ but a
     /// sparse page: no sample gallery, often no cast or runtime. Fetch the
     /// original and merge.

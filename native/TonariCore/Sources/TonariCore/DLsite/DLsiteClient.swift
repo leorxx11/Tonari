@@ -43,6 +43,17 @@ public struct DLsiteClient: Sendable {
         try FileManager.default.moveItem(at: temp, to: target)
     }
 
+    /// Any DLsite page or AJAX endpoint, past the age gate.
+    public func fetch(_ url: URL) async throws -> Data {
+        var request = URLRequest(url: url)
+        request.setValue(Self.userAgent, forHTTPHeaderField: "User-Agent")
+        request.setValue("adultchecked=1; locale=zh-cn", forHTTPHeaderField: "Cookie")
+        let (data, response) = try await session.data(for: request)
+        let status = (response as! HTTPURLResponse).statusCode
+        guard status == 200 else { throw Failure("DLsite 返回 \(status)") }
+        return data
+    }
+
     private func get(_ url: String, _ productId: String) async throws -> Data {
         var request = URLRequest(url: URL(string: url)!)
         request.setValue(Self.userAgent, forHTTPHeaderField: "User-Agent")

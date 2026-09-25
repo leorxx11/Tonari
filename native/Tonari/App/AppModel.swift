@@ -3,7 +3,7 @@ import SwiftUI
 import TonariCore
 
 enum AppTab: Hashable {
-    case home, library, browse, search
+    case home, discover, library, browse, search
 }
 
 enum Route: Hashable {
@@ -38,6 +38,10 @@ enum Route: Hashable {
     case forgotten
     /// Every voice actor, circle or tag in the library.
     case categories(WorkChip.Kind)
+    /// A DLsite list: a ranking, new releases, a creator's works…
+    case catalog(CatalogQuery)
+    /// A work read live from DLsite, in the library or not.
+    case onlineWork(String)
 }
 
 /// App-wide navigation plus the library's filter and display preferences,
@@ -77,7 +81,9 @@ final class AppModel {
     var removingWork: Work?
     let tasks: LibraryTasks
     let notices: Notices
+    let discover = DiscoverStore()
     var homePath = NavigationPath()
+    var discoverPath = NavigationPath()
     var libraryPath = NavigationPath()
     var browsePath = NavigationPath()
     var searchPath = NavigationPath()
@@ -115,6 +121,7 @@ final class AppModel {
         if showingSettings { return settingsPath.append(route) }
         switch tab {
         case .home: homePath.append(route)
+        case .discover: discoverPath.append(route)
         case .library: libraryPath.append(route)
         case .browse: browsePath.append(route)
         case .search: searchPath.append(route)
@@ -132,6 +139,7 @@ final class AppModel {
         if showingSettings { return settingsPath.removeLast(count) }
         switch tab {
         case .home: homePath.removeLast(count)
+        case .discover: discoverPath.removeLast(count)
         case .library: libraryPath.removeLast(count)
         case .browse: browsePath.removeLast(count)
         case .search: searchPath.removeLast(count)
@@ -187,6 +195,8 @@ extension View {
             case .videos: VideoLibraryView()
             case .forgotten: ForgottenWorksView()
             case .categories(let kind): CategoryBrowseView(kind: kind)
+            case .catalog(let query): CatalogListView(query: query)
+            case .onlineWork(let id): OnlineWorkView(productId: id)
             }
         }
     }
