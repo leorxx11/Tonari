@@ -9,7 +9,7 @@ import UIKit
 /// item at a time: 115 links are resolved per track and expire, so a
 /// prebuilt queue would only hold dead URLs.
 @Observable
-final class PlaybackController {
+final class PlaybackController: SleepTarget {
     /// A work's tracks, or files played straight from a remote browser.
     enum Queue {
         case work(WorkQueue)
@@ -32,6 +32,11 @@ final class PlaybackController {
     let prefs: PlayerPrefs
     let sleep: SleepTimer
     let pip: SubtitlePiP
+
+    /// Set while this player owns Now Playing and the remote commands.
+    @ObservationIgnored var isFront = true
+    /// Called before audio starts, so the video player steps aside.
+    @ObservationIgnored var willPlay: (() -> Void)?
 
     @ObservationIgnored private let player = AVPlayer()
     @ObservationIgnored private let store: PlaybackStore
@@ -68,7 +73,6 @@ final class PlaybackController {
         sleep.controller = self
         pip.player = self
         observePlayer()
-        RemoteCommands.register { [weak self] command in self?.handle(command) }
         Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(5))
@@ -160,6 +164,7 @@ final class PlaybackController {
     /// Plays a work from `index` at `positionMs`. Tapping the track already
     /// playing only resumes it.
     func play(_ workQueue: WorkQueue, at index: Int, from positionMs: Int = 0) {
+        willPlay?()
         if currentTrack?.id == workQueue.tracks[index].id {
             if !isPlaying { play() }
             return
@@ -172,6 +177,7 @@ final class PlaybackController {
     }
 
     func play(files: [RemoteEntry], at index: Int, sourceName: String) {
+        willPlay?()
         if currentFile?.id == files[index].id {
             if !isPlaying { play() }
             return
@@ -204,6 +210,7 @@ final class PlaybackController {
     // MARK: - Transport
 
     func play() {
+        willPlay?()
         pausedByUser = false
         DiagnosticLog.shared.write("player", "play_requested", ["needsLoad": needsLoad, "linkExpiring": linkExpiring])
         if needsLoad || linkExpiring {
@@ -520,7 +527,7 @@ final class PlaybackController {
 
     // MARK: - Lock screen
 
-    private func handle(_ command: RemoteCommands.Command) {
+    func handle(_ command: RemoteCommands.Command) {
         switch command {
         case .play: play()
         case .pause: pause()
@@ -531,7 +538,8 @@ final class PlaybackController {
         }
     }
 
-    private func publishNowPlaying() {
+    func publishNowPlaying() {
+        guard isFront else { return }
         let center = MPNowPlayingInfoCenter.default()
         guard hasCurrent else {
             center.nowPlayingInfo = nil

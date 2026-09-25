@@ -11,6 +11,7 @@ struct P115BrowserView: View {
     @Environment(EnrichmentQueue.self) private var enrichment
     @Environment(\.appDatabase) private var database
     @Environment(PlaybackController.self) private var player
+    @Environment(VideoController.self) private var video
     /// From the 115 root down to this folder.
     let stack: [RemoteEntry]
     @State private var entries: [RemoteEntry] = []
@@ -49,8 +50,11 @@ struct P115BrowserView: View {
                     .fixedSize()
             }
             .sharedBackgroundVisibility(.hidden)
-            if stack.count > 1 {
-                ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                // Kept out of the list, where it was easy to hit by accident.
+                Button("导入此文件夹", systemImage: "square.and.arrow.down") { confirmingImport = true }
+                    .disabled(!loaded || model.tasks.isBusy)
+                if stack.count > 1 {
                     Button("回到浏览首页", systemImage: "house") {
                         model.browsePath = NavigationPath()
                     }
@@ -61,7 +65,9 @@ struct P115BrowserView: View {
             Button("取消", role: .cancel) {}
             Button("导入") { startImport(current) }
         } message: {
-            Text("扫描「\(current.name)」下的所有 RJ 作品并导入媒体库？\n导入在后台进行，可以继续浏览。")
+            let rjIds = entries.filter(\.isFolder).compactMap { RJID.extract($0.name) }
+            let progress = rjIds.isEmpty ? "" : "这里有 \(rjIds.count) 个 RJ 文件夹，已导入 \(rjIds.count { imported[$0] != nil }) 个。\n"
+            Text("扫描「\(current.name)」下的所有 RJ 作品并导入媒体库？\n\(progress)导入在后台进行，可以继续浏览。")
         }
         .sheet(item: $subtitlePreview) { SubtitlePreviewSheet(source: $0) }
         .sheet(item: $textPreview) { TextPreviewSheet(file: $0) }
@@ -84,15 +90,6 @@ struct P115BrowserView: View {
     @ViewBuilder private var rows: some View {
         let audio = entries.filter { $0.kind == .audio }
         let images = entries.filter { $0.kind == .image }
-        let rjIds = entries.filter(\.isFolder).compactMap { RJID.extract($0.name) }
-        Button { confirmingImport = true } label: {
-            FileRow(
-                icon: "square.and.arrow.down", tint: .blue, title: "导入此文件夹",
-                detail: rjIds.isEmpty ? "扫描其中的 RJ 作品" : "扫描其中的 RJ 作品 · 已导入 \(rjIds.count { imported[$0] != nil }) / \(rjIds.count)"
-            )
-        }
-        .tint(.primary)
-        .disabled(model.tasks.isBusy)
         if !audio.isEmpty {
             Button {
                 player.play(files: audio, at: 0, sourceName: P115Client.sourceName)
@@ -180,7 +177,14 @@ struct P115BrowserView: View {
                 FileRow(icon: icon, tint: tint, title: entry.name, detail: size)
             }
             .tint(.primary)
-        case .folder, .video, .other:
+        case .video:
+            Button {
+                model.playVideo(entry, sourceName: P115Client.sourceName, with: video)
+            } label: {
+                FileRow(icon: video.entry?.id == entry.id ? "play.rectangle.fill" : icon, tint: tint, title: entry.name, detail: size)
+            }
+            .tint(.primary)
+        case .folder, .other:
             FileRow(icon: icon, tint: tint, title: entry.name, detail: size)
         }
     }

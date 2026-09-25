@@ -6,11 +6,23 @@ import TonariCore
 /// second line follows the subtitle, standing in for a floating caption.
 /// Swipe sideways to change track; long-press for the player's options.
 struct MiniPlayer: View {
+    @Environment(NowPlaying.self) private var nowPlaying
+
+    var body: some View {
+        switch nowPlaying.front {
+        case .audio: AudioMiniPlayer()
+        case .video: VideoMiniPlayer()
+        }
+    }
+}
+
+private struct AudioMiniPlayer: View {
     @Environment(PlaybackController.self) private var player
     @Environment(AppModel.self) private var model
     @Environment(\.tabViewBottomAccessoryPlacement) private var placement
     @State private var showingSleep = false
     @State private var dragX: CGFloat = 0
+    @State private var size: CGSize = .zero
 
     var body: some View {
         let line = player.currentLine
@@ -62,8 +74,13 @@ struct MiniPlayer: View {
         }
         .padding(.horizontal, 12)
         .contentShape(.rect)
+        .onGeometryChange(for: CGSize.self) { $0.size } action: { size = $0 }
         .onTapGesture { model.showingPlayer = true }
-        .contextMenu { menu }
+        .contextMenu { menu } preview: {
+            MiniPlayerPreview(size: size, placement: placement, title: player.title, detail: player.currentLine ?? player.subtitle, inline: player.currentLine, playing: player.isPlaying, showsNext: true) {
+                PlayerArtwork(path: player.work?.mainImageLocalPath, cornerRadius: 6).frame(width: 34, height: 34)
+            }
+        }
         .tint(.primary)
         .sheet(isPresented: $showingSleep) { SleepTimerSheet() }
     }
@@ -134,6 +151,106 @@ struct MiniPlayer: View {
         if let work = player.work {
             Button("查看作品", systemImage: "info.circle") { model.openWork(work.productId) }
         }
+    }
+}
+
+/// The video in front: a 16:9 frame, title and play; long-press to set
+/// the sleep timer or speed, or to end the video.
+private struct VideoMiniPlayer: View {
+    @Environment(VideoController.self) private var video
+    @Environment(NowPlaying.self) private var nowPlaying
+    @Environment(AppModel.self) private var model
+    @Environment(\.tabViewBottomAccessoryPlacement) private var placement
+    @State private var showingSleep = false
+    @State private var size: CGSize = .zero
+
+    var body: some View {
+        HStack(spacing: 10) {
+            ZStack {
+                Color.black
+                Image(systemName: "film").font(.caption).foregroundStyle(.white.opacity(0.7))
+            }
+            .frame(width: 48, height: 27)
+            .clipShape(.rect(cornerRadius: 5))
+            VStack(alignment: .leading, spacing: 1) {
+                Text(video.title).font(.subheadline.weight(.medium)).lineLimit(1)
+                if placement != .inline {
+                    Text(video.sourceName).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                }
+            }
+            Spacer(minLength: 0)
+            if video.isLoading {
+                ProgressView().frame(width: 32, height: 36)
+            } else {
+                Button(video.isPlaying ? "暂停" : "播放", systemImage: video.isPlaying ? "pause.fill" : "play.fill", action: video.togglePlay)
+                    .labelStyle(.iconOnly)
+                    .contentTransition(.symbolEffect(.replace))
+                    .font(.body)
+                    .frame(width: 32, height: 36)
+            }
+        }
+        .padding(.horizontal, 12)
+        .contentShape(.rect)
+        .onGeometryChange(for: CGSize.self) { $0.size } action: { size = $0 }
+        .onTapGesture { model.showingVideo = true }
+        .contextMenu {
+            Button("睡眠定时", systemImage: "moon.zzz") { showingSleep = true }
+            Picker(selection: Binding(get: { video.rate }, set: { video.setRate($0) })) {
+                ForEach(PlayerView.rates, id: \.self) { Text("\($0.formatted())x") }
+            } label: {
+                Label("播放速度 · \(video.rate.formatted())x", systemImage: "gauge.with.dots.needle.67percent")
+            }
+            .pickerStyle(.menu)
+            Button("结束播放", systemImage: "xmark", role: .destructive) { nowPlaying.closeVideo() }
+        } preview: {
+            MiniPlayerPreview(size: size, placement: placement, title: video.title, detail: video.sourceName, inline: nil, playing: video.isPlaying, showsNext: false) {
+                ZStack {
+                    Color.black
+                    Image(systemName: "film").font(.caption).foregroundStyle(.white.opacity(0.7))
+                }
+                .frame(width: 48, height: 27)
+                .clipShape(.rect(cornerRadius: 5))
+            }
+        }
+        .tint(.primary)
+        .sheet(isPresented: $showingSleep) { SleepTimerSheet() }
+    }
+}
+
+/// What a long press on the mini player lifts: a still copy of the bar at
+/// the bar's own size. Matching the size lets the system keep it in place
+/// with the menu above; being a copy rather than the system's snapshot, it
+/// also stays aligned when the bar sits inline beside a minimized tab bar.
+private struct MiniPlayerPreview<Artwork: View>: View {
+    let size: CGSize
+    let placement: TabViewBottomAccessoryPlacement?
+    let title: String
+    let detail: String
+    /// The single line shown inline, when it differs from the title.
+    let inline: String?
+    let playing: Bool
+    let showsNext: Bool
+    @ViewBuilder let artwork: Artwork
+
+    var body: some View {
+        HStack(spacing: 10) {
+            artwork
+            if placement == .inline {
+                Text(inline ?? title).font(.subheadline.weight(.medium)).lineLimit(1)
+            } else {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(title).font(.subheadline.weight(.medium)).lineLimit(1)
+                    Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                }
+            }
+            Spacer(minLength: 0)
+            Image(systemName: playing ? "pause.fill" : "play.fill").frame(width: 32, height: 36)
+            if showsNext && placement != .inline {
+                Image(systemName: "forward.fill").frame(width: 32, height: 36)
+            }
+        }
+        .padding(.horizontal, 12)
+        .frame(width: size.width, height: size.height)
     }
 }
 

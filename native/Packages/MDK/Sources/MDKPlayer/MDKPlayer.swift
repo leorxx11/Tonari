@@ -48,6 +48,8 @@ public final class MDKPlayer: @unchecked Sendable {
     private var api: UnsafePointer<mdkPlayerAPI>?
     private var player: OpaquePointer? { api!.pointee.object }
 
+    /// Device, queue and target mdk renders with, kept for the player's life.
+    private var metalObjects: [AnyObject] = []
     private var stateHandler: (@Sendable (State) -> Void)?
     private var statusHandler: (@Sendable (MediaStatus) -> Void)?
     private var eventHandler: (@Sendable (Event) -> Void)?
@@ -220,6 +222,11 @@ public final class MDKPlayer: @unchecked Sendable {
         set { api!.pointee.setPlaybackRate(player, newValue) }
     }
 
+    /// mdk has no getter; this mirrors the last value set.
+    public var volume: Float = 1 {
+        didSet { api!.pointee.setVolume(player, volume) }
+    }
+
     public func seek(toMs position: Int64) {
         _ = api!.pointee.seekWithFlags(player, position, MDK_SeekFlag_FromStart, mdkSeekCallback())
     }
@@ -240,15 +247,41 @@ public final class MDKPlayer: @unchecked Sendable {
 
     // MARK: Rendering
 
-    /// Renders into `surface` (a UIView or CAMetalLayer) on mdk's own render
-    /// thread. Call again with the new size whenever the view resizes.
-    public func attach(surface: AnyObject, width: Int32, height: Int32) {
-        let pointer = Unmanaged.passUnretained(surface).toOpaque()
+    /// Renders with the caller's Metal device into whatever texture `target`
+    /// hands out for each frame (a foreign context): mdk never touches a
+    /// layer, and drawing happens where the caller calls `renderVideo()`.
+    /// Must be set before opening media; `target` is retained for the
+    /// player's life.
+    public func setMetalRenderer(device: AnyObject, queue: AnyObject, target: MDKMetalTarget) {
+        metalObjects = [device, queue, target]
         var renderAPI = mdkMetalRenderAPI()
         renderAPI.type = MDK_RenderAPI_Metal
-        withUnsafePointer(to: &renderAPI) {
-            api!.pointee.setRenderAPI(player, OpaquePointer($0), pointer)
+        renderAPI.device = UnsafeRawPointer(Unmanaged.passUnretained(device).toOpaque())
+        renderAPI.cmdQueue = UnsafeRawPointer(Unmanaged.passUnretained(queue).toOpaque())
+        renderAPI.opaque = UnsafeRawPointer(Unmanaged.passUnretained(target as AnyObject).toOpaque())
+        renderAPI.currentRenderTarget = { opaque in
+            let target = Unmanaged<AnyObject>.fromOpaque(opaque!).takeUnretainedValue() as! MDKMetalTarget
+            return target.currentTexture.map { UnsafeRawPointer(Unmanaged.passUnretained($0).toOpaque()) }
         }
-        api!.pointee.updateNativeSurface(player, pointer, width, height, MDK_SurfaceType_Auto)
+        withUnsafePointer(to: &renderAPI) {
+            api!.pointee.setRenderAPI(player, OpaquePointer($0), nil)
+        }
     }
+
+    /// The render target's size in pixels.
+    public func setVideoSurfaceSize(width: Int32, height: Int32) {
+        api!.pointee.setVideoSurfaceSize(player, width, height, nil)
+    }
+
+    /// Draws the current frame into the target's texture.
+    @discardableResult
+    public func renderVideo() -> Double {
+        api!.pointee.renderVideo(player, nil)
+    }
+
+}
+
+/// Supplies the texture mdk draws the next frame into, e.g. a drawable's.
+public protocol MDKMetalTarget: AnyObject {
+    var currentTexture: AnyObject? { get }
 }

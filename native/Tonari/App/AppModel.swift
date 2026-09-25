@@ -63,6 +63,7 @@ final class AppModel {
     var tab = AppTab.library
     /// Work whose group membership sheet is showing.
     var showingPlayer = false
+    var showingVideo = false
     var collectionPickerWork: Work?
     /// Work awaiting confirmation to be removed from the library.
     var removingWork: Work?
@@ -105,6 +106,12 @@ final class AppModel {
         case .search: searchPath.append(route)
         case .settings: break
         }
+    }
+
+    /// Starts a video and opens its player over everything.
+    func playVideo(_ entry: RemoteEntry, sourceName: String, with video: VideoController) {
+        video.play(entry, sourceName: sourceName)
+        showingVideo = true
     }
 
     /// Pops `count` pages off whichever tab is showing.

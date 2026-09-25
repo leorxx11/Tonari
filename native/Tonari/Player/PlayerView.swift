@@ -99,7 +99,7 @@ struct PlayerView: View {
 
     private var controlBlock: some View {
         VStack(spacing: 0) {
-            Scrubber().padding(.top, 16)
+            AudioScrubber().padding(.top, 16)
             controls.padding(.top, 14)
             VolumeRow().padding(.top, 22)
             bottomBar.padding(.top, 22)
@@ -275,14 +275,17 @@ struct PlayerView: View {
 /// Apple Music's scrubber: a thick bar that grows while held and moves by
 /// how far the finger travels rather than jumping to where it lands, so a
 /// stray touch never seeks.
-private struct Scrubber: View {
-    @Environment(PlaybackController.self) private var player
+struct Scrubber: View {
+    let positionMs: Int
+    let durationMs: Int
+    let seek: (Int) -> Void
+
     @State private var dragStart: Double?
     @State private var dragFraction: Double?
 
     var body: some View {
-        let duration = player.durationMs
-        let live = duration > 0 ? Double(min(player.positionMs, duration)) / Double(duration) : 0
+        let duration = durationMs
+        let live = duration > 0 ? Double(min(positionMs, duration)) / Double(duration) : 0
         let fraction = dragFraction ?? live
         let shownMs = Int(fraction * Double(duration))
         VStack(spacing: 6) {
@@ -305,7 +308,7 @@ private struct Scrubber: View {
                         }
                         .onEnded { _ in
                             if let dragFraction, dragFraction != dragStart {
-                                player.seek(to: Int(dragFraction * Double(duration)))
+                                seek(Int(dragFraction * Double(duration)))
                             }
                             dragStart = nil
                             dragFraction = nil
@@ -326,9 +329,18 @@ private struct Scrubber: View {
     }
 }
 
+/// Reads the audio player's clock itself, so only the bar redraws as it ticks.
+private struct AudioScrubber: View {
+    @Environment(PlaybackController.self) private var player
+
+    var body: some View {
+        Scrubber(positionMs: player.positionMs, durationMs: player.durationMs) { player.seek(to: $0) }
+    }
+}
+
 /// System volume, in step with the hardware buttons, drawn as the same
 /// thick bar as the scrubber through MPVolumeView's image hooks.
-private struct VolumeRow: View {
+struct VolumeRow: View {
     static let barHeight: CGFloat = 7
 
     var body: some View {
@@ -406,7 +418,7 @@ private struct RouteButton: View {
     }
 }
 
-private struct RoutePicker: UIViewRepresentable {
+struct RoutePicker: UIViewRepresentable {
     func makeUIView(context: Context) -> AVRoutePickerView {
         let view = AVRoutePickerView()
         view.tintColor = .clear

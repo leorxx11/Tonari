@@ -4,10 +4,13 @@ import TonariCore
 
 @main
 struct TonariApp: App {
+    @UIApplicationDelegateAdaptor private var appDelegate: AppDelegate
     @Environment(\.scenePhase) private var scenePhase
     @State private var model = AppModel()
     @State private var enrichment: EnrichmentQueue
     @State private var player: PlaybackController
+    @State private var video: VideoController
+    @State private var nowPlaying: NowPlaying
     @AppStorage(Appearance.preferenceKey) private var appearance = Appearance.system
     private let database: AppDatabase
 
@@ -27,7 +30,11 @@ struct TonariApp: App {
             }
             database = try AppDatabase.open(in: documents)
             _enrichment = State(initialValue: EnrichmentQueue(database: database))
-            _player = State(initialValue: PlaybackController(database: database))
+            let player = PlaybackController(database: database)
+            let video = VideoController(database: database, sleep: player.sleep)
+            _player = State(initialValue: player)
+            _video = State(initialValue: video)
+            _nowPlaying = State(initialValue: NowPlaying(audio: player, video: video))
         } catch {
             fatalError("Failed to open the library: \(error)")
         }
@@ -39,6 +46,8 @@ struct TonariApp: App {
                 .environment(model)
                 .environment(enrichment)
                 .environment(player)
+                .environment(video)
+                .environment(nowPlaying)
                 .environment(\.appDatabase, database)
                 .preferredColorScheme(appearance.colorScheme)
         }
@@ -57,6 +66,8 @@ struct RootView: View {
     @Environment(AppModel.self) private var model
     @Environment(EnrichmentQueue.self) private var enrichment
     @Environment(PlaybackController.self) private var player
+    @Environment(VideoController.self) private var video
+    @Environment(NowPlaying.self) private var nowPlaying
     @Environment(\.appDatabase) private var database
     @Namespace private var playerTransition
 
@@ -82,11 +93,20 @@ struct RootView: View {
         }
         .background { SubtitlePiPHost(pip: player.pip).frame(width: 1, height: 1) }
         .tabBarMinimizeBehavior(.onScrollDown)
-        .tabViewBottomAccessory(isEnabled: player.hasCurrent) {
+        .tabViewBottomAccessory(isEnabled: nowPlaying.front == .video ? video.hasCurrent : player.hasCurrent) {
             MiniPlayer().matchedTransitionSource(id: "player", in: playerTransition)
         }
         .fullScreenCover(isPresented: $model.showingPlayer) {
             PlayerView().navigationTransition(.zoom(sourceID: "player", in: playerTransition))
+        }
+        .fullScreenCover(isPresented: $model.showingVideo) {
+            VideoPlayerView().navigationTransition(.zoom(sourceID: "player", in: playerTransition))
+        }
+        .alert(
+            "无法播放视频",
+            isPresented: Binding(get: { video.errorMessage != nil }, set: { if !$0 { video.errorMessage = nil } })
+        ) {} message: {
+            Text(video.errorMessage ?? "")
         }
         .alert(
             "无法播放",

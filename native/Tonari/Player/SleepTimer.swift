@@ -1,7 +1,15 @@
 import Foundation
 
+/// Whatever is playing in front: the audio player or the video player.
+protocol SleepTarget: AnyObject {
+    var volume: Float { get set }
+    var isPlaying: Bool { get }
+    func pause()
+}
+
 /// Pauses playback after a countdown or after a number of tracks. The last
 /// ten seconds of a countdown fade out, unless the track may finish first.
+/// It acts on whichever player is in front.
 @Observable
 final class SleepTimer {
     static let presetMinutes = [15, 30, 45, 60, 90]
@@ -25,7 +33,7 @@ final class SleepTimer {
         return nil
     }
 
-    @ObservationIgnored weak var controller: PlaybackController?
+    @ObservationIgnored weak var controller: (any SleepTarget)?
     private let prefs: PlayerPrefs
     @ObservationIgnored private var ticker: Task<Void, Never>?
     @ObservationIgnored private var fadeBase: Float?
@@ -84,7 +92,7 @@ final class SleepTimer {
         }
     }
 
-    private func fire(_ controller: PlaybackController) {
+    private func fire(_ controller: any SleepTarget) {
         let finishTrack = prefs.sleepFinishCurrentTrack && controller.isPlaying
         reset()
         if finishTrack {

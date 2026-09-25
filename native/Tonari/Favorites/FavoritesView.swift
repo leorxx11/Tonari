@@ -280,6 +280,8 @@ nonisolated struct RecentItem: Identifiable, Sendable {
 private struct RecentTile: View {
     let item: RecentItem
     @Environment(PlaybackController.self) private var player
+    @Environment(VideoController.self) private var video
+    @Environment(AppModel.self) private var model
 
     var body: some View {
         let tile = VStack(alignment: .leading, spacing: 2) {
@@ -296,7 +298,12 @@ private struct RecentTile: View {
             NavigationLink(value: Route.work(workId)) { tile }.buttonStyle(.plain)
         } else if let file = item.entry.remoteFile {
             Button {
-                player.play(files: [file], at: 0, sourceName: item.entry.sourceName ?? P115Client.sourceName)
+                let sourceName = item.entry.sourceName ?? P115Client.sourceName
+                if file.kind == .video {
+                    model.playVideo(file, sourceName: sourceName, with: video)
+                } else {
+                    player.play(files: [file], at: 0, sourceName: sourceName)
+                }
             } label: {
                 tile
             }

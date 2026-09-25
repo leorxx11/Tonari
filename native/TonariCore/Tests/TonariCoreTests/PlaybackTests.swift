@@ -96,6 +96,23 @@ struct PlaybackStoreTests {
         #expect(positionMs == 7_000 && durationMs == 60_000)
     }
 
+    @Test func videosResumeWhereTheyWereLeftUnlessFinished() throws {
+        let (database, store) = try database()
+        let entry = RemoteEntry(id: "v", path: "v", name: "第4章.mkv", kind: .video, size: 10, pickcode: "vpc", sourceId: P115Client.sourceId)
+        #expect(try store.videoResumeMs(entry) == 0)
+        try store.recordVideo(entry, sourceName: "115 网盘", at: Fixtures.date)
+        try store.saveFilePosition(600_000, durationMs: 2_000_000, of: entry)
+        try store.recordVideo(entry, sourceName: "115 网盘", at: Fixtures.date.addingTimeInterval(60))
+        #expect(try store.videoResumeMs(entry) == 600_000)
+        let row = try database.reader.read { try PlayHistoryEntry.fetchOne($0, key: "p115:vpc")! }
+        #expect(row.kind == "video" && row.remoteFile?.kind == .video)
+        #expect(try store.lastPlayed() == nil)
+        #expect(try store.lastPlayedVideo()?.entry.pickcode == "vpc")
+
+        try store.saveFilePosition(1_995_000, durationMs: 2_000_000, of: entry)
+        #expect(try store.videoResumeMs(entry) == 0)
+    }
+
     @Test func countsCompletionsAndLearnsDurations() throws {
         let (database, store) = try database()
         let track = try store.queue(for: "RJ01000001", folder: []).tracks[0]
