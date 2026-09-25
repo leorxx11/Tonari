@@ -2,9 +2,10 @@ import SwiftUI
 import TonariCore
 
 /// One 115 folder. Each level is its own page on the navigation stack, so
-/// back steps up a single folder and the title names the current one.
-/// Audio plays in place with the folder's audio files as the queue; video
-/// arrives with the video library (N5).
+/// back steps up a single folder and the title names the current one. RJ
+/// folders already in the library show their cover and title, looked up
+/// locally so browsing costs no extra 115 requests; subfolders show no
+/// summary for the same reason.
 struct P115BrowserView: View {
     @Environment(AppModel.self) private var model
     @Environment(EnrichmentQueue.self) private var enrichment
@@ -17,28 +18,17 @@ struct P115BrowserView: View {
     @State private var loading = false
     @State private var error: Error?
     @State private var confirmingImport = false
+    @State private var imported: [String: Work] = [:]
+    @State private var subtitlePreview: SubtitlePreviewSource?
+    @State private var textPreview: PreviewFile?
+    @State private var gallery: GallerySelection?
+    @Namespace private var galleryZoom
 
     private var current: RemoteEntry { stack.last! }
 
     var body: some View {
         List {
-            ForEach(entries) { entry in
-                if entry.isFolder {
-                    NavigationLink(value: Route.p115Folder(stack + [entry])) {
-                        RemoteEntryRow(entry: entry)
-                    }
-                } else if entry.kind == .audio {
-                    Button {
-                        let audio = entries.filter { $0.kind == .audio }
-                        player.play(files: audio, at: audio.firstIndex(of: entry)!, sourceName: P115Client.sourceName)
-                    } label: {
-                        RemoteEntryRow(entry: entry, playing: player.currentFile?.id == entry.id)
-                    }
-                    .tint(.primary)
-                } else {
-                    RemoteEntryRow(entry: entry)
-                }
-            }
+            if loaded && !entries.isEmpty { rows }
         }
         .listStyle(.plain)
         .overlay { overlay }
@@ -66,10 +56,6 @@ struct P115BrowserView: View {
                     }
                 }
             }
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("导入到媒体库", systemImage: "square.and.arrow.down") { confirmingImport = true }
-                    .disabled(model.tasks.isBusy)
-            }
         }
         .alert("导入到媒体库", isPresented: $confirmingImport) {
             Button("取消", role: .cancel) {}
@@ -77,11 +63,126 @@ struct P115BrowserView: View {
         } message: {
             Text("扫描「\(current.name)」下的所有 RJ 作品并导入媒体库？\n导入在后台进行，可以继续浏览。")
         }
+        .sheet(item: $subtitlePreview) { SubtitlePreviewSheet(source: $0) }
+        .sheet(item: $textPreview) { TextPreviewSheet(file: $0) }
+        .fullScreenCover(item: $gallery) { GalleryView(selection: $0, namespace: galleryZoom) }
         .refreshable { await load() }
         // Coming back from a subfolder keeps the listing instead of spending
         // another rate-limited request on it.
         .task { if !loaded { await load() } }
+        .task(id: entries.map(\.id)) {
+            let ids = entries.filter(\.isFolder).compactMap { RJID.extract($0.name) }
+            await database.observe({ db in
+                try Work.filter(ids.contains(Column("product_id"))).filter(Column("is_removed") == false).fetchAll(db)
+            }) { works in
+                imported = Dictionary(uniqueKeysWithValues: works.map { ($0.productId, $0) })
+            }
+        }
         .onAppear { BrowseLocation.save(stack, P115Client.sourceId) }
+    }
+
+    @ViewBuilder private var rows: some View {
+        let audio = entries.filter { $0.kind == .audio }
+        let images = entries.filter { $0.kind == .image }
+        let rjIds = entries.filter(\.isFolder).compactMap { RJID.extract($0.name) }
+        Button { confirmingImport = true } label: {
+            FileRow(
+                icon: "square.and.arrow.down", tint: .blue, title: "导入此文件夹",
+                detail: rjIds.isEmpty ? "扫描其中的 RJ 作品" : "扫描其中的 RJ 作品 · 已导入 \(rjIds.count { imported[$0] != nil }) / \(rjIds.count)"
+            )
+        }
+        .tint(.primary)
+        .disabled(model.tasks.isBusy)
+        if !audio.isEmpty {
+            Button {
+                player.play(files: audio, at: 0, sourceName: P115Client.sourceName)
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "play.fill")
+                        .foregroundStyle(Color(.systemBackground))
+                        .frame(width: 34, height: 34)
+                        .background(Color.primary, in: .circle)
+                    Text("播放本文件夹").fontWeight(.semibold)
+                    Spacer()
+                    Text("\(audio.count) 首").foregroundStyle(.secondary)
+                }
+            }
+            .tint(.primary)
+        }
+        ForEach(entries) { entry in
+            if entry.isFolder {
+                folderRow(entry)
+            } else {
+                fileRow(entry, audio: audio, images: images)
+            }
+        }
+    }
+
+    @ViewBuilder private func folderRow(_ entry: RemoteEntry) -> some View {
+        let rjId = RJID.extract(entry.name)
+        let work = rjId.flatMap { imported[$0] }
+        NavigationLink(value: Route.p115Folder(stack + [entry])) {
+            if let work {
+                HStack(spacing: 12) {
+                    LocalImage(path: work.mainImageLocalPath)
+                        .frame(width: 64, height: 48)
+                        .clipShape(.rect(cornerRadius: 6))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(work.displayTitle).font(.subheadline).lineLimit(2)
+                        Text("\(work.productId) · 已导入").font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            } else {
+                FileRow(icon: "folder.fill", tint: .blue, title: entry.name, detail: rjId.map { "\($0) · 未导入" } ?? "文件夹")
+            }
+        }
+        .contextMenu {
+            if let work {
+                Button("打开作品", systemImage: "music.note.list") { model.browsePath.append(Route.work(work.productId)) }
+            }
+        }
+        .swipeActions(edge: .trailing) {
+            if rjId != nil && work == nil {
+                Button("导入", systemImage: "square.and.arrow.down") { startImport(entry) }
+                    .tint(.blue)
+                    .disabled(model.tasks.isBusy)
+            }
+        }
+    }
+
+    @ViewBuilder private func fileRow(_ entry: RemoteEntry, audio: [RemoteEntry], images: [RemoteEntry]) -> some View {
+        let (icon, tint) = fileIcon(entry.kind.rawValue)
+        let size = entry.size.map(Formatting.bytes) ?? ""
+        switch entry.kind {
+        case .audio:
+            let playing = player.currentFile?.id == entry.id
+            Button {
+                player.play(files: audio, at: audio.firstIndex(of: entry)!, sourceName: P115Client.sourceName)
+            } label: {
+                FileRow(icon: playing ? "waveform" : icon, tint: tint, title: entry.name, detail: playing ? "正在播放 · \(size)" : size)
+            }
+            .tint(.primary)
+        case .subtitle:
+            Button { subtitlePreview = .file(.p115(entry)) } label: {
+                FileRow(icon: icon, tint: tint, title: entry.name, detail: size)
+            }
+            .tint(.primary)
+        case .image:
+            Button {
+                gallery = GallerySelection(images: images.map { .file(.p115($0)) }, index: images.firstIndex(of: entry)!)
+            } label: {
+                FileRow(icon: icon, tint: tint, title: entry.name, detail: size)
+            }
+            .tint(.primary)
+            .matchedTransitionSource(id: entry.id, in: galleryZoom)
+        case .text:
+            Button { textPreview = .p115(entry) } label: {
+                FileRow(icon: icon, tint: tint, title: entry.name, detail: size)
+            }
+            .tint(.primary)
+        case .folder, .video, .other:
+            FileRow(icon: icon, tint: tint, title: entry.name, detail: size)
+        }
     }
 
     @ViewBuilder private var overlay: some View {
@@ -99,7 +200,7 @@ struct P115BrowserView: View {
             }
         } else if loading && entries.isEmpty {
             ProgressView()
-        } else if !loading && entries.isEmpty {
+        } else if !loading && loaded && entries.isEmpty {
             ContentUnavailableView("此目录为空", systemImage: "folder")
         }
     }
@@ -119,50 +220,7 @@ struct P115BrowserView: View {
     }
 
     private func startImport(_ folder: RemoteEntry) {
-        let tasks = model.tasks
-        let importer = P115Import(database: database, client: .shared)
-        Task {
-            await tasks.run("导入 115 网盘", detail: folder.name) {
-                let summary = try await importer.importFolder(folder) { found, current in
-                    Task { @MainActor in tasks.report("已找到 \(found) 个作品 · \(current)") }
-                }
-                return summary.resultText
-            }
-            await enrichment.runPending()
-        }
-    }
-}
-
-struct RemoteEntryRow: View {
-    let entry: RemoteEntry
-    var playing = false
-
-    var body: some View {
-        HStack(spacing: 12) {
-            let (icon, tint) = Self.icon(entry.kind)
-            Image(systemName: playing ? "waveform" : icon)
-                .foregroundStyle(tint)
-                .frame(width: 34, height: 34)
-                .background(tint.opacity(0.12), in: .rect(cornerRadius: 8))
-            VStack(alignment: .leading, spacing: 2) {
-                Text(entry.name).font(.subheadline).lineLimit(3)
-                if let size = entry.size {
-                    Text(Formatting.bytes(size)).font(.caption).foregroundStyle(.secondary)
-                }
-            }
-        }
-    }
-
-    static func icon(_ kind: RemoteEntry.Kind) -> (String, Color) {
-        switch kind {
-        case .folder: ("folder.fill", .blue)
-        case .audio: ("music.note", .pink)
-        case .video: ("film", .purple)
-        case .image: ("photo", .green)
-        case .subtitle: ("captions.bubble", .cyan)
-        case .text: ("doc.text", .orange)
-        case .other: ("doc", .gray)
-        }
+        Task { await model.importP115Folder(folder, database: database, enrichment: enrichment) }
     }
 }
 

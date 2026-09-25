@@ -28,7 +28,7 @@ struct LibraryView: View {
             .alert("音声库还是空的", isPresented: $libraryEmpty) {}
             .fileImporter(isPresented: $pickingFolder, allowedContentTypes: [.folder]) { result in
                 guard case .success(let url) = result else { return }
-                Task { await importFolder(url) }
+                Task { await model.importLocalFolder(url, database: database, enrichment: enrichment) }
             }
             .safeAreaInset(edge: .bottom) { TaskBanner() }
             .appDestinations()
@@ -127,17 +127,6 @@ struct LibraryView: View {
                 }
             }
         }
-    }
-
-    private func importFolder(_ url: URL) async {
-        let flow = LocalImport(database: database)
-        await model.tasks.run("导入本地文件夹", detail: url.lastPathComponent) {
-            let folder = try flow.addFolder(url)
-            let summary = try await flow.importFolder(folder)
-            if summary.workIds.isEmpty { try flow.removeIfEmpty(folder) }
-            return summary.resultText
-        }
-        await enrichment.runPending()
     }
 
     private func pickRandom() {

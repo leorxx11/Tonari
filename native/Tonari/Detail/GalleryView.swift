@@ -4,15 +4,15 @@ import UIKit
 
 enum GalleryImage: Hashable {
     case local(String)
-    /// An image bundled with a work, read through `WorkFileAccess`.
-    case workFile(WorkFile, source: ImportedFolder?)
+    /// A work's bundled image or one met while browsing 115.
+    case file(PreviewFile)
 
     /// Also the zoom transition's source id: whatever shows this image on
     /// the page underneath marks itself with it.
     var id: String {
         switch self {
         case .local(let path): path
-        case .workFile(let file, _): file.id
+        case .file(let file): file.id
         }
     }
 }
@@ -148,11 +148,11 @@ private struct ZoomableImage: View {
         switch image {
         case .local(let path):
             return UIImage(contentsOfFile: URL.documentsDirectory.appending(path: path).path)
-        case .workFile(let file, let source):
+        case .file(let file):
             do {
-                return UIImage(data: try await WorkFileAccess.data(file, source: source))
+                return UIImage(data: try await file.data())
             } catch {
-                DiagnosticLog.shared.write("files", "image_load_failed", ["file": file.fileName, "error": "\(error)"])
+                DiagnosticLog.shared.write("files", "image_load_failed", ["file": file.name, "error": "\(error)"])
                 return nil
             }
         }

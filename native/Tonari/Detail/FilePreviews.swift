@@ -6,12 +6,12 @@ import UIKit
 /// database, or a subtitle file no track claimed, parsed when opened.
 enum SubtitlePreviewSource: Identifiable {
     case track(Track)
-    case file(WorkFile, source: ImportedFolder?)
+    case file(PreviewFile)
 
     var id: String {
         switch self {
         case .track(let track): "track:\(track.id)"
-        case .file(let file, _): "file:\(file.id)"
+        case .file(let file): "file:\(file.id)"
         }
     }
 }
@@ -91,7 +91,7 @@ struct SubtitlePreviewSheet: View {
     private var title: String {
         switch source {
         case .track(let track): track.titleZh.flatMap { $0.isEmpty ? nil : $0 } ?? track.title
-        case .file(let file, _): file.fileName
+        case .file(let file): file.name
         }
     }
 
@@ -177,12 +177,12 @@ struct SubtitlePreviewSheet: View {
         switch source {
         case .track(let track):
             await database.observe({ db in try Subtitle.fetchOne(db, key: track.id) }) { subtitle = $0 }
-        case .file(let file, let folder):
+        case .file(let file):
             do {
-                let text = TextDecoding.decode(try await WorkFileAccess.data(file, source: folder))
-                fileLines = SubtitleParser.parse(text, format: (file.fileName as NSString).pathExtension)
+                let text = TextDecoding.decode(try await file.data())
+                fileLines = SubtitleParser.parse(text, format: (file.name as NSString).pathExtension)
             } catch {
-                DiagnosticLog.shared.write("files", "subtitle_preview_failed", ["file": file.fileName, "error": "\(error)"])
+                DiagnosticLog.shared.write("files", "subtitle_preview_failed", ["file": file.name, "error": "\(error)"])
                 failure = error.localizedDescription
             }
         }
@@ -192,8 +192,7 @@ struct SubtitlePreviewSheet: View {
 /// A readme or script in full. UITextView lays out only what's on screen,
 /// so a long script opens without stalling the main thread.
 struct TextPreviewSheet: View {
-    let file: WorkFile
-    let source: ImportedFolder?
+    let file: PreviewFile
 
     @Environment(\.dismiss) private var dismiss
     @State private var text: String?
@@ -210,7 +209,7 @@ struct TextPreviewSheet: View {
                     ProgressView()
                 }
             }
-            .navigationTitle(file.fileName)
+            .navigationTitle(file.name)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -220,9 +219,9 @@ struct TextPreviewSheet: View {
         }
         .task {
             do {
-                text = TextDecoding.decode(try await WorkFileAccess.data(file, source: source))
+                text = TextDecoding.decode(try await file.data())
             } catch {
-                DiagnosticLog.shared.write("files", "text_preview_failed", ["file": file.fileName, "error": "\(error)"])
+                DiagnosticLog.shared.write("files", "text_preview_failed", ["file": file.name, "error": "\(error)"])
                 failure = error.localizedDescription
             }
         }

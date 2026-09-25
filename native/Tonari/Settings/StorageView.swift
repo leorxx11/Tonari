@@ -46,7 +46,7 @@ struct StorageView: View {
             let manager = FileManager.default
             switch self {
             case .p115Files:
-                return [URL.cachesDirectory.appending(path: "p115-files")].filter { manager.fileExists(atPath: $0.path) }
+                return [PreviewFile.p115Cache].filter { manager.fileExists(atPath: $0.path) }
             case .descriptionImages:
                 let images = URL.documentsDirectory.appending(path: "images")
                 let works = (try? manager.contentsOfDirectory(at: images, includingPropertiesForKeys: nil)) ?? []

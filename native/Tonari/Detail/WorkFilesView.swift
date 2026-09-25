@@ -18,7 +18,7 @@ struct WorkFilesView: View {
     @State private var loaded = false
     @State private var flashing: String?
     @State private var subtitlePreview: SubtitlePreviewSource?
-    @State private var textPreview: WorkFile?
+    @State private var textPreview: PreviewFile?
     @State private var gallery: GallerySelection?
     @Namespace private var galleryZoom
 
@@ -69,7 +69,7 @@ struct WorkFilesView: View {
             }
         }
         .sheet(item: $subtitlePreview) { SubtitlePreviewSheet(source: $0) }
-        .sheet(item: $textPreview) { TextPreviewSheet(file: $0, source: source) }
+        .sheet(item: $textPreview) { TextPreviewSheet(file: $0) }
         .fullScreenCover(item: $gallery) { GalleryView(selection: $0, namespace: galleryZoom) }
         .task {
             await database.observe({ [productId] db in
@@ -117,7 +117,7 @@ struct WorkFilesView: View {
         let trackFolder = TrackFolderMemory.resolve(WorkTree.audioFolders(tree), tree: tree, productId: productId)?.path
         ForEach(WorkTree.folderEntries(level, at: path), id: \.path) { entry in
             NavigationLink(value: Route.files(productId, folder: entry.path)) {
-                FileNodeRow(icon: "folder.fill", tint: .blue, title: entry.label, detail: Self.summary(entry.node.kindCounts)) {
+                FileRow(icon: "folder.fill", tint: .blue, title: entry.label, detail: Self.summary(entry.node.kindCounts)) {
                     if let trackFolder, trackFolder.starts(with: entry.path) {
                         Image(systemName: "checkmark").font(.footnote.weight(.semibold)).foregroundStyle(.tint)
                     }
@@ -147,7 +147,7 @@ struct WorkFilesView: View {
         return Button {
             play(track)
         } label: {
-            FileNodeRow(icon: playing ? "waveform" : "music.note", tint: .pink, title: track.titleZh ?? track.title, detail: detail) {
+            FileRow(icon: playing ? "waveform" : "music.note", tint: .pink, title: track.titleZh ?? track.title, detail: detail) {
                 if subtitled {
                     Image(systemName: "captions.bubble").font(.footnote).foregroundStyle(.secondary)
                 }
@@ -164,7 +164,7 @@ struct WorkFilesView: View {
     }
 
     @ViewBuilder private func fileRow(_ file: WorkFile, images: [WorkFile]) -> some View {
-        let (icon, tint) = Self.icon(for: file.fileKind)
+        let (icon, tint) = fileIcon(file.fileKind)
         switch file.fileKind {
         case "subtitle":
             let match = matched[file.filePath]
@@ -172,31 +172,31 @@ struct WorkFilesView: View {
                 if let match {
                     subtitlePreview = .track(track(match.trackId))
                 } else {
-                    subtitlePreview = .file(file, source: source)
+                    subtitlePreview = .file(.work(file, source: source))
                 }
             } label: {
-                FileNodeRow(icon: icon, tint: tint, title: file.fileName, detail: match.map { "字幕 · \($0.lineCount) 句" } ?? "字幕 · \(Formatting.bytes(file.fileSizeBytes))")
+                FileRow(icon: icon, tint: tint, title: file.fileName, detail: match.map { "字幕 · \($0.lineCount) 句" } ?? "字幕 · \(Formatting.bytes(file.fileSizeBytes))")
             }
             .tint(.primary)
             // Matched subtitles already show on their track.
             .opacity(match == nil ? 1 : 0.5)
         case "image":
             Button {
-                gallery = GallerySelection(images: images.map { .workFile($0, source: source) }, index: images.firstIndex(of: file)!)
+                gallery = GallerySelection(images: images.map { .file(.work($0, source: source)) }, index: images.firstIndex(of: file)!)
             } label: {
-                FileNodeRow(icon: icon, tint: tint, title: file.fileName, detail: Formatting.bytes(file.fileSizeBytes))
+                FileRow(icon: icon, tint: tint, title: file.fileName, detail: Formatting.bytes(file.fileSizeBytes))
             }
             .matchedTransitionSource(id: file.id, in: galleryZoom)
             .tint(.primary)
         case "text":
             Button {
-                textPreview = file
+                textPreview = .work(file, source: source)
             } label: {
-                FileNodeRow(icon: icon, tint: tint, title: file.fileName, detail: Formatting.bytes(file.fileSizeBytes))
+                FileRow(icon: icon, tint: tint, title: file.fileName, detail: Formatting.bytes(file.fileSizeBytes))
             }
             .tint(.primary)
         default:
-            FileNodeRow(icon: icon, tint: tint, title: file.fileName, detail: Formatting.bytes(file.fileSizeBytes))
+            FileRow(icon: icon, tint: tint, title: file.fileName, detail: Formatting.bytes(file.fileSizeBytes))
         }
     }
 
@@ -219,45 +219,5 @@ struct WorkFilesView: View {
             ("text", { "\($0) 个文本" }), ("video", { "\($0) 个视频" }), ("other", { "\($0) 个其他文件" }),
         ]
         return parts.compactMap { kind, text in counts[kind].map(text) }.joined(separator: " · ")
-    }
-
-    static func icon(for kind: String) -> (String, Color) {
-        switch kind {
-        case "image": ("photo", .green)
-        case "subtitle": ("captions.bubble", .cyan)
-        case "text": ("doc.text", .orange)
-        case "video": ("film", .purple)
-        default: ("doc", .gray)
-        }
-    }
-}
-
-private struct FileNodeRow<Accessory: View>: View {
-    let icon: String
-    let tint: Color
-    let title: String
-    let detail: String
-    @ViewBuilder var accessory: Accessory
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.body)
-                .foregroundStyle(tint)
-                .frame(width: 34, height: 34)
-                .background(tint.opacity(0.12), in: .rect(cornerRadius: 8))
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.subheadline).lineLimit(3)
-                Text(detail).font(.caption).foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 0)
-            accessory
-        }
-    }
-}
-
-extension FileNodeRow where Accessory == EmptyView {
-    init(icon: String, tint: Color, title: String, detail: String) {
-        self.init(icon: icon, tint: tint, title: title, detail: detail) { EmptyView() }
     }
 }

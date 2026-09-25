@@ -37,6 +37,30 @@ final class LibraryTasks {
 }
 
 extension AppModel {
+    /// Adds a folder picked in Files as a source and imports its RJ works.
+    func importLocalFolder(_ url: URL, database: AppDatabase, enrichment: EnrichmentQueue) async {
+        let flow = LocalImport(database: database)
+        await tasks.run("导入本地文件夹", detail: url.lastPathComponent) {
+            let folder = try flow.addFolder(url)
+            let summary = try await flow.importFolder(folder)
+            if summary.workIds.isEmpty { try flow.removeIfEmpty(folder) }
+            return summary.resultText
+        }
+        await enrichment.runPending()
+    }
+
+    /// Imports RJ works found in a 115 folder, or the one work it is.
+    func importP115Folder(_ folder: RemoteEntry, database: AppDatabase, enrichment: EnrichmentQueue) async {
+        let importer = P115Import(database: database, client: .shared)
+        let tasks = tasks
+        await tasks.run("导入 115 网盘", detail: folder.name) {
+            let summary = try await importer.importFolder(folder) { found, current in
+                Task { @MainActor in tasks.report("已找到 \(found) 个作品 · \(current)") }
+            }
+            return summary.resultText
+        }
+        await enrichment.runPending()
+    }
     /// Rescans one work from its source, reviving it if removed.
     func reimport(_ work: Work, database: AppDatabase) async throws -> ImportSummary {
         let folder = try await database.reader.read { db in

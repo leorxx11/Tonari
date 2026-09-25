@@ -1,33 +1,52 @@
 import SwiftUI
 import TonariCore
 
-/// Remote sources to browse and import from.
+/// Places to browse, after the Files app's locations: 115, where it was
+/// left, and a local folder picked through Files to import.
 struct BrowseView: View {
     @Environment(AppModel.self) private var model
+    @Environment(EnrichmentQueue.self) private var enrichment
+    @Environment(\.appDatabase) private var database
     @State private var p115 = P115Client.LoginState.loggedOut
+    @State private var p115Location: [RemoteEntry] = []
+    @State private var pickingFolder = false
 
     var body: some View {
         @Bindable var model = model
         NavigationStack(path: $model.browsePath) {
             List {
-                Section("网盘") {
+                Section("位置") {
                     Button { model.openP115() } label: {
-                        LabeledContent {
-                            HStack {
-                                Text(p115.label)
-                                Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
-                            }
-                        } label: {
-                            Label(P115Client.sourceName, systemImage: "icloud")
+                        FileRow(icon: "icloud.fill", tint: .blue, title: P115Client.sourceName, detail: p115Detail) {
+                            Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
                         }
                     }
                     .tint(.primary)
+                    Button { pickingFolder = true } label: {
+                        FileRow(icon: "iphone", tint: .gray, title: "本机文件夹", detail: "从「文件」App 选取并导入")
+                    }
+                    .tint(.primary)
+                    .disabled(model.tasks.isBusy)
                 }
             }
             .navigationTitle("浏览")
             .appDestinations()
-            .onAppear { p115 = P115Client.shared.loginState }
+            .safeAreaInset(edge: .bottom) { TaskBanner() }
+            .fileImporter(isPresented: $pickingFolder, allowedContentTypes: [.folder]) { result in
+                guard case .success(let url) = result else { return }
+                Task { await model.importLocalFolder(url, database: database, enrichment: enrichment) }
+            }
+            .onAppear {
+                p115 = P115Client.shared.loginState
+                p115Location = BrowseLocation.load(P115Client.sourceId) ?? []
+            }
         }
+    }
+
+    private var p115Detail: String {
+        guard p115 == .loggedIn else { return "\(p115.label) · 点击扫码登录" }
+        let names = p115Location.dropFirst().map(\.name)
+        return names.isEmpty ? p115.label : "\(p115.label) · 上次在 \(names.joined(separator: " / "))"
     }
 }
 
