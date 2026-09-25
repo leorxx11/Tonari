@@ -20,6 +20,8 @@ struct P115BrowserView: View {
     @State private var error: Error?
     @State private var confirmingImport = false
     @State private var imported: [String: Work] = [:]
+    /// Ids of this folder's videos that are in the video library.
+    @State private var keptVideos: Set<String> = []
     @State private var subtitlePreview: SubtitlePreviewSource?
     @State private var textPreview: PreviewFile?
     @State private var gallery: GallerySelection?
@@ -78,10 +80,15 @@ struct P115BrowserView: View {
         .task { if !loaded { await load() } }
         .task(id: entries.map(\.id)) {
             let ids = entries.filter(\.isFolder).compactMap { RJID.extract($0.name) }
+            let videoIds = entries.filter { $0.kind == .video }.map(PlaybackStore.historyId)
             await database.observe({ db in
-                try Work.filter(ids.contains(Column("product_id"))).filter(Column("is_removed") == false).fetchAll(db)
-            }) { works in
-                imported = Dictionary(uniqueKeysWithValues: works.map { ($0.productId, $0) })
+                (
+                    try Work.filter(ids.contains(Column("product_id"))).filter(Column("is_removed") == false).fetchAll(db),
+                    try Set(String.fetchAll(db, VideoItem.filter(keys: videoIds).select(Column("id"))))
+                )
+            }) {
+                imported = Dictionary(uniqueKeysWithValues: $0.0.map { ($0.productId, $0) })
+                keptVideos = $0.1
             }
         }
         .onAppear { BrowseLocation.save(stack, P115Client.sourceId) }
@@ -178,12 +185,21 @@ struct P115BrowserView: View {
             }
             .tint(.primary)
         case .video:
+            let playable = PlayableVideo(p115: entry, sourceName: P115Client.sourceName)
+            let kept = keptVideos.contains(playable.id)
             Button {
-                model.playVideo(entry, sourceName: P115Client.sourceName, with: video)
+                model.playVideo(playable, origin: stack, with: video)
             } label: {
-                FileRow(icon: video.entry?.id == entry.id ? "play.rectangle.fill" : icon, tint: tint, title: entry.name, detail: size)
+                FileRow(icon: video.video?.id == playable.id ? "play.rectangle.fill" : icon, tint: tint, title: entry.name, detail: kept ? "\(size) · 已在视频库" : size)
             }
             .tint(.primary)
+            .contextMenu {
+                if kept {
+                    Button("移出视频库", systemImage: "minus.circle") { try! database.removeVideo(playable.id) }
+                } else {
+                    Button("加入视频库", systemImage: "plus.circle") { try! database.addVideo(playable) }
+                }
+            }
         case .folder, .other:
             FileRow(icon: icon, tint: tint, title: entry.name, detail: size)
         }

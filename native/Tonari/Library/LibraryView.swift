@@ -20,7 +20,7 @@ struct LibraryView: View {
                     WorkCollectionView(works: works, trackCounts: trackCounts, remoteIds: remoteIds)
                         .overlay { emptyState }
                 case .video:
-                    VideoListView()
+                    VideoLibraryView()
                 }
             }
             .toolbar { toolbar }

@@ -61,10 +61,10 @@ final class AppModel {
     static let viewModeKey = "library.view.works"
 
     var tab = AppTab.library
-    /// Work whose group membership sheet is showing.
     var showingPlayer = false
     var showingVideo = false
-    var collectionPickerWork: Work?
+    /// The work or video whose group membership sheet is showing.
+    var collectionPicker: CollectionMember?
     /// Work awaiting confirmation to be removed from the library.
     var removingWork: Work?
     let tasks = LibraryTasks()
@@ -109,8 +109,8 @@ final class AppModel {
     }
 
     /// Starts a video and opens its player over everything.
-    func playVideo(_ entry: RemoteEntry, sourceName: String, with video: VideoController) {
-        video.play(entry, sourceName: sourceName)
+    func playVideo(_ playable: PlayableVideo, origin: [RemoteEntry]? = nil, with video: VideoController) {
+        video.play(playable, origin: origin)
         showingVideo = true
     }
 

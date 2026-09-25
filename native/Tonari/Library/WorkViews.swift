@@ -158,7 +158,7 @@ private struct WorkContextMenu: ViewModifier {
                 try! database.setFavorite(work.productId, !work.isFavorite)
             }
             Button("加入分组…", systemImage: "folder.badge.plus") {
-                model.collectionPickerWork = work
+                model.collectionPicker = .work(work)
             }
             Button("重新扫描", systemImage: "arrow.clockwise", action: rescan)
                 .disabled(model.tasks.isBusy)

@@ -114,9 +114,7 @@ struct RootView: View {
         ) {} message: {
             Text(player.errorMessage ?? "")
         }
-        .sheet(item: $model.collectionPickerWork) { work in
-            CollectionPickerSheet(work: work)
-        }
+        .sheet(item: $model.collectionPicker) { CollectionPickerSheet(member: $0) }
         .alert(
             "从媒体库移除",
             isPresented: Binding(get: { model.removingWork != nil }, set: { if !$0 { model.removingWork = nil } })

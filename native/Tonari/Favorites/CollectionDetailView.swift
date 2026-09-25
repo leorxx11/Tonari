@@ -8,6 +8,7 @@ struct CollectionDetailView: View {
     let collectionId: String?
 
     @Environment(AppModel.self) private var model
+    @Environment(VideoController.self) private var video
     @Environment(\.appDatabase) private var database
     @State private var title = ""
     @State private var works: [Work] = []
@@ -31,7 +32,21 @@ struct CollectionDetailView: View {
             .padding(.bottom, 8)
             .listRowSeparator(.hidden)
             if showsVideos {
-                ForEach(videos) { VideoRow(video: $0) }
+                ForEach(videos) { item in
+                    Button { model.playVideo(PlayableVideo(item), with: video) } label: { VideoRow(video: item) }
+                        .tint(.primary)
+                        .swipeActions(edge: .trailing) {
+                            if let collectionId {
+                                Button("移出分组", systemImage: "folder.badge.minus", role: .destructive) {
+                                    try! database.setMembership(video: item.id, collection: collectionId, member: false)
+                                }
+                            } else {
+                                Button("取消收藏", systemImage: "heart.slash", role: .destructive) {
+                                    try! database.setVideoFavorite(item.id, false)
+                                }
+                            }
+                        }
+                }
             } else {
                 ForEach(works) { work in
                     NavigationLink(value: Route.work(work.productId)) {

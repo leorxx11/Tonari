@@ -69,13 +69,13 @@
 
 ## N5 视频
 
-- [ ] 视频库：从文件 App 导入、修改标题、删除、收藏、分组（`video_library_page.dart`、`local_video_import.dart`）
-- [ ] 远程视频加入 / 移出视频库
-- [ ] 播放页：竖屏内嵌、横屏全屏、控制条自动隐藏、倍速、睡眠定时（`video_player_page.dart`）
-- [ ] 横向滑动微调进度，拖动时预览时间、抬手才 seek
-- [ ] 按文件记忆进度、继续播放（`video_resume_store.dart`）
-- [ ] 截取画面设为封面、视频默认封面（`playback_settings_page.dart`）
-- [ ] 后台继续播放音轨、MiniPlayer、锁屏控制；暂停在后台超过 10 分钟释放播放器（`video_controller.dart`）
+- [x] 视频库：从文件 App 导入、修改标题、删除、收藏、分组；顶部「继续观看」（`video_library_page.dart`、`local_video_import.dart`）
+- [x] 远程视频加入 / 移出视频库（115 浏览长按、播放页 ⋯）
+- [x] 播放页：原生版改为始终全屏黑底（不做竖屏内嵌），横竖屏、控制条自动隐藏、倍速、睡眠定时、锁定（`video_player_page.dart`）
+- [x] 横向滑动微调进度，拖动时预览时间、抬手才 seek；左右半边双击快退 / 快进
+- [x] 按文件记忆进度、继续播放（进度存播放历史，冷启动恢复到迷你播放栏）（`video_resume_store.dart`）
+- [x] 截取画面设为封面、视频默认封面（设置 → 播放）（`playback_settings_page.dart`）
+- [x] 后台继续播放音轨、MiniPlayer、锁屏控制；暂停在后台超过 10 分钟释放播放器（`video_controller.dart`）
 
 ## N6 其余功能
 

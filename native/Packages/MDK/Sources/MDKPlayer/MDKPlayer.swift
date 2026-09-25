@@ -1,4 +1,7 @@
+import CoreGraphics
 import Foundation
+import ImageIO
+import UniformTypeIdentifiers
 import mdk
 
 public final class MDKPlayer: @unchecked Sendable {
@@ -265,6 +268,47 @@ public final class MDKPlayer: @unchecked Sendable {
         }
         withUnsafePointer(to: &renderAPI) {
             api!.pointee.setRenderAPI(player, OpaquePointer($0), nil)
+        }
+    }
+
+    /// Writes the current frame, at its own size, to `url` as a PNG; false
+    /// when mdk had no frame to give. The renderer must be drawing (mdk takes
+    /// the picture on its next draw).
+    public func snapshot(to url: URL) async -> Bool {
+        await withCheckedContinuation { continuation in
+            final class Box {
+                let url: URL
+                let continuation: CheckedContinuation<Bool, Never>
+                init(_ url: URL, _ continuation: CheckedContinuation<Bool, Never>) {
+                    self.url = url
+                    self.continuation = continuation
+                }
+            }
+            let box = Unmanaged.passRetained(Box(url, continuation)).toOpaque()
+            var request = mdkSnapshotRequest()
+            let callback = mdkSnapshotCallback(
+                cb: { request, _, opaque in
+                    let box = Unmanaged<Box>.fromOpaque(opaque!).takeRetainedValue()
+                    guard let request else {
+                        box.continuation.resume(returning: false)
+                        return nil
+                    }
+                    let r = request.pointee
+                    // The docs say BGRA, but the Metal renderer hands over RGBA
+                    // rows (read as BGRA, skin turns blue); wrap them without copying.
+                    let context = CGContext(
+                        data: r.data, width: Int(r.width), height: Int(r.height), bitsPerComponent: 8, bytesPerRow: Int(r.stride),
+                        space: CGColorSpaceCreateDeviceRGB(),
+                        bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue
+                    )!
+                    let destination = CGImageDestinationCreateWithURL(box.url as CFURL, UTType.png.identifier as CFString, 1, nil)!
+                    CGImageDestinationAddImage(destination, context.makeImage()!, nil)
+                    box.continuation.resume(returning: CGImageDestinationFinalize(destination))
+                    return nil
+                },
+                opaque: box
+            )
+            api!.pointee.snapshot(player, &request, callback, nil)
         }
     }
 

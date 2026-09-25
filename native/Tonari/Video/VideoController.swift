@@ -10,8 +10,12 @@ import UIKit
 /// the play history the way the Flutter build did.
 @Observable
 final class VideoController: SleepTarget {
-    private(set) var entry: RemoteEntry?
-    private(set) var sourceName = ""
+    private(set) var video: PlayableVideo?
+    /// The library row for the current video, when it has one: custom
+    /// title, cover, favorite.
+    private(set) var libraryItem: VideoItem?
+    /// The 115 folders the video was opened from, to find it again.
+    private(set) var origin: [RemoteEntry]?
     private(set) var isPlaying = false
     private(set) var isLoading = false
     private(set) var positionMs = 0
@@ -25,8 +29,9 @@ final class VideoController: SleepTarget {
     private(set) var renderer: VideoRenderer?
     var errorMessage: String?
 
-    var hasCurrent: Bool { entry != nil }
-    var title: String { entry.map { PlaybackStore.fileTitle($0.name) } ?? "" }
+    var hasCurrent: Bool { video != nil }
+    var title: String { libraryItem?.displayTitle ?? video?.title ?? "" }
+    var sourceName: String { video?.sourceName ?? "" }
 
     /// Set while this player owns Now Playing and the remote commands.
     @ObservationIgnored var isFront = false
@@ -34,6 +39,8 @@ final class VideoController: SleepTarget {
     @ObservationIgnored var willPlay: (() -> Void)?
 
     @ObservationIgnored private let store: PlaybackStore
+    @ObservationIgnored private let database: AppDatabase
+    @ObservationIgnored private var libraryTask: Task<Void, Never>?
     @ObservationIgnored private let sleep: SleepTimer
     @ObservationIgnored private var loadTask: Task<Void, Never>?
     @ObservationIgnored private var clock: Task<Void, Never>?
@@ -45,6 +52,7 @@ final class VideoController: SleepTarget {
     @ObservationIgnored private var seekingUntil: Date?
     @ObservationIgnored private var lastSave = Date.distantPast
     @ObservationIgnored private var lastStatus: MDKPlayer.MediaStatus = []
+    @ObservationIgnored private var artwork: (path: String, artwork: MPMediaItemArtwork)?
 
     /// Paused in the background this long, the engine is let go (as the
     /// Flutter build did); playing again reopens it where it was.
@@ -52,6 +60,7 @@ final class VideoController: SleepTarget {
 
     init(database: AppDatabase, sleep: SleepTimer) {
         store = PlaybackStore(database: database)
+        self.database = database
         self.sleep = sleep
         observeApp()
         restore()
@@ -61,8 +70,8 @@ final class VideoController: SleepTarget {
     /// since its 115 link has to be fetched anyway.
     private func restore() {
         guard let last = try! store.lastPlayedVideo() else { return }
-        entry = last.entry
-        sourceName = last.sourceName
+        video = last.video
+        observeLibrary()
         positionMs = last.positionMs
         durationMs = last.durationMs
         DiagnosticLog.shared.write("video", "restore", ["positionMs": positionMs])
@@ -70,22 +79,24 @@ final class VideoController: SleepTarget {
 
     // MARK: - Transport
 
-    func play(_ entry: RemoteEntry, sourceName: String) {
+    func play(_ video: PlayableVideo, origin: [RemoteEntry]? = nil) {
         willPlay?()
-        if self.entry?.id == entry.id {
+        if self.video?.id == video.id {
+            if let origin { self.origin = origin }
             play()
             return
         }
         saveProgress()
-        self.entry = entry
-        self.sourceName = sourceName
-        try! store.recordVideo(entry, sourceName: sourceName)
-        let resume = try! store.videoResumeMs(entry)
+        self.video = video
+        self.origin = origin
+        observeLibrary()
+        try! store.recordVideo(video)
+        let resume = try! store.videoResumeMs(video)
         positionMs = resume
         durationMs = 0
         videoSize = nil
         retried = false
-        DiagnosticLog.shared.write("video", "play", ["file": entry.name, "resumeMs": resume])
+        DiagnosticLog.shared.write("video", "play", ["file": video.fileName, "source": video.sourceKind, "resumeMs": resume])
         load(from: resume, andPlay: true)
     }
 
@@ -141,7 +152,10 @@ final class VideoController: SleepTarget {
         loadTask?.cancel()
         clock?.cancel()
         releaseEngine()
-        entry = nil
+        libraryTask?.cancel()
+        video = nil
+        libraryItem = nil
+        origin = nil
         isPlaying = false
         publishNowPlaying()
     }
@@ -155,17 +169,17 @@ final class VideoController: SleepTarget {
     private func load(from startMs: Int, andPlay: Bool) {
         loadTask?.cancel()
         isLoading = true
-        let entry = entry!
+        let video = video!
         loadTask = Task { [weak self] in
             do {
-                let media = try await P115Client.shared.resolve(pickcode: entry.pickcode!)
+                let (url, headers, expiresAt) = try await Self.source(of: video)
                 try Task.checkCancellation()
                 guard let self else { return }
-                expiresAt = media.expiresAt
+                self.expiresAt = expiresAt
                 let engine = engine ?? makeEngine()
                 renderer?.isRunning = true
-                engine.setHTTPHeaders(media.headers)
-                let opened = await engine.open(media.url.absoluteString, from: Int64(startMs))
+                engine.setHTTPHeaders(headers)
+                let opened = await engine.open(url, from: Int64(startMs))
                 try Task.checkCancellation()
                 guard opened else { throw P115Error.failed("无法打开视频") }
                 durationMs = Int(engine.durationMs)
@@ -182,6 +196,29 @@ final class VideoController: SleepTarget {
             } catch {
                 self?.isLoading = false
                 self?.fail(error)
+            }
+        }
+    }
+
+    /// Imports play from Documents; 115 files from a signed link that
+    /// needs its cookies along and expires.
+    private static func source(of video: PlayableVideo) async throws -> (url: String, headers: [(name: String, value: String)], expiresAt: Date?) {
+        if video.isLocal {
+            return (URL.documentsDirectory.appending(path: video.path).path, [], nil)
+        }
+        let media = try await P115Client.shared.resolve(pickcode: video.pickcode!)
+        return (media.url.absoluteString, media.headers, media.expiresAt)
+    }
+
+    /// Follows the library row, so renames and new covers show at once.
+    private func observeLibrary() {
+        libraryTask?.cancel()
+        libraryItem = nil
+        let id = video!.id
+        libraryTask = Task { [weak self, database] in
+            await database.observe({ db in try VideoItem.fetchOne(db, key: id) }) {
+                self?.libraryItem = $0
+                self?.publishNowPlaying()
             }
         }
     }
@@ -272,9 +309,9 @@ final class VideoController: SleepTarget {
     }
 
     private func saveProgress() {
-        guard let entry, durationMs > 0 else { return }
+        guard let video, durationMs > 0 else { return }
         lastSave = .now
-        try! store.saveFilePosition(positionMs, durationMs: durationMs, of: entry)
+        try! store.saveVideoPosition(positionMs, durationMs: durationMs, of: video)
     }
 
     // MARK: - Background
@@ -315,6 +352,36 @@ final class VideoController: SleepTarget {
         }
     }
 
+    // MARK: - Library
+
+    /// Saves the frame on screen as the video's cover, adding the video to
+    /// the library first if it isn't there. The renderer has to draw for mdk
+    /// to take the picture, so it runs for the moment even when paused.
+    func captureCover() async -> Bool {
+        guard let video, let engine else { return false }
+        if libraryItem == nil { try! database.addVideo(video) }
+        let key = video.id.map { $0.isLetter || $0.isNumber ? $0 : "_" }
+        let relative = "video_covers/\(String(key))-\(Int(Date.now.timeIntervalSince1970 * 1000)).png"
+        let url = URL.documentsDirectory.appending(path: relative)
+        try! FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        renderer?.isRunning = true
+        let saved = await engine.snapshot(to: url)
+        renderer?.isRunning = isPlaying
+        DiagnosticLog.shared.write("video", "cover_captured", ["saved": saved])
+        guard saved else { return false }
+        let old = libraryItem?.coverPath
+        try! database.setVideoCover(video.id, path: relative)
+        if let old, old.hasPrefix("video_covers/") {
+            try? FileManager.default.removeItem(at: URL.documentsDirectory.appending(path: old))
+        }
+        return true
+    }
+
+    func setInLibrary(_ keep: Bool) {
+        guard let video else { return }
+        if keep { try! database.addVideo(video) } else { try! database.removeVideo(video.id) }
+    }
+
     private func releaseEngine() {
         renderer = nil
         engine = nil
@@ -339,7 +406,7 @@ final class VideoController: SleepTarget {
             center.nowPlayingInfo = nil
             return
         }
-        center.nowPlayingInfo = [
+        var info: [String: Any] = [
             MPMediaItemPropertyTitle: title,
             MPMediaItemPropertyArtist: sourceName,
             MPNowPlayingInfoPropertyMediaType: MPNowPlayingInfoMediaType.video.rawValue,
@@ -348,6 +415,17 @@ final class VideoController: SleepTarget {
             MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? Double(rate) : 0,
             MPNowPlayingInfoPropertyDefaultPlaybackRate: Double(rate),
         ]
+        let cover = libraryItem?.coverPath ?? UserDefaults.standard.string(forKey: VideoThumbnail.defaultCoverKey)
+        if let cover, let artwork, artwork.path == cover {
+            info[MPMediaItemPropertyArtwork] = artwork.artwork
+        } else if let cover {
+            Task {
+                guard let image = await ThumbnailCache.shared.image(path: cover, size: CGSize(width: 640, height: 360), scale: 1) else { return }
+                artwork = (cover, RemoteCommands.artwork(image))
+                publishNowPlaying()
+            }
+        }
+        center.nowPlayingInfo = info
         RemoteCommands.update(hasPrevious: false, hasNext: false)
     }
 }

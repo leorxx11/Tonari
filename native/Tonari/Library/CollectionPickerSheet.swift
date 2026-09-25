@@ -1,9 +1,23 @@
 import SwiftUI
 import TonariCore
 
-/// Toggles which groups a work belongs to; new groups can be created inline.
+/// What can be put in a group.
+enum CollectionMember: Identifiable {
+    case work(Work)
+    case video(VideoItem)
+
+    var id: String {
+        switch self {
+        case .work(let work): "work:\(work.productId)"
+        case .video(let video): "video:\(video.id)"
+        }
+    }
+}
+
+/// Toggles which groups a work or video belongs to; new groups can be
+/// created inline.
 struct CollectionPickerSheet: View {
-    let work: Work
+    let member: CollectionMember
 
     @Environment(\.appDatabase) private var database
     @Environment(\.dismiss) private var dismiss
@@ -16,8 +30,7 @@ struct CollectionPickerSheet: View {
         NavigationStack {
             List(collections) { collection in
                 Button {
-                    let member = !memberOf.contains(collection.id)
-                    try! database.setMembership(work: work.productId, collection: collection.id, member: member)
+                    setMembership(collection.id, !memberOf.contains(collection.id))
                 } label: {
                     HStack {
                         Label(collection.name, systemImage: "folder")
@@ -51,22 +64,33 @@ struct CollectionPickerSheet: View {
                     let name = newName.trimmingCharacters(in: .whitespaces)
                     newName = ""
                     guard !name.isEmpty else { return }
-                    let id = try! database.createCollection(named: name)
-                    try! database.setMembership(work: work.productId, collection: id, member: true)
+                    setMembership(try! database.createCollection(named: name), true)
                 }
             }
         }
         .presentationDetents([.medium, .large])
         .task {
-            await database.observe({ db in
+            await database.observe({ [member] db in
                 (
                     try LibraryCollection.order(Column("sort_order"), Column("created_at")).fetchAll(db),
-                    try CollectionQueries.collectionIds(containing: work.productId, db)
+                    try {
+                        switch member {
+                        case .work(let work): try CollectionQueries.collectionIds(containing: work.productId, db)
+                        case .video(let video): try CollectionQueries.collectionIds(containingVideo: video.id, db)
+                        }
+                    }()
                 )
             }) {
                 collections = $0.0
                 memberOf = $0.1
             }
+        }
+    }
+
+    private func setMembership(_ collectionId: String, _ isMember: Bool) {
+        switch member {
+        case .work(let work): try! database.setMembership(work: work.productId, collection: collectionId, member: isMember)
+        case .video(let video): try! database.setMembership(video: video.id, collection: collectionId, member: isMember)
         }
     }
 }

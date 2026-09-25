@@ -171,18 +171,33 @@ public struct PlaybackStore: Sendable {
 
     /// The video played last, when nothing was played after it, for the
     /// mini player to come back with.
-    public func lastPlayedVideo() throws -> (entry: RemoteEntry, sourceName: String, positionMs: Int, durationMs: Int)? {
+    public func lastPlayedVideo() throws -> VideoProgress? {
         let latest = try database.reader.read { db in
             try PlayHistoryEntry.filter(["work", "audio", "video"].contains(Column("kind")))
                 .order(Column("played_at").desc).fetchOne(db)
         }
-        guard let latest, latest.kind == "video", let file = latest.remoteFile else { return nil }
-        return (file, latest.sourceName!, latest.positionMs, latest.durationMs ?? 0)
+        guard let latest, let video = PlayableVideo(history: latest) else { return nil }
+        return VideoProgress(video: video, positionMs: latest.positionMs, durationMs: latest.durationMs ?? 0)
+    }
+
+    /// Videos started but not finished, newest first, library or not.
+    public func continueWatching(limit: Int) throws -> [VideoProgress] {
+        try database.reader.read { try Self.continueWatching(limit: limit, $0) }
+    }
+
+    public static func continueWatching(limit: Int, _ db: Database) throws -> [VideoProgress] {
+        let entries = try PlayHistoryEntry.filter(Column("kind") == "video" && Column("position_ms") > 0)
+            .order(Column("played_at").desc).fetchAll(db)
+        return Array(entries.compactMap { entry -> VideoProgress? in
+            guard let video = PlayableVideo(history: entry), let duration = entry.durationMs, duration > 0,
+                  entry.positionMs < duration - videoEndSlackMs else { return nil }
+            return VideoProgress(video: video, positionMs: entry.positionMs, durationMs: duration)
+        }.prefix(limit))
     }
 
     /// A video keeps its place across plays, unlike an audio file, which
     /// the history restarts from the top.
-    public func recordVideo(_ entry: RemoteEntry, sourceName: String, at date: Date = .now) throws {
+    public func recordVideo(_ video: PlayableVideo, at date: Date = .now) throws {
         try database.writer.write { db in
             try db.execute(
                 sql: """
@@ -194,18 +209,28 @@ public struct PlaybackStore: Sendable {
                         file_name = excluded.file_name, size = excluded.size, played_at = excluded.played_at
                     """,
                 arguments: [
-                    Self.historyId(entry), Self.fileTitle(entry.name), entry.sourceId == P115Client.sourceId ? "p115" : "webdav",
-                    entry.sourceId, sourceName, entry.path, entry.name, entry.pickcode, entry.size, date.unixSeconds,
+                    video.id, video.title, video.sourceKind, video.sourceId, video.sourceName,
+                    video.path, video.fileName, video.pickcode, video.size, date.unixSeconds,
                 ]
             )
+            try db.execute(sql: "UPDATE video_items SET last_played_at = ? WHERE id = ?", arguments: [date.unixSeconds, video.id])
             try trimHistory(db)
+        }
+    }
+
+    public func saveVideoPosition(_ positionMs: Int, durationMs: Int, of video: PlayableVideo, at date: Date = .now) throws {
+        try database.writer.write { db in
+            try db.execute(
+                sql: "UPDATE play_history_entries SET position_ms = ?, duration_ms = ?, played_at = ? WHERE id = ?",
+                arguments: [positionMs, durationMs, date.unixSeconds, video.id]
+            )
         }
     }
 
     /// Where to pick a video up: its saved position, or the start when it
     /// was never played or was watched to the last few seconds.
-    public func videoResumeMs(_ entry: RemoteEntry) throws -> Int {
-        let row = try database.reader.read { try PlayHistoryEntry.fetchOne($0, key: Self.historyId(entry)) }
+    public func videoResumeMs(_ video: PlayableVideo) throws -> Int {
+        let row = try database.reader.read { try PlayHistoryEntry.fetchOne($0, key: video.id) }
         guard let row, row.kind == "video" else { return 0 }
         if let duration = row.durationMs, duration > 0, row.positionMs >= duration - Self.videoEndSlackMs { return 0 }
         return row.positionMs
@@ -257,9 +282,9 @@ public struct PlaybackStore: Sendable {
 
 extension PlayHistoryEntry {
     /// A 115 audio file played from the browser, playable again as is.
-    /// The 115 file an audio or video entry played, to play it again.
+    /// The 115 audio file an entry played, to play it again.
     public var remoteFile: RemoteEntry? {
-        guard kind == "audio" || kind == "video", sourceKind == "p115", let pickcode, let path, let fileName, let sourceId else { return nil }
-        return RemoteEntry(id: path, path: path, name: fileName, kind: kind == "video" ? .video : .audio, size: size, pickcode: pickcode, sourceId: sourceId)
+        guard kind == "audio", sourceKind == "p115", let pickcode, let path, let fileName, let sourceId else { return nil }
+        return RemoteEntry(id: path, path: path, name: fileName, kind: .audio, size: size, pickcode: pickcode, sourceId: sourceId)
     }
 }

@@ -315,7 +315,7 @@ struct WorkDetailView: View {
         if let work {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 Menu("更多", systemImage: "ellipsis") {
-                    Button("加入分组…", systemImage: "folder.badge.plus") { model.collectionPickerWork = work }
+                    Button("加入分组…", systemImage: "folder.badge.plus") { model.collectionPicker = .work(work) }
                     Link(destination: DLsite.workURL(productId)) {
                         Label("在 DLsite 中打开", systemImage: "safari")
                     }

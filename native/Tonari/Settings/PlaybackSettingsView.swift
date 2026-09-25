@@ -1,7 +1,11 @@
+import PhotosUI
 import SwiftUI
+import TonariCore
 
 struct PlaybackSettingsView: View {
     @Environment(PlaybackController.self) private var player
+    @AppStorage(VideoThumbnail.defaultCoverKey) private var defaultCover: String?
+    @State private var pickedCover: PhotosPickerItem?
 
     var body: some View {
         @Bindable var prefs = player.prefs
@@ -30,8 +34,52 @@ struct PlaybackSettingsView: View {
             } footer: {
                 Text("定时结束时若正在播放，等这一首播完再停止。")
             }
+            Section {
+                HStack(spacing: 14) {
+                    VideoThumbnail(coverPath: nil, cornerRadius: 6).frame(width: 96)
+                    VStack(alignment: .leading, spacing: 8) {
+                        PhotosPicker(defaultCover == nil ? "选择图片" : "更换图片", selection: $pickedCover, matching: .images)
+                        if defaultCover != nil {
+                            Button("恢复默认", role: .destructive) { setDefaultCover(nil) }
+                        }
+                    }
+                }
+            } header: {
+                Text("默认视频封面")
+            } footer: {
+                Text("没有设置封面的视频用这张图。")
+            }
+        }
+        .onChange(of: pickedCover) { _, item in
+            guard let item else { return }
+            Task {
+                do {
+                    let data = try await item.loadTransferable(type: Data.self)
+                    let jpeg = UIImage(data: data!)!.jpegData(compressionQuality: 0.9)!
+                    let relative = "video_covers/default-\(Int(Date.now.timeIntervalSince1970 * 1000)).jpg"
+                    let url = URL.documentsDirectory.appending(path: relative)
+                    try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+                    try jpeg.write(to: url)
+                    setDefaultCover(relative)
+                } catch {
+                    DiagnosticLog.shared.write("settings", "default_cover_failed", ["error": "\(error)"])
+                }
+                pickedCover = nil
+            }
         }
         .navigationTitle("播放")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    /// Replaces the stored default, deleting the picture it pointed at.
+    private func setDefaultCover(_ relative: String?) {
+        if let old = defaultCover {
+            do {
+                try FileManager.default.removeItem(at: URL.documentsDirectory.appending(path: old))
+            } catch {
+                DiagnosticLog.shared.write("settings", "default_cover_remove_failed", ["error": "\(error)"])
+            }
+        }
+        defaultCover = relative
     }
 }

@@ -22,7 +22,6 @@ private struct AudioMiniPlayer: View {
     @Environment(\.tabViewBottomAccessoryPlacement) private var placement
     @State private var showingSleep = false
     @State private var dragX: CGFloat = 0
-    @State private var size: CGSize = .zero
 
     var body: some View {
         let line = player.currentLine
@@ -74,11 +73,10 @@ private struct AudioMiniPlayer: View {
         }
         .padding(.horizontal, 12)
         .contentShape(.rect)
-        .onGeometryChange(for: CGSize.self) { $0.size } action: { size = $0 }
         .onTapGesture { model.showingPlayer = true }
         .contextMenu { menu } preview: {
-            MiniPlayerPreview(size: size, placement: placement, title: player.title, detail: player.currentLine ?? player.subtitle, inline: player.currentLine, playing: player.isPlaying, showsNext: true) {
-                PlayerArtwork(path: player.work?.mainImageLocalPath, cornerRadius: 6).frame(width: 34, height: 34)
+            MiniPlayerPreview(title: player.title, detail: player.subtitle) {
+                PlayerArtwork(path: player.work?.mainImageLocalPath, cornerRadius: 8).frame(width: 56, height: 56)
             }
         }
         .tint(.primary)
@@ -162,16 +160,11 @@ private struct VideoMiniPlayer: View {
     @Environment(AppModel.self) private var model
     @Environment(\.tabViewBottomAccessoryPlacement) private var placement
     @State private var showingSleep = false
-    @State private var size: CGSize = .zero
 
     var body: some View {
         HStack(spacing: 10) {
-            ZStack {
-                Color.black
-                Image(systemName: "film").font(.caption).foregroundStyle(.white.opacity(0.7))
-            }
-            .frame(width: 48, height: 27)
-            .clipShape(.rect(cornerRadius: 5))
+            VideoThumbnail(coverPath: video.libraryItem?.coverPath, cornerRadius: 5)
+                .frame(width: 48)
             VStack(alignment: .leading, spacing: 1) {
                 Text(video.title).font(.subheadline.weight(.medium)).lineLimit(1)
                 if placement != .inline {
@@ -191,7 +184,6 @@ private struct VideoMiniPlayer: View {
         }
         .padding(.horizontal, 12)
         .contentShape(.rect)
-        .onGeometryChange(for: CGSize.self) { $0.size } action: { size = $0 }
         .onTapGesture { model.showingVideo = true }
         .contextMenu {
             Button("睡眠定时", systemImage: "moon.zzz") { showingSleep = true }
@@ -203,13 +195,9 @@ private struct VideoMiniPlayer: View {
             .pickerStyle(.menu)
             Button("结束播放", systemImage: "xmark", role: .destructive) { nowPlaying.closeVideo() }
         } preview: {
-            MiniPlayerPreview(size: size, placement: placement, title: video.title, detail: video.sourceName, inline: nil, playing: video.isPlaying, showsNext: false) {
-                ZStack {
-                    Color.black
-                    Image(systemName: "film").font(.caption).foregroundStyle(.white.opacity(0.7))
-                }
-                .frame(width: 48, height: 27)
-                .clipShape(.rect(cornerRadius: 5))
+            MiniPlayerPreview(title: video.title, detail: video.sourceName) {
+                VideoThumbnail(coverPath: video.libraryItem?.coverPath)
+                    .frame(width: 80)
             }
         }
         .tint(.primary)
@@ -217,40 +205,23 @@ private struct VideoMiniPlayer: View {
     }
 }
 
-/// What a long press on the mini player lifts: a still copy of the bar at
-/// the bar's own size. Matching the size lets the system keep it in place
-/// with the menu above; being a copy rather than the system's snapshot, it
-/// also stays aligned when the bar sits inline beside a minimized tab bar.
 private struct MiniPlayerPreview<Artwork: View>: View {
-    let size: CGSize
-    let placement: TabViewBottomAccessoryPlacement?
     let title: String
     let detail: String
-    /// The single line shown inline, when it differs from the title.
-    let inline: String?
-    let playing: Bool
-    let showsNext: Bool
     @ViewBuilder let artwork: Artwork
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
             artwork
-            if placement == .inline {
-                Text(inline ?? title).font(.subheadline.weight(.medium)).lineLimit(1)
-            } else {
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(title).font(.subheadline.weight(.medium)).lineLimit(1)
-                    Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                }
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title).font(.headline).lineLimit(2)
+                Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
-            Spacer(minLength: 0)
-            Image(systemName: playing ? "pause.fill" : "play.fill").frame(width: 32, height: 36)
-            if showsNext && placement != .inline {
-                Image(systemName: "forward.fill").frame(width: 32, height: 36)
-            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.horizontal, 12)
-        .frame(width: size.width, height: size.height)
+        .frame(minHeight: 56)
+        .padding(12)
+        .frame(width: 320)
     }
 }
 

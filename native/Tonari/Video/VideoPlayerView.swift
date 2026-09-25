@@ -9,7 +9,9 @@ import TonariCore
 struct VideoPlayerView: View {
     @Environment(VideoController.self) private var video
     @Environment(PlaybackController.self) private var audio
+    @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
     @State private var controlsVisible = true
     @State private var hideTask: Task<Void, Never>?
     @State private var locked = false
@@ -18,6 +20,8 @@ struct VideoPlayerView: View {
     @State private var scrubStart: Int?
     @State private var showingSleep = false
     @State private var skipFlash: SkipFlash?
+    /// A one-line result, e.g. after taking a cover.
+    @State private var notice: String?
 
     private struct SkipFlash: Equatable {
         let forward: Bool
@@ -40,6 +44,15 @@ struct VideoPlayerView: View {
                 }
                 if let scrubTarget {
                     scrubBadge(scrubTarget)
+                }
+                if let notice {
+                    Text(notice)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .glassEffect(.regular, in: .capsule)
+                        .transition(.opacity)
                 }
                 if locked {
                     if controlsVisible { unlockButton }
@@ -147,7 +160,9 @@ struct VideoPlayerView: View {
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
-        .safeAreaPadding(.vertical, 44)
+        // Portrait clears the status bar and home indicator; landscape has
+        // neither above or below, so the bars hug the edges.
+        .safeAreaPadding(.vertical, landscape ? 0 : 44)
         .background {
             LinearGradient(
                 stops: [.init(color: .black.opacity(0.55), location: 0), .init(color: .clear, location: 0.25),
@@ -166,7 +181,7 @@ struct VideoPlayerView: View {
             Text(video.title)
                 .font(.headline)
                 .foregroundStyle(.white)
-                .lineLimit(2)
+                .lineLimit(landscape ? 1 : 2)
             Spacer(minLength: 0)
             ZStack {
                 Image(systemName: "airplay.video").font(.body.weight(.semibold)).foregroundStyle(.white)
@@ -174,6 +189,51 @@ struct VideoPlayerView: View {
             }
             .frame(width: 44, height: 44)
             .glassEffect(.regular.interactive(), in: .circle)
+            moreMenu
+        }
+    }
+
+    private var moreMenu: some View {
+        Menu {
+            Button("截取画面设为封面", systemImage: "camera") {
+                Task {
+                    let saved = await video.captureCover()
+                    flash(saved ? "已设为封面" : "截图失败，请稍后再试")
+                }
+            }
+            .disabled(video.engine == nil || video.isLoading)
+            if video.libraryItem != nil {
+                // Removing an import deletes its file; that belongs to the library page.
+                if video.video?.isLocal == false {
+                    Button("移出视频库", systemImage: "minus.circle") { video.setInLibrary(false) }
+                }
+            } else {
+                Button("加入视频库", systemImage: "plus.circle") {
+                    video.setInLibrary(true)
+                    flash("已加入视频库")
+                }
+            }
+            if let origin = video.origin {
+                Button("查看所在文件夹", systemImage: "folder") {
+                    dismiss()
+                    model.browsePath = NavigationPath(origin.indices.map { Route.p115Folder(Array(origin.prefix($0 + 1))) })
+                    model.tab = .browse
+                }
+            }
+        } label: {
+            Image(systemName: "ellipsis")
+                .font(.body.weight(.semibold))
+                .foregroundStyle(.white)
+                .frame(width: 44, height: 44)
+        }
+        .glassEffect(.regular.interactive(), in: .circle)
+    }
+
+    private func flash(_ message: String) {
+        withAnimation { notice = message }
+        Task {
+            try? await Task.sleep(for: .seconds(1.6))
+            if notice == message { withAnimation { notice = nil } }
         }
     }
 
@@ -209,11 +269,38 @@ struct VideoPlayerView: View {
         }
     }
 
-    private var bottomBar: some View {
-        VStack(spacing: 10) {
-            VideoScrubber()
+    private var landscape: Bool { verticalSizeClass == .compact }
+
+    /// Portrait stacks the scrubber over the buttons; landscape, short on
+    /// height, puts them in one row with the scrubber in the middle.
+    @ViewBuilder private var bottomBar: some View {
+        if landscape {
             HStack(spacing: 12) {
-                glassButton("睡眠定时", systemImage: audio.sleep.isActive ? "moon.zzz.fill" : "moon.zzz") { showingSleep = true }
+                sleepButton
+                rateMenu
+                VideoScrubber().padding(.horizontal, 8)
+                lockButton
+                rotateButton
+            }
+        } else {
+            VStack(spacing: 10) {
+                VideoScrubber()
+                HStack(spacing: 12) {
+                    sleepButton
+                    rateMenu
+                    Spacer()
+                    lockButton
+                    rotateButton
+                }
+            }
+        }
+    }
+
+    private var sleepButton: some View {
+        glassButton("睡眠定时", systemImage: audio.sleep.isActive ? "moon.zzz.fill" : "moon.zzz") { showingSleep = true }
+    }
+
+    private var rateMenu: some View {
                 Menu {
                     Picker("播放速度", selection: Binding(get: { video.rate }, set: { video.setRate($0) })) {
                         ForEach(PlayerView.rates, id: \.self) { Text("\($0.formatted())x") }
@@ -226,14 +313,17 @@ struct VideoPlayerView: View {
                         .padding(.horizontal, 4)
                 }
                 .glassEffect(.regular.interactive(), in: .capsule)
-                Spacer()
-                glassButton("锁定", systemImage: "lock.open") {
-                    withAnimation { locked = true }
-                    scheduleHide()
-                }
-                glassButton("旋转", systemImage: "rotate.right", action: rotate)
-            }
+    }
+
+    private var lockButton: some View {
+        glassButton("锁定", systemImage: "lock.open") {
+            withAnimation { locked = true }
+            scheduleHide()
         }
+    }
+
+    private var rotateButton: some View {
+        glassButton("旋转", systemImage: "rotate.right", action: rotate)
     }
 
     private var unlockButton: some View {

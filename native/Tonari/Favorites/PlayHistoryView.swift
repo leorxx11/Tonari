@@ -81,14 +81,12 @@ private struct HistoryRow: View {
     var body: some View {
         if let workId = item.workId {
             NavigationLink(value: Route.work(workId)) { content }
+        } else if let playable = PlayableVideo(history: item.entry) {
+            Button { model.playVideo(playable, with: video) } label: { content }
+                .tint(.primary)
         } else if let file = item.entry.remoteFile {
             Button {
-                let sourceName = item.entry.sourceName ?? P115Client.sourceName
-                if file.kind == .video {
-                    model.playVideo(file, sourceName: sourceName, with: video)
-                } else {
-                    player.play(files: [file], at: 0, sourceName: sourceName)
-                }
+                player.play(files: [file], at: 0, sourceName: item.entry.sourceName ?? P115Client.sourceName)
             } label: {
                 content
             }

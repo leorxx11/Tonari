@@ -99,18 +99,42 @@ struct PlaybackStoreTests {
     @Test func videosResumeWhereTheyWereLeftUnlessFinished() throws {
         let (database, store) = try database()
         let entry = RemoteEntry(id: "v", path: "v", name: "第4章.mkv", kind: .video, size: 10, pickcode: "vpc", sourceId: P115Client.sourceId)
-        #expect(try store.videoResumeMs(entry) == 0)
-        try store.recordVideo(entry, sourceName: "115 网盘", at: Fixtures.date)
-        try store.saveFilePosition(600_000, durationMs: 2_000_000, of: entry)
-        try store.recordVideo(entry, sourceName: "115 网盘", at: Fixtures.date.addingTimeInterval(60))
-        #expect(try store.videoResumeMs(entry) == 600_000)
-        let row = try database.reader.read { try PlayHistoryEntry.fetchOne($0, key: "p115:vpc")! }
-        #expect(row.kind == "video" && row.remoteFile?.kind == .video)
+        let video = PlayableVideo(p115: entry, sourceName: "115 网盘")
+        #expect(video.id == "p115:vpc")
+        #expect(try store.videoResumeMs(video) == 0)
+        try store.recordVideo(video, at: Fixtures.date)
+        try store.saveVideoPosition(600_000, durationMs: 2_000_000, of: video)
+        try store.recordVideo(video, at: Fixtures.date.addingTimeInterval(60))
+        #expect(try store.videoResumeMs(video) == 600_000)
+        #expect(try store.continueWatching(limit: 5).map(\.video) == [video])
         #expect(try store.lastPlayed() == nil)
-        #expect(try store.lastPlayedVideo()?.entry.pickcode == "vpc")
+        #expect(try store.lastPlayedVideo()?.video == video)
+        let row = try database.reader.read { try PlayHistoryEntry.fetchOne($0, key: "p115:vpc")! }
+        #expect(row.remoteFile == nil)
 
-        try store.saveFilePosition(1_995_000, durationMs: 2_000_000, of: entry)
-        #expect(try store.videoResumeMs(entry) == 0)
+        try store.saveVideoPosition(1_995_000, durationMs: 2_000_000, of: video)
+        #expect(try store.videoResumeMs(video) == 0)
+        #expect(try store.continueWatching(limit: 5).isEmpty)
+    }
+
+    @Test func videoLibraryAddsRenamesGroupsAndRemoves() throws {
+        let (database, _) = try database()
+        let video = PlayableVideo(localPath: "videos/abc/clip.mp4", fileName: "clip.mp4", size: 5)
+        #expect(video.id == "local:video_import:videos/abc/clip.mp4")
+        try database.addVideo(video)
+        try database.addVideo(video)
+        try database.renameVideo(video.id, to: "  ")
+        try database.setVideoCover(video.id, path: "video_covers/x.png")
+        let group = try database.createCollection(named: "睡前")
+        try database.setMembership(video: video.id, collection: group, member: true)
+        let item = try database.reader.read { try VideoItem.fetchOne($0, key: video.id)! }
+        #expect(item.customTitle == nil && item.coverPath == "video_covers/x.png")
+        #expect(PlayableVideo(item) == video)
+        #expect(try database.reader.read { try CollectionQueries.collectionIds(containingVideo: video.id, $0) } == [group])
+
+        try database.removeVideo(video.id)
+        #expect(try database.reader.read { try VideoItem.fetchCount($0) } == 0)
+        #expect(try database.reader.read { try CollectionVideo.fetchCount($0) } == 0)
     }
 
     @Test func countsCompletionsAndLearnsDurations() throws {
