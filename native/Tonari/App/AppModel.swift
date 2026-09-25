@@ -18,6 +18,9 @@ enum Route: Hashable {
     case backup
     case messages
     case privacy
+    case translation
+    /// Nil adds a new service.
+    case llmProvider(String?)
     case diagnostics
     case storage
     case appearance
@@ -70,6 +73,7 @@ final class AppModel {
     /// Work awaiting confirmation to be removed from the library.
     var removingWork: Work?
     let tasks: LibraryTasks
+    let notices: Notices
     var libraryPath = NavigationPath()
     var favoritesPath = NavigationPath()
     var browsePath = NavigationPath()
@@ -86,7 +90,9 @@ final class AppModel {
     }
 
     init(database: AppDatabase) {
-        tasks = LibraryTasks(database: database)
+        let notices = Notices()
+        self.notices = notices
+        tasks = LibraryTasks(database: database, notices: notices)
         let defaults = UserDefaults.standard
         sort = WorkSort(preference: defaults.string(forKey: WorkSort.preferenceKey))
         viewMode = ViewMode(rawValue: defaults.string(forKey: Self.viewModeKey) ?? "") ?? .grid
@@ -151,6 +157,8 @@ extension View {
             case .backup: BackupView()
             case .messages: MessagesView()
             case .privacy: PrivacySettingsView()
+            case .translation: TranslationSettingsView()
+            case .llmProvider(let id): LlmProviderEditView(providerId: id)
             case .diagnostics: DiagnosticLogView()
             case .storage: StorageView()
             case .appearance: AppearanceSettingsView()

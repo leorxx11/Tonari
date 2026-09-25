@@ -3,24 +3,24 @@ import SwiftUI
 import TonariCore
 
 /// The import or rescan currently running, shown as a banner over the
-/// library, and the result of the last one. Failures also go to the
-/// message inbox, where they outlive the alert.
+/// library; the outcome shows as a notice, and failures also go to the
+/// message inbox, where they outlive it.
 @Observable
 final class LibraryTasks {
     private let database: AppDatabase
+    private let notices: Notices
     struct Running: Equatable {
         let title: String
         var detail: String
     }
 
     private(set) var running: Running?
-    /// Outcome text to show once a task finishes.
-    var result: String?
 
     var isBusy: Bool { running != nil }
 
-    init(database: AppDatabase) {
+    init(database: AppDatabase, notices: Notices) {
         self.database = database
+        self.notices = notices
     }
 
     /// Updates the running task's detail line, e.g. with progress.
@@ -32,10 +32,10 @@ final class LibraryTasks {
         running = Running(title: title, detail: detail)
         DiagnosticLog.shared.write("library_task", "start", ["title": title, "detail": detail])
         do {
-            result = try await operation()
+            notices.show(try await operation())
             DiagnosticLog.shared.write("library_task", "done", ["title": title])
         } catch {
-            result = "\(title)失败：\(error.localizedDescription)"
+            notices.show("\(title)失败：\(error.localizedDescription)", .failure)
             DiagnosticLog.shared.write("library_task", "failed", ["title": title, "error": "\(error)"])
             try! database.logEvent(
                 category: "task", title: "\(title)失败", detail: error.localizedDescription,

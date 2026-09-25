@@ -8,7 +8,6 @@ struct LibraryView: View {
     @State private var works: [Work] = []
     @State private var trackCounts: [String: Int] = [:]
     @State private var remoteIds: Set<String> = []
-    @State private var libraryEmpty = false
     @State private var pickingFolder = false
 
     var body: some View {
@@ -25,7 +24,6 @@ struct LibraryView: View {
             }
             .toolbar { toolbar }
             .navigationBarTitleDisplayMode(.inline)
-            .alert("音声库还是空的", isPresented: $libraryEmpty) {}
             .fileImporter(isPresented: $pickingFolder, allowedContentTypes: [.folder]) { result in
                 guard case .success(let url) = result else { return }
                 Task { await model.importLocalFolder(url, database: database, enrichment: enrichment) }
@@ -133,7 +131,7 @@ struct LibraryView: View {
         if let work = try! database.reader.read(WorkQueries.random) {
             model.libraryPath.append(Route.work(work.productId))
         } else {
-            libraryEmpty = true
+            model.notices.show("音声库还是空的", .info)
         }
     }
 }

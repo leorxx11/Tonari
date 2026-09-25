@@ -96,6 +96,9 @@ struct RootView: View {
             }
         }
         .background { SubtitlePiPHost(pip: player.pip).frame(width: 1, height: 1) }
+        .overlay(alignment: .top) {
+            NoticeBanner(notices: model.notices).animation(.snappy, value: model.notices.current)
+        }
         .tabBarMinimizeBehavior(.onScrollDown)
         .tabViewBottomAccessory(isEnabled: nowPlaying.front == .video ? video.hasCurrent : player.hasCurrent) {
             MiniPlayer().matchedTransitionSource(id: "player", in: playerTransition)
@@ -130,10 +133,6 @@ struct RootView: View {
         } message: {
             Text("将清除该作品在 App 内的快照（音轨、文件、字幕），云盘/本地的原文件不受影响。重新导入可找回。")
         }
-        .alert(
-            model.tasks.result ?? "",
-            isPresented: Binding(get: { model.tasks.result != nil }, set: { if !$0 { model.tasks.result = nil } })
-        ) {}
         .task {
             await database.observe(AppEvents.unreadCount) { unreadEvents = $0 }
         }

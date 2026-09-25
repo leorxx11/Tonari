@@ -14,6 +14,7 @@ struct SettingsView: View {
     @State private var removedCount = 0
     @State private var clearable: Int?
     @State private var unread = 0
+    @State private var translator: String?
     @AppStorage(Appearance.preferenceKey) private var appearance = Appearance.system
     @AppStorage(PrivacyShield.preferenceKey) private var blur = true
     @AppStorage(Self.statsRefreshedKey) private var statsRefreshedAt = 0.0
@@ -48,6 +49,7 @@ struct SettingsView: View {
                 }
                 Section("账户与服务") {
                     row(P115Client.sourceName, systemImage: "icloud.fill", tint: .blue, value: p115.label, route: .p115Settings)
+                    row("翻译", systemImage: "character.bubble.fill", tint: .indigo, value: translator ?? "未设置", route: .translation)
                 }
                 Section("媒体库") {
                     row("媒体来源", systemImage: "folder.fill", tint: .orange, value: "\(sourceCount)", route: .mediaSources)
@@ -90,11 +92,15 @@ struct SettingsView: View {
             }
             .task {
                 await database.observe({ db in
-                    (try SourceQueries.all(db).count, try SourceQueries.removedWorks(db).count, try AppEvents.unreadCount(db))
+                    (
+                        try SourceQueries.all(db).count, try SourceQueries.removedWorks(db).count,
+                        try AppEvents.unreadCount(db), try LlmProviders.defaultProvider(db)?.name
+                    )
                 }) {
                     sourceCount = $0.0
                     removedCount = $0.1
                     unread = $0.2
+                    translator = $0.3
                 }
             }
         }

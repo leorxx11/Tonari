@@ -332,6 +332,10 @@ struct WorkDetailView: View {
                     }
                     .disabled(model.tasks.isBusy)
                     Section {
+                        Button(isFullyTranslated(work) ? "重新翻译" : "翻译为中文", systemImage: "character.bubble") {
+                            translate(force: isFullyTranslated(work))
+                        }
+                        .disabled(model.tasks.isBusy)
                         Button(showsOriginal ? "显示译文" : "显示原文", systemImage: "character.book.closed") {
                             showsOriginal.toggle()
                         }
@@ -347,6 +351,33 @@ struct WorkDetailView: View {
                         Button("从媒体库移除", systemImage: "trash", role: .destructive) { model.removingWork = work }
                     }
                 }
+            }
+        }
+    }
+
+    private func isFullyTranslated(_ work: Work) -> Bool {
+        work.titleZh?.isEmpty == false
+            && (work.descriptionHtml?.isEmpty != false || work.descriptionHtmlZh?.isEmpty == false)
+            && tracks.allSatisfy { $0.titleZh?.isEmpty == false }
+    }
+
+    /// Fills in what is missing, or with `force` redoes it all, then shows
+    /// the translation.
+    private func translate(force: Bool) {
+        let tasks = model.tasks
+        let translation = WorkTranslation(database: database)
+        Task {
+            await tasks.run("翻译", detail: productId) {
+                try await translation.translate(productId, force: force) { stage in
+                    let text = switch stage {
+                    case .title: "翻译标题"
+                    case .description(let done, let total): "翻译简介 \(done)/\(total) 段"
+                    case .trackNames(let done, let total): "翻译曲目名 \(done)/\(total)"
+                    }
+                    Task { @MainActor in tasks.report(text) }
+                }
+                showsOriginal = false
+                return "翻译完成"
             }
         }
     }

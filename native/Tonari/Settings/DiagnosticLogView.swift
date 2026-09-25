@@ -3,12 +3,12 @@ import TonariCore
 import UIKit
 
 struct DiagnosticLogView: View {
+    @Environment(AppModel.self) private var model
     private let log = DiagnosticLog.shared
     @State private var active = false
     @State private var session = ""
     @State private var content = ""
     @State private var exportURL: URL?
-    @State private var toast: String?
 
     var body: some View {
         List {
@@ -35,7 +35,7 @@ struct DiagnosticLogView: View {
             Section {
                 row("复制日志", "doc.on.doc") {
                     UIPasteboard.general.string = content
-                    toast = "日志已复制"
+                    model.notices.show("日志已复制")
                 }
                 .disabled(content.isEmpty)
                 if let exportURL {
@@ -63,7 +63,6 @@ struct DiagnosticLogView: View {
         .navigationTitle("诊断日志")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear(perform: refresh)
-        .alert(toast ?? "", isPresented: Binding(get: { toast != nil }, set: { if !$0 { toast = nil } })) {}
     }
 
     private func row(_ title: String, _ icon: String, subtitle: String? = nil, action: @escaping () -> Void) -> some View {

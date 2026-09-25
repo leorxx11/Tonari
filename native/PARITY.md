@@ -79,10 +79,10 @@
 
 ## N6 其余功能
 
-- [ ] 设置首页与各子页（`settings_page.dart`）
-- [ ] LLM Provider 管理：快速模板、测试连接、设为默认、删除（`translation_settings_page.dart`、`provider_edit_page.dart`）
-- [ ] 简介翻译：翻译为中文、显示原文、失败重试（`work_detail_page.dart`、`features/translation/`）
-- [ ] 音轨名翻译、显示 / 隐藏译名（`work_files_page.dart`）
+- [x] 设置首页与各子页：消息、通用（外观 / 播放 / 隐私）、账户与服务（115 / 翻译）、媒体库、数据、支持（`settings_page.dart`）
+- [x] LLM Provider 管理：快速模板、测试连接、设为默认、删除（`translation_settings_page.dart`、`provider_edit_page.dart`）
+- [x] 简介翻译：原生版「⋯ → 翻译为中文 / 重新翻译」一次翻译标题、简介、曲目名；失败以提示条 + 消息告知，重点菜单即重试（`work_detail_page.dart`、`features/translation/`）
+- [x] 音轨名翻译：并入上一项；显示 / 隐藏译名由详情页整页原文 / 译文开关统一控制（`work_files_page.dart`）
 - [x] 备份导出：后台进行、字节进度、完成后写入消息；格式与 Flutter 版一致，两边可互相恢复（`backup_page.dart`、`backup_controller.dart`）
 - [x] 消息盒子：未读数（设置行 + Tab 角标）、补全资料 / 重新登录快捷操作、左滑删除、清空；Flutter 版的「重新扫描」没有写入方，不移植（`app_events_sheet.dart`）
 - [x] 诊断日志：会话、停止 / 继续采集、复制、导出 txt（N0 提前移植）（`diagnostic_log_page.dart`）
