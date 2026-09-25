@@ -115,6 +115,34 @@ struct WorkQueryTests {
         #expect(try db.reader.read { try CollectionWork.fetchCount($0) } == 0)
         #expect(try db.reader.read { try Work.fetchCount($0) } == 1)
     }
+
+    @Test func summariesCarryCoversAndSortByNameOrLastAdded() throws {
+        let db = try AppDatabase.inMemory()
+        try db.writer.write { db in
+            for (index, id) in ["RJ01000001", "RJ01000002", "RJ01000003", "RJ01000004", "RJ01000005"].enumerated() {
+                var work = Fixtures.work(id)
+                work.mainImageLocalPath = "images/\(id)/main.jpg"
+                work.releaseDate = Fixtures.date.addingTimeInterval(Double(index) * 86_400)
+                try work.insert(db)
+            }
+        }
+        let quiet = try db.createCollection(named: "B 通勤")
+        let busy = try db.createCollection(named: "A 哄睡")
+        for id in ["RJ01000001", "RJ01000002", "RJ01000003", "RJ01000004", "RJ01000005"] {
+            try db.setMembership(work: id, collection: busy, member: true)
+        }
+        try db.writer.write { try $0.execute(sql: "UPDATE collection_works SET added_at = ? WHERE collection_id = ?", arguments: [Fixtures.date.unixSeconds, busy]) }
+        try db.setMembership(work: "RJ01000001", collection: quiet, member: true)
+
+        let summaries = try db.reader.read { try CollectionQueries.summaries($0) }
+        let busySummary = summaries.first { $0.id == busy }!
+        #expect(busySummary.covers.count == 4)
+        #expect(CollectionSort.name.sorted(summaries).map(\.id) == [busy, quiet])
+        #expect(CollectionSort.recentlyAdded.sorted(summaries).map(\.id) == [quiet, busy])
+
+        let byRelease = try db.reader.read { try CollectionQueries.works(in: busy, sort: .releaseDate, $0) }
+        #expect(byRelease.first?.productId == "RJ01000005")
+    }
 }
 
 struct WorkTreeTests {

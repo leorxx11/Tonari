@@ -1,15 +1,19 @@
 import SwiftUI
 import TonariCore
 
+/// The favorites tab after Apple Music's library: category rows, recently
+/// played covers, then groups as a grid of collages.
 struct FavoritesView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.appDatabase) private var database
     @State private var recent: [RecentItem] = []
     @State private var favoriteCount = 0
+    @State private var weekMs = 0
     @State private var summaries: [CollectionQueries.Summary] = []
     @State private var naming: NamingTarget?
     @State private var name = ""
     @State private var deleting: LibraryCollection?
+    @AppStorage(CollectionSort.preferenceKey) private var sort = CollectionSort.createdAt
 
     private enum NamingTarget: Identifiable {
         case create
@@ -22,74 +26,17 @@ struct FavoritesView: View {
     var body: some View {
         @Bindable var model = model
         NavigationStack(path: $model.favoritesPath) {
-            List {
-                if !recent.isEmpty {
-                    Section {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(alignment: .top, spacing: 12) {
-                                ForEach(recent) { item in
-                                    RecentTile(item: item)
-                                }
-                            }
-                            .padding(.horizontal)
-                        }
-                        .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
-                    } header: {
-                        Text("最近播放")
-                    }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 28) {
+                    categories
+                    if !recent.isEmpty { recentSection }
+                    groupsSection
                 }
-                Section {
-                    NavigationLink(value: Route.playHistory) {
-                        Label("播放历史", systemImage: "clock.arrow.circlepath")
-                    }
-                    NavigationLink(value: Route.listenStats) {
-                        Label("收听统计", systemImage: "chart.bar.xaxis")
-                    }
-                }
-                Section {
-                    NavigationLink(value: Route.favoriteItems) {
-                        LabeledContent {
-                            Text("\(favoriteCount)")
-                        } label: {
-                            Label("全部收藏", systemImage: "heart.fill").tint(.pink)
-                        }
-                    }
-                }
-                Section("分组") {
-                    ForEach(summaries) { summary in
-                        NavigationLink(value: Route.collection(summary.id)) {
-                            LabeledContent {
-                                Text(countText(summary))
-                            } label: {
-                                Label(summary.collection.name, systemImage: "folder")
-                            }
-                        }
-                        .contextMenu {
-                            Button("重命名", systemImage: "pencil") {
-                                name = summary.collection.name
-                                naming = .rename(summary.collection)
-                            }
-                            Button("删除分组", systemImage: "trash", role: .destructive) {
-                                deleting = summary.collection
-                            }
-                        }
-                        .swipeActions {
-                            Button("删除", systemImage: "trash", role: .destructive) { deleting = summary.collection }
-                        }
-                    }
-                    if summaries.isEmpty {
-                        Text("还没有分组，点右上角新建，或在媒体库长按作品加入分组")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                }
+                .padding(.vertical, 8)
             }
             .navigationTitle("收藏")
             .toolbar {
-                Button("新建分组", systemImage: "plus") {
-                    name = ""
-                    naming = .create
-                }
+                Button("新建分组", systemImage: "plus", action: startCreating)
             }
             .alert(namingTitle, isPresented: Binding(get: { naming != nil }, set: { if !$0 { naming = nil } })) {
                 TextField("分组名称", text: $name)
@@ -115,14 +62,125 @@ struct FavoritesView: View {
                     try RecentItem.fetch(limit: 12, db),
                     try Work.filter(Column("is_favorite") == true && Column("is_removed") == false).fetchCount(db)
                         + VideoItem.filter(Column("is_favorite") == true).fetchCount(db),
-                    try CollectionQueries.summaries(db)
+                    try CollectionQueries.summaries(db),
+                    try ListenStats.fetch(db).weekMs
                 )
             }) {
                 recent = $0.0
                 favoriteCount = $0.1
                 summaries = $0.2
+                weekMs = $0.3
             }
         }
+    }
+
+    // MARK: - Sections
+
+    private var categories: some View {
+        VStack(spacing: 0) {
+            categoryRow("全部收藏", systemImage: "heart", detail: "\(favoriteCount)", route: .favoriteItems)
+            Divider().padding(.leading, 52)
+            categoryRow("播放历史", systemImage: "clock.arrow.circlepath", detail: nil, route: .playHistory)
+            Divider().padding(.leading, 52)
+            categoryRow("收听统计", systemImage: "chart.bar.xaxis", detail: "本周 \(Formatting.listening(ms: weekMs))", route: .listenStats)
+        }
+        .padding(.horizontal, 16)
+    }
+
+    private func categoryRow(_ title: String, systemImage: String, detail: String?, route: Route) -> some View {
+        NavigationLink(value: route) {
+            HStack(spacing: 14) {
+                Image(systemName: systemImage)
+                    .font(.title3)
+                    .foregroundStyle(.tint)
+                    .frame(width: 26)
+                Text(title).font(.title3)
+                Spacer()
+                if let detail { Text(detail).foregroundStyle(.secondary) }
+                Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+            }
+            .padding(.vertical, 12)
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var recentSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("最近播放").font(.title3.bold())
+                Spacer()
+                NavigationLink("全部", value: Route.playHistory)
+            }
+            .padding(.horizontal, 16)
+            ScrollView(.horizontal) {
+                LazyHStack(alignment: .top, spacing: 12) {
+                    ForEach(recent) { RecentTile(item: $0) }
+                }
+                .scrollTargetLayout()
+            }
+            .scrollIndicators(.hidden)
+            .scrollTargetBehavior(.viewAligned)
+            .contentMargins(.horizontal, 16, for: .scrollContent)
+        }
+    }
+
+    private var groupsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("分组").font(.title3.bold())
+                Spacer()
+                Menu("排序") {
+                    Picker("排序", selection: $sort) {
+                        ForEach(CollectionSort.allCases, id: \.self) { Text($0.label) }
+                    }
+                }
+            }
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 14)], spacing: 18) {
+                ForEach(sort.sorted(summaries)) { summary in
+                    NavigationLink(value: Route.collection(summary.id)) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            CollageCover(covers: summary.covers)
+                                .padding(.bottom, 4)
+                            Text(summary.collection.name).font(.subheadline).lineLimit(1)
+                            Text(countText(summary)).font(.subheadline).foregroundStyle(.secondary)
+                        }
+                        .contentShape(.rect)
+                    }
+                    .buttonStyle(.plain)
+                    .contextMenu {
+                        Button("重命名", systemImage: "pencil") {
+                            name = summary.collection.name
+                            naming = .rename(summary.collection)
+                        }
+                        Button("删除分组", systemImage: "trash", role: .destructive) {
+                            deleting = summary.collection
+                        }
+                    }
+                }
+                Button(action: startCreating) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        RoundedRectangle(cornerRadius: 8)
+                            .strokeBorder(.tertiary, style: StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
+                            .aspectRatio(4 / 3, contentMode: .fit)
+                            .overlay { Image(systemName: "plus").font(.title2).foregroundStyle(.secondary) }
+                            .padding(.bottom, 4)
+                        Text("新建分组").font(.subheadline).foregroundStyle(.secondary)
+                        Text(" ").font(.subheadline)
+                    }
+                    .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 16)
+    }
+
+    // MARK: - Naming
+
+    private func startCreating() {
+        name = ""
+        naming = .create
     }
 
     private var namingTitle: String {
@@ -139,8 +197,42 @@ struct FavoritesView: View {
     }
 
     private func countText(_ summary: CollectionQueries.Summary) -> String {
-        [summary.workCount > 0 ? "\(summary.workCount) 作品" : nil, summary.videoCount > 0 ? "\(summary.videoCount) 视频" : nil]
-            .compactMap(\.self).joined(separator: " · ")
+        let parts = [summary.workCount > 0 ? "\(summary.workCount) 部" : nil, summary.videoCount > 0 ? "\(summary.videoCount) 视频" : nil]
+            .compactMap(\.self)
+        return parts.isEmpty ? "空" : parts.joined(separator: " · ")
+    }
+}
+
+/// A group's cover: four covers in a grid once it has four, else the one
+/// added last, else a placeholder.
+struct CollageCover: View {
+    let covers: [String]
+    var cornerRadius: CGFloat = 8
+
+    var body: some View {
+        Group {
+            if covers.count >= 4 {
+                Grid(horizontalSpacing: 1, verticalSpacing: 1) {
+                    GridRow {
+                        LocalImage(path: covers[0])
+                        LocalImage(path: covers[1])
+                    }
+                    GridRow {
+                        LocalImage(path: covers[2])
+                        LocalImage(path: covers[3])
+                    }
+                }
+            } else if let cover = covers.first {
+                LocalImage(path: cover)
+            } else {
+                ZStack {
+                    Color(.secondarySystemBackground)
+                    Image(systemName: "rectangle.stack").font(.title).foregroundStyle(.tertiary)
+                }
+            }
+        }
+        .aspectRatio(4 / 3, contentMode: .fit)
+        .clipShape(.rect(cornerRadius: cornerRadius))
     }
 }
 
@@ -150,6 +242,8 @@ nonisolated struct RecentItem: Identifiable, Sendable {
     let coverPath: String?
     /// Set when the entry is a work still in the library.
     let workId: String?
+    /// 1-based position of the work's last track within its folder.
+    let trackNumber: Int?
 
     var id: String { entry.id }
 
@@ -159,16 +253,23 @@ nonisolated struct RecentItem: Identifiable, Sendable {
         let worksById = Dictionary(uniqueKeysWithValues: works.map { ($0.productId, $0) })
         let videos = try VideoItem.filter(keys: entries.map(\.id)).fetchAll(db)
         let coversById = Dictionary(uniqueKeysWithValues: videos.map { ($0.id, $0.coverPath) })
-        return entries.map { entry in
+        return try entries.map { entry in
             if entry.kind == "work", let work = entry.workId.flatMap({ worksById[$0] }) {
-                RecentItem(entry: entry, coverPath: work.mainImageLocalPath, workId: work.productId)
+                RecentItem(entry: entry, coverPath: work.mainImageLocalPath, workId: work.productId, trackNumber: try trackNumber(of: work, db))
             } else {
-                RecentItem(entry: entry, coverPath: coversById[entry.id] ?? nil, workId: nil)
+                RecentItem(entry: entry, coverPath: coversById[entry.id] ?? nil, workId: nil, trackNumber: nil)
             }
         }
     }
 
+    private static func trackNumber(of work: Work, _ db: Database) throws -> Int? {
+        guard let track = try work.lastPlayedTrackId.flatMap({ try Track.fetchOne(db, key: $0) }) else { return nil }
+        let folder = try WorkQueries.tracks(of: work.productId).fetchAll(db).filter { $0.folderPath == track.folderPath }
+        return WorkTree.playbackOrder(WorkTree.build(tracks: folder, files: [])).firstIndex { $0.id == track.id }.map { $0 + 1 }
+    }
+
     var caption: String {
+        if let trackNumber { return "听到第 \(trackNumber) 首" }
         if let duration = entry.durationMs, duration > 0 {
             return "看到 \(min(100, entry.positionMs * 100 / duration))%"
         }
@@ -181,14 +282,16 @@ private struct RecentTile: View {
     @Environment(PlaybackController.self) private var player
 
     var body: some View {
-        let tile = VStack(alignment: .leading, spacing: 4) {
+        let tile = VStack(alignment: .leading, spacing: 2) {
             LocalImage(path: item.coverPath)
-                .frame(width: 120, height: item.entry.kind == "video" ? 68 : 90)
+                .aspectRatio(4 / 3, contentMode: .fit)
                 .clipShape(.rect(cornerRadius: 8))
-            Text(item.entry.title).font(.caption).lineLimit(2, reservesSpace: true)
-            Text(item.caption).font(.caption2).foregroundStyle(.secondary)
+                .padding(.bottom, 4)
+            Text(item.entry.title).font(.subheadline).lineLimit(1)
+            Text(item.caption).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
         }
-        .frame(width: 120)
+        .frame(width: 150)
+        .contentShape(.rect)
         if let workId = item.workId {
             NavigationLink(value: Route.work(workId)) { tile }.buttonStyle(.plain)
         } else if let file = item.entry.remoteFile {
