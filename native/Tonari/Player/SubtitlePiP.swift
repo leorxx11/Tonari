@@ -16,7 +16,7 @@ final class SubtitlePiP: NSObject {
     @ObservationIgnored let layer = AVSampleBufferDisplayLayer()
     @ObservationIgnored weak var player: PlaybackController?
     @ObservationIgnored private let database: AppDatabase
-    @ObservationIgnored private var controller: AVPictureInPictureController!
+    @ObservationIgnored private var controller: AVPictureInPictureController?
     @ObservationIgnored private var possibleObservation: NSKeyValueObservation?
     @ObservationIgnored private var subtitle: Subtitle?
     @ObservationIgnored private var subtitleTrackId: String?
@@ -35,8 +35,11 @@ final class SubtitlePiP: NSObject {
         self.database = database
         super.init()
         layer.videoGravity = .resizeAspect
-        controller = AVPictureInPictureController(contentSource: .init(sampleBufferDisplayLayer: layer, playbackDelegate: self))
-        controller.delegate = self
+        // AVKit returns nil where PiP is unsupported (e.g. CI simulators).
+        if Self.isSupported {
+            controller = AVPictureInPictureController(contentSource: .init(sampleBufferDisplayLayer: layer, playbackDelegate: self))
+            controller?.delegate = self
+        }
         NotificationCenter.default.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated {
                 // Coming back from the background can leave the layer failed;
@@ -52,12 +55,12 @@ final class SubtitlePiP: NSObject {
         shownText = nil
         update(trackId: trackId, positionMs: positionMs)
         // PiP won't start before a frame is in; wait until AVKit says it can.
-        possibleObservation = controller.observe(\.isPictureInPicturePossible, options: [.initial, .new]) { [weak self] controller, _ in
+        possibleObservation = controller?.observe(\.isPictureInPicturePossible, options: [.initial, .new]) { [weak self] controller, _ in
             guard controller.isPictureInPicturePossible else { return }
             Task { @MainActor in
                 guard let self, self.possibleObservation != nil else { return }
                 self.possibleObservation = nil
-                self.controller.startPictureInPicture()
+                self.controller?.startPictureInPicture()
             }
         }
         DiagnosticLog.shared.write("subtitle_pip", "start_requested")
@@ -65,7 +68,7 @@ final class SubtitlePiP: NSObject {
 
     func stop() {
         possibleObservation = nil
-        controller.stopPictureInPicture()
+        controller?.stopPictureInPicture()
         isActive = false
     }
 
@@ -86,7 +89,7 @@ final class SubtitlePiP: NSObject {
 
     func playbackStateChanged(isPlaying: Bool) {
         self.isPlaying = isPlaying
-        controller.invalidatePlaybackState()
+        controller?.invalidatePlaybackState()
     }
 
     private func observeSubtitle(of trackId: String?) {
