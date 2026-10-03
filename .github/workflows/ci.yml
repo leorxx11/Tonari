@@ -30,16 +30,6 @@ jobs:
           echo "SIM_UDID=$udid" >> "$GITHUB_ENV"
           xcrun simctl boot "$udid"
 
-      # Caches are saved from main only; pull requests just restore them.
-      - name: Restore build caches
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            native/TonariCore/.build
-            native/build/DerivedData
-          key: build-xcode27-${{ hashFiles('native/Tonari.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'native/TonariCore/Package.resolved', 'native/Packages/MDK/Package.swift') }}-${{ github.sha }}
-          restore-keys: build-xcode27-${{ hashFiles('native/Tonari.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'native/TonariCore/Package.resolved', 'native/Packages/MDK/Package.swift') }}-
-
       - name: TonariCore unit tests
         id: core
         continue-on-error: true
@@ -80,15 +70,6 @@ jobs:
             -resultBundlePath "$GITHUB_WORKSPACE/TonariUI.xcresult" \
             -collect-test-diagnostics never \
             | xcbeautify --renderer github-actions
-
-      - name: Save build caches
-        if: github.ref == 'refs/heads/main' && steps.build.outcome == 'success'
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            native/TonariCore/.build
-            native/build/DerivedData
-          key: build-xcode27-${{ hashFiles('native/Tonari.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'native/TonariCore/Package.resolved', 'native/Packages/MDK/Package.swift') }}-${{ github.sha }}
 
       - name: Collect results
         if: always() && steps.build.outcome == 'success'
