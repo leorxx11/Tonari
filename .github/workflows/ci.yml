@@ -87,6 +87,10 @@ jobs:
       REPORT_ROOT: /srv/allure-reports/tonari
       REPORT_BASE_URL: https://ci.leorxx.xyz/reports/tonari
     steps:
+      # Self-hosted workspaces persist between runs.
+      - name: Clean workspace
+        run: rm -rf allure-results allure-report
+
       - uses: actions/download-artifact@v4
         with:
           name: allure-results
