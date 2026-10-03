@@ -40,7 +40,8 @@ final class TonariUITests: XCTestCase {
         app.navigationBars["Tonari"].buttons["设置"].tap()
         let settings = app.navigationBars["设置"]
         XCTAssertTrue(settings.waitForExistence(timeout: 5))
-        for row in ["外观", "备份与恢复", "存储空间", "关于 Tonari"] {
+        // Lists only load rows on screen, so stick to the first section.
+        for row in ["外观", "播放", "隐私"] {
             XCTAssertTrue(app.staticTexts[row].exists, "missing settings row \(row)")
         }
 
@@ -62,9 +63,10 @@ final class TonariUITests: XCTestCase {
 
     func testSearchWithoutMatchesShowsEmptyResult() {
         app.tabBars.buttons["搜索"].tap()
-        XCTAssertTrue(app.staticTexts["输入作品名、RJ 号、声优、社团，或用 # 搜标签"].waitForExistence(timeout: 5))
+        let field = app.searchFields["作品、声优、社团、#标签"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["分类浏览"].exists)
 
-        let field = app.searchFields.firstMatch
         field.tap()
         field.typeText("RJ999999999")
 

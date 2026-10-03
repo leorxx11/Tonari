@@ -35,13 +35,21 @@ jobs:
         working-directory: native
         # Ad-hoc signing still embeds the simulated application-identifier
         # entitlement; without it the simulator keychain fails with -34018.
+        # Booting first keeps the first test from timing out on a cold
+        # simulator. Crash logs and recordings already land in the xcresult,
+        # so skip the slow post-failure diagnostics collection.
         run: |
           set -o pipefail
+          udid=$(xcrun simctl list devices available -j | python3 -c \
+            'import json,sys; print(next(d["udid"] for d in json.load(sys.stdin)["devices"]["com.apple.CoreSimulator.SimRuntime.iOS-27-0"] if d["name"] == "iPhone 17"))')
+          xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid"
           xcodebuild test \
             -project Tonari.xcodeproj \
             -scheme Tonari \
-            -destination "platform=iOS Simulator,name=iPhone 17,OS=27.0" \
+            -destination "id=$udid" \
             -resultBundlePath "$GITHUB_WORKSPACE/TonariUI.xcresult" \
+            -collect-test-diagnostics never \
             CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual \
             | xcbeautify --renderer github-actions
 
