@@ -1,0 +1,128 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test (macOS · Xcode 27)
+    runs-on: xcode-27
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: TonariCore unit tests
+        id: core
+        continue-on-error: true
+        working-directory: native/TonariCore
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/allure-results"
+          swift test --xunit-output "$GITHUB_WORKSPACE/allure-results/core.xml"
+
+      - name: UI tests
+        id: ui
+        continue-on-error: true
+        working-directory: native
+        # The app declares no entitlements, so simulator builds need no signing.
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project Tonari.xcodeproj \
+            -scheme Tonari \
+            -destination "platform=iOS Simulator,name=iPhone 17,OS=27.0" \
+            -resultBundlePath "$GITHUB_WORKSPACE/TonariUI.xcresult" \
+            CODE_SIGNING_ALLOWED=NO \
+            | xcbeautify --renderer github-actions
+
+      - name: Collect results
+        if: always()
+        run: |
+          python3 .github/scripts/xcresult_to_allure.py TonariUI.xcresult allure-results
+          cat > allure-results/environment.properties <<EOF
+          Xcode=$(xcodebuild -version | head -1 | cut -d' ' -f2)
+          Simulator=iPhone 17 (iOS 27.0)
+          macOS=$(sw_vers -productVersion)
+          Branch=${{ github.head_ref || github.ref_name }}
+          Commit=${GITHUB_SHA::7}
+          EOF
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: allure-results
+          path: allure-results
+
+      - uses: actions/upload-artifact@v4
+        if: steps.ui.outcome == 'failure'
+        with:
+          name: TonariUI.xcresult
+          path: TonariUI.xcresult
+
+      - name: Fail when tests failed
+        if: steps.core.outcome == 'failure' || steps.ui.outcome == 'failure'
+        run: exit 1
+
+  report:
+    name: Allure report (self-hosted ARM64)
+    needs: test
+    # Fork PRs never reach the self-hosted runner.
+    if: >-
+      always() && needs.test.result != 'cancelled' &&
+      (github.event_name != 'pull_request' ||
+       github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: [self-hosted, Linux, ARM64]
+    timeout-minutes: 10
+    env:
+      REPORT_ROOT: /srv/allure-reports/tonari
+      REPORT_BASE_URL: https://ci.leorxx.xyz/reports/tonari
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: allure-results
+          path: allure-results
+
+      - name: Generate report
+        run: |
+          if [ -d "$REPORT_ROOT/latest/history" ]; then
+            cp -r "$REPORT_ROOT/latest/history" allure-results/history
+          fi
+          cat > allure-results/executor.json <<EOF
+          {
+            "name": "GitHub Actions",
+            "type": "github",
+            "url": "${{ github.server_url }}/${{ github.repository }}",
+            "buildOrder": ${{ github.run_number }},
+            "buildName": "${{ github.workflow }} #${{ github.run_number }}",
+            "buildUrl": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+            "reportUrl": "$REPORT_BASE_URL/${{ github.run_id }}/",
+            "reportName": "Tonari"
+          }
+          EOF
+          allure generate allure-results -o allure-report --clean
+
+      - name: Publish report
+        run: publish-allure-report allure-report "${{ github.run_id }}"
+
+      - name: Job summary
+        run: |
+          python3 - <<'EOF' >> "$GITHUB_STEP_SUMMARY"
+          import json, os
+          s = json.load(open("allure-report/widgets/summary.json"))
+          st, t = s["statistic"], s["time"]
+          base = os.environ["REPORT_BASE_URL"]
+          print("## 🧪 Tonari 测试结果\n")
+          print("| 总数 | ✅ 通过 | ❌ 失败 | 💥 异常 | ⏭ 跳过 | 耗时 |")
+          print("|---|---|---|---|---|---|")
+          print(f'| {st["total"]} | {st["passed"]} | {st["failed"]} | {st["broken"]} | {st["skipped"]} | {t["duration"] / 1000:.1f}s |')
+          print(f'\n📊 **[查看 Allure 报告]({base}/{os.environ["GITHUB_RUN_ID"]}/)**　·　[最新报告]({base}/latest/)')
+          EOF
