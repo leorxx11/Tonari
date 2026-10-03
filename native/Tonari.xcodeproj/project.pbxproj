@@ -11,12 +11,24 @@
 		7A0000000000000000000023 /* MDKPlayer in Frameworks */ = {isa = PBXBuildFile; productRef = 7A0000000000000000000021 /* MDKPlayer */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		7A0000000000000000000056 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 7A0000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 7A0000000000000000000010;
+			remoteInfo = Tonari;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		7A0000000000000000000005 /* Tonari.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Tonari.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		7A0000000000000000000050 /* TonariUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TonariUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		7A0000000000000000000003 /* Tonari */ = {isa = PBXFileSystemSynchronizedRootGroup; path = Tonari; sourceTree = "<group>"; };
+		7A0000000000000000000051 /* TonariUITests */ = {isa = PBXFileSystemSynchronizedRootGroup; path = TonariUITests; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -29,6 +41,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		7A0000000000000000000054 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -36,6 +55,7 @@
 			isa = PBXGroup;
 			children = (
 				7A0000000000000000000003 /* Tonari */,
+				7A0000000000000000000051 /* TonariUITests */,
 				7A0000000000000000000004 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -44,6 +64,7 @@
 			isa = PBXGroup;
 			children = (
 				7A0000000000000000000005 /* Tonari.app */,
+				7A0000000000000000000050 /* TonariUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -75,6 +96,27 @@
 			productReference = 7A0000000000000000000005 /* Tonari.app */;
 			productType = "com.apple.product-type.application";
 		};
+		7A0000000000000000000052 /* TonariUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7A0000000000000000000058 /* Build configuration list for PBXNativeTarget "TonariUITests" */;
+			buildPhases = (
+				7A0000000000000000000053 /* Sources */,
+				7A0000000000000000000054 /* Frameworks */,
+				7A0000000000000000000055 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				7A0000000000000000000057 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				7A0000000000000000000051 /* TonariUITests */,
+			);
+			name = TonariUITests;
+			productName = TonariUITests;
+			productReference = 7A0000000000000000000050 /* TonariUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -84,6 +126,12 @@
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 2700;
 				LastUpgradeCheck = 2700;
+				TargetAttributes = {
+					7A0000000000000000000052 = {
+						CreatedOnToolsVersion = 27.0;
+						TestTargetID = 7A0000000000000000000010;
+					};
+				};
 			};
 			buildConfigurationList = 7A0000000000000000000031 /* Build configuration list for PBXProject "Tonari" */;
 			developmentRegion = "zh-Hans";
@@ -104,12 +152,20 @@
 			projectRoot = "";
 			targets = (
 				7A0000000000000000000010 /* Tonari */,
+				7A0000000000000000000052 /* TonariUITests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		7A0000000000000000000013 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7A0000000000000000000055 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -126,7 +182,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		7A0000000000000000000053 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		7A0000000000000000000057 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 7A0000000000000000000010 /* Tonari */;
+			targetProxy = 7A0000000000000000000056 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		7A0000000000000000000032 /* Debug */ = {
@@ -235,6 +306,42 @@
 			};
 			name = Release;
 		};
+		7A0000000000000000000059 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = Y89J64B8M9;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.leo.tonari.native.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Tonari;
+			};
+			name = Debug;
+		};
+		7A000000000000000000005A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = Y89J64B8M9;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.leo.tonari.native.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Tonari;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -252,6 +359,15 @@
 			buildConfigurations = (
 				7A0000000000000000000032 /* Debug */,
 				7A0000000000000000000033 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		7A0000000000000000000058 /* Build configuration list for PBXNativeTarget "TonariUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7A0000000000000000000059 /* Debug */,
+				7A000000000000000000005A /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
