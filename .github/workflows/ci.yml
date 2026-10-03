@@ -33,7 +33,8 @@ jobs:
         id: ui
         continue-on-error: true
         working-directory: native
-        # The app declares no entitlements, so simulator builds need no signing.
+        # Ad-hoc signing still embeds the simulated application-identifier
+        # entitlement; without it the simulator keychain fails with -34018.
         run: |
           set -o pipefail
           xcodebuild test \
@@ -41,7 +42,7 @@ jobs:
             -scheme Tonari \
             -destination "platform=iOS Simulator,name=iPhone 17,OS=27.0" \
             -resultBundlePath "$GITHUB_WORKSPACE/TonariUI.xcresult" \
-            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual \
             | xcbeautify --renderer github-actions
 
       - name: Collect results
