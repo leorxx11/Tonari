@@ -11,7 +11,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     /// Changes what the app may rotate to and turns to `preferred` now.
     static func allow(_ orientations: UIInterfaceOrientationMask, turningTo preferred: UIInterfaceOrientationMask) {
         self.orientations = orientations
-        let scene = UIApplication.shared.connectedScenes.first as! UIWindowScene
+        // The video player's onDisappear also runs while the app is torn
+        // down, after its scene has gone; there's nothing left to turn then.
+        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene else { return }
         scene.keyWindow?.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
         scene.requestGeometryUpdate(.iOS(interfaceOrientations: preferred))
     }
