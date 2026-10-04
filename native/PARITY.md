@@ -69,7 +69,7 @@
 
 ## N5 视频
 
-- [x] 视频库：从文件 App 导入、修改标题、删除、收藏、分组；顶部「继续观看」（`video_library_page.dart`、`local_video_import.dart`）
+- [x] 视频库：从文件 App 导入、修改标题、删除、收藏、分组；排序 / 视图 / 来源同作品墙；「继续观看」在主页（`video_library_page.dart`、`local_video_import.dart`）
 - [x] 远程视频加入 / 移出视频库（115 浏览长按、播放页 ⋯）
 - [x] 播放页：原生版改为始终全屏黑底（不做竖屏内嵌），横竖屏、控制条自动隐藏、倍速、睡眠定时、锁定（`video_player_page.dart`）
 - [x] 横向滑动微调进度，拖动时预览时间、抬手才 seek；左右半边双击快退 / 快进

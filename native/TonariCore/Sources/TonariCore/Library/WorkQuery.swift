@@ -1,8 +1,64 @@
 import Foundation
 import GRDB
 
-public enum WorkSortField: String, CaseIterable, Sendable {
+/// A field a library can be sorted by.
+public protocol LibrarySortField: RawRepresentable<String>, CaseIterable, Hashable, Sendable {
+    var label: String { get }
+    /// Direction the field starts in when picked.
+    var defaultDescending: Bool { get }
+    var key: SQLExpression { get }
+    /// Where the choice is kept.
+    static var preferenceKey: String { get }
+    /// The sort before anything was chosen.
+    static var fallback: LibrarySort<Self> { get }
+}
+
+/// Persisted as `field:desc` / `field:asc`, the same format the Flutter
+/// build used.
+public struct LibrarySort<Field: LibrarySortField>: Equatable, Sendable {
+    public static var preferenceKey: String { Field.preferenceKey }
+
+    public var field: Field
+    public var descending: Bool
+
+    public init(field: Field, descending: Bool) {
+        self.field = field
+        self.descending = descending
+    }
+
+    public init(preference: String?) {
+        let parts = (preference ?? "").split(separator: ":")
+        guard let raw = parts.first, let field = Field(rawValue: String(raw)) else {
+            self = Field.fallback
+            return
+        }
+        self.init(field: field, descending: parts.last == "desc")
+    }
+
+    public var preference: String { "\(field.rawValue):\(descending ? "desc" : "asc")" }
+
+    /// Picking the current field flips its direction; another field starts in
+    /// its natural direction.
+    public func selecting(_ field: Field) -> LibrarySort {
+        field == self.field
+            ? LibrarySort(field: field, descending: !descending)
+            : LibrarySort(field: field, descending: field.defaultDescending)
+    }
+
+    /// SQLite sorts NULL lowest, so DESC already puts it last.
+    var ordering: SQLOrderingTerm {
+        descending ? field.key.desc : field.key.ascNullsLast
+    }
+}
+
+public typealias WorkSort = LibrarySort<WorkSortField>
+public typealias VideoSort = LibrarySort<VideoSortField>
+
+public enum WorkSortField: String, LibrarySortField {
     case releaseDate, sales, rating, addedAt, lastPlayed, productId
+
+    public static let preferenceKey = "library.sort.works"
+    public static let fallback = WorkSort(field: .releaseDate, descending: true)
 
     public var label: String {
         switch self {
@@ -15,51 +71,47 @@ public enum WorkSortField: String, CaseIterable, Sendable {
         }
     }
 
-    /// Direction a field starts in when picked: newest / highest first.
+    /// Newest / highest first.
     public var defaultDescending: Bool { self != .productId }
 
-    var column: Column {
+    public var key: SQLExpression {
         switch self {
-        case .releaseDate: Column("release_date")
-        case .sales: Column("dl_count")
-        case .rating: Column("rating")
-        case .addedAt: Column("local_imported_at")
-        case .lastPlayed: Column("last_played_at")
-        case .productId: Column("product_id")
+        case .releaseDate: Column("release_date").sqlExpression
+        case .sales: Column("dl_count").sqlExpression
+        case .rating: Column("rating").sqlExpression
+        case .addedAt: Column("local_imported_at").sqlExpression
+        case .lastPlayed: Column("last_played_at").sqlExpression
+        case .productId: Column("product_id").sqlExpression
         }
     }
 }
 
-/// Persisted as `field:desc` / `field:asc` under `library.sort.works`, the
-/// same format the Flutter build used.
-public struct WorkSort: Equatable, Sendable {
-    public static let preferenceKey = "library.sort.works"
+public enum VideoSortField: String, LibrarySortField {
+    case addedAt, lastPlayed, title, size
 
-    public var field: WorkSortField
-    public var descending: Bool
+    public static let preferenceKey = "library.sort.videos"
+    public static let fallback = VideoSort(field: .addedAt, descending: true)
 
-    public init(field: WorkSortField, descending: Bool) {
-        self.field = field
-        self.descending = descending
-    }
-
-    public init(preference: String?) {
-        let parts = (preference ?? "").split(separator: ":")
-        guard let raw = parts.first, let field = WorkSortField(rawValue: String(raw)) else {
-            self.init(field: .releaseDate, descending: true)
-            return
+    public var label: String {
+        switch self {
+        case .addedAt: "收录时间"
+        case .lastPlayed: "最近播放"
+        case .title: "标题"
+        case .size: "文件大小"
         }
-        self.init(field: field, descending: parts.last == "desc")
     }
 
-    public var preference: String { "\(field.rawValue):\(descending ? "desc" : "asc")" }
+    /// Newest / largest first; titles A to Z.
+    public var defaultDescending: Bool { self != .title }
 
-    /// Picking the current field flips its direction; another field starts in
-    /// its natural direction.
-    public func selecting(_ field: WorkSortField) -> WorkSort {
-        field == self.field
-            ? WorkSort(field: field, descending: !descending)
-            : WorkSort(field: field, descending: field.defaultDescending)
+    public var key: SQLExpression {
+        switch self {
+        case .addedAt: Column("added_at").sqlExpression
+        case .lastPlayed: Column("last_played_at").sqlExpression
+        // The shown title: the custom one, else the file name.
+        case .title: SQL(sql: "COALESCE(custom_title, file_name)").sqlExpression
+        case .size: Column("size").sqlExpression
+        }
     }
 }
 
@@ -172,9 +224,7 @@ public enum WorkQueries {
         case .remote: request = request.filter(remoteIds.contains(folder))
         case .local: request = request.filter(folder == nil || !remoteIds.contains(folder))
         }
-        let key = sort.field.column
-        // SQLite sorts NULL lowest, so DESC already puts it last.
-        return request.order(sort.descending ? key.desc : key.ascNullsLast, Column("product_id"))
+        return request.order(sort.ordering, Column("product_id"))
     }
 
     public static func remoteFolderIds(_ db: Database) throws -> Set<String> {
@@ -216,5 +266,20 @@ public enum WorkQueries {
 
     public static func files(of productId: String) -> QueryInterfaceRequest<WorkFile> {
         WorkFile.filter(Column("work_id") == productId).order(Column("relative_path"))
+    }
+}
+
+public enum VideoQueries {
+    /// The video library: what the user kept, `local` being the copies
+    /// imported from Files and `remote` the 115 ones.
+    public static func library(sort: VideoSort, source: SourceFilter) -> QueryInterfaceRequest<VideoItem> {
+        var request = VideoItem.all()
+        let kind = Column("source_kind")
+        switch source {
+        case .all: break
+        case .local: request = request.filter(kind == "local")
+        case .remote: request = request.filter(kind != "local")
+        }
+        return request.order(sort.ordering, Column("id"))
     }
 }

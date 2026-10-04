@@ -68,6 +68,8 @@ struct WorkSortTests {
         let sort = WorkSort(field: .rating, descending: true)
         #expect(sort.selecting(.rating) == WorkSort(field: .rating, descending: false))
         #expect(sort.selecting(.productId) == WorkSort(field: .productId, descending: false))
+        #expect(VideoSort(preference: nil) == VideoSort(field: .addedAt, descending: true))
+        #expect(VideoSort(preference: "addedAt:desc").selecting(.title) == VideoSort(field: .title, descending: false))
     }
 }
 
@@ -90,6 +92,30 @@ struct WorkQueryTests {
         #expect(try ids(WorkSort(field: .rating, descending: false), .all) == ["RJ01000003", "RJ01000001", "RJ01000002"])
         #expect(try ids(WorkSort(field: .productId, descending: false), .remote) == ["RJ01000002"])
         #expect(try ids(WorkSort(field: .productId, descending: false), .local) == ["RJ01000001", "RJ01000003"])
+    }
+
+    @Test func videoLibrarySortsAndFiltersBySource() throws {
+        let db = try AppDatabase.inMemory()
+        let videos = [
+            PlayableVideo(localPath: "videos/a/b.mp4", fileName: "b.mp4", size: 30),
+            PlayableVideo(p115Pickcode: "pc1", fileName: "c.mkv", size: 10),
+            PlayableVideo(p115Pickcode: "pc2", fileName: "z.mkv", size: 20),
+        ]
+        for (index, video) in videos.enumerated() {
+            try db.addVideo(video, at: Fixtures.date.addingTimeInterval(Double(index)))
+        }
+        try db.renameVideo("p115:pc2", to: "a 改名")
+        try db.writer.write { try $0.execute(sql: "UPDATE video_items SET last_played_at = 100 WHERE id = 'p115:pc1'") }
+        func ids(_ sort: VideoSort, _ source: SourceFilter = .all) throws -> [String] {
+            try db.reader.read { try VideoQueries.library(sort: sort, source: source).fetchAll($0).map(\.id) }
+        }
+        let local = "local:video_import:videos/a/b.mp4"
+        #expect(try ids(VideoSort(field: .addedAt, descending: true)) == ["p115:pc2", "p115:pc1", local])
+        #expect(try ids(VideoSort(field: .title, descending: false)) == ["p115:pc2", local, "p115:pc1"])
+        #expect(try ids(VideoSort(field: .size, descending: true)) == [local, "p115:pc2", "p115:pc1"])
+        #expect(try ids(VideoSort(field: .lastPlayed, descending: false)) == ["p115:pc1", local, "p115:pc2"])
+        #expect(try ids(VideoSort(field: .addedAt, descending: true), .local) == [local])
+        #expect(try ids(VideoSort(field: .addedAt, descending: true), .remote) == ["p115:pc2", "p115:pc1"])
     }
 
     @Test func collectionsAndFavorites() throws {

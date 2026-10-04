@@ -74,6 +74,7 @@ final class AppModel {
     }
 
     static let viewModeKey = "library.view.works"
+    static let videoViewModeKey = "library.view.videos"
 
     var tab = AppTab.home
     var showingPlayer = false
@@ -102,6 +103,13 @@ final class AppModel {
     var viewMode: ViewMode {
         didSet { UserDefaults.standard.set(viewMode.rawValue, forKey: Self.viewModeKey) }
     }
+    var videoSource = SourceFilter.all
+    var videoSort: VideoSort {
+        didSet { UserDefaults.standard.set(videoSort.preference, forKey: VideoSort.preferenceKey) }
+    }
+    var videoViewMode: ViewMode {
+        didSet { UserDefaults.standard.set(videoViewMode.rawValue, forKey: Self.videoViewModeKey) }
+    }
 
     init(database: AppDatabase) {
         let notices = Notices()
@@ -111,6 +119,8 @@ final class AppModel {
         let defaults = UserDefaults.standard
         sort = WorkSort(preference: defaults.string(forKey: WorkSort.preferenceKey))
         viewMode = ViewMode(rawValue: defaults.string(forKey: Self.viewModeKey) ?? "") ?? .grid
+        videoSort = VideoSort(preference: defaults.string(forKey: VideoSort.preferenceKey))
+        videoViewMode = ViewMode(rawValue: defaults.string(forKey: Self.videoViewModeKey) ?? "") ?? .grid
     }
 
     /// Opens 115 where the user left off, or its login when signed out.

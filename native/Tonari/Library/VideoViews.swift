@@ -2,110 +2,170 @@ import SwiftUI
 import TonariCore
 import UniformTypeIdentifiers
 
-/// The library's videos: what's half watched (library or not, straight
-/// from the play history), then the videos the user kept, as a two-column
-/// 16:9 grid; the + in the bar adds more.
+/// The videos the user kept, laid out and sorted like the works wall; what's
+/// half watched is on the home page, not here.
 struct VideoLibraryView: View {
     @Environment(AppModel.self) private var model
     @Environment(VideoController.self) private var video
     @Environment(\.appDatabase) private var database
-    @State private var watching = ContinueWatching()
     @State private var items: [VideoItem] = []
+    @State private var loaded = false
     @State private var importing = false
     @State private var renaming: VideoItem?
     @State private var newTitle = ""
     @State private var removing: VideoItem?
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 28) {
-                if !watching.progress.isEmpty {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("继续观看").font(.title3.bold()).padding(.horizontal, 16)
-                        ContinueWatchingRow(watching: watching)
-                    }
+        collection
+            .overlay {
+                if loaded && items.isEmpty {
+                    ContentUnavailableView("还没有视频", systemImage: "film", description: Text("点右上角的 ⋯ 从「文件」导入，或在 115 浏览里长按视频加入"))
                 }
-                librarySection
             }
-            .padding(.vertical, 8)
-        }
-        .overlay {
-            if watching.progress.isEmpty && items.isEmpty {
-                ContentUnavailableView("还没有视频", systemImage: "film", description: Text("点右上角的 ＋ 从「文件」导入，或在 115 浏览里长按视频加入"))
+            .navigationTitle("视频")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { toolbar }
+            .fileImporter(isPresented: $importing, allowedContentTypes: LocalVideoImport.contentTypes, allowsMultipleSelection: true) { result in
+                guard case .success(let urls) = result, !urls.isEmpty else { return }
+                Task { await model.importVideos(urls, database: database) }
             }
-        }
-        .navigationTitle("视频")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Menu("添加视频", systemImage: "plus") {
+            .alert("重命名", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
+                TextField("标题", text: $newTitle)
+                Button("取消", role: .cancel) {}
+                Button("恢复文件名") { try! database.renameVideo(renaming!.id, to: nil) }
+                Button("确定") { try! database.renameVideo(renaming!.id, to: newTitle) }
+            }
+            .alert("移出视频库？", isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }), presenting: removing) { item in
+                Button("取消", role: .cancel) {}
+                Button("移出", role: .destructive) { remove(item) }
+            } message: { item in
+                Text(item.sourceKind == "local" ? "会删除 App 内的这份视频副本，播放记录保留。" : "只移出视频库，115 上的文件不受影响。")
+            }
+            .task(id: QueryKey(sort: model.videoSort, source: model.videoSource)) {
+                let request = VideoQueries.library(sort: model.videoSort, source: model.videoSource)
+                await database.observe({ try request.fetchAll($0) }) {
+                    items = $0
+                    loaded = true
+                }
+            }
+    }
+
+    private struct QueryKey: Equatable {
+        let sort: VideoSort
+        let source: SourceFilter
+    }
+
+    @ToolbarContentBuilder private var toolbar: some ToolbarContent {
+        @Bindable var model = model
+        ToolbarItem(placement: .topBarTrailing) {
+            Menu("更多", systemImage: "ellipsis") {
+                Section("添加") {
                     Button("从「文件」导入", systemImage: "folder") { importing = true }
                         .disabled(model.tasks.isBusy)
                     Button("从 115 添加", systemImage: "icloud") { model.openP115() }
                 }
-            }
-        }
-        .fileImporter(isPresented: $importing, allowedContentTypes: LocalVideoImport.contentTypes, allowsMultipleSelection: true) { result in
-            guard case .success(let urls) = result, !urls.isEmpty else { return }
-            Task { await model.importVideos(urls, database: database) }
-        }
-        .alert("重命名", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
-            TextField("标题", text: $newTitle)
-            Button("取消", role: .cancel) {}
-            Button("恢复文件名") { try! database.renameVideo(renaming!.id, to: nil) }
-            Button("确定") { try! database.renameVideo(renaming!.id, to: newTitle) }
-        }
-        .alert("移出视频库？", isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }), presenting: removing) { item in
-            Button("取消", role: .cancel) {}
-            Button("移出", role: .destructive) { remove(item) }
-        } message: { item in
-            Text(item.sourceKind == "local" ? "会删除 App 内的这份视频副本，播放记录保留。" : "只移出视频库，115 上的文件不受影响。")
-        }
-        .task {
-            await database.observe({ db in
-                (try ContinueWatching.fetch(db), try VideoItem.order(Column("added_at").desc).fetchAll(db))
-            }) {
-                watching = $0.0
-                items = $0.1
+                Section("排序") {
+                    ForEach(VideoSortField.allCases, id: \.self) { field in
+                        Button {
+                            model.videoSort = model.videoSort.selecting(field)
+                        } label: {
+                            if model.videoSort.field == field {
+                                Label(field.label, systemImage: model.videoSort.descending ? "arrow.down" : "arrow.up")
+                            } else {
+                                Text(field.label)
+                            }
+                        }
+                    }
+                }
+                Section("视图") {
+                    Picker("视图", selection: $model.videoViewMode) {
+                        ForEach(AppModel.ViewMode.allCases, id: \.self) {
+                            Label($0.label, systemImage: $0.systemImage)
+                        }
+                    }
+                }
+                Section("来源") {
+                    Picker("来源", selection: $model.videoSource) {
+                        ForEach(SourceFilter.allCases, id: \.self) { Text($0.label) }
+                    }
+                }
             }
         }
     }
 
-    // MARK: - Sections
+    // MARK: - Layouts
 
-    private var librarySection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("视频库").font(.title3.bold())
-                Text("\(items.count) 个").font(.subheadline).foregroundStyle(.secondary)
-            }
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 14)], spacing: 18) {
-                ForEach(items) { item in
-                    Button { model.playVideo(PlayableVideo(item), with: video) } label: {
-                        VStack(alignment: .leading, spacing: 2) {
-                            VideoThumbnail(coverPath: item.coverPath)
-                                .overlay(alignment: .bottomTrailing) {
-                                    if item.isFavorite {
-                                        Image(systemName: "heart.fill")
-                                            .font(.caption2)
-                                            .foregroundStyle(.white)
-                                            .padding(5)
-                                            .background(.black.opacity(0.45), in: .circle)
-                                            .padding(6)
-                                    }
-                                }
-                                .padding(.bottom, 4)
-                            Text(item.displayTitle).font(.subheadline).lineLimit(1)
-                            Text(item.sourceName).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+    @ViewBuilder private var collection: some View {
+        switch model.videoViewMode {
+        case .grid:
+            ScrollView {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 14)], spacing: 18) {
+                    ForEach(items) { item in
+                        cell(item) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                thumbnail(item, cornerRadius: 8).padding(.bottom, 4)
+                                Text(item.displayTitle).font(.subheadline).lineLimit(1)
+                                Text(item.sourceName).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                            }
                         }
-                        .contentShape(.rect)
                     }
-                    .buttonStyle(.plain)
-                    .contextMenu { menu(item) }
                 }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+            }
+        case .list:
+            List(items) { item in
+                cell(item) { VideoRow(video: item) }
+                    .swipeActions(edge: .leading) {
+                        Button(item.isFavorite ? "取消收藏" : "收藏", systemImage: item.isFavorite ? "heart.slash" : "heart") {
+                            try! database.setVideoFavorite(item.id, !item.isFavorite)
+                        }
+                        .tint(.pink)
+                    }
+                    .swipeActions(edge: .trailing) {
+                        Button("移出", systemImage: "trash", role: .destructive) { removing = item }
+                    }
+            }
+            .listStyle(.plain)
+        case .cover:
+            ScrollView {
+                LazyVStack(spacing: 24) {
+                    ForEach(items) { item in
+                        cell(item) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                thumbnail(item, cornerRadius: 12).padding(.bottom, 6)
+                                Text(item.displayTitle).font(.headline).lineLimit(2).multilineTextAlignment(.leading)
+                                Text(item.sourceName).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
             }
         }
-        .padding(.horizontal, 16)
+    }
+
+    private func cell(_ item: VideoItem, @ViewBuilder label: () -> some View) -> some View {
+        Button { model.playVideo(PlayableVideo(item), with: video) } label: {
+            label().contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .contextMenu { menu(item) }
+    }
+
+    private func thumbnail(_ item: VideoItem, cornerRadius: CGFloat) -> some View {
+        VideoThumbnail(coverPath: item.coverPath, cornerRadius: cornerRadius)
+            .overlay(alignment: .bottomTrailing) {
+                if item.isFavorite {
+                    Image(systemName: "heart.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.white)
+                        .padding(5)
+                        .background(.black.opacity(0.45), in: .circle)
+                        .padding(6)
+                }
+            }
     }
 
     @ViewBuilder private func menu(_ item: VideoItem) -> some View {
