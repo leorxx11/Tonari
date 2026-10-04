@@ -1,13 +1,17 @@
 import AVFoundation
+import AVKit
 import Observation
 import TonariCore
+import UIKit
 
 /// Plays a work's chobit preview on the work page: one track after another,
-/// nothing on the lock screen, gone when the page goes. Starting it pauses
-/// whatever the app was playing.
+/// nothing on the lock screen, gone when the page goes; a preview video
+/// opens in the system player. Starting either pauses whatever the app was
+/// playing.
 @Observable
 final class SamplePlayer {
     private(set) var tracks: [ChobitSample.Track] = []
+    private(set) var videos: [ChobitSample.Video] = []
     private(set) var current: Int?
     private(set) var isPlaying = false
     /// 0...1 through the current track.
@@ -28,9 +32,24 @@ final class SamplePlayer {
 
     /// A fresh copy of the same preview leaves what's playing alone.
     func load(_ sample: ChobitSample) {
+        videos = sample.videos
         guard sample.tracks != tracks else { return }
         stop()
         tracks = sample.tracks
+    }
+
+    /// Full screen in the system player, like a trailer; it stays out of
+    /// the play history.
+    func play(_ video: ChobitSample.Video, pausing audio: PlaybackController, _ videoPlayer: VideoController) {
+        audio.pause()
+        videoPlayer.pause()
+        stop()
+        let controller = AVPlayerViewController()
+        controller.player = AVPlayer(url: video.url)
+        let scene = UIApplication.shared.connectedScenes.first as! UIWindowScene
+        var top = scene.keyWindow!.rootViewController!
+        while let presented = top.presentedViewController { top = presented }
+        top.present(controller, animated: true) { controller.player?.play() }
     }
 
     /// Plays `index`, or pauses / resumes it when it's the current one.

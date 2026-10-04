@@ -18,8 +18,21 @@ struct ChobitSampleTests {
         #expect(tracks[0].url.absoluteString.hasSuffix("_001.m4a"))
     }
 
-    @Test func videoOrNoPreviewIsNil() throws {
-        #expect(try ChobitSample.parseEmbed(Data(#"{"count":0,"works":[]}"#.utf8)) == nil)
-        #expect(try ChobitSample.parseEmbed(Data(#"{"count":1,"works":[{"embed_url":"https://chobit.cc/embed/x","file_type":"video"}]}"#.utf8)) == nil)
+    @Test func videoEmbedGivesItsDefaultRendition() async throws {
+        let sample = try await ChobitSample.fetch("RJ328940") { url in
+            url.host() == "chobit.cc" && url.path().hasPrefix("/api")
+                ? Data(#"{"count":2,"works":[{"embed_url":"https://chobit.cc/embed/2ubcd/x","file_type":"video"},{"embed_url":"https://chobit.cc/embed/2ubcd/y","file_type":"image"}]}"#.utf8)
+                : try fixture("chobit_video.html")
+        }
+        let videos = try #require(sample).videos
+        #expect(sample?.tracks == [])
+        #expect(videos.map(\.title) == ["カルティベーターPV"])
+        #expect(videos[0].url.absoluteString.hasSuffix("_8wp6w9.mp4"))
+        #expect(videos[0].poster?.absoluteString.hasSuffix("_thumb.jpg") == true)
+    }
+
+    @Test func noPreviewIsNil() async throws {
+        let sample = try await ChobitSample.fetch("RJ01000001") { _ in Data(#"{"count":0,"works":[]}"#.utf8) }
+        #expect(sample == nil)
     }
 }

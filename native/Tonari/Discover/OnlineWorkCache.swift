@@ -14,7 +14,7 @@ enum OnlineWorkCache {
         return (work, date)
     }
 
-    /// Nil when never looked up; no tracks when the work has no preview.
+    /// Nil when never looked up; empty when the work has no preview.
     static func sample(_ productId: String) -> ChobitSample? {
         load(ChobitSample.self, "\(productId).sample.json")
     }

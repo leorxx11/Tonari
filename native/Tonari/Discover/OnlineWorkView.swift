@@ -7,8 +7,8 @@ import TonariCore
 /// are fetched again (the rest hardly changes), and pull to refresh fetches
 /// everything. The description
 /// starts open: the page is one lazy stack with a row per paragraph, so a
-/// long description lays out only as it scrolls in. The chobit preview, if
-/// any, plays in the page.
+/// long description lays out only as it scrolls in. The chobit preview's
+/// tracks play in the page; its videos open in the system player.
 struct OnlineWorkView: View {
     let productId: String
 
@@ -116,7 +116,7 @@ struct OnlineWorkView: View {
         do {
             var found = try await fetchSample(productId)
             if found == nil, let original = work?.originalProductId { found = try await fetchSample(original) }
-            let sample = found ?? ChobitSample(tracks: [])
+            let sample = found ?? ChobitSample(tracks: [], videos: [])
             samples.load(sample)
             OnlineWorkCache.save(sample, for: productId)
         } catch {
@@ -149,7 +149,7 @@ struct OnlineWorkView: View {
                 gallery(work)
                 titleBlock(work)
                 actions(work)
-                if !samples.tracks.isEmpty { sampleSection }
+                if !samples.tracks.isEmpty || !samples.videos.isEmpty { sampleSection }
                 Group {
                     WorkInfoSection(work: work)
                     WorkTagsSection(work: work)
@@ -220,20 +220,59 @@ struct OnlineWorkView: View {
         }
     }
 
-    /// chobit's tracks in the library page's pager, numbered with their
-    /// lengths; the playing one shows how far in.
+    /// chobit's videos as poster cards, then its tracks in the library
+    /// page's pager, numbered with their lengths; the playing one shows how
+    /// far in.
     private var sampleSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text("试听").font(.title3.bold())
-                Text("\(samples.tracks.count) 首").font(.subheadline).foregroundStyle(.secondary)
+                let counts = [
+                    samples.videos.isEmpty ? nil : "\(samples.videos.count) 个视频",
+                    samples.tracks.isEmpty ? nil : "\(samples.tracks.count) 首",
+                ]
+                Text(counts.compactMap(\.self).joined(separator: " · ")).font(.subheadline).foregroundStyle(.secondary)
             }
-            ColumnPager(count: samples.tracks.count, focus: samples.current, identity: samples.tracks.map(\.url.absoluteString)) { index, last in
-                sampleRow(index, last: last)
+            ForEach(samples.videos) { sampleVideo($0) }
+            if !samples.tracks.isEmpty {
+                ColumnPager(count: samples.tracks.count, focus: samples.current, identity: samples.tracks.map(\.url.absoluteString)) { index, last in
+                    sampleRow(index, last: last)
+                }
+                .padding(.horizontal, -16)
             }
-            .padding(.horizontal, -16)
         }
         .padding(.top, 10)
+    }
+
+    private func sampleVideo(_ preview: ChobitSample.Video) -> some View {
+        Button { samples.play(preview, pausing: player, video) } label: {
+            VStack(alignment: .leading, spacing: 6) {
+                Group {
+                    if let poster = preview.poster {
+                        RemoteImage(url: poster) { image in
+                            image.resizable().scaledToFill()
+                        } placeholder: {
+                            Color(.secondarySystemBackground)
+                        }
+                    } else {
+                        Color(.secondarySystemBackground)
+                    }
+                }
+                .aspectRatio(16 / 9, contentMode: .fit)
+                .overlay {
+                    Image(systemName: "play.fill")
+                        .font(.title2)
+                        .foregroundStyle(.white)
+                        .frame(width: 56, height: 56)
+                        .glassEffect(.regular, in: .circle)
+                }
+                .clipShape(.rect(cornerRadius: 10))
+                Text(preview.title).font(.subheadline).lineLimit(2)
+            }
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("播放试听视频 \(preview.title)")
     }
 
     private func sampleRow(_ index: Int, last: Bool) -> some View {
