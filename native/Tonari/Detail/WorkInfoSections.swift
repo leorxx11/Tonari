@@ -109,6 +109,7 @@ private struct TagButtonStyle: ButtonStyle {
     func makeBody(configuration: ButtonStyleConfiguration) -> some View {
         configuration.label
             .font(.subheadline)
+            .lineLimit(1)
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
             .background(Color(.tertiarySystemFill).opacity(configuration.isPressed ? 0.5 : 1), in: .capsule)
