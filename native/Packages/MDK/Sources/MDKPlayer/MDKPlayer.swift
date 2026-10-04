@@ -48,6 +48,14 @@ public final class MDKPlayer: @unchecked Sendable {
         public let frameRate: Float
     }
 
+    public struct AudioInfo: Sendable {
+        public let codec: String
+        /// Bits per second as the container states it; 0 when unknown.
+        public let bitRate: Int
+        public let sampleRate: Int
+        public let channels: Int
+    }
+
     private var api: UnsafePointer<mdkPlayerAPI>?
     private var player: OpaquePointer? { api!.pointee.object }
 
@@ -245,6 +253,19 @@ public final class MDKPlayer: @unchecked Sendable {
             width: Int(params.width),
             height: Int(params.height),
             frameRate: params.frame_rate
+        )
+    }
+
+    public var audioInfo: AudioInfo? {
+        let info = api!.pointee.mediaInfo(player)!.pointee
+        guard info.nb_audio > 0 else { return nil }
+        var params = mdkAudioCodecParameters()
+        MDK_AudioStreamCodecParameters(info.audio, &params)
+        return AudioInfo(
+            codec: String(cString: params.codec),
+            bitRate: Int(params.bit_rate),
+            sampleRate: Int(params.sample_rate),
+            channels: Int(params.channels)
         )
     }
 

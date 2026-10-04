@@ -111,8 +111,13 @@ struct RootView: View {
         .alert(
             "无法播放视频",
             isPresented: Binding(get: { video.errorMessage != nil }, set: { if !$0 { video.errorMessage = nil } })
-        ) {} message: {
-            Text(video.errorMessage ?? "")
+        ) {
+            if video.offersTranscode {
+                Button("播放转码版") { video.setTranscode(true) }
+                Button("取消", role: .cancel) {}
+            }
+        } message: {
+            Text(video.offersTranscode ? "\(video.errorMessage ?? "")\n可以改播 115 的转码版，画质和音质会低一些。" : video.errorMessage ?? "")
         }
         .alert(
             "无法播放",

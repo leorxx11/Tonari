@@ -158,6 +158,35 @@ public actor P115Client {
         )
     }
 
+    /// 115's own HLS transcode of a video at its best definition, for files
+    /// that won't open as they are. The Android app's endpoint, the one a TV
+    /// login can reach (the web m3u8 API only takes a web login).
+    public func transcoded(pickcode: String) async throws -> ResolvedMedia {
+        let sessionCookie = try cookie()
+        let userId = String(sessionCookie.firstMatch(of: /UID=(\d+)/)!.1)
+        let json = try await throttled {
+            var request = URLRequest(url: URL(string: "https://proapi.115.com/android/2.0/video/play")!)
+            request.httpMethod = "POST"
+            request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+            request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
+            request.setValue(Self.userAgent, forHTTPHeaderField: "User-Agent")
+            let form = "data=" + P115Cipher.encrypt(["pickcode": pickcode, "user_id": userId]).addingPercentEncoding(withAllowedCharacters: .alphanumerics)!
+            request.httpBody = Data(form.utf8)
+            return try await json(request)
+        }
+        let data = try JSONSerialization.jsonObject(with: Data(P115Cipher.decrypt(json["data"] as! String).utf8)) as! [String: Any]
+        let streams = data["video_url"] as? [[String: Any]] ?? []
+        guard let best = streams.max(by: { (Self.int($0["definition"]) ?? 0) < (Self.int($1["definition"]) ?? 0) }) else {
+            throw P115Error.failed("115 还没有转码这个视频")
+        }
+        let url = URL(string: best["url"] as! String)!
+        DiagnosticLog.shared.write("p115", "transcoded", [
+            "host": url.host() ?? "", "definition": "\(best["title"] ?? "")",
+            "query": URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.map(\.name).joined(separator: ",") ?? "",
+        ])
+        return ResolvedMedia(url: url, headers: [("Cookie", sessionCookie), ("User-Agent", Self.userAgent)], expiresAt: nil)
+    }
+
     /// Whole-file download straight from the CDN, for subtitles.
     public func download(pickcode: String) async throws -> Data {
         let media = try await resolve(pickcode: pickcode)

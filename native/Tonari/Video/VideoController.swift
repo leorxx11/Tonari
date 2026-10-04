@@ -23,6 +23,11 @@ final class VideoController: SleepTarget {
     private(set) var rate: Float = 1
     /// Pixel size of the picture, for laying it out at its own ratio.
     private(set) var videoSize: CGSize?
+    /// Playing 115's transcode instead of the file itself; remembered per
+    /// video, since a file that won't open never will.
+    private(set) var usesTranscode = false
+    /// The last failure was the file itself, which 115's transcode may get past.
+    private(set) var offersTranscode = false
     /// Replaced when a released engine is rebuilt; the surface re-attaches.
     private(set) var engine: MDKPlayer?
     /// Draws the engine's frames; created with it and dropped after it.
@@ -71,6 +76,7 @@ final class VideoController: SleepTarget {
     private func restore() {
         guard let last = try! store.lastPlayedVideo() else { return }
         video = last.video
+        usesTranscode = Self.transcodedVideos.contains(last.video.id)
         observeLibrary()
         positionMs = last.positionMs
         durationMs = last.durationMs
@@ -96,6 +102,7 @@ final class VideoController: SleepTarget {
         durationMs = 0
         videoSize = nil
         retried = false
+        usesTranscode = Self.transcodedVideos.contains(video.id)
         DiagnosticLog.shared.write("video", "play", ["file": video.fileName, "source": video.sourceKind, "resumeMs": resume])
         load(from: resume, andPlay: true)
     }
@@ -135,6 +142,24 @@ final class VideoController: SleepTarget {
         seek(to: positionMs + seconds * 1000)
     }
 
+    /// Reopens the current 115 video as its transcode or as the file,
+    /// carrying on from where it is.
+    func setTranscode(_ on: Bool) {
+        usesTranscode = on
+        var remembered = Self.transcodedVideos
+        if on { remembered.insert(video!.id) } else { remembered.remove(video!.id) }
+        UserDefaults.standard.set(Array(remembered), forKey: Self.transcodedKey)
+        retried = false
+        DiagnosticLog.shared.write("video", "transcode", ["on": on])
+        load(from: positionMs, andPlay: !pausedByUser)
+    }
+
+    private static let transcodedKey = "video.transcoded"
+
+    private static var transcodedVideos: Set<String> {
+        Set(UserDefaults.standard.stringArray(forKey: transcodedKey) ?? [])
+    }
+
     func setRate(_ rate: Float) {
         self.rate = rate
         engine?.playbackRate = rate
@@ -169,10 +194,12 @@ final class VideoController: SleepTarget {
     private func load(from startMs: Int, andPlay: Bool) {
         loadTask?.cancel()
         isLoading = true
+        offersTranscode = false
         let video = video!
+        let transcode = usesTranscode
         loadTask = Task { [weak self] in
             do {
-                let (url, headers, expiresAt) = try await Self.source(of: video)
+                let (url, headers, expiresAt) = try await Self.source(of: video, transcode: transcode)
                 try Task.checkCancellation()
                 guard let self else { return }
                 self.expiresAt = expiresAt
@@ -181,12 +208,16 @@ final class VideoController: SleepTarget {
                 engine.setHTTPHeaders(headers)
                 let opened = await engine.open(url, from: Int64(startMs))
                 try Task.checkCancellation()
-                guard opened else { throw P115Error.failed("无法打开视频") }
+                guard opened else { throw VideoError.cannotOpen }
                 durationMs = Int(engine.durationMs)
                 videoSize = engine.videoInfo.map { CGSize(width: $0.width, height: $0.height) }
                 engine.playbackRate = rate
                 isLoading = false
-                DiagnosticLog.shared.write("video", "loaded", ["startMs": startMs, "durationMs": durationMs, "codec": engine.videoInfo?.codec ?? "none"])
+                let audio = engine.audioInfo
+                DiagnosticLog.shared.write("video", "loaded", [
+                    "startMs": startMs, "durationMs": durationMs, "codec": engine.videoInfo?.codec ?? "none",
+                    "transcode": transcode, "audio": audio.map { "\($0.codec) \($0.bitRate / 1000)kbps \($0.sampleRate)Hz \($0.channels)ch" } ?? "none",
+                ])
                 if andPlay {
                     pausedByUser = false
                     engine.state = .playing
@@ -202,11 +233,13 @@ final class VideoController: SleepTarget {
 
     /// Imports play from Documents; 115 files from a signed link that
     /// needs its cookies along and expires.
-    private static func source(of video: PlayableVideo) async throws -> (url: String, headers: [(name: String, value: String)], expiresAt: Date?) {
+    private static func source(of video: PlayableVideo, transcode: Bool) async throws -> (url: String, headers: [(name: String, value: String)], expiresAt: Date?) {
         if video.isLocal {
             return (URL.documentsDirectory.appending(path: video.path).path, [], nil)
         }
-        let media = try await P115Client.shared.resolve(pickcode: video.pickcode!)
+        let media = transcode
+            ? try await P115Client.shared.transcoded(pickcode: video.pickcode!)
+            : try await P115Client.shared.resolve(pickcode: video.pickcode!)
         return (media.url.absoluteString, media.headers, media.expiresAt)
     }
 
@@ -244,8 +277,21 @@ final class VideoController: SleepTarget {
     }
 
     private func fail(_ error: Error) {
-        DiagnosticLog.shared.write("video", "play_error", ["error": "\(error)"])
-        errorMessage = error is P115Error ? error.localizedDescription : "无法播放：\(error.localizedDescription)"
+        DiagnosticLog.shared.write("video", "play_error", ["error": "\(error)", "transcode": usesTranscode])
+        offersTranscode = error is VideoError && video?.isLocal == false && !usesTranscode
+        errorMessage = error is P115Error || error is VideoError ? error.localizedDescription : "无法播放：\(error.localizedDescription)"
+    }
+
+    /// The engine gave up on the media itself, not on reaching it.
+    private enum VideoError: LocalizedError {
+        case cannotOpen, interrupted
+
+        var errorDescription: String? {
+            switch self {
+            case .cannotOpen: "无法打开视频"
+            case .interrupted: "播放中断"
+            }
+        }
     }
 
     // MARK: - Engine events
@@ -285,7 +331,7 @@ final class VideoController: SleepTarget {
                 retried = true
                 load(from: positionMs, andPlay: true)
             } else {
-                fail(P115Error.failed("播放中断"))
+                fail(VideoError.interrupted)
             }
         }
     }

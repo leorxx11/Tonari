@@ -23,6 +23,9 @@ struct VideoPlayerView: View {
     @State private var skipFlash: SkipFlash?
     /// A one-line result, e.g. after taking a cover.
     @State private var notice: String?
+    /// Still loading after `slowLoadAfter`: a file that never opens just
+    /// keeps loading without an error, so a tip points at the transcode.
+    @State private var slowLoad = false
 
     private struct SkipFlash: Equatable {
         let forward: Bool
@@ -31,6 +34,8 @@ struct VideoPlayerView: View {
 
     /// A full-width slide moves this far.
     private static let scrubSpanMs = 90_000
+
+    private static let slowLoadAfter: Duration = .seconds(15)
 
     private var step: Int { audio.prefs.seekStep }
 
@@ -55,6 +60,9 @@ struct VideoPlayerView: View {
                         .glassEffect(.regular, in: .capsule)
                         .transition(.opacity)
                 }
+                if slowLoad, controlsVisible, !locked, video.video?.isLocal == false, !video.usesTranscode {
+                    slowLoadTip.transition(.opacity)
+                }
                 if locked {
                     if controlsVisible { unlockButton }
                 } else if controlsVisible {
@@ -74,6 +82,17 @@ struct VideoPlayerView: View {
         }
         .onDisappear { AppDelegate.allow(.portrait, turningTo: .portrait) }
         .onChange(of: video.hasCurrent) { _, hasCurrent in if !hasCurrent { dismiss() } }
+        .task(id: video.isLoading) {
+            slowLoad = false
+            guard video.isLoading else { return }
+            try? await Task.sleep(for: Self.slowLoadAfter)
+            guard !Task.isCancelled else { return }
+            DiagnosticLog.shared.write("video", "slow_load", ["transcode": video.usesTranscode])
+            withAnimation {
+                slowLoad = true
+                controlsVisible = true
+            }
+        }
     }
 
     // MARK: - Picture and gestures
@@ -171,6 +190,26 @@ struct VideoPlayerView: View {
         .simultaneousGesture(TapGesture().onEnded { scheduleHide() })
     }
 
+    /// Points at the more menu, where the transcode is.
+    private var slowLoadTip: some View {
+        VStack(alignment: .trailing) {
+            Text("加载较慢？可在 \(Image(systemName: "ellipsis.circle")) 里改播转码版")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .glassEffect(.regular, in: .capsule)
+                // Just under the top bar's 44-point buttons.
+                .padding(.top, 52)
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, alignment: .trailing)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+        .safeAreaPadding(.vertical, landscape ? 0 : 44)
+        .allowsHitTesting(false)
+    }
+
     private var topBar: some View {
         HStack(spacing: 12) {
             glassButton("收起", systemImage: "chevron.down") { dismiss() }
@@ -198,6 +237,11 @@ struct VideoPlayerView: View {
                 }
             }
             .disabled(video.engine == nil || video.isLoading)
+            if video.video?.isLocal == false {
+                Button(video.usesTranscode ? "播放原视频" : "播放转码版", systemImage: video.usesTranscode ? "film" : "wand.and.sparkles") {
+                    video.setTranscode(!video.usesTranscode)
+                }
+            }
             if video.libraryItem != nil {
                 // Removing an import deletes its file; that belongs to the library page.
                 if video.video?.isLocal == false {
