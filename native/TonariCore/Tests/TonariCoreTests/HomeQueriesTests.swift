@@ -84,4 +84,30 @@ struct HomeQueriesTests {
         }
         #expect(try database.reader.read(HomeQueries.continueListening)?.work.productId == "RJ2")
     }
+
+    @Test func resumeOffersWhicheverCameLast() throws {
+        func video(_ id: String, minutesAgo: Double, positionMs: Int) -> PlayHistoryEntry {
+            PlayHistoryEntry(
+                id: "p115:\(id)", kind: "video", title: id, workId: nil, sourceKind: "p115", sourceId: "p115", sourceName: "115 网盘",
+                path: id, fileName: "\(id).mp4", pickcode: id, size: nil, positionMs: positionMs, durationMs: 600_000,
+                playedAt: now.addingTimeInterval(-minutesAgo * 60)
+            )
+        }
+        try database.writer.write { db in
+            try work("RJ1").insert(db)
+            try PlayHistoryEntry(
+                id: "work:RJ1", kind: "work", title: "RJ1", workId: "RJ1", sourceKind: nil, sourceId: nil, sourceName: nil,
+                path: nil, fileName: nil, pickcode: nil, size: nil, positionMs: 0, durationMs: nil,
+                playedAt: now.addingTimeInterval(-5 * 60)
+            ).insert(db)
+            // Watched to the end, so there's nothing to pick up.
+            try video("done", minutesAgo: 1, positionMs: 600_000).insert(db)
+        }
+        guard case .work(let work) = try database.reader.read(HomeQueries.resume) else { Issue.record("expected the work"); return }
+        #expect(work.work.productId == "RJ1")
+
+        try database.writer.write { try video("half", minutesAgo: 2, positionMs: 60_000).insert($0) }
+        guard case .video(let progress) = try database.reader.read(HomeQueries.resume) else { Issue.record("expected the video"); return }
+        #expect(progress.video.pickcode == "half")
+    }
 }

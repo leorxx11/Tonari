@@ -1,12 +1,14 @@
 import SwiftUI
 import TonariCore
 
-/// The first tab: what to listen to now. Pick up where listening left off
-/// (with a sleep timer on the way), let chance or a tag choose, or revisit
-/// what's recent, forgotten or new. Settings open from the gear.
+/// The first tab: what to listen to now. Pick up where listening or
+/// watching left off (with a sleep timer on the way), let chance or a tag
+/// choose, or revisit what's recent, forgotten or new. Settings open from
+/// the gear.
 struct HomeView: View {
     @Environment(AppModel.self) private var model
     @Environment(PlaybackController.self) private var player
+    @Environment(VideoController.self) private var video
     @Environment(\.appDatabase) private var database
     @State private var content = Content()
     @State private var unread = 0
@@ -15,7 +17,9 @@ struct HomeView: View {
     private static let rowLimit = 10
 
     nonisolated private struct Content: Sendable {
-        var resume: HomeQueries.ContinueListening?
+        var resume: HomeQueries.Resume?
+        /// The resume card's video cover, when it is a video with one.
+        var resumeCover: String?
         var recent: [RecentItem] = []
         var watching = ContinueWatching()
         var forgotten: [Work] = []
@@ -30,7 +34,7 @@ struct HomeView: View {
         NavigationStack(path: $model.homePath) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 26) {
-                    if let resume = content.resume { ResumeCard(resume: resume).padding(.horizontal, 16) }
+                    resumeCard.padding(.horizontal, 16)
                     sleepSection
                     pickButtons
                     if !content.recent.isEmpty {
@@ -84,10 +88,19 @@ struct HomeView: View {
         }
         .task {
             await database.observe({ db in
-                Content(
-                    resume: try HomeQueries.continueListening(db),
+                let resume = try HomeQueries.resume(db)
+                var watching = try ContinueWatching.fetch(db)
+                var resumeCover: String?
+                if case .video(let progress) = resume {
+                    // On the card already, so not again in the row.
+                    watching.progress.removeAll { $0.id == progress.id }
+                    resumeCover = try VideoItem.fetchOne(db, key: progress.id)?.coverPath
+                }
+                return Content(
+                    resume: resume,
+                    resumeCover: resumeCover,
                     recent: try RecentItem.fetch(limit: Self.rowLimit, db),
-                    watching: try ContinueWatching.fetch(db),
+                    watching: watching,
                     forgotten: try HomeQueries.forgotten(limit: Self.rowLimit, db),
                     added: try HomeQueries.recentlyAdded(limit: Self.rowLimit, db),
                     voiceActors: try HomeQueries.topVoiceActors(limit: 8, db),
@@ -99,6 +112,14 @@ struct HomeView: View {
     }
 
     // MARK: - Sections
+
+    @ViewBuilder private var resumeCard: some View {
+        switch content.resume {
+        case .work(let resume): ResumeCard(resume: resume)
+        case .video(let progress): VideoResumeCard(progress: progress, cover: content.resumeCover)
+        case nil: EmptyView()
+        }
+    }
 
     private func section(_ title: String, route: Route?, @ViewBuilder content: () -> some View) -> some View {
         section(title, action: route.map { route in { model.push(route) } }, content: content)
@@ -152,16 +173,18 @@ struct HomeView: View {
     }
 
     /// A second tap on the running preset cancels it. With nothing playing,
-    /// a preset also starts playback: the paused item, or the resume card's
-    /// work.
+    /// a preset also starts playback: the resume card's video, else the
+    /// paused audio or the card's work. A video plays on behind the mini
+    /// player rather than opening full screen.
     private func sleepChip(_ title: String, active: Bool, start: @escaping () -> Void) -> some View {
         Button {
             if active { return player.sleep.cancel() }
-            if !player.isPlaying {
-                if player.hasCurrent {
-                    player.play()
-                } else if let resume = content.resume {
-                    player.playWork(resume.work.productId, database: database)
+            if !player.isPlaying && !video.isPlaying {
+                switch content.resume {
+                case .video(let progress): video.play(progress.video)
+                case .work(let resume):
+                    if player.hasCurrent { player.play() } else { player.playWork(resume.work.productId, database: database) }
+                case nil: player.play()
                 }
             }
             start()
@@ -280,6 +303,52 @@ private struct ResumeCard: View {
             resume.remainingMs.map { "剩 \(max(1, $0 / 60_000)) 分钟" },
         ].compactMap(\.self)
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+}
+
+/// The latest unfinished video, when it came after any audio: tapping picks
+/// it up where it was left, or opens the player when it is the one playing.
+private struct VideoResumeCard: View {
+    let progress: VideoProgress
+    let cover: String?
+    @Environment(AppModel.self) private var model
+    @Environment(VideoController.self) private var video
+
+    var body: some View {
+        let playing = video.video?.id == progress.id && video.isPlaying
+        Button {
+            if playing { model.showingVideo = true } else { model.playVideo(progress.video, with: video) }
+        } label: {
+            VideoThumbnail(coverPath: cover, cornerRadius: 14)
+                .overlay(alignment: .bottom) {
+                    LinearGradient(colors: [.clear, .black.opacity(0.7)], startPoint: .top, endPoint: .bottom)
+                        .frame(height: 120)
+                        .clipShape(.rect(cornerRadius: 14))
+                }
+                .overlay(alignment: .bottomLeading) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("继续观看").font(.caption).opacity(0.8)
+                        Text(progress.video.title).font(.headline).lineLimit(2)
+                        Text("\(progress.video.sourceName) · 剩 \(ContinueWatchingRow.remaining(progress))")
+                            .font(.caption).opacity(0.85)
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.leading, 14)
+                    .padding(.trailing, 110)
+                    .padding(.bottom, 14)
+                }
+                .overlay(alignment: .bottomTrailing) {
+                    Label(playing ? "播放中" : "播放", systemImage: playing ? "waveform" : "play.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.black)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(.white, in: .capsule)
+                        .padding(14)
+                }
+                .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
     }
 }
 

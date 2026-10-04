@@ -14,6 +14,25 @@ public enum HomeQueries {
         public let trackNumber: Int?
         /// Left in that track, when its duration is known.
         public let remainingMs: Int?
+        public let playedAt: Date
+    }
+
+    /// What the home page offers to pick up: whichever came last of the
+    /// latest audio work and the latest video left unfinished.
+    public enum Resume: Sendable {
+        case work(ContinueListening)
+        case video(VideoProgress)
+    }
+
+    public static func resume(_ db: Database) throws -> Resume? {
+        let work = try continueListening(db)
+        let video = try PlaybackStore.continueWatching(limit: 1, db).first
+        switch (work, video) {
+        case let (work?, video?): return video.playedAt > work.playedAt ? .video(video) : .work(work)
+        case let (work?, nil): return .work(work)
+        case let (nil, video?): return .video(video)
+        case (nil, nil): return nil
+        }
     }
 
     /// A tag with how many library works carry it and how long it was
@@ -31,7 +50,7 @@ public enum HomeQueries {
             guard let work = try entry.workId.flatMap({ try Work.fetchOne(db, key: $0) }), !work.isRemoved else { continue }
             let track = try work.lastPlayedTrackId.flatMap { try Track.fetchOne(db, key: $0) }
             let remaining = track.flatMap { $0.durationMs > 0 ? max(0, $0.durationMs - $0.lastPositionMs) : nil }
-            return ContinueListening(work: work, trackNumber: try trackNumber(of: work, db), remainingMs: remaining)
+            return ContinueListening(work: work, trackNumber: try trackNumber(of: work, db), remainingMs: remaining, playedAt: entry.playedAt)
         }
         return nil
     }

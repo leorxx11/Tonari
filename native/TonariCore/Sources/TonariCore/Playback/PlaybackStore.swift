@@ -177,7 +177,7 @@ public struct PlaybackStore: Sendable {
                 .order(Column("played_at").desc).fetchOne(db)
         }
         guard let latest, let video = PlayableVideo(history: latest) else { return nil }
-        return VideoProgress(video: video, positionMs: latest.positionMs, durationMs: latest.durationMs ?? 0)
+        return VideoProgress(video: video, positionMs: latest.positionMs, durationMs: latest.durationMs ?? 0, playedAt: latest.playedAt)
     }
 
     /// Videos started but not finished, newest first, library or not.
@@ -191,7 +191,7 @@ public struct PlaybackStore: Sendable {
         return Array(entries.compactMap { entry -> VideoProgress? in
             guard let video = PlayableVideo(history: entry), let duration = entry.durationMs, duration > 0,
                   entry.positionMs < duration - videoEndSlackMs else { return nil }
-            return VideoProgress(video: video, positionMs: entry.positionMs, durationMs: duration)
+            return VideoProgress(video: video, positionMs: entry.positionMs, durationMs: duration, playedAt: entry.playedAt)
         }.prefix(limit))
     }
 

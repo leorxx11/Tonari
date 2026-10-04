@@ -106,6 +106,7 @@ public struct VideoProgress: Sendable, Identifiable {
     public let video: PlayableVideo
     public let positionMs: Int
     public let durationMs: Int
+    public let playedAt: Date
     public var id: String { video.id }
 }
 
