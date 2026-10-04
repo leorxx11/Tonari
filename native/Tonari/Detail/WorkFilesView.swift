@@ -19,6 +19,7 @@ struct WorkFilesView: View {
     @State private var flashing: String?
     @State private var subtitlePreview: SubtitlePreviewSource?
     @State private var textPreview: PreviewFile?
+    @State private var documentPreview: PreviewFile?
     @State private var gallery: GallerySelection?
     @Namespace private var galleryZoom
 
@@ -70,6 +71,7 @@ struct WorkFilesView: View {
         }
         .sheet(item: $subtitlePreview) { SubtitlePreviewSheet(source: $0) }
         .sheet(item: $textPreview) { TextPreviewSheet(file: $0) }
+        .documentPreview($documentPreview)
         .fullScreenCover(item: $gallery) { GalleryView(selection: $0, namespace: galleryZoom) }
         .task {
             await database.observe({ [productId] db in
@@ -195,6 +197,13 @@ struct WorkFilesView: View {
                 FileRow(icon: icon, tint: tint, title: file.fileName, detail: Formatting.bytes(file.fileSizeBytes))
             }
             .tint(.primary)
+        case "document":
+            Button {
+                documentPreview = .work(file, source: source)
+            } label: {
+                FileRow(icon: icon, tint: tint, title: file.fileName, detail: Formatting.bytes(file.fileSizeBytes))
+            }
+            .tint(.primary)
         default:
             FileRow(icon: icon, tint: tint, title: file.fileName, detail: Formatting.bytes(file.fileSizeBytes))
         }
@@ -216,7 +225,8 @@ struct WorkFilesView: View {
     static func summary(_ counts: [String: Int]) -> String {
         let parts: [(String, (Int) -> String)] = [
             ("audio", { "\($0) 首" }), ("subtitle", { "字幕 \($0)" }), ("image", { "\($0) 张图片" }),
-            ("text", { "\($0) 个文本" }), ("video", { "\($0) 个视频" }), ("other", { "\($0) 个其他文件" }),
+            ("text", { "\($0) 个文本" }), ("document", { "\($0) 个文档" }), ("video", { "\($0) 个视频" }),
+            ("other", { "\($0) 个其他文件" }),
         ]
         return parts.compactMap { kind, text in counts[kind].map(text) }.joined(separator: " · ")
     }

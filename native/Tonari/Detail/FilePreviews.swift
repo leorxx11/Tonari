@@ -1,3 +1,4 @@
+import QuickLook
 import SwiftUI
 import TonariCore
 import UIKit
@@ -194,6 +195,46 @@ struct SubtitlePreviewSheet: View {
                 failure = error.localizedDescription
             }
         }
+    }
+}
+
+extension View {
+    /// Opens `file` in the system's Quick Look viewer once it's copied out,
+    /// which for a 115 file means downloading it first.
+    func documentPreview(_ file: Binding<PreviewFile?>) -> some View {
+        modifier(DocumentPreview(file: file))
+    }
+}
+
+private struct DocumentPreview: ViewModifier {
+    @Binding var file: PreviewFile?
+    @State private var url: URL?
+    @State private var failure: String?
+
+    func body(content: Content) -> some View {
+        content
+            .overlay {
+                if file != nil && url == nil && failure == nil {
+                    ProgressView("正在打开…")
+                        .padding(24)
+                        .background(.regularMaterial, in: .rect(cornerRadius: 16))
+                }
+            }
+            .task(id: file) {
+                guard let file else { return }
+                do {
+                    url = try await file.temporaryCopy()
+                } catch {
+                    DiagnosticLog.shared.write("files", "document_preview_failed", ["file": file.name, "error": "\(error)"])
+                    failure = error.localizedDescription
+                }
+            }
+            .quickLookPreview($url)
+            .onChange(of: url) { old, new in
+                if old != nil && new == nil { file = nil }
+            }
+            .alert("无法打开文件", isPresented: Binding(get: { failure != nil }, set: { _ in failure = nil; file = nil }), presenting: failure) { _ in
+            } message: { Text($0) }
     }
 }
 

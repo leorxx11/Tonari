@@ -16,7 +16,7 @@ enum PreviewFile: Hashable, Identifiable {
         }
     }
 
-    var name: String {
+    nonisolated var name: String {
         switch self {
         case .work(let file, _): file.fileName
         case .p115(let entry): entry.name
@@ -38,6 +38,17 @@ enum PreviewFile: Hashable, Identifiable {
         case .p115(let entry):
             return try await Self.p115(pickcode: entry.pickcode!)
         }
+    }
+
+    /// A copy under its own name in the temporary folder, for Quick Look,
+    /// which reads a file by URL and goes by its extension.
+    @concurrent
+    func temporaryCopy() async throws -> URL {
+        let folder = URL.temporaryDirectory.appending(path: "previews/\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let url = folder.appending(path: name)
+        try await data().write(to: url)
+        return url
     }
 
     nonisolated static let p115Cache = URL.cachesDirectory.appending(path: "p115-files")

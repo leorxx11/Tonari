@@ -8,7 +8,7 @@ public enum RJID {
 }
 
 public enum FileKind: String, Sendable {
-    case audio, video, image, subtitle, text, other
+    case audio, video, image, subtitle, text, document, other
 
     public init(fileName: String) {
         switch FileKind.ext(fileName) {
@@ -17,6 +17,7 @@ public enum FileKind: String, Sendable {
         case "jpg", "jpeg", "png", "webp", "bmp", "gif": self = .image
         case "srt", "lrc", "vtt", "ass", "ssa": self = .subtitle
         case "txt", "md", "html", "htm": self = .text
+        case "pdf": self = .document
         default: self = .other
         }
     }

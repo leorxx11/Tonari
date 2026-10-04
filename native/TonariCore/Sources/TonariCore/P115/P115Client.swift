@@ -3,7 +3,7 @@ import Foundation
 /// A file or folder in a remote source (115 or WebDAV).
 public struct RemoteEntry: Sendable, Hashable, Identifiable, Codable {
     public enum Kind: String, Sendable, Codable {
-        case folder, audio, video, image, subtitle, text, other
+        case folder, audio, video, image, subtitle, text, document, other
     }
 
     public let id: String
@@ -324,6 +324,7 @@ extension RemoteEntry.Kind {
         case .image: .image
         case .subtitle: .subtitle
         case .text: .text
+        case .document: .document
         case .other: .other
         }
     }

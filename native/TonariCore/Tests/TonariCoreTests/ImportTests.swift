@@ -12,6 +12,29 @@ struct SubtitleParserTests {
         ])
     }
 
+    @Test func parsesASSDialogueThroughItsFormatLine() {
+        let ass = """
+        [Script Info]
+        Title: x
+
+        [V4+ Styles]
+        Format: Name, Fontname
+        Style: Default,Arial
+
+        [Events]
+        Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+        Dialogue: 0,0:00:05.00,0:00:07.50,JP,,0,0,0,,{\\pos(10,20)\\b1}二番目,です
+        Comment: 0,0:00:01.00,0:00:02.00,JP,,0,0,0,,メモ
+        Dialogue: 0,0:00:01.00,0:00:03.00,JP,,0,0,0,,一行目\\N二行目
+        Dialogue: 1,0:00:01.00,0:00:03.00,CN,,0,0,0,,第一行\\h译文
+        """
+        #expect(SubtitleParser.parse(ass, format: "ass") == [
+            .init(startMs: 1000, endMs: 3000, text: "一行目\n二行目"),
+            .init(startMs: 1000, endMs: 3000, text: "第一行 译文"),
+            .init(startMs: 5000, endMs: 7500, text: "二番目,です"),
+        ])
+    }
+
     @Test func parsesLRCWithMultipleStampsAndCentiseconds() {
         let lrc = "[ti:title]\n[00:05.50][00:10.00]同じ行\n[00:01.123]最初\n"
         #expect(SubtitleParser.parse(lrc, format: "lrc") == [
@@ -76,6 +99,20 @@ struct ScannerAndImportTests {
         }
         #expect(position == 4200)
         #expect(fileCount == 2)
+    }
+
+    @Test func assOnlyGoesToAudioWithoutAPlainSubtitle() throws {
+        try buildLibrary()
+        let ass = "[Events]\nFormat: Layer, Start, End, Style, Text\nDialogue: 0,0:00:00.00,0:00:02.00,Default,ASS\n"
+        try write("[社团] 作品A RJ01000001/本編/01_start.wav.ass", ass)
+        try write("[社团] 作品A RJ01000001/本編/02_next.wav")
+        try write("[社团] 作品A RJ01000001/本編/02_next.ass", ass)
+        let db = try AppDatabase.inMemory()
+        _ = try db.applyScanResult(FolderScanner.scan(root), sourceFolderId: "f1")
+        let formats = try db.reader.read { db in
+            try Subtitle.order(Column("id")).fetchAll(db).map { [$0.id: $0.fileFormat] }
+        }
+        #expect(formats == [["RJ01000001|本編/01_start.wav": "vtt"], ["RJ01000001|本編/02_next.wav": "ass"]])
     }
 
     @Test func skipExistingOnlyAddsNewWorks() throws {

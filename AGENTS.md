@@ -52,7 +52,7 @@
 - `native/Tonari.xcodeproj`：App target，`Tonari/` 为同步文件夹，加文件不改 `.pbxproj`；图标是 `Tonari/AppIcon.icon`（Icon Composer）。
 - `native/TonariCore/`：纯逻辑 SPM 包，可在 macOS 上 `swift test`。
 - `native/Packages/MDK/`：mdk 二进制 + Swift 封装。
-- 数据库沿用 Flutter 版 Drift schema（17）：snake_case 列名、日期存 Unix 秒、字符串列表存 JSON 文本；原生新增改动写成迁移（`Schema.migrations`，当前 18：`wanted_works`）。Flutter 版备份（17）可恢复进原生版并自动迁移，原生版备份 Flutter 版无法恢复。GRDB 查询条件里的 Date 会按文本绑定，与日期列比较要传 Unix 秒。
+- 数据库沿用 Flutter 版 Drift schema（17）：snake_case 列名、日期存 Unix 秒、字符串列表存 JSON 文本；原生新增改动写成迁移（`Schema.migrations`，当前 19：18 `wanted_works`、19 PDF 归为 `document`）。Flutter 版备份（17）可恢复进原生版并自动迁移，原生版备份 Flutter 版无法恢复。GRDB 查询条件里的 Date 会按文本绑定，与日期列比较要传 Unix 秒。
 - App target 默认 `@MainActor` 隔离（`SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`）。
 
 ## 开发与验收

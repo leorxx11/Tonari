@@ -24,6 +24,7 @@ struct P115BrowserView: View {
     @State private var keptVideos: Set<String> = []
     @State private var subtitlePreview: SubtitlePreviewSource?
     @State private var textPreview: PreviewFile?
+    @State private var documentPreview: PreviewFile?
     @State private var gallery: GallerySelection?
     @Namespace private var galleryZoom
 
@@ -73,6 +74,7 @@ struct P115BrowserView: View {
         }
         .sheet(item: $subtitlePreview) { SubtitlePreviewSheet(source: $0) }
         .sheet(item: $textPreview) { TextPreviewSheet(file: $0) }
+        .documentPreview($documentPreview)
         .fullScreenCover(item: $gallery) { GalleryView(selection: $0, namespace: galleryZoom) }
         .refreshable { await load() }
         // Coming back from a subfolder keeps the listing instead of spending
@@ -181,6 +183,11 @@ struct P115BrowserView: View {
             .matchedTransitionSource(id: entry.id, in: galleryZoom)
         case .text:
             Button { textPreview = .p115(entry) } label: {
+                FileRow(icon: icon, tint: tint, title: entry.name, detail: size)
+            }
+            .tint(.primary)
+        case .document:
+            Button { documentPreview = .p115(entry) } label: {
                 FileRow(icon: icon, tint: tint, title: entry.name, detail: size)
             }
             .tint(.primary)

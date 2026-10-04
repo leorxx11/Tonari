@@ -40,6 +40,7 @@ func fileIcon(_ kind: String) -> (String, Color) {
     case "image": ("photo", .green)
     case "subtitle": ("captions.bubble", .cyan)
     case "text": ("doc.text", .orange)
+    case "document": ("doc.richtext", .red)
     case "video": ("film", .purple)
     default: ("doc", .gray)
     }

@@ -166,11 +166,13 @@ extension AppDatabase {
     }
 
     /// Subtitles matched to audio in the same folder, named either
-    /// `track.wav.vtt` (DLsite style) or `track.srt` (shared stem).
+    /// `track.wav.vtt` (DLsite style) or `track.srt` (shared stem). An ass /
+    /// ssa only goes to audio without a plain one, so supporting them never
+    /// swaps out a subtitle a track already has, nor its translation.
     private static func readSubtitles(_ work: ScannedWork, remote: [String: Data]?) -> [ParsedSubtitle] {
         let audios = work.files(.audio)
         func dir(_ relativePath: String) -> String { (relativePath as NSString).deletingLastPathComponent }
-        return work.files(.subtitle).compactMap { subtitle in
+        let parsed: [ParsedSubtitle] = work.files(.subtitle).compactMap { subtitle in
             let format = FileKind.ext(subtitle.fileName)
             guard SubtitleParser.supports(format) else { return nil }
             let stem = (subtitle.fileName as NSString).deletingPathExtension
@@ -198,6 +200,8 @@ extension AppDatabase {
                 hash: SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined(), lines: lines
             )
         }
+        let plain = Set(parsed.filter { !SubtitleParser.isStyled($0.format) }.map(\.audioRelativePath))
+        return parsed.filter { !SubtitleParser.isStyled($0.format) || !plain.contains($0.audioRelativePath) }
     }
 }
 

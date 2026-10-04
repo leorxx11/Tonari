@@ -12,7 +12,7 @@ struct AppDatabaseTests {
                 try String.fetchAll(db, sql: "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")
             )
         }
-        #expect(version == 18)
+        #expect(version == 19)
         #expect(tables == [
             "app_events", "collection_videos", "collection_works", "collections", "imported_folders",
             "listen_logs", "llm_providers", "play_history_entries", "subtitles", "tracks",
@@ -30,7 +30,26 @@ struct AppDatabaseTests {
         let (version, works, wanted) = try AppDatabase(queue).reader.read { db in
             (try AppDatabase.userVersion(db), try Work.fetchCount(db), try db.tableExists("wanted_works"))
         }
-        #expect(version == 18 && works == 1 && wanted)
+        #expect(version == 19 && works == 1 && wanted)
+    }
+
+    @Test func migrationFilesScannedPDFsAsDocuments() throws {
+        let queue = try DatabaseQueue(configuration: AppDatabase.configuration)
+        try queue.write { db in
+            for sql in Schema.tables { try db.execute(sql: sql) }
+            for sql in Schema.migrations.prefix(1) { try db.execute(sql: sql) }
+            try db.execute(sql: "PRAGMA user_version = 18")
+            try Fixtures.work("RJ01000001").insert(db)
+            for (id, name) in [("a", "Script.PDF"), ("b", "notes.bin")] {
+                try db.execute(sql: """
+                    INSERT INTO work_files VALUES (?, 'RJ01000001', ?, ?, ?, 'other', 1, 0, 0)
+                    """, arguments: [id, name, name, name])
+            }
+        }
+        let kinds = try AppDatabase(queue).reader.read { db in
+            try String.fetchAll(db, sql: "SELECT file_kind FROM work_files ORDER BY id")
+        }
+        #expect(kinds == ["document", "other"])
     }
 
     @Test func reopeningKeepsData() throws {
