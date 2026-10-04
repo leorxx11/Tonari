@@ -253,8 +253,12 @@ struct WorkDetailView: View {
                     HStack {
                         Text("全部文件")
                         Spacer()
-                        Text("\(fileCount) 项").foregroundStyle(.secondary)
-                        Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+                        // Tinted like the page's other links, so it reads as tappable.
+                        Group {
+                            Text("\(fileCount) 项")
+                            Image(systemName: "chevron.right").font(.footnote.weight(.semibold))
+                        }
+                        .foregroundStyle(.tint)
                     }
                     .padding(.vertical, 8)
                     .contentShape(.rect)
