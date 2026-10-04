@@ -60,7 +60,7 @@ struct VideoPlayerView: View {
                         .glassEffect(.regular, in: .capsule)
                         .transition(.opacity)
                 }
-                if slowLoad, controlsVisible, !locked, video.video?.isLocal == false, !video.usesTranscode {
+                if slowLoad, controlsVisible, !locked, video.video?.isP115 == true, !video.usesTranscode {
                     slowLoadTip.transition(.opacity)
                 }
                 if locked {
@@ -237,7 +237,7 @@ struct VideoPlayerView: View {
                 }
             }
             .disabled(video.engine == nil || video.isLoading)
-            if video.video?.isLocal == false {
+            if video.video?.isP115 == true {
                 Button(video.usesTranscode ? "播放原视频" : "播放转码版", systemImage: video.usesTranscode ? "film" : "wand.and.sparkles") {
                     video.setTranscode(!video.usesTranscode)
                 }
@@ -247,7 +247,8 @@ struct VideoPlayerView: View {
                 if video.video?.isLocal == false {
                     Button("移出视频库", systemImage: "minus.circle") { video.setInLibrary(false) }
                 }
-            } else {
+            } else if video.video?.isInFolder == false {
+                // A video in a work's folder is reached through the work.
                 Button("加入视频库", systemImage: "plus.circle") {
                     video.setInLibrary(true)
                     flash("已加入视频库")

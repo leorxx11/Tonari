@@ -51,6 +51,8 @@ final class VideoController: SleepTarget {
     @ObservationIgnored private var clock: Task<Void, Never>?
     @ObservationIgnored private var releaseTask: Task<Void, Never>?
     @ObservationIgnored private var expiresAt: Date?
+    /// The imported folder a `folder` video plays from, held open meanwhile.
+    @ObservationIgnored private var scopedFolder: URL?
     /// A video gets one fresh link after failing mid-play.
     @ObservationIgnored private var retried = false
     @ObservationIgnored private var pausedByUser = true
@@ -174,6 +176,7 @@ final class VideoController: SleepTarget {
     /// Ends the video session: progress saved, engine and mini player gone.
     func close() {
         saveProgress()
+        releaseFolder()
         loadTask?.cancel()
         clock?.cancel()
         releaseEngine()
@@ -199,9 +202,10 @@ final class VideoController: SleepTarget {
         let transcode = usesTranscode
         loadTask = Task { [weak self] in
             do {
+                guard let self else { return }
+                try accessFolder(of: video)
                 let (url, headers, expiresAt) = try await Self.source(of: video, transcode: transcode)
                 try Task.checkCancellation()
-                guard let self else { return }
                 self.expiresAt = expiresAt
                 let engine = engine ?? makeEngine()
                 renderer?.isRunning = true
@@ -237,10 +241,31 @@ final class VideoController: SleepTarget {
         if video.isLocal {
             return (URL.documentsDirectory.appending(path: video.path).path, [], nil)
         }
+        if video.isInFolder {
+            return (video.path, [], nil)
+        }
         let media = transcode
             ? try await P115Client.shared.transcoded(pickcode: video.pickcode!)
             : try await P115Client.shared.resolve(pickcode: video.pickcode!)
         return (media.url.absoluteString, media.headers, media.expiresAt)
+    }
+
+    /// Opens the security scope of the folder a `folder` video sits in; mdk
+    /// reads the file as it plays, so the scope stays open until the next
+    /// video or close.
+    private func accessFolder(of video: PlayableVideo) throws {
+        releaseFolder()
+        guard video.isInFolder else { return }
+        guard let folder = try database.reader.read({ try ImportedFolder.fetchOne($0, key: video.sourceId) }) else {
+            throw VideoError.folderGone
+        }
+        let url = try folder.scopedURL()
+        if url.startAccessingSecurityScopedResource() { scopedFolder = url }
+    }
+
+    private func releaseFolder() {
+        scopedFolder?.stopAccessingSecurityScopedResource()
+        scopedFolder = nil
     }
 
     /// Follows the library row, so renames and new covers show at once.
@@ -278,18 +303,19 @@ final class VideoController: SleepTarget {
 
     private func fail(_ error: Error) {
         DiagnosticLog.shared.write("video", "play_error", ["error": "\(error)", "transcode": usesTranscode])
-        offersTranscode = error is VideoError && video?.isLocal == false && !usesTranscode
+        offersTranscode = error is VideoError && video?.isP115 == true && !usesTranscode
         errorMessage = error is P115Error || error is VideoError ? error.localizedDescription : "无法播放：\(error.localizedDescription)"
     }
 
     /// The engine gave up on the media itself, not on reaching it.
     private enum VideoError: LocalizedError {
-        case cannotOpen, interrupted
+        case cannotOpen, interrupted, folderGone
 
         var errorDescription: String? {
             switch self {
             case .cannotOpen: "无法打开视频"
             case .interrupted: "播放中断"
+            case .folderGone: "视频所在的文件夹已从媒体来源中移除"
             }
         }
     }

@@ -11,6 +11,7 @@ struct WorkFilesView: View {
 
     @Environment(AppModel.self) private var model
     @Environment(PlaybackController.self) private var player
+    @Environment(VideoController.self) private var video
     @Environment(\.appDatabase) private var database
     @State private var tree: [WorkTreeNode] = []
     @State private var source: ImportedFolder?
@@ -197,6 +198,20 @@ struct WorkFilesView: View {
                 FileRow(icon: icon, tint: tint, title: file.fileName, detail: Formatting.bytes(file.fileSizeBytes))
             }
             .tint(.primary)
+        case "video":
+            if let playable = playable(file) {
+                Button {
+                    model.playVideo(playable, with: video)
+                } label: {
+                    FileRow(
+                        icon: video.video?.id == playable.id ? "play.rectangle.fill" : icon, tint: tint,
+                        title: file.fileName, detail: Formatting.bytes(file.fileSizeBytes)
+                    )
+                }
+                .tint(.primary)
+            } else {
+                FileRow(icon: icon, tint: tint, title: file.fileName, detail: Formatting.bytes(file.fileSizeBytes))
+            }
         case "document":
             Button {
                 documentPreview = .work(file, source: source)
@@ -206,6 +221,16 @@ struct WorkFilesView: View {
             .tint(.primary)
         default:
             FileRow(icon: icon, tint: tint, title: file.fileName, detail: Formatting.bytes(file.fileSizeBytes))
+        }
+    }
+
+    /// 115 works keep the pickcode as the file path; local ones play in
+    /// place from their folder. Other sources can't stream video yet.
+    private func playable(_ file: WorkFile) -> PlayableVideo? {
+        switch source?.type {
+        case "p115": PlayableVideo(p115Pickcode: file.filePath, fileName: file.fileName, size: file.fileSizeBytes)
+        case "local": PlayableVideo(folder: source!, filePath: file.filePath, fileName: file.fileName, size: file.fileSizeBytes)
+        default: nil
         }
     }
 

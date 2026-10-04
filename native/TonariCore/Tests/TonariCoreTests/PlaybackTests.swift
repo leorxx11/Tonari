@@ -117,6 +117,18 @@ struct PlaybackStoreTests {
         #expect(try store.continueWatching(limit: 5).isEmpty)
     }
 
+    @Test func workVideosShareIdsAndComeBackFromHistory() throws {
+        let (_, store) = try database()
+        let p115 = PlayableVideo(p115Pickcode: "vpc", fileName: "特典.mp4", size: 3)
+        #expect(p115.id == "p115:vpc" && p115.isP115)
+        let folder = ImportedFolder(id: "f1", displayName: "ASMR", bookmarkBase64: "", type: "local", serverId: nil,
+                                    remotePath: "/x", createdAt: .now, updatedAt: .now)
+        let video = PlayableVideo(folder: folder, filePath: "/x/RJ01000001/特典.mp4", fileName: "特典.mp4", size: 3)
+        #expect(video.id == "folder:f1:/x/RJ01000001/特典.mp4" && video.isInFolder && !video.isP115)
+        try store.recordVideo(video, at: Fixtures.date)
+        #expect(try store.lastPlayedVideo()?.video == video)
+    }
+
     @Test func videoLibraryAddsRenamesGroupsAndRemoves() throws {
         let (database, _) = try database()
         let video = PlayableVideo(localPath: "videos/abc/clip.mp4", fileName: "clip.mp4", size: 5)

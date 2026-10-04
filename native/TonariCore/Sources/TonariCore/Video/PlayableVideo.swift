@@ -9,11 +9,13 @@ public struct PlayableVideo: Sendable, Hashable, Identifiable {
     public static let localSourceName = "本地导入"
 
     public let id: String
-    /// `p115` or `local`.
+    /// `p115`, `local` (copied into Documents) or `folder` (inside a work's
+    /// imported folder).
     public let sourceKind: String
     public let sourceId: String
     public let sourceName: String
-    /// The 115 file id, or a path relative to Documents for imports.
+    /// The 115 file id (the pickcode for one met in a work), a path relative
+    /// to Documents for imports, or the absolute path inside a folder.
     public let path: String
     public let fileName: String
     public let pickcode: String?
@@ -21,6 +23,8 @@ public struct PlayableVideo: Sendable, Hashable, Identifiable {
 
     public var title: String { PlaybackStore.fileTitle(fileName) }
     public var isLocal: Bool { sourceKind == "local" }
+    public var isP115: Bool { sourceKind == "p115" }
+    public var isInFolder: Bool { sourceKind == "folder" }
 
     public init(p115 entry: RemoteEntry, sourceName: String) {
         id = PlaybackStore.historyId(entry)
@@ -31,6 +35,31 @@ public struct PlayableVideo: Sendable, Hashable, Identifiable {
         fileName = entry.name
         pickcode = entry.pickcode
         size = entry.size
+    }
+
+    /// A video in a work imported from 115, where only its pickcode is
+    /// kept; the id matches the same file browsed on 115.
+    public init(p115Pickcode pickcode: String, fileName: String, size: Int?) {
+        id = "p115:\(pickcode)"
+        sourceKind = "p115"
+        sourceId = P115Client.sourceId
+        sourceName = P115Client.sourceName
+        path = pickcode
+        self.fileName = fileName
+        self.pickcode = pickcode
+        self.size = size
+    }
+
+    /// A video inside a work's imported folder, played where it lies.
+    public init(folder: ImportedFolder, filePath: String, fileName: String, size: Int?) {
+        id = "folder:\(folder.id):\(filePath)"
+        sourceKind = "folder"
+        sourceId = folder.id
+        sourceName = folder.displayName
+        path = filePath
+        self.fileName = fileName
+        pickcode = nil
+        self.size = size
     }
 
     /// A file copied into Documents by the import.
@@ -58,7 +87,7 @@ public struct PlayableVideo: Sendable, Hashable, Identifiable {
 
     /// The video a history entry played, when it is one this build can open.
     public init?(history entry: PlayHistoryEntry) {
-        guard entry.kind == "video", let sourceKind = entry.sourceKind, ["p115", "local"].contains(sourceKind),
+        guard entry.kind == "video", let sourceKind = entry.sourceKind, ["p115", "local", "folder"].contains(sourceKind),
               let sourceId = entry.sourceId, let path = entry.path, let fileName = entry.fileName
         else { return nil }
         id = entry.id
