@@ -32,8 +32,19 @@ struct TonariApp: App {
                 ])
             }
             database = try AppDatabase.open(in: documents)
-            _model = State(initialValue: AppModel(database: database))
-            _enrichment = State(initialValue: EnrichmentQueue(database: database))
+            let model = AppModel(database: database)
+            let enrichment = EnrichmentQueue(database: database)
+            _model = State(initialValue: model)
+            _enrichment = State(initialValue: enrichment)
+            // Launch work lives as long as the app: in the root view's task
+            // it was cancelled whenever a full-screen presentation covered
+            // the view, mid-way through a database read.
+            Task { [database] in
+                async let lists: Void = model.discover.refreshStale()
+                await LocalImport(database: database).rescanFlaggedLocalWorks()
+                await enrichment.runPending()
+                await lists
+            }
             let player = PlaybackController(database: database)
             let video = VideoController(database: database, sleep: player.sleep)
             _player = State(initialValue: player)
@@ -143,11 +154,6 @@ struct RootView: View {
             }
         } message: {
             Text("将清除该作品在 App 内的快照（音轨、文件、字幕），云盘/本地的原文件不受影响。重新导入可找回。")
-        }
-        .task { await model.discover.refreshStale() }
-        .task {
-            await LocalImport(database: database).rescanFlaggedLocalWorks()
-            await enrichment.runPending()
         }
     }
 }
