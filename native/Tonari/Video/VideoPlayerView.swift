@@ -3,9 +3,10 @@ import SwiftUI
 import TonariCore
 
 /// Full-screen video on black, the picture centered at its own ratio, with
-/// glass controls that hide after three idle seconds. Sliding sideways
-/// scrubs (the jump happens on release), double-tapping either half skips,
-/// and dragging down shrinks the player back into the mini player.
+/// glass controls that hide after three idle seconds. In landscape sliding
+/// sideways scrubs (the jump happens on release); in portrait only the
+/// scrubber does, leaving the picture to the swipe down that shrinks the
+/// player back into the mini player. Double-tapping either half skips.
 struct VideoPlayerView: View {
     @Environment(VideoController.self) private var video
     @Environment(PlaybackController.self) private var audio
@@ -103,23 +104,18 @@ struct VideoPlayerView: View {
                     }
                     .exclusively(before: TapGesture().onEnded { toggleControls() })
             )
-            .simultaneousGesture(
-                DragGesture(minimumDistance: 14)
-                    .onChanged { value in
-                        guard !locked, video.durationMs > 0 else { return }
-                        // Sideways only; a downward drag belongs to dismissing.
-                        if scrubStart == nil {
-                            guard abs(value.translation.width) > abs(value.translation.height) else { return }
-                            scrubStart = video.positionMs
-                        }
-                        let delta = Int(value.translation.width / width * Double(Self.scrubSpanMs))
-                        scrubTarget = min(video.durationMs, max(0, scrubStart! + delta))
-                    }
-                    .onEnded { _ in
-                        if let scrubTarget { video.seek(to: scrubTarget) }
-                        scrubStart = nil
-                        scrubTarget = nil
-                    }
+            .gesture(
+                SidewaysPan(isEnabled: landscape) { translation in
+                    guard !locked, video.durationMs > 0 else { return }
+                    let start = scrubStart ?? video.positionMs
+                    scrubStart = start
+                    let delta = Int(translation / width * Double(Self.scrubSpanMs))
+                    scrubTarget = min(video.durationMs, max(0, start + delta))
+                } onEnded: {
+                    if let scrubTarget { video.seek(to: scrubTarget) }
+                    scrubStart = nil
+                    scrubTarget = nil
+                }
             )
     }
 
@@ -370,6 +366,42 @@ struct VideoPlayerView: View {
         let landscape = scene.effectiveGeometry.interfaceOrientation.isLandscape
         AppDelegate.allow(.allButUpsideDown, turningTo: landscape ? .portrait : .landscapeRight)
         scheduleHide()
+    }
+}
+
+/// A pan that only claims sideways slides. A SwiftUI drag claims any
+/// direction once it moves far enough, and when it beat the system's
+/// swipe-down to it, dragging down no longer dismissed the player.
+private struct SidewaysPan: UIGestureRecognizerRepresentable {
+    let isEnabled: Bool
+    let onChanged: (_ translation: CGFloat) -> Void
+    let onEnded: () -> Void
+
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        func gestureRecognizerShouldBegin(_ recognizer: UIGestureRecognizer) -> Bool {
+            let translation = (recognizer as! UIPanGestureRecognizer).translation(in: recognizer.view)
+            return abs(translation.x) > abs(translation.y)
+        }
+    }
+
+    func makeCoordinator(converter: CoordinateSpaceConverter) -> Coordinator { Coordinator() }
+
+    func makeUIGestureRecognizer(context: Context) -> UIPanGestureRecognizer {
+        let recognizer = UIPanGestureRecognizer()
+        recognizer.delegate = context.coordinator
+        return recognizer
+    }
+
+    func updateUIGestureRecognizer(_ recognizer: UIPanGestureRecognizer, context: Context) {
+        recognizer.isEnabled = isEnabled
+    }
+
+    func handleUIGestureRecognizerAction(_ recognizer: UIPanGestureRecognizer, context: Context) {
+        switch recognizer.state {
+        case .began, .changed: onChanged(recognizer.translation(in: recognizer.view).x)
+        case .ended, .cancelled: onEnded()
+        default: break
+        }
     }
 }
 
