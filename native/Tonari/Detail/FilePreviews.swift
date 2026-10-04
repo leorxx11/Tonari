@@ -148,8 +148,7 @@ struct SubtitlePreviewSheet: View {
                 .frame(width: 140)
             }
             Spacer(minLength: 0)
-            Button("提前 0.1 秒", systemImage: "minus") { shift(-100) }
-                .labelStyle(.iconOnly)
+            shiftButton("提前 0.1 秒", symbol: "minus", ms: -100)
             Menu {
                 Button("重置字幕时间", systemImage: "arrow.counterclockwise") {
                     try! PlaybackStore(database: database).resetSubtitleOffset(of: subtitle.trackId)
@@ -158,19 +157,28 @@ struct SubtitlePreviewSheet: View {
             } label: {
                 Text("偏移 \(PlayerView.offsetText(subtitle.timeOffsetMs))")
                     .font(.subheadline.monospacedDigit())
+                    .frame(minWidth: 76, minHeight: 22)
             }
-            Button("推后 0.1 秒", systemImage: "plus") { shift(100) }
-                .labelStyle(.iconOnly)
+            .buttonBorderShape(.capsule)
+            shiftButton("推后 0.1 秒", symbol: "plus", ms: 100)
         }
         .buttonStyle(.bordered)
-        .buttonBorderShape(.circle)
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
         .background(.bar)
     }
 
-    private func shift(_ ms: Int) {
-        try! PlaybackStore(database: database).shiftSubtitle(of: subtitle!.trackId, byMs: ms)
+    /// A fixed-size label keeps both circles the same size; a bare glyph
+    /// sizes the circle to its own height, which is tiny for "minus".
+    private func shiftButton(_ title: String, symbol: String, ms: Int) -> some View {
+        Button {
+            try! PlaybackStore(database: database).shiftSubtitle(of: subtitle!.trackId, byMs: ms)
+        } label: {
+            Label(title, systemImage: symbol)
+                .labelStyle(.iconOnly)
+                .frame(width: 22, height: 22)
+        }
+        .buttonBorderShape(.circle)
     }
 
     private func load() async {

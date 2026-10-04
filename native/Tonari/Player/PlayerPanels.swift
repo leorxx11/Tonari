@@ -11,14 +11,17 @@ struct LyricsPanel: View {
     var bottomCover: CGFloat = 0
     /// A tap between lines, which brings the controls back.
     var onBlankTap: () -> Void = {}
-    /// The finger scrolled the lyrics: `true` back toward earlier lines,
-    /// which brings the controls back; `false` on toward later lines, which
-    /// hides them.
-    var onScroll: (_ up: Bool) -> Void = { _ in }
+    /// The finger is dragging on toward later lines, which hides the controls.
+    var onScrollOn: () -> Void = {}
+    /// The finger let go while the lyrics still glide back toward earlier
+    /// lines, which brings the controls back. As in Apple Music, a drag that
+    /// stops before letting go, or one still held, never does.
+    var onFlickBack: () -> Void = {}
 
     @Environment(PlaybackController.self) private var player
     @State private var holdUntil: Date?
     @State private var dragging = false
+    @State private var lastDragStep: CGFloat = 0
 
     var body: some View {
         if let subtitle, !subtitle.originalLinesJson.isEmpty {
@@ -47,11 +50,18 @@ struct LyricsPanel: View {
                 .scrollIndicators(.hidden)
                 .background { Color.clear.contentShape(.rect).onTapGesture(perform: onBlankTap) }
                 .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y } action: { old, new in
-                    guard dragging, abs(new - old) > 1 else { return }
-                    onScroll(new < old)
+                    guard dragging, new != old else { return }
+                    lastDragStep = new - old
+                    if lastDragStep > 1 { onScrollOn() }
                 }
-                .onScrollPhaseChange { _, phase in
+                // Gliding on after the finger lifts means it let go still moving.
+                // The phase context's velocity can't tell the direction: it often
+                // reads zero on that change, so the last step of the drag does.
+                .onScrollPhaseChange { old, phase in
                     dragging = phase == .interacting
+                    if old == .interacting, phase == .decelerating, lastDragStep < 0 {
+                        onFlickBack()
+                    }
                     if phase == .interacting {
                         holdUntil = .distantFuture
                     } else if phase == .idle, holdUntil == .distantFuture {

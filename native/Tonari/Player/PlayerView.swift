@@ -43,13 +43,12 @@ struct PlayerView: View {
                             case .lyrics:
                                 LyricsPanel(subtitle: player.currentSubtitle, bottomCover: controlsVisible ? controlsHeight : 0) {
                                     showControls()
-                                } onScroll: { up in
-                                    if up {
-                                        if !controlsVisible { showControls() }
-                                    } else if controlsVisible {
-                                        hideTask?.cancel()
-                                        withAnimation(.spring(duration: 0.4)) { controlsVisible = false }
-                                    }
+                                } onScrollOn: {
+                                    guard controlsVisible else { return }
+                                    hideTask?.cancel()
+                                    withAnimation(.spring(duration: 0.4)) { controlsVisible = false }
+                                } onFlickBack: {
+                                    if !controlsVisible { showControls() }
                                 }
                             case .queue: QueuePanel(showingSleep: $showingSleep)
                             }
@@ -95,6 +94,9 @@ struct PlayerView: View {
             UserDefaults.standard.set(panel?.rawValue, forKey: Self.panelKey)
             if panel == .lyrics { showControls() } else { hideTask?.cancel(); controlsVisible = true }
         }
+        .onChange(of: player.isPlaying) { _, isPlaying in
+            if isPlaying, controlsVisible { scheduleHide() } else { hideTask?.cancel() }
+        }
     }
 
     private var controlBlock: some View {
@@ -104,8 +106,11 @@ struct PlayerView: View {
             VolumeRow().padding(.top, 22)
             bottomBar.padding(.top, 22)
         }
+        // Floating over the lyrics, the gaps between controls must not reach
+        // the lines faded out underneath.
+        .contentShape(.rect)
         // Any touch on the controls restarts the idle countdown.
-        .simultaneousGesture(DragGesture(minimumDistance: 0).onChanged { _ in scheduleHide() })
+        .gesture(TouchObserver(onTouch: scheduleHide))
     }
 
     private func showControls() {
@@ -113,9 +118,10 @@ struct PlayerView: View {
         scheduleHide()
     }
 
+    /// Paused, the controls stay up until the lyrics are scrolled on.
     private func scheduleHide() {
-        guard panel == .lyrics else { return }
         hideTask?.cancel()
+        guard panel == .lyrics, player.isPlaying else { return }
         hideTask = Task {
             try? await Task.sleep(for: .seconds(4))
             guard !Task.isCancelled else { return }
@@ -390,6 +396,30 @@ private struct SystemVolumeSlider: UIViewRepresentable {
     }
 
     func updateUIView(_ view: BarVolumeView, context: Context) {}
+}
+
+/// Sees every touch without ever claiming one. A SwiftUI drag gesture
+/// recognizes on touch down and cancels the touches of UIKit controls
+/// beneath it, which froze the volume slider.
+private struct TouchObserver: UIGestureRecognizerRepresentable {
+    let onTouch: () -> Void
+
+    final class Recognizer: UIGestureRecognizer {
+        var onTouch: () -> Void = {}
+
+        override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) { onTouch() }
+        override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent) { onTouch() }
+        override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent) { state = .failed }
+        override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent) { state = .failed }
+        override func canPrevent(_ preventedGestureRecognizer: UIGestureRecognizer) -> Bool { false }
+        override func canBePrevented(by preventingGestureRecognizer: UIGestureRecognizer) -> Bool { false }
+    }
+
+    func makeUIGestureRecognizer(context: Context) -> Recognizer { Recognizer() }
+
+    func updateUIGestureRecognizer(_ recognizer: Recognizer, context: Context) {
+        recognizer.onTouch = onTouch
+    }
 }
 
 /// The output device's own glyph and name, over a see-through system
