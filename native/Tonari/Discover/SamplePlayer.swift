@@ -7,7 +7,7 @@ import UIKit
 /// Plays a work's chobit preview on the work page: one track after another,
 /// nothing on the lock screen, gone when the page goes; a preview video
 /// opens in the system player. Starting either pauses whatever the app was
-/// playing.
+/// playing, and leaving the app pauses both.
 @Observable
 final class SamplePlayer {
     private(set) var tracks: [ChobitSample.Track] = []
@@ -20,8 +20,15 @@ final class SamplePlayer {
     @ObservationIgnored private let player = AVPlayer()
     @ObservationIgnored private var timeObserver: Any?
     @ObservationIgnored private var endObserver: (any NSObjectProtocol)?
+    @ObservationIgnored private var backgroundObserver: (any NSObjectProtocol)?
 
     init() {
+        backgroundObserver = NotificationCenter.default.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, self.isPlaying else { return }
+                self.pause()
+            }
+        }
         timeObserver = player.addPeriodicTimeObserver(forInterval: CMTime(value: 1, timescale: 4), queue: .main) { [weak self] time in
             MainActor.assumeIsolated {
                 guard let self, let duration = self.player.currentItem?.duration.seconds, duration > 0 else { return }
@@ -40,12 +47,16 @@ final class SamplePlayer {
 
     /// Full screen in the system player, like a trailer; it stays out of
     /// the play history.
-    func play(_ video: ChobitSample.Video, pausing audio: PlaybackController, _ videoPlayer: VideoController) {
-        audio.pause()
-        videoPlayer.pause()
+    func play(_ video: ChobitSample.Video, yielding nowPlaying: NowPlaying) {
+        nowPlaying.yieldToPreview()
         stop()
         let controller = AVPlayerViewController()
-        controller.player = AVPlayer(url: video.url)
+        let preview = AVPlayer(url: video.url)
+        preview.audiovisualBackgroundPlaybackPolicy = .pauses
+        controller.player = preview
+        // A preview is watched and closed; it shouldn't float on after.
+        controller.allowsPictureInPicturePlayback = false
+        controller.updatesNowPlayingInfoCenter = false
         let scene = UIApplication.shared.connectedScenes.first as! UIWindowScene
         var top = scene.keyWindow!.rootViewController!
         while let presented = top.presentedViewController { top = presented }
@@ -53,13 +64,12 @@ final class SamplePlayer {
     }
 
     /// Plays `index`, or pauses / resumes it when it's the current one.
-    func toggle(_ index: Int, pausing audio: PlaybackController, _ video: VideoController) {
+    func toggle(_ index: Int, yielding nowPlaying: NowPlaying) {
         if index == current {
-            if isPlaying { pause() } else { resume(pausing: audio, video) }
+            if isPlaying { pause() } else { resume(yielding: nowPlaying) }
             return
         }
-        audio.pause()
-        video.pause()
+        nowPlaying.yieldToPreview()
         start(index)
     }
 
@@ -76,9 +86,8 @@ final class SamplePlayer {
         isPlaying = false
     }
 
-    private func resume(pausing audio: PlaybackController, _ video: VideoController) {
-        audio.pause()
-        video.pause()
+    private func resume(yielding nowPlaying: NowPlaying) {
+        nowPlaying.yieldToPreview()
         player.play()
         isPlaying = true
     }

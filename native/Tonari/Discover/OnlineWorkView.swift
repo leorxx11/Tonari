@@ -16,6 +16,7 @@ struct OnlineWorkView: View {
     @Environment(EnrichmentQueue.self) private var enrichment
     @Environment(PlaybackController.self) private var player
     @Environment(VideoController.self) private var video
+    @Environment(NowPlaying.self) private var nowPlaying
     @Environment(\.appDatabase) private var database
     @State private var samples = SamplePlayer()
     @State private var work: Work?
@@ -245,7 +246,7 @@ struct OnlineWorkView: View {
     }
 
     private func sampleVideo(_ preview: ChobitSample.Video) -> some View {
-        Button { samples.play(preview, pausing: player, video) } label: {
+        Button { samples.play(preview, yielding: nowPlaying) } label: {
             VStack(alignment: .leading, spacing: 6) {
                 Group {
                     if let poster = preview.poster {
@@ -278,7 +279,7 @@ struct OnlineWorkView: View {
     private func sampleRow(_ index: Int, last: Bool) -> some View {
         let track = samples.tracks[index]
         let current = samples.current == index
-        return Button { samples.toggle(index, pausing: player, video) } label: {
+        return Button { samples.toggle(index, yielding: nowPlaying) } label: {
             HStack(spacing: 12) {
                 Group {
                     if current {

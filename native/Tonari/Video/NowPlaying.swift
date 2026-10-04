@@ -1,3 +1,4 @@
+import MediaPlayer
 import Observation
 
 /// Which player is in front: the one the mini player, the lock screen and
@@ -38,13 +39,25 @@ final class NowPlaying {
         bring(.audio)
     }
 
+    /// A chobit preview is about to sound: both players pause and leave the
+    /// lock screen, so leaving the app doesn't surface what they last showed.
+    /// The next one to play takes it back.
+    func yieldToPreview() {
+        audio.pause()
+        video.pause()
+        audio.isFront = false
+        video.isFront = false
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+    }
+
     private func bring(_ media: Media) {
-        guard media != front else { return }
-        switch media {
-        case .audio: video.pause()
-        case .video: audio.pause()
+        if media != front {
+            switch media {
+            case .audio: video.pause()
+            case .video: audio.pause()
+            }
+            front = media
         }
-        front = media
         audio.isFront = media == .audio
         video.isFront = media == .video
         audio.sleep.controller = media == .audio ? audio : video
