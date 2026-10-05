@@ -76,12 +76,10 @@ struct SubtitlePreviewSheet: View {
                 } label: {
                     Label("播放这首", systemImage: "play.fill")
                         .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(Color(.systemBackground))
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                        .background(Color.primary, in: .capsule)
                 }
-                .buttonStyle(.plain)
+                // A hand-drawn Color.primary capsule turns grey on the
+                // half-height sheet's glass; the glass style stays solid.
+                .buttonStyle(.glassProminent)
             }
         }
         .padding(.horizontal, 20)
