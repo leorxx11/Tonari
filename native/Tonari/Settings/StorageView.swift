@@ -192,7 +192,10 @@ struct StorageView: View {
     private func clear(_ areas: [Area]) async {
         for area in areas {
             await Self.remove(area.files)
-            if area == .dlsiteOnline { URLCache.shared.removeAllCachedResponses() }
+            if area == .dlsiteOnline {
+                URLCache.shared.removeAllCachedResponses()
+                RemoteImages.memory.removeAllObjects()
+            }
             DiagnosticLog.shared.write("storage", "cleared", ["area": area.title, "bytes": sizes[area] ?? 0])
         }
         await measure()
