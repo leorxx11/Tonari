@@ -44,7 +44,9 @@ final class PlaybackController: SleepTarget {
     @ObservationIgnored private var scopedFolder: URL?
     /// When the current 115 link stops working.
     @ObservationIgnored private var expiresAt: Date?
-    /// Nothing usable is loaded yet: a restored 115 track waits for play.
+    /// Nothing usable is loaded yet: a restored 115 track waits for play,
+    /// or a new track is loading while the old item still plays and its
+    /// clock must not count as the new track's position.
     @ObservationIgnored private var needsLoad = false
     /// A remote item gets one fresh link after failing mid-play.
     @ObservationIgnored private var retried = false
@@ -202,6 +204,7 @@ final class PlaybackController: SleepTarget {
         case .files(let files, let sourceName): try! store.recordFile(files[index], sourceName: sourceName)
         }
         retried = false
+        needsLoad = true
         positionMs = startMs
         durationMs = currentTrack?.durationMs ?? 0
         load(from: startMs, andPlay: true)
