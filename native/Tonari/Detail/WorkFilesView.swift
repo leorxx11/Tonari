@@ -62,11 +62,8 @@ struct WorkFilesView: View {
             .sharedBackgroundVisibility(.hidden)
             if !path.isEmpty {
                 ToolbarItem(placement: .topBarTrailing) {
-                    // One page per folder row tapped, plus the root page.
-                    Button("回到作品详情", systemImage: "house") {
-                        model.pop(WorkTree.steps(tree, to: path).count + 1)
-                    }
-                    .disabled(!loaded)
+                    // One page per folder level, plus the root page.
+                    Button("回到作品详情", systemImage: "house") { model.pop(path.count + 1) }
                 }
             }
         }
@@ -92,7 +89,7 @@ struct WorkFilesView: View {
     }
 
     private var title: String {
-        path.isEmpty ? productId : (loaded ? WorkTree.steps(tree, to: path).last!.label : path.last!)
+        path.last ?? productId
     }
 
     private var level: [WorkTreeNode] { WorkTree.level(tree, at: path) }
@@ -118,16 +115,17 @@ struct WorkFilesView: View {
             .tint(.primary)
         }
         let trackFolder = TrackFolderMemory.resolve(WorkTree.audioFolders(tree), tree: tree, productId: productId)?.path
-        ForEach(WorkTree.folderEntries(level, at: path), id: \.path) { entry in
-            NavigationLink(value: Route.files(productId, folder: entry.path)) {
-                FileRow(icon: "folder.fill", tint: .blue, title: entry.label, detail: Self.summary(entry.node.kindCounts)) {
-                    if let trackFolder, trackFolder.starts(with: entry.path) {
+        ForEach(level.filter(\.isFolder)) { node in
+            let folder = path + [node.name]
+            NavigationLink(value: Route.files(productId, folder: folder)) {
+                FileRow(icon: "folder.fill", tint: .blue, title: node.name, detail: Self.summary(node.kindCounts)) {
+                    if let trackFolder, trackFolder.starts(with: folder) {
                         Image(systemName: "checkmark").font(.footnote.weight(.semibold)).foregroundStyle(.tint)
                     }
                 }
             }
         }
-        ForEach(level.filter { if case .folder = $0 { false } else { true } }) { node in
+        ForEach(level.filter { !$0.isFolder }) { node in
             switch node {
             case .track(let track):
                 trackRow(track, subtitled: subtitledTracks.contains(track.id))

@@ -143,15 +143,6 @@ extension WorkTree {
     }
 }
 
-/// A folder row on the files page. A folder holding nothing but folders is
-/// skipped over, its children listed as `parent · child`, so `本編/WAV`
-/// opens in one tap.
-public struct FolderEntry: Sendable {
-    public let path: [String]
-    public let label: String
-    public let node: WorkTreeNode
-}
-
 extension WorkTreeNode {
     /// Files below this node by kind (`audio` for tracks, else `fileKind`).
     public var kindCounts: [String: Int] {
@@ -162,7 +153,7 @@ extension WorkTreeNode {
         }
     }
 
-    var isFolder: Bool {
+    public var isFolder: Bool {
         if case .folder = self { true } else { false }
     }
 }
@@ -173,30 +164,6 @@ extension WorkTree {
         path.reduce(nodes) { level, name in
             level.first { $0.isFolder && $0.name == name }!.children
         }
-    }
-
-    public static func folderEntries(_ level: [WorkTreeNode], at path: [String]) -> [FolderEntry] {
-        level.filter(\.isFolder).flatMap { node -> [FolderEntry] in
-            let children = node.children
-            if !children.isEmpty && children.allSatisfy(\.isFolder) {
-                return folderEntries(children, at: path + [node.name]).map {
-                    FolderEntry(path: $0.path, label: "\(node.name) · \($0.label)", node: $0.node)
-                }
-            }
-            return [FolderEntry(path: path + [node.name], label: node.name, node: node)]
-        }
-    }
-
-    /// The pages from the root to `path`, one per folder row tapped.
-    public static func steps(_ nodes: [WorkTreeNode], to path: [String]) -> [FolderEntry] {
-        var steps: [FolderEntry] = []
-        var current: [String] = []
-        while current != path {
-            let entry = folderEntries(level(nodes, at: current), at: current).first { path.starts(with: $0.path) }!
-            steps.append(entry)
-            current = entry.path
-        }
-        return steps
     }
 }
 

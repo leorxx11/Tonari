@@ -230,16 +230,14 @@ struct WorkTreeTests {
         #expect(WorkTree.defaultAudioFolder(split)?.path == ["SEあり"])
     }
 
-    @Test func folderEntriesSkipFoldersHoldingOnlyFolders() {
+    @Test func treeMirrorsFoldersLevelByLevel() {
         let tree = WorkTree.build(
             tracks: [track("本編/WAV/1.wav", bytes: 1), track("本編/MP3/1.mp3", bytes: 1), track("おまけ/1.mp3", bytes: 1)],
             files: [file("おまけ/a.srt", kind: "subtitle"), file("イラスト/1.jpg", kind: "image"), file("readme.txt", kind: "text")]
         )
-        let entries = WorkTree.folderEntries(tree, at: [])
-        #expect(entries.map(\.label) == ["おまけ", "イラスト", "本編 · MP3", "本編 · WAV"])
-        #expect(entries[3].path == ["本編", "WAV"])
-        #expect(entries[0].node.kindCounts == ["audio": 1, "subtitle": 1])
-        #expect(WorkTree.steps(tree, to: ["本編", "WAV"]).map(\.label) == ["本編 · WAV"])
+        #expect(tree.filter(\.isFolder).map(\.name) == ["おまけ", "イラスト", "本編"])
+        #expect(tree[0].kindCounts == ["audio": 1, "subtitle": 1])
+        #expect(WorkTree.level(tree, at: ["本編"]).map(\.name) == ["MP3", "WAV"])
         #expect(WorkTree.level(tree, at: ["本編", "WAV"]).map(\.name) == ["1.wav"])
     }
 

@@ -245,11 +245,11 @@ struct WorkDetailView: View {
                 } previewSubtitle: {
                     subtitlePreview = .track($0)
                 } reveal: {
-                    reveal($0)
+                    openFiles(at: $0.folderPath, highlight: $0.id)
                 }
             }
             if fileCount > 0 {
-                NavigationLink(value: Route.files(productId)) {
+                Button { openFiles(at: folder?.path ?? [], highlight: nil) } label: {
                     HStack {
                         Text("全部文件")
                         Spacer()
@@ -296,14 +296,12 @@ struct WorkDetailView: View {
         player.play(queue, at: queue.tracks.indices.randomElement()!)
     }
 
-    /// Opens the files page one folder at a time down to the track, so back
-    /// steps up through each level, and flashes the track there.
-    private func reveal(_ track: Track) {
-        let files = try! database.reader.read { try WorkQueries.files(of: productId).fetchAll($0) }
-        let steps = WorkTree.steps(WorkTree.build(tracks: tracks, files: files), to: track.folderPath)
-        model.push(.files(productId, highlight: steps.isEmpty ? track.id : nil))
-        for (index, step) in steps.enumerated() {
-            model.push(.files(productId, folder: step.path, highlight: index == steps.count - 1 ? track.id : nil))
+    /// Opens the files page one folder at a time down to `path`, so back
+    /// steps up through each level, and flashes `highlight` there.
+    private func openFiles(at path: [String], highlight: String?) {
+        model.push(.files(productId, highlight: path.isEmpty ? highlight : nil))
+        for depth in path.indices {
+            model.push(.files(productId, folder: Array(path[...depth]), highlight: depth == path.count - 1 ? highlight : nil))
         }
     }
 
