@@ -77,6 +77,9 @@ final class AppModel {
     static let videoViewModeKey = "library.view.videos"
 
     var tab = AppTab.home
+    /// The search tab's field is active; tapping the tab again while on it
+    /// raises the field.
+    var searchPresented = false
     var showingPlayer = false
     var showingSettings = false
     var showingDLsiteLogin = false

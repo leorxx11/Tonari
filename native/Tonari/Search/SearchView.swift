@@ -42,7 +42,7 @@ struct SearchView: View {
             }
             .listStyle(.plain)
             .navigationTitle("搜索")
-            .searchable(text: $query, prompt: "作品、声优、社团、#标签")
+            .searchable(text: $query, isPresented: $model.searchPresented, prompt: "作品、声优、社团、#标签")
             .searchScopes($scope, activation: .onTextEntry) {
                 ForEach(Scope.allCases, id: \.self) { Text($0.rawValue) }
             }
