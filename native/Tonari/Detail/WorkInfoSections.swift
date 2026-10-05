@@ -154,6 +154,7 @@ struct WorkCreditsSection: View {
 
 /// The DLsite description folded to three lines; images join it once
 /// expanded and open the gallery, or offer a download where missing.
+/// Expanding or folding it is remembered for every work.
 struct WorkDescriptionSection: View {
     let work: Work
     let showsOriginal: Bool
@@ -163,7 +164,7 @@ struct WorkDescriptionSection: View {
     @Environment(AppModel.self) private var model
     @Environment(EnrichmentQueue.self) private var enrichment
     @State private var items: [WorkDescription.Item] = []
-    @State private var expanded = false
+    @AppStorage("detail.descriptionExpanded") private var expanded = false
     /// Bumped after a download so the files on disk are looked at again.
     @State private var downloads = 0
 
@@ -173,7 +174,13 @@ struct WorkDescriptionSection: View {
         VStack(alignment: .leading, spacing: 12) {
             if !items.isEmpty {
                 SectionTitle(text: "简介")
-                if expanded { full.id(downloads) } else { folded }
+                if !foldable {
+                    Text(attributed(textBlocks)).frame(maxWidth: .infinity, alignment: .leading)
+                } else if expanded {
+                    full.id(downloads)
+                } else {
+                    folded
+                }
             }
         }
         .task(id: html) {
@@ -195,37 +202,53 @@ struct WorkDescriptionSection: View {
 
     /// Only the opening blocks: laying out a whole description (often over
     /// ten thousand characters) on the main thread stalls the push.
-    private var folded: some View {
+    private var openingBlocks: (blocks: [WorkDescription.Block], length: Int) {
         var shown: [WorkDescription.Block] = []
         var length = 0
         for block in textBlocks where length < 400 {
             shown.append(block)
             length += block.text.count
         }
-        let more = shown.count < textBlocks.count || length > 60 || !WorkDescription.imageURLs(items).isEmpty
-        return VStack(alignment: .trailing, spacing: 4) {
-            Text(attributed(shown))
-                .lineLimit(3)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            if more {
-                Button("更多") { withAnimation { expanded = true } }
-                    .font(.subheadline.weight(.medium))
-            }
-        }
+        return (shown, length)
     }
 
+    private var foldable: Bool {
+        let opening = openingBlocks
+        return opening.blocks.count < textBlocks.count || opening.length > 60 || !WorkDescription.imageURLs(items).isEmpty
+    }
+
+    /// The whole fold is the tap target, like the App Store.
+    private var folded: some View {
+        VStack(alignment: .trailing, spacing: 4) {
+            Text(attributed(openingBlocks.blocks))
+                .lineLimit(3)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Text("更多")
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.tint)
+        }
+        .contentShape(.rect)
+        .onTapGesture { withAnimation { expanded = true } }
+        .accessibilityAddTraits(.isButton)
+    }
+
+    /// One lazy row per heading, paragraph or image, so a long description
+    /// lays out only as it scrolls in.
     private var full: some View {
         let local = localImages
         let shown = local.compactMap(\.self)
-        return VStack(alignment: .leading, spacing: 10) {
+        let urls = WorkDescription.imageURLs(items)
+        return LazyVStack(alignment: .leading, spacing: 10) {
             ForEach(Array(items.enumerated()), id: \.offset) { _, item in
                 switch item {
                 case .text(let blocks):
-                    Text(attributed(blocks))
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
+                        Text(attributed([block]))
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                 case .image(let url):
-                    if let path = local[WorkDescription.imageURLs(items).firstIndex(of: url)!] {
+                    if let path = local[urls.firstIndex(of: url)!] {
                         FittedLocalImage(path: path)
                             .clipShape(.rect(cornerRadius: 6))
                             .matchedTransitionSource(id: path, in: galleryZoom)
@@ -237,6 +260,14 @@ struct WorkDescriptionSection: View {
                     }
                 }
             }
+            Button {
+                withAnimation { expanded = false }
+            } label: {
+                Label("收起", systemImage: "chevron.up")
+                    .font(.subheadline.weight(.medium))
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.top, 4)
         }
     }
 
