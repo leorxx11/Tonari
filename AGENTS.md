@@ -35,7 +35,7 @@
 - 技术栈：Swift 6 + SwiftUI（UIKit 补位）、GRDB、SwiftSoup、mdk-sdk（视频），iOS 26+，iPhone 优先。
 - 显示名 `Tonari`。需求文档 `REQUIREMENTS.md`；原生版排期 `native/PLAN.md`，功能对照清单 `native/PARITY.md`（完成一项勾一项），界面示意 `native/design/`。
 - UI 对标 Apple Music / iOS 26 原生组件。
-- Flutter 版已归档：分支 `flutter`、标签 `flutter-final`。切换（`native/PLAN.md` 的 N7）完成前 Flutter 正式版仍在日常使用，只在 `flutter` 分支修 bug，不加新功能。
+- Flutter 版已归档：分支 `flutter`、标签 `flutter-final`，已切换到原生版日常使用，Flutter 版不再维护。
 
 ## 项目范围
 
@@ -71,6 +71,5 @@
 
 - 源码层 `PRODUCT_BUNDLE_IDENTIFIER` 保持 `com.leo.tonari.native`（免费证书调试用）。
 - 正式包用 `ios-resign` skill 重签 Release 产物的 .app：新证书（Team `Q7866CL7FU`，2027-09-14 到期）的 profile 锁定 Bundle ID `com.nuownqyyy990.ct12215`，产物为同目录 `Tonari-signed.ipa`。
-- 原生正式版与 Flutter 正式版 `com.wangshaikang`（旧证书 2026-10-30 到期）是不同 App，并存、互不覆盖；切换方式是在 Flutter 正式版导出备份、原生正式版里恢复。
 - `p12`、`mobileprovision`、`证书_*` 目录永远不要进版本库。
 - 发版验收重点检查文件 App 导入文件夹时“打开”按钮有反应；签名 entitlements 配错最容易破坏这个功能。

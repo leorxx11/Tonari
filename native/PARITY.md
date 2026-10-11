@@ -1,6 +1,6 @@
 # 功能对照清单
 
-原生版与 Flutter 版对齐的验收清单，按阶段分组。每项括号内是 Flutter 版对应源码，移植时以它为准。完成一项勾一项（`[~]` 表示已实现但还没在真机验证），N6 结束时应全部打勾。
+原生版与 Flutter 版对齐的验收清单，按阶段分组。每项括号内是 Flutter 版对应源码。已于 N7 切换前全部对齐，剩下的 `[ ]` 属于暂缓的 N4b WebDAV。
 
 ## N1 数据层 + 骨架
 
@@ -25,15 +25,15 @@
 - ~~作品文件入口位置：左下角 / 右下角（`file_entry_prefs.dart`）~~ 原生版详情页改为「全部文件」行，印章与设置一并取消
 - [x] 收藏与分组：全部收藏、新建 / 重命名 / 删除分组，作品和视频都可加入（`collections_page.dart`、`collection_detail_page.dart`、`collection_picker_sheet.dart`）
 - [x] 分类页：社团 / 声优 / 标签，搜索，按作品数 / 名称排序（`stats_page.dart`）。原生版并入搜索 Tab 的「分类浏览」
-- [~] 导入本地文件夹（已实现，待 115 接入后真机验证）：security-scoped bookmark、递归扫描、RJ 识别、音质归并（`folder_bookmark.dart`、`core/scanner/`、`import_service.dart`）
+- [x] 导入本地文件夹：security-scoped bookmark、递归扫描、RJ 识别、音质归并（`folder_bookmark.dart`、`core/scanner/`、`import_service.dart`）
 - [x] 导入结果汇总（115 真机验证）：新增 / 跳过 / 音轨数 / 失败作品（`import_entry.dart`）
-- [~] 文件夹重扫默认跳过已导入（待验证）；单作品重扫 `reviveTombstoned`（`rescan_service.dart`、`work_reimport_provider.dart`）
-- [~] 移除 = 清快照 + 墓碑（待验证）；已移除作品页：重新导入、彻底移除（`removed_works_page.dart`）
-- [~] needsRescan 迁移重扫（待验证）：仅本地来源启动时自动跑
+- [x] 文件夹重扫默认跳过已导入；单作品重扫 `reviveTombstoned`（`rescan_service.dart`、`work_reimport_provider.dart`）
+- [x] 移除 = 清快照 + 墓碑；已移除作品页：重新导入、彻底移除（`removed_works_page.dart`）
+- [x] needsRescan 迁移重扫：仅本地来源启动时自动跑
 - [x] DLsite 抓取：HTML + AJAX、翻译版回退原作、图片带 Referer 下载到沙盒（`dlsite_fetcher.dart`、`metadata_enrichment.dart`、`work_image_cache.dart`）
 - [x] 后台补全队列：串行、每作品最多重试 2 次、进度 + 「补全 N 个」、打开未补全作品自动拉取（`enrichment_queue.dart`、`library_task_status.dart`）
 - [x] 全部作品统计数据批量更新（`settings_page.dart`）
-- [~] 音轨时长探测：本地导入时探测（待验证）；远程音轨随 N3/N4（`track_duration_probe.dart`）
+- [x] 音轨时长探测：本地导入时探测；远程音轨播放时回写（`track_duration_probe.dart`）
 
 ## N3 播放器 + 字幕
 
@@ -60,12 +60,12 @@
 - [ ] WebDAV 浏览、导入目录到媒体库（`webdav_browser_page.dart`）
 - [x] 115 扫码登录、退出登录（`p115_login_page.dart`、`p115_settings_page.dart`）
 - [x] 115 浏览（每级文件夹一页，记住上次位置）、导入、风控检测与中断（`p115_browser_page.dart`）
-- [~] 浏览页：WebDAV / 115 入口与登录状态（115 ✅，WebDAV 待 N4b）（`browse_page.dart`、`remote_browser_page.dart`）
-- [~] 远程扫描阶段跳过已导入作品；导入在后台进行（115 已实现）
-- [~] 远程字幕下载解析（115 已实现，N3 显示字幕时验证）
+- [x] 浏览页：115 入口与登录状态（WebDAV 随 N4b）（`browse_page.dart`、`remote_browser_page.dart`）
+- [x] 远程扫描阶段跳过已导入作品；导入在后台进行
+- [x] 远程字幕下载解析
 - [x] 115 直链带请求头直连播放；音频过期前 2 分钟内重新获取；播放中出错或链接过期后卡住时重取一次（原生版不用 8 秒定时器）
 - [ ] 播放失败时探测一次来源并点名不可达的来源，记入消息
-- [~] 媒体来源页：查看、删除来源（级联硬删，显示作品数）（N2b 已实现，待验证）（`media_sources_page.dart`）
+- [x] 媒体来源页：查看、删除来源（级联硬删，显示作品数）（`media_sources_page.dart`）
 
 ## N5 视频
 
