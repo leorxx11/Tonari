@@ -19,6 +19,10 @@ public enum AppEvents {
         case reauth
         /// Sign in to DLsite again.
         case dlsiteLogin
+        /// Open the backup page.
+        case backup
+        /// Open the diagnostics page with its crash reports.
+        case crashReports
     }
 
     public static func all(_ db: Database) throws -> [AppEvent] {

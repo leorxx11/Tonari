@@ -9,9 +9,33 @@ struct DiagnosticLogView: View {
     @State private var session = ""
     @State private var content = ""
     @State private var exportURL: URL?
+    @State private var reports: [CrashReports.Report] = []
 
     var body: some View {
         List {
+            if !reports.isEmpty {
+                Section("崩溃报告") {
+                    ForEach(reports) { report in
+                        ShareLink(item: report.url) {
+                            Label {
+                                VStack(alignment: .leading) {
+                                    Text(report.kind == .crash ? "崩溃" : "卡住")
+                                    Text(report.receivedAt.formatted(date: .abbreviated, time: .shortened))
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            } icon: {
+                                Image(systemName: report.kind == .crash ? "exclamationmark.octagon" : "hourglass")
+                            }
+                        }
+                    }
+                    .onDelete { offsets in
+                        for index in offsets { try! CrashReports.shared.delete(reports[index]) }
+                        reports = try! CrashReports.shared.all()
+                    }
+                }
+            }
+
             Section {
                 if active {
                     row("停止采集", "stop.circle", subtitle: "会话 \(session)") {
@@ -85,5 +109,6 @@ struct DiagnosticLogView: View {
         session = log.session
         content = log.read()
         exportURL = try? log.exportTxt()
+        reports = try! CrashReports.shared.all()
     }
 }

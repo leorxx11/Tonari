@@ -78,6 +78,14 @@ struct MessagesView: View {
             Button("登录 DLsite") { model.showingDLsiteLogin = true }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
+        case .backup:
+            Button("去备份") { model.push(.backup) }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+        case .crashReports:
+            Button("查看报告") { model.push(.diagnostics) }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
         }
     }
 }

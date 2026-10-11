@@ -1,4 +1,5 @@
 import AVFoundation
+import MetricKit
 import SwiftUI
 import TonariCore
 
@@ -13,6 +14,7 @@ struct TonariApp: App {
     @State private var nowPlaying: NowPlaying
     @AppStorage(Appearance.preferenceKey) private var appearance = Appearance.system
     private let database: AppDatabase
+    private let crashReporter: CrashReporter
 
     init() {
         try! AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio)
@@ -32,6 +34,8 @@ struct TonariApp: App {
                 ])
             }
             database = try AppDatabase.open(in: documents)
+            crashReporter = CrashReporter(database: database)
+            MXMetricManager.shared.add(crashReporter)
             let model = AppModel(database: database)
             let enrichment = EnrichmentQueue(database: database)
             _model = State(initialValue: model)
@@ -40,6 +44,7 @@ struct TonariApp: App {
             // it was cancelled whenever a full-screen presentation covered
             // the view, mid-way through a database read.
             Task { [database] in
+                try! database.remindBackupIfDue(defaults: .standard)
                 async let lists: Void = model.discover.refreshStale()
                 await LocalImport(database: database).rescanFlaggedLocalWorks()
                 await enrichment.runPending()
