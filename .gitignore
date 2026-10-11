@@ -15,3 +15,6 @@ xcuserdata/
 *.mobileprovision
 证书_*/
 certs/
+
+# Local SourceKit-LSP build server config (absolute paths)
+buildServer.json

@@ -59,8 +59,10 @@
 
 - 代码改动后默认执行：
   - `cd native/TonariCore && swift test`
-  - `cd native && xcodebuild -project Tonari.xcodeproj -scheme Tonari -configuration Release -destination 'generic/platform=iOS' -derivedDataPath build/DerivedData -allowProvisioningUpdates -quiet build`
+  - `cd native && set -o pipefail && xcodebuild -project Tonari.xcodeproj -scheme Tonari -configuration Release -destination 'generic/platform=iOS' -derivedDataPath build/DerivedData CODE_SIGNING_ALLOWED=NO build 2>&1 | xcbeautify --quiet`
+  - Release 不签名构建：正式包反正要重签，这样不依赖 Xcode 里免费 Apple ID 的登录状态。调试版才需要 Xcode 签名。
 - 构建通过后用新证书重签，真机在线就直接装正式包：`xcrun devicectl device install app --device <coredevice-uuid> native/build/DerivedData/Build/Products/Release-iphoneos/Tonari-signed.ipa`，再 `xcrun devicectl device process launch --device <coredevice-uuid> <正式版 Bundle ID>`。真机不在线则停在本地测试与构建。
+- 开发工具（Homebrew）：`xcbeautify` 精简构建输出；`xcode-build-server`（仓库根 `buildServer.json`，已 gitignore，`build_root` 指向 `native/build/DerivedData`）让 SourceKit-LSP 认识 Xcode 工程，构建一次后编辑器诊断才准；`libimobiledevice`（`idevicesyslog` 看真机日志）只在数据线连接时可用。
 - 默认不装调试版；只有遇到需要调试数据的验证阻塞问题时才装调试版（`native/build/DerivedData/Build/Products/Release-iphoneos/Tonari.app`，Bundle ID `com.leo.tonari.native`）。
 - 不要主动在模拟器上安装、跑 UI 截图或做长时间日志监控，除非用户明确要求。
 - 设备标识（devicectl coredevice UUID、设备 UDID）属隐私信息，不写入版本库；实际值保存在本地配置 / 记忆中。
