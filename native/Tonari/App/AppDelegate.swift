@@ -1,11 +1,19 @@
 import UIKit
 
-/// Portrait everywhere except the video player, which may turn sideways.
+/// Portrait everywhere except the video player, which may turn sideways;
+/// also takes the system's wake-up for finished offline downloads.
 final class AppDelegate: NSObject, UIApplicationDelegate {
     static var orientations = UIInterfaceOrientationMask.portrait
 
     func application(_ application: UIApplication, supportedInterfaceOrientationsFor window: UIWindow?) -> UIInterfaceOrientationMask {
         Self.orientations
+    }
+
+    func application(
+        _ application: UIApplication, handleEventsForBackgroundURLSession identifier: String,
+        completionHandler: @escaping () -> Void
+    ) {
+        OfflineDownloads.backgroundCompletion = completionHandler
     }
 
     /// Changes what the app may rotate to and turns to `preferred` now.

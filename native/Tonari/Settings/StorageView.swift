@@ -78,6 +78,7 @@ struct StorageView: View {
     @State private var sizes: [Area: Int] = [:]
     @State private var confirming: Area?
     @State private var confirmingAll = false
+    @State private var offlineBytes: Int?
 
     private var total: Int? {
         sizes.count == Area.allCases.count ? sizes.values.reduce(0, +) : nil
@@ -110,6 +111,20 @@ struct StorageView: View {
                 Button("全部清理", role: .destructive) { confirmingAll = true }
                     .frame(maxWidth: .infinity)
                     .disabled((total ?? 0) == 0)
+            }
+            Section {
+                NavigationLink(value: Route.offlineDownloads) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "arrow.down.circle")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 30, height: 30)
+                            .background(.green, in: .rect(cornerRadius: 7))
+                        Text("离线下载")
+                        Spacer()
+                        Text(offlineBytes.map(Formatting.bytes) ?? "计算中…").foregroundStyle(.secondary)
+                    }
+                }
             }
         }
         .navigationTitle("存储空间")
@@ -173,6 +188,7 @@ struct StorageView: View {
     }
 
     private func measure() async {
+        offlineBytes = await Self.size(of: [OfflineFiles.shared.root])
         for area in Area.allCases {
             sizes[area] = await Self.size(of: area)
         }

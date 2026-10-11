@@ -38,6 +38,7 @@ extension AppDatabase {
         try Subtitle.filter(trackIds.contains(Column("track_id"))).deleteAll(db)
         try Track.filter(productIds.contains(Column("work_id"))).deleteAll(db)
         try WorkFile.filter(productIds.contains(Column("work_id"))).deleteAll(db)
+        try OfflineWork.filter(keys: productIds).deleteAll(db)
     }
 }
 

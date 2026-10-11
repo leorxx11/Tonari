@@ -1,12 +1,14 @@
 import SwiftUI
 import TonariCore
 
-/// DLsite cover at its 4:3 ratio, with a small cloud for 115 works and a
-/// heart for favorites in the corner.
+/// DLsite cover at its 4:3 ratio, with a small cloud for 115 works (an
+/// arrow once fully downloaded) and a heart for favorites in the corner.
 struct WorkCover: View {
     let work: Work
     let isRemote: Bool
     var cornerRadius: CGFloat = 8
+
+    @Environment(OfflineDownloads.self) private var offline
 
     var body: some View {
         LocalImage(path: work.mainImageLocalPath)
@@ -15,7 +17,9 @@ struct WorkCover: View {
             .overlay(alignment: .bottomTrailing) {
                 if isRemote || work.isFavorite {
                     HStack(spacing: 4) {
-                        if isRemote { Image(systemName: "icloud.fill") }
+                        if isRemote {
+                            Image(systemName: offline.completeWorkIds.contains(work.productId) ? "arrow.down.circle.fill" : "icloud.fill")
+                        }
                         if work.isFavorite { Image(systemName: "heart.fill") }
                     }
                     .font(.caption2)
@@ -85,6 +89,8 @@ struct WorkListRow: View {
     let isRemote: Bool
     let trackCount: Int
 
+    @Environment(OfflineDownloads.self) private var offline
+
     var body: some View {
         HStack(spacing: 12) {
             LocalImage(path: work.mainImageLocalPath)
@@ -100,7 +106,10 @@ struct WorkListRow: View {
             Spacer(minLength: 0)
             HStack(spacing: 4) {
                 if work.isFavorite { Image(systemName: "heart.fill").foregroundStyle(.pink) }
-                if isRemote { Image(systemName: "icloud").foregroundStyle(.secondary) }
+                if isRemote {
+                    Image(systemName: offline.completeWorkIds.contains(work.productId) ? "arrow.down.circle" : "icloud")
+                        .foregroundStyle(.secondary)
+                }
             }
             .font(.caption)
             Text("\(trackCount) 首")

@@ -151,7 +151,12 @@ final class PlaybackController: SleepTarget {
 
     private var isRemote: Bool {
         switch queue {
-        case .work(let queue): queue.source?.type != "local" && queue.source != nil
+        case .work(let queue):
+            switch queue.source?.type {
+            case nil, "local": false
+            case "p115": OfflineFiles.shared.localURL(for: queue.tracks[index]) == nil
+            default: true
+            }
         case .files: true
         case nil: false
         }
@@ -313,6 +318,10 @@ final class PlaybackController: SleepTarget {
             let track = queue.tracks[index]
             switch queue.source?.type {
             case "p115":
+                if let local = OfflineFiles.shared.localURL(for: track) {
+                    expiresAt = nil
+                    return AVURLAsset(url: local)
+                }
                 return try await remoteAsset(pickcode: track.filePath)
             case "webdav":
                 throw P115Error.failed("暂不支持播放 WebDAV 作品")
@@ -419,7 +428,8 @@ final class PlaybackController: SleepTarget {
     }
 
     /// Brings back what was playing last in the mini player, paused where
-    /// it was left. 115 links can't be built offline, so those load on play.
+    /// it was left. 115 links can't be built offline, so tracks without a
+    /// downloaded copy load on play.
     private func restore() {
         switch try! store.lastPlayed() {
         case .work(let workQueue, let index):

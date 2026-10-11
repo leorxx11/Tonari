@@ -12,10 +12,10 @@ struct AppDatabaseTests {
                 try String.fetchAll(db, sql: "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")
             )
         }
-        #expect(version == 19)
+        #expect(version == 20)
         #expect(tables == [
             "app_events", "collection_videos", "collection_works", "collections", "imported_folders",
-            "listen_logs", "llm_providers", "play_history_entries", "subtitles", "tracks",
+            "listen_logs", "llm_providers", "offline_works", "play_history_entries", "subtitles", "tracks",
             "video_items", "wanted_works", "webdav_servers", "work_files", "works",
         ])
     }
@@ -30,7 +30,7 @@ struct AppDatabaseTests {
         let (version, works, wanted) = try AppDatabase(queue).reader.read { db in
             (try AppDatabase.userVersion(db), try Work.fetchCount(db), try db.tableExists("wanted_works"))
         }
-        #expect(version == 19 && works == 1 && wanted)
+        #expect(version == 20 && works == 1 && wanted)
     }
 
     @Test func migrationFilesScannedPDFsAsDocuments() throws {

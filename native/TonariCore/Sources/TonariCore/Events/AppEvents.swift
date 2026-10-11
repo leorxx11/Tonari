@@ -23,6 +23,8 @@ public enum AppEvents {
         case backup
         /// Open the diagnostics page with its crash reports.
         case crashReports
+        /// Pick up the paused offline downloads.
+        case resumeDownloads
     }
 
     public static func all(_ db: Database) throws -> [AppEvent] {

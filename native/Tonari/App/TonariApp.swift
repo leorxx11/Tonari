@@ -12,6 +12,7 @@ struct TonariApp: App {
     @State private var player: PlaybackController
     @State private var video: VideoController
     @State private var nowPlaying: NowPlaying
+    @State private var offline: OfflineDownloads
     @AppStorage(Appearance.preferenceKey) private var appearance = Appearance.system
     private let database: AppDatabase
     private let crashReporter: CrashReporter
@@ -55,6 +56,7 @@ struct TonariApp: App {
             _player = State(initialValue: player)
             _video = State(initialValue: video)
             _nowPlaying = State(initialValue: NowPlaying(audio: player, video: video))
+            _offline = State(initialValue: OfflineDownloads(database: database))
         } catch {
             fatalError("Failed to open the library: \(error)")
         }
@@ -68,6 +70,7 @@ struct TonariApp: App {
                 .environment(player)
                 .environment(video)
                 .environment(nowPlaying)
+                .environment(offline)
                 .environment(\.appDatabase, database)
                 .preferredColorScheme(appearance.colorScheme)
         }

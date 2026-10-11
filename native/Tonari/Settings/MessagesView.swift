@@ -7,6 +7,7 @@ import TonariCore
 struct MessagesView: View {
     @Environment(AppModel.self) private var model
     @Environment(EnrichmentQueue.self) private var enrichment
+    @Environment(OfflineDownloads.self) private var offline
     @Environment(\.appDatabase) private var database
     @State private var events: [AppEvent] = []
 
@@ -86,6 +87,12 @@ struct MessagesView: View {
             Button("查看报告") { model.push(.diagnostics) }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
+        case .resumeDownloads:
+            if offline.paused {
+                Button("继续下载") { offline.resume() }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+            }
         }
     }
 }

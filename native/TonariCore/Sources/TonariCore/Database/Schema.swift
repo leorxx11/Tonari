@@ -2,7 +2,7 @@
 /// (schema 17), so a database restored from a Flutter backup and one created
 /// here are interchangeable; native-only changes follow as migrations.
 enum Schema {
-    static let version = 19
+    static let version = 20
     /// The Flutter build's last schema, the oldest a backup may carry.
     static let flutterVersion = 17
 
@@ -59,6 +59,9 @@ enum Schema {
         // PDFs scanned before they had a kind of their own were filed as other.
         #"""
         UPDATE "work_files" SET "file_kind" = 'document' WHERE "file_kind" = 'other' AND lower("file_name") LIKE '%.pdf'
+        """#,
+        #"""
+        CREATE TABLE "offline_works" ("work_id" TEXT NOT NULL, "folder" TEXT NOT NULL DEFAULT '[]', "added_at" INTEGER NOT NULL, PRIMARY KEY ("work_id"))
         """#,
     ]
 }

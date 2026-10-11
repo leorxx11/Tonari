@@ -23,6 +23,7 @@ enum Route: Hashable {
     case llmProvider(String?)
     case diagnostics
     case storage
+    case offlineDownloads
     case appearance
     case about
     case work(String)
@@ -204,6 +205,7 @@ extension View {
             case .llmProvider(let id): LlmProviderEditView(providerId: id)
             case .diagnostics: DiagnosticLogView()
             case .storage: StorageView()
+            case .offlineDownloads: OfflineDownloadsView()
             case .appearance: AppearanceSettingsView()
             case .about: AboutView()
             case .work(let id): WorkDetailView(productId: id)

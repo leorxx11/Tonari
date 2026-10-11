@@ -9,6 +9,7 @@ struct WorkDetailView: View {
     @Environment(AppModel.self) private var model
     @Environment(EnrichmentQueue.self) private var enrichment
     @Environment(PlaybackController.self) private var player
+    @Environment(OfflineDownloads.self) private var offline
     @Environment(\.appDatabase) private var database
     @Environment(\.dismiss) private var dismiss
     @State private var fetching = false
@@ -16,6 +17,7 @@ struct WorkDetailView: View {
     @State private var tracks: [Track] = []
     @State private var fileCount = 0
     @State private var subtitled: Set<String> = []
+    @State private var isP115 = false
     @State private var chosenFolder: [String]?
     @State private var showsOriginal = false
     @State private var gallery: GallerySelection?
@@ -32,6 +34,7 @@ struct WorkDetailView: View {
                         cover(work)
                         titleBlock(work)
                         if loaded { playButtons(work) }
+                        if loaded && isP115 { OfflineStatusLine(productId: productId) }
                     }
                     .padding(.horizontal, 16)
                     if loaded {
@@ -85,6 +88,7 @@ struct WorkDetailView: View {
         let tracks: [Track]
         let fileCount: Int
         let subtitled: Set<String>
+        let isP115: Bool
     }
 
     private var fetch: @Sendable (Database) throws -> Snapshot {
@@ -93,7 +97,9 @@ struct WorkDetailView: View {
                 work: try WorkQueries.work(productId).fetchOne(db),
                 tracks: try WorkQueries.tracks(of: productId).fetchAll(db),
                 fileCount: try WorkQueries.tracks(of: productId).fetchCount(db) + WorkQueries.files(of: productId).fetchCount(db),
-                subtitled: try WorkQueries.subtitledTrackIds(of: productId, db)
+                subtitled: try WorkQueries.subtitledTrackIds(of: productId, db),
+                isP115: try WorkQueries.work(productId).fetchOne(db)?.importedFolderId
+                    .flatMap { try ImportedFolder.fetchOne(db, key: $0) }?.type == "p115"
             )
         }
     }
@@ -103,6 +109,7 @@ struct WorkDetailView: View {
         tracks = snapshot.tracks
         fileCount = snapshot.fileCount
         subtitled = snapshot.subtitled
+        isP115 = snapshot.isP115
         loaded = true
     }
 
@@ -318,6 +325,15 @@ struct WorkDetailView: View {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 Menu("更多", systemImage: "ellipsis") {
                     Button("加入分组…", systemImage: "folder.badge.plus") { model.collectionPicker = .work(work) }
+                    if isP115 {
+                        let _ = offline.revision
+                        if offline.status(of: productId) != nil {
+                            Button("删除下载", systemImage: "xmark.circle", role: .destructive) { offline.drop(productId) }
+                        } else {
+                            Button("下载到本机", systemImage: "arrow.down.circle") { offline.keep(productId, folder: folder!.path) }
+                                .disabled(folder == nil)
+                        }
+                    }
                     Link(destination: DLsite.workURL(productId)) {
                         Label("在 DLsite 中打开", systemImage: "safari")
                     }

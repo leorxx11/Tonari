@@ -37,7 +37,7 @@ Bundle ID 相同则覆盖安装（沙盒保留），不同则并存。免费证�
 | N7 切换 | Flutter 正式版导出备份 → 原生正式版恢复，日常使用 | ✅ |
 | N4b WebDAV | WebDAV 服务器管理、浏览导入；播放失败时点名不可达来源 | 暂缓（用户基本不用） |
 | N10 数据安全与稳定性 | 备份提醒、MetricKit 崩溃报告 | ✅ 2026-10-11 |
-| N11 115 离线下载 | 按作品下载曲目目录，播放优先走本地 | 未开始 |
+| N11 115 离线下载 | 按作品下载曲目目录，播放优先走本地 | ✅ 2026-10-11 |
 | N12 隐私锁 | Face ID / 密码锁（备选图标不做） | 未开始 |
 | N13 快捷指令与 Spotlight | App Intents、作品进系统搜索 | 未开始 |
 | N14 DLsite 增强 | 愿望单特价、已购未入库、特价通知 | 未开始 |
@@ -65,6 +65,7 @@ Bundle ID 相同则覆盖安装（沙盒保留），不同则并存。免费证�
 - **DLsite 发现**：排行榜读 `/{floor}/ranking/{term}?category=voice` 的 HTML（全年龄区没有日榜）；其余列表读 `fsr/ajax`，统一带账号默认条件（男性向、同人、音声、语言 JPN/CHI/CHI_HANS/CHI_HANT/NM）；标题 / 主图 / 价格统一由 `product/info/ajax` 批量补全（列表缩略图是方形裁切、标题可能打码）。
 - **DLsite 登录**：非持久 `WKWebView` 打开 `maniax/login/=/skip_register/1`，见到 `loginchecked` 即存 www.dlsite.com 的 Cookie 与登录页 UA；每次请求把续发的 Cookie 写回。愿望单读 `maniax/load/favorite/product`，写 `maniax/cart/ajax`（`mode=wishlist` / `wishlist_remove`，`result_code` -1 为失败）。
 - **崩溃报告**：Ad Hoc 重签包能收到 MetricKit 诊断，前提是手机开着「分析与改进 → 与 App 开发者共享」，开关打开前的崩溃不会补发；下次启动时投递。报告里只有地址，用同一次构建的 `Tonari.app.dSYM`（`dwarfdump --uuid` 对上报告的 `binaryUUID`）执行 `atos -l 0x100000000`，地址取 `0x100000000 + offsetIntoBinaryTextSegment`。dSYM 每次构建都会被覆盖，要查旧报告得留着当时的 dSYM。
+- **离线下载**：`offline_works` 只记「哪部作品、哪个目录要离线」，文件在 `Documents/offline/<RJ>/<相对路径>`，下完才移入，存在即完整，不进备份。后台 `URLSession`（`httpMaximumConnectionsPerHost = 1`），每首开始前才解析直链；系统唤醒时等下一首交给 session 后才调 completion。删作品 / 来源会连带删表行，`OfflineDownloads` 观察表变化清掉多余文件。
 - **chobit 试听**：`chobit.cc/api/v1/dlsite/embed` → 嵌入页 `.track-list li[data-src]`，翻译版取原作。
 
 ## 5. 界面方案
