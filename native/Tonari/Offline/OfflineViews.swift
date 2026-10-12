@@ -99,7 +99,8 @@ struct DownloadsToolbarButton: View {
     }
 }
 
-/// The works still downloading, each with its bar; pause or resume them all.
+/// The works still downloading, each with its bar; swipe one to cancel it,
+/// or pause and resume them all.
 struct DownloadsSheet: View {
     @Environment(AppModel.self) private var model
     @Environment(OfflineDownloads.self) private var offline
@@ -115,6 +116,9 @@ struct DownloadsSheet: View {
                     OfflineWorkRow(entry: entry)
                 }
                 .buttonStyle(.plain)
+                .swipeActions {
+                    Button("取消下载", role: .destructive) { offline.drop(entry.id) }
+                }
             }
             .listStyle(.plain)
             .overlay {

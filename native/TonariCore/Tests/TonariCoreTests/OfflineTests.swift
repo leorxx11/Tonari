@@ -7,10 +7,10 @@ struct OfflineTests {
     let database = try! AppDatabase.inMemory()
     let files = OfflineFiles(root: URL.temporaryDirectory.appending(path: UUID().uuidString))
 
-    private func track(_ workId: String, _ path: String, pickcode: String? = nil) -> Track {
+    private func track(_ workId: String, _ path: String, pickcode: String? = nil, size: Int = 10) -> Track {
         Track(
             id: "\(workId)|\(path)", workId: workId, filePath: pickcode ?? "pc-\(path)", relativePath: path,
-            fileName: String(path.split(separator: "/").last!), fileFormat: "wav", fileSizeBytes: 10,
+            fileName: String(path.split(separator: "/").last!), fileFormat: "wav", fileSizeBytes: size,
             durationMs: 1000, sampleRate: nil, bitRate: nil, categoryHint: nil, userCategory: nil,
             parentDirName: "", trackNumber: nil, title: path, alternateQualityPathsJson: [:],
             lastPositionMs: 0, playCount: 0, createdAt: Fixtures.date, updatedAt: Fixtures.date, titleZh: nil
@@ -88,5 +88,28 @@ struct OfflineTests {
 
         try database.removeOffline("RJ2")
         #expect(try database.reader.read { try OfflineQueries.status(of: "RJ2", $0, files: files) } == nil)
+    }
+
+    @Test func windowFillsInOrderUpToEitherLimit() {
+        let tracks = [track("RJ1", "1.wav", size: 4), track("RJ1", "2.wav", size: 4), track("RJ2", "1.wav", size: 4)]
+        func next(count: Int, bytes: Int, limitCount: Int = 15, limitBytes: Int = 10) -> [String] {
+            OfflineWindow.next(tracks, queuedCount: count, queuedBytes: bytes, limitCount: limitCount, limitBytes: limitBytes).map(\.id)
+        }
+
+        #expect(next(count: 0, bytes: 0) == ["RJ1|1.wav", "RJ1|2.wav"])
+        #expect(next(count: 1, bytes: 3) == ["RJ1|1.wav"])
+        #expect(next(count: 2, bytes: 8) == [])
+        #expect(next(count: 0, bytes: 0, limitBytes: 100) == ["RJ1|1.wav", "RJ1|2.wav", "RJ2|1.wav"])
+        #expect(next(count: 13, bytes: 0, limitBytes: 100) == ["RJ1|1.wav", "RJ1|2.wav"])
+    }
+
+    @Test func anEmptyWindowTakesOneEvenOverTheLimits() {
+        let tracks = [track("RJ1", "1.wav", size: 50), track("RJ1", "2.wav", size: 1)]
+
+        #expect(OfflineWindow.next(tracks, queuedCount: 0, queuedBytes: 0, limitCount: 15, limitBytes: 10).map(\.id) == ["RJ1|1.wav"])
+        #expect(OfflineWindow.next(tracks, queuedCount: 1, queuedBytes: 5, limitCount: 15, limitBytes: 10).isEmpty)
+        // The background's window of one: a track only once the queue is empty.
+        #expect(OfflineWindow.next(tracks, queuedCount: 0, queuedBytes: 0, limitCount: 1, limitBytes: 10).count == 1)
+        #expect(OfflineWindow.next(tracks, queuedCount: 1, queuedBytes: 0, limitCount: 1, limitBytes: 10).isEmpty)
     }
 }

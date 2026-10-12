@@ -1,14 +1,18 @@
 import Foundation
 import Observation
 import TonariCore
+import UIKit
 
 /// Downloads the tracks of kept-offline 115 works on a background URLSession,
-/// which carries on while the app is suspended or gone. Every pending track
-/// is handed over at once: iOS throttles transfers created while the app is
-/// in the background (measured 1.8 MB/s against 11.7 MB/s), while ones
-/// created in the foreground keep full speed after it leaves. 115 serves
-/// them from one CDN host and the session allows one connection per host,
-/// so they still run one after another.
+/// which carries on while the app is suspended or gone, from a window of
+/// tracks handed over ahead of time.
+///
+/// iOS throttles tasks created while the app is in the background (measured
+/// 1.8 MB/s against 11.7 MB/s), while ones created in the foreground keep full
+/// speed after it leaves, and it only wakes the app once every task has
+/// finished. So the foreground keeps the window full; once it has run dry in
+/// the background, each wake hands over a single track to carry on slowly,
+/// and coming back fills the rest of the window beside it.
 @Observable
 final class OfflineDownloads {
     static let sessionId = "tonari.offline"
@@ -16,11 +20,17 @@ final class OfflineDownloads {
     /// finished downloads; called once nothing is left to hand to the session.
     static var backgroundCompletion: (() -> Void)?
     private static let pausedKey = "offline.paused"
+    /// Fifteen tracks, and at most about 15 minutes at full speed: within the
+    /// shortest link seen (32 minutes).
+    private static let windowCount = 15
+    private static let windowBytes = 10_000_000_000
 
     /// Every kept work and how far it has got, oldest first.
     private(set) var entries: [OfflineQueries.Entry] = []
-    /// Downloads handed to the session and not finished, by `<work>/<path>`.
-    private(set) var submitted: Set<String> = []
+    /// Downloads handed to the session and not finished: `<work>/<path>` to
+    /// the task carrying it, so the late end of a task cancelled by a pause is
+    /// told apart from its successor's.
+    private(set) var submitted: [String: Int] = [:]
     /// Bytes written so far by each running download.
     private(set) var written: [String: Int] = [:]
     /// Set by the user or a failure; kept across launches.
@@ -30,27 +40,38 @@ final class OfflineDownloads {
     /// Sources imported from 115, whose works can be kept offline.
     private(set) var p115FolderIds: Set<String> = []
 
+    let notifications = DownloadNotifications()
     @ObservationIgnored private let database: AppDatabase
+    @ObservationIgnored private let notices: Notices
     @ObservationIgnored private let files = OfflineFiles.shared
     @ObservationIgnored private var session: URLSession!
+    @ObservationIgnored private var adoption: Task<Void, Never>!
     @ObservationIgnored private var kept: Set<String> = []
+    @ObservationIgnored private var loaded = false
     /// Downloads given a fresh link once after theirs expired in the queue.
     @ObservationIgnored private var retried: Set<String> = []
-    @ObservationIgnored private var resolving = 0
-    @ObservationIgnored private var submittingAll = false
-    @ObservationIgnored private var needsSubmit = false
+    /// Tracks whose links are being resolved, taken out of the next refill.
+    @ObservationIgnored private var resolving: Set<String> = []
+    @ObservationIgnored private var refilling = false
+    @ObservationIgnored private var needsRefill = false
     @ObservationIgnored private var eventsFinished = false
 
-    init(database: AppDatabase) {
+    init(database: AppDatabase, notices: Notices) {
         self.database = database
+        self.notices = notices
         let configuration = URLSessionConfiguration.background(withIdentifier: Self.sessionId)
         configuration.sessionSendsLaunchEvents = true
         configuration.isDiscretionary = false
         configuration.httpMaximumConnectionsPerHost = 1
         session = URLSession(configuration: configuration, delegate: SessionDelegate(owner: self), delegateQueue: nil)
-        Task {
+        adoption = Task {
             // Downloads left running by an earlier launch keep going.
-            submitted = Set(await session.allTasks.compactMap(\.taskDescription))
+            for task in await session.allTasks {
+                submitted[task.taskDescription!] = task.taskIdentifier
+            }
+        }
+        Task {
+            await adoption.value
             await database.observe(OfflineQueries.all) { [weak self] in self?.keptChanged($0) }
         }
         Task {
@@ -93,7 +114,7 @@ final class OfflineDownloads {
     func progressText(of entry: OfflineQueries.Entry) -> String {
         let status = entry.status
         let done = Int(progress(of: entry) * Double(status.totalBytes))
-        let state = paused ? "已暂停" : submitted.contains { $0.hasPrefix(entry.id + "/") } ? "正在下载" : "等待下载"
+        let state = paused ? "已暂停" : submitted.keys.contains { $0.hasPrefix(entry.id + "/") } ? "正在下载" : "等待下载"
         return "\(state) \(status.downloaded)/\(status.total) · \(Formatting.bytes(done)) / \(Formatting.bytes(status.totalBytes))"
     }
 
@@ -105,6 +126,7 @@ final class OfflineDownloads {
     // MARK: - Actions
 
     func keep(_ workId: String, folder: [String]) {
+        notifications.requestAuthorization()
         try! database.keepOffline(workId, folder: folder)
     }
 
@@ -131,19 +153,25 @@ final class OfflineDownloads {
     func resume() {
         paused = false
         retried.removeAll()
-        submitPending()
+        refill()
     }
 
-    /// Called as the app comes to the foreground, where new downloads get
-    /// full speed.
+    /// Called as the app comes to the foreground, where downloads get full speed.
     func becameActive() {
-        submitPending()
+        Task {
+            await adoption.value
+            refill()
+        }
     }
 
     // MARK: - Queue
 
     private static func path(_ track: Track) -> String {
         "\(track.workId)/\(track.relativePath)"
+    }
+
+    private var isActive: Bool {
+        UIApplication.shared.applicationState == .active
     }
 
     private func keptChanged(_ works: [OfflineWork]) {
@@ -156,78 +184,103 @@ final class OfflineDownloads {
             }
         }
         refresh()
-        submitPending()
+        refill()
     }
 
     private func refresh() {
+        let before = completeWorkIds
         entries = try! database.reader.read { try OfflineQueries.entries($0, files: self.files) }
+        if loaded {
+            for entry in entries where entry.status.isComplete && !before.contains(entry.id) {
+                announceDone(entry.work)
+            }
+        }
+        loaded = true
     }
 
-    private func submitPending() {
-        guard !submittingAll else {
-            needsSubmit = true
+    /// Hands over the next tracks while the queue is below its window. A
+    /// foreground refill stops once the app leaves, as what it would add
+    /// from then on is throttled; in the background the window is a single
+    /// track, added only once the queue has run dry.
+    private func refill() {
+        guard !refilling else {
+            needsRefill = true
             return
         }
+        let foreground = isActive
         let pending = try! database.reader.read { try OfflineQueries.pending($0, files: files) }
-            .filter { !submitted.contains(Self.path($0)) }
-        guard !paused, !pending.isEmpty else { return finishBackgroundEvents() }
-        submittingAll = true
+        let queued = pending.filter { submitted[Self.path($0)] != nil }
+        let picks = paused ? [] : OfflineWindow.next(
+            pending.filter { submitted[Self.path($0)] == nil && !resolving.contains(Self.path($0)) },
+            queuedCount: queued.count,
+            queuedBytes: queued.reduce(0) { $0 + $1.fileSizeBytes - (written[Self.path($1)] ?? 0) },
+            limitCount: foreground ? Self.windowCount : 1, limitBytes: Self.windowBytes
+        )
+        guard !picks.isEmpty else { return finishBackgroundEvents() }
+        DiagnosticLog.shared.write("offline", "window_refill", ["queued": queued.count, "count": picks.count, "foreground": foreground])
+        refilling = true
+        resolving.formUnion(picks.map(Self.path))
         Task {
-            for track in pending where !paused {
-                do {
-                    try await submit(track)
-                } catch {
-                    fail(track, error.localizedDescription)
+            for track in picks {
+                if paused || (foreground && !isActive) {
+                    resolving.remove(Self.path(track))
+                    continue
                 }
+                await submit(track)
             }
-            submittingAll = false
-            if needsSubmit {
-                needsSubmit = false
-                submitPending()
+            refilling = false
+            if needsRefill {
+                needsRefill = false
+                refill()
             } else {
                 finishBackgroundEvents()
             }
         }
     }
 
-    private func submit(_ track: Track) async throws {
-        resolving += 1
-        defer { resolving -= 1 }
-        let media = try await P115Client.shared.resolve(pickcode: track.filePath)
-        // Paused or dropped while its link was being resolved.
-        guard !paused, kept.contains(track.workId) else { return }
-        var request = URLRequest(url: media.url)
-        for header in media.headers { request.setValue(header.value, forHTTPHeaderField: header.name) }
-        let task = session.downloadTask(with: request)
-        task.taskDescription = Self.path(track)
-        submitted.insert(Self.path(track))
-        task.resume()
-        DiagnosticLog.shared.write("offline", "download_submit", ["track": Self.path(track)])
+    /// Resolves a track's link and hands it to the session; the track was
+    /// put in `resolving` by the caller.
+    private func submit(_ track: Track) async {
+        let path = Self.path(track)
+        defer { resolving.remove(path) }
+        do {
+            let media = try await P115Client.shared.resolve(pickcode: track.filePath)
+            // Paused or dropped while its link was being resolved.
+            guard !paused, kept.contains(track.workId) else { return }
+            var request = URLRequest(url: media.url)
+            for header in media.headers { request.setValue(header.value, forHTTPHeaderField: header.name) }
+            let task = session.downloadTask(with: request)
+            task.taskDescription = path
+            submitted[path] = task.taskIdentifier
+            task.resume()
+            DiagnosticLog.shared.write("offline", "download_submit", ["track": path, "background": !isActive])
+        } catch {
+            fail(track, error.localizedDescription)
+        }
     }
 
-    fileprivate func progressed(_ path: String, bytes: Int) {
-        if submitted.contains(path) { written[path] = bytes }
+    fileprivate func progressed(_ path: String, task: Int, bytes: Int) {
+        if submitted[path] == task { written[path] = bytes }
     }
 
-    fileprivate func finished(_ path: String, _ outcome: SessionDelegate.Outcome) {
-        submitted.remove(path)
+    fileprivate func finished(_ path: String, task: Int, _ outcome: SessionDelegate.Outcome) {
+        guard submitted[path] == task else { return }
+        submitted[path] = nil
         written[path] = nil
         switch outcome {
         case .done, .cancelled:
             refresh()
+            refill()
         case .rejected(let reason):
+            DiagnosticLog.shared.write("offline", "download_rejected", ["track": path, "reason": reason])
             let track = try! database.reader.read { try OfflineQueries.track(at: path, $0) }!
             // A link that expired while queued gets one fresh one.
             if !paused && retried.insert(path).inserted {
-                // Counted before the task starts, so the background completion waits for it.
-                resolving += 1
+                // Reserved before the task starts, so neither a refill nor
+                // the background completion runs ahead of it.
+                resolving.insert(path)
                 Task {
-                    do {
-                        try await submit(track)
-                    } catch {
-                        fail(track, error.localizedDescription)
-                    }
-                    resolving -= 1
+                    await submit(track)
                     finishBackgroundEvents()
                 }
             } else {
@@ -247,10 +300,20 @@ final class OfflineDownloads {
     /// The system may suspend the app once told, so it waits until every
     /// link being resolved has been handed to the session.
     private func finishBackgroundEvents() {
-        guard eventsFinished, resolving == 0, !submittingAll else { return }
+        guard eventsFinished, resolving.isEmpty, !refilling else { return }
         eventsFinished = false
         Self.backgroundCompletion?()
         Self.backgroundCompletion = nil
+    }
+
+    // MARK: - Telling the user
+
+    private func announceDone(_ work: Work) {
+        if isActive {
+            notices.show("《\(work.displayTitle)》已下载完成")
+        } else {
+            notifications.post(title: "下载完成", body: work.displayTitle, opening: .work(work.productId))
+        }
     }
 
     private func fail(_ track: Track, _ reason: String) {
@@ -262,6 +325,11 @@ final class OfflineDownloads {
             category: "offline", title: "离线下载已暂停", detail: reason,
             productId: track.workId, workTitle: title, action: .resumeDownloads
         )
+        if isActive {
+            notices.show("离线下载已暂停：\(reason)", .failure)
+        } else {
+            notifications.post(title: "离线下载已暂停", body: reason, opening: .messages)
+        }
     }
 }
 
@@ -305,8 +373,9 @@ private nonisolated final class SessionDelegate: NSObject, URLSessionDownloadDel
         guard reported[downloadTask.taskIdentifier] != percent else { return }
         reported[downloadTask.taskIdentifier] = percent
         let path = downloadTask.taskDescription!
+        let task = downloadTask.taskIdentifier
         let bytes = Int(totalBytesWritten)
-        onMain { $0.progressed(path, bytes: bytes) }
+        onMain { $0.progressed(path, task: task, bytes: bytes) }
     }
 
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
@@ -319,7 +388,8 @@ private nonisolated final class SessionDelegate: NSObject, URLSessionDownloadDel
             .done
         }
         let path = task.taskDescription!
-        onMain { $0.finished(path, outcome) }
+        let id = task.taskIdentifier
+        onMain { $0.finished(path, task: id, outcome) }
     }
 
     func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {

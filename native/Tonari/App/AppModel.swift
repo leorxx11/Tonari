@@ -168,8 +168,16 @@ final class AppModel {
     }
 
     func openWork(_ productId: String) {
+        showingSettings = false
+        showingPlayer = false
         libraryPath = NavigationPath([Route.work(productId)])
         tab = .library
+    }
+
+    func openMessages() {
+        showingPlayer = false
+        settingsPath = NavigationPath([Route.messages])
+        showingSettings = true
     }
 
     /// Opens a random work on the stack showing, or says the library is empty.

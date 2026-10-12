@@ -56,7 +56,14 @@ struct TonariApp: App {
             _player = State(initialValue: player)
             _video = State(initialValue: video)
             _nowPlaying = State(initialValue: NowPlaying(audio: player, video: video))
-            _offline = State(initialValue: OfflineDownloads(database: database))
+            let offline = OfflineDownloads(database: database, notices: model.notices)
+            offline.notifications.open = { target in
+                switch target {
+                case .work(let productId): model.openWork(productId)
+                case .messages: model.openMessages()
+                }
+            }
+            _offline = State(initialValue: offline)
         } catch {
             fatalError("Failed to open the library: \(error)")
         }

@@ -117,6 +117,28 @@ public enum OfflineQueries {
     }
 }
 
+/// How many tracks the download session holds at once. A link handed over
+/// waits its turn behind everything queued before it, and 115 links can
+/// expire after about half an hour, so the queue stays short enough to get
+/// through by then.
+public enum OfflineWindow {
+    /// The next tracks to hand over, in order, while the queue stays within
+    /// `limitCount` tracks and `limitBytes`. An empty queue always takes one,
+    /// so a track larger than the limit still goes.
+    public static func next(_ candidates: [Track], queuedCount: Int, queuedBytes: Int, limitCount: Int, limitBytes: Int) -> [Track] {
+        var count = queuedCount
+        var bytes = queuedBytes
+        var picked: [Track] = []
+        for track in candidates {
+            guard count == 0 || (count < limitCount && bytes + track.fileSizeBytes <= limitBytes) else { break }
+            count += 1
+            bytes += track.fileSizeBytes
+            picked.append(track)
+        }
+        return picked
+    }
+}
+
 extension AppDatabase {
     public func keepOffline(_ workId: String, folder: [String], at date: Date = .now) throws {
         try writer.write { try OfflineWork(workId: workId, folder: folder, addedAt: date).insert($0, onConflict: .replace) }
