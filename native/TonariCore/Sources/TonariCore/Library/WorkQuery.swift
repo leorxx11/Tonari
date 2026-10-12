@@ -256,6 +256,13 @@ public enum WorkQueries {
         try Work.filter(Column("is_removed") == false).order(sql: "RANDOM()").fetchOne(db)
     }
 
+    /// A work with audio to play at random, for the shortcut.
+    public static func randomWithAudio(_ db: Database) throws -> Work? {
+        try Work.filter(Column("is_removed") == false)
+            .filter(sql: "EXISTS (SELECT 1 FROM tracks WHERE tracks.work_id = works.product_id)")
+            .order(sql: "RANDOM()").fetchOne(db)
+    }
+
     public static func work(_ productId: String) -> QueryInterfaceRequest<Work> {
         Work.filter(key: productId)
     }

@@ -68,6 +68,27 @@ struct HomeQueriesTests {
         #expect(try database.reader.read { try HomeQueries.random(tagged: ["方言"], $0) } == nil)
     }
 
+    @Test func randomWithAudioSkipsWorksWithoutTracksAndRemovedOnes() throws {
+        try database.writer.write { db in
+            var removed = work("RJ1")
+            removed.isRemoved = true
+            try removed.insert(db)
+            try work("RJ2").insert(db)
+            try work("RJ3").insert(db)
+            for workId in ["RJ1", "RJ3"] {
+                try Track(
+                    id: "\(workId)|01.wav", workId: workId, filePath: "/\(workId)/01.wav", relativePath: "01.wav", fileName: "01.wav",
+                    fileFormat: "wav", fileSizeBytes: 1, durationMs: 1000, sampleRate: nil, bitRate: nil, categoryHint: nil,
+                    userCategory: nil, parentDirName: "", trackNumber: nil, title: "01", alternateQualityPathsJson: [:],
+                    lastPositionMs: 0, playCount: 0, createdAt: now, updatedAt: now, titleZh: nil
+                ).insert(db)
+            }
+        }
+        for _ in 0..<5 {
+            #expect(try database.reader.read { try WorkQueries.randomWithAudio($0) }?.productId == "RJ3")
+        }
+    }
+
     @Test func continueListeningSkipsRemovedWorks() throws {
         try database.writer.write { db in
             var removed = work("RJ1")

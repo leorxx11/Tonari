@@ -33,7 +33,7 @@ struct WorkCover: View {
     }
 }
 
-extension Work {
+nonisolated extension Work {
     /// Up to two voice actors, the circle when none are known.
     var castLine: String? {
         guard !voiceActors.isEmpty else { return circleName }

@@ -1,3 +1,4 @@
+import AppIntents
 import AVFoundation
 import MetricKit
 import SwiftUI
@@ -52,6 +53,10 @@ struct TonariApp: App {
                 await lists
             }
             let player = PlaybackController(database: database)
+            AppDependencyManager.shared.add(dependency: player)
+            AppDependencyManager.shared.add(dependency: model)
+            let appDatabase = database
+            AppDependencyManager.shared.add(dependency: appDatabase)
             let video = VideoController(database: database, sleep: player.sleep)
             _player = State(initialValue: player)
             _video = State(initialValue: video)
