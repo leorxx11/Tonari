@@ -7,9 +7,9 @@ struct OfflineTests {
     let database = try! AppDatabase.inMemory()
     let files = OfflineFiles(root: URL.temporaryDirectory.appending(path: UUID().uuidString))
 
-    private func track(_ workId: String, _ path: String) -> Track {
+    private func track(_ workId: String, _ path: String, pickcode: String? = nil) -> Track {
         Track(
-            id: "\(workId)|\(path)", workId: workId, filePath: "pc-\(path)", relativePath: path,
+            id: "\(workId)|\(path)", workId: workId, filePath: pickcode ?? "pc-\(path)", relativePath: path,
             fileName: String(path.split(separator: "/").last!), fileFormat: "wav", fileSizeBytes: 10,
             durationMs: 1000, sampleRate: nil, bitRate: nil, categoryHint: nil, userCategory: nil,
             parentDirName: "", trackNumber: nil, title: path, alternateQualityPathsJson: [:],
@@ -41,22 +41,35 @@ struct OfflineTests {
         try database.keepOffline("RJ2", folder: [], at: Date(timeIntervalSince1970: 20))
         try database.keepOffline("RJ1", folder: ["WAV"], at: Date(timeIntervalSince1970: 10))
 
-        #expect(try database.reader.read { try OfflineQueries.nextPending($0, files: files) }?.relativePath == "WAV/01.wav")
+        #expect(try database.reader.read { try OfflineQueries.pending($0, files: files) }.map(\.relativePath) == ["WAV/01.wav", "WAV/02.wav", "01.wav"])
         #expect(try database.reader.read { try OfflineQueries.track(at: "RJ1/WAV/02.wav", $0) }?.id == tracks[1].id)
         try download(tracks[0])
-        #expect(try database.reader.read { try OfflineQueries.nextPending($0, files: files) }?.relativePath == "WAV/02.wav")
-        #expect(try database.reader.read { try OfflineQueries.status(of: "RJ1", $0, files: files) } == .init(downloaded: 1, total: 2))
+        #expect(try database.reader.read { try OfflineQueries.pending($0, files: files) }.first?.relativePath == "WAV/02.wav")
+        #expect(try database.reader.read { try OfflineQueries.status(of: "RJ1", $0, files: files) } == .init(downloaded: 1, total: 2, downloadedBytes: 10, totalBytes: 20))
 
         try download(tracks[1])
-        #expect(try database.reader.read { try OfflineQueries.nextPending($0, files: files) }?.workId == "RJ2")
+        #expect(try database.reader.read { try OfflineQueries.pending($0, files: files) }.map(\.workId) == ["RJ2"])
+        #expect(try database.reader.read { try OfflineQueries.tracks(of: "RJ1", $0) }.count == 2)
         #expect(try database.reader.read { try OfflineQueries.status(of: "RJ1", $0, files: files) }!.isComplete)
         #expect(files.localURL(for: tracks[2]) == nil)
         #expect(try Data(contentsOf: files.localURL(for: tracks[0])!) == Data("audio".utf8))
         #expect(files.bytes(of: "RJ1") == 10)
 
         try download(tracks[3])
-        #expect(try database.reader.read { try OfflineQueries.nextPending($0, files: files) } == nil)
+        #expect(try database.reader.read { try OfflineQueries.pending($0, files: files) }.isEmpty)
         #expect(try database.reader.read { try OfflineQueries.entries($0, files: files) }.map(\.id) == ["RJ1", "RJ2"])
+    }
+
+    @Test func downloadsInTheTrackListsOrderNotByPickcode() throws {
+        try database.writer.write { db in
+            try Fixtures.work("RJ1").insert(db)
+            for (path, pickcode) in [("10.wav", "a"), ("2.wav", "b"), ("1.wav", "c")] {
+                try track("RJ1", path, pickcode: pickcode).insert(db)
+            }
+        }
+        try database.keepOffline("RJ1", folder: [])
+
+        #expect(try database.reader.read { try OfflineQueries.pending($0, files: files) }.map(\.relativePath) == ["1.wav", "2.wav", "10.wav"])
     }
 
     @Test func removingAWorkForgetsItAndPruneDeletesItsCopies() throws {

@@ -6,6 +6,7 @@ import TonariCore
 struct LibraryView: View {
     @Environment(AppModel.self) private var model
     @Environment(EnrichmentQueue.self) private var enrichment
+    @Environment(OfflineDownloads.self) private var offline
     @Environment(\.appDatabase) private var database
     @State private var counts = Counts()
     @State private var summaries: [CollectionQueries.Summary] = []
@@ -48,6 +49,7 @@ struct LibraryView: View {
             }
             .navigationTitle("资料库")
             .toolbar {
+                DownloadsToolbarButton()
                 Menu("添加", systemImage: "plus") {
                     Button("导入本地文件夹", systemImage: "folder.badge.plus") {
                         importingVideos = false
@@ -124,6 +126,7 @@ struct LibraryView: View {
             categoryRow("作品", systemImage: "headphones", detail: "\(counts.works)", route: .works)
             categoryRow("视频", systemImage: "film", detail: "\(counts.videos)", route: .videos)
             categoryRow("收藏", systemImage: "heart", detail: "\(counts.favorites)", route: .favoriteItems)
+            categoryRow("已下载", systemImage: "arrow.down.circle", detail: downloadedDetail, route: .offlineDownloads)
             categoryRow("声优", systemImage: "music.mic", detail: nil, route: .categories(.voiceActor))
             categoryRow("社团", systemImage: "person.2", detail: nil, route: .categories(.circle))
             categoryRow("标签", systemImage: "tag", detail: nil, route: .categories(.genre))
@@ -131,6 +134,10 @@ struct LibraryView: View {
             categoryRow("收听统计", systemImage: "chart.bar.xaxis", detail: "本周 \(Formatting.listening(ms: counts.weekMs))", route: .listenStats, last: true)
         }
         .padding(.horizontal, 16)
+    }
+
+    private var downloadedDetail: String {
+        offline.overallProgress.map { "\(offline.paused ? "已暂停" : "正在下载") · \(Int($0 * 100))%" } ?? "\(offline.entries.count)"
     }
 
     private func categoryRow(_ title: String, systemImage: String, detail: String?, route: Route, last: Bool = false) -> some View {

@@ -126,7 +126,7 @@ struct StorageView: View {
         }
         .navigationTitle("存储空间")
         .navigationBarTitleDisplayMode(.inline)
-        .task(id: offline.revision) { await measure() }
+        .task(id: offline.entries.map(\.status.downloaded)) { await measure() }
         .confirmationDialog("清理全部缓存？", isPresented: $confirmingAll, titleVisibility: .visible) {
             Button("清理 \(clearable.map(Formatting.bytes) ?? "")", role: .destructive) {
                 Task { await clear(Area.allCases) }

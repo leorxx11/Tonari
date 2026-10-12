@@ -57,6 +57,8 @@ public enum OfflineQueries {
     public struct Status: Sendable, Hashable {
         public let downloaded: Int
         public let total: Int
+        public let downloadedBytes: Int
+        public let totalBytes: Int
         public var isComplete: Bool { downloaded == total }
     }
 
@@ -70,20 +72,22 @@ public enum OfflineQueries {
         try OfflineWork.order(Column("added_at")).fetchAll(db)
     }
 
-    /// The tracks an offline work keeps: those directly in its folder.
+    /// The tracks an offline work keeps: those directly in its folder, in
+    /// the track list's order (115 tracks are stored by pickcode).
     static func tracks(of offline: OfflineWork, _ db: Database) throws -> [Track] {
         try WorkQueries.tracks(of: offline.workId).fetchAll(db)
             .filter { $0.relativePath.split(separator: "/").dropLast().map(String.init) == offline.folder }
+            .sorted { NaturalOrder.less($0.relativePath, $1.relativePath) }
     }
 
-    /// The next track to download, oldest offline work first.
-    public static func nextPending(_ db: Database, files: OfflineFiles) throws -> Track? {
-        for offline in try all(db) {
-            if let track = try tracks(of: offline, db).first(where: { files.localURL(for: $0) == nil }) {
-                return track
-            }
-        }
-        return nil
+    /// Every track still to download, oldest offline work first.
+    public static func pending(_ db: Database, files: OfflineFiles) throws -> [Track] {
+        try all(db).flatMap { try tracks(of: $0, db).filter { files.localURL(for: $0) == nil } }
+    }
+
+    /// The tracks a work keeps, for per-track download marks.
+    public static func tracks(of workId: String, _ db: Database) throws -> [Track] {
+        try OfflineWork.fetchOne(db, key: workId).map { try tracks(of: $0, db) } ?? []
     }
 
     /// The track a download's `<work>/<relative path>` names.
@@ -104,7 +108,12 @@ public enum OfflineQueries {
 
     private static func status(of offline: OfflineWork, _ db: Database, files: OfflineFiles) throws -> Status {
         let tracks = try tracks(of: offline, db)
-        return Status(downloaded: tracks.count { files.localURL(for: $0) != nil }, total: tracks.count)
+        let downloaded = tracks.filter { files.localURL(for: $0) != nil }
+        return Status(
+            downloaded: downloaded.count, total: tracks.count,
+            downloadedBytes: downloaded.reduce(0) { $0 + $1.fileSizeBytes },
+            totalBytes: tracks.reduce(0) { $0 + $1.fileSizeBytes }
+        )
     }
 }
 

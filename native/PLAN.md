@@ -65,12 +65,12 @@ Bundle ID 相同则覆盖安装（沙盒保留），不同则并存。免费证�
 - **DLsite 发现**：排行榜读 `/{floor}/ranking/{term}?category=voice` 的 HTML（全年龄区没有日榜）；其余列表读 `fsr/ajax`，统一带账号默认条件（男性向、同人、音声、语言 JPN/CHI/CHI_HANS/CHI_HANT/NM）；标题 / 主图 / 价格统一由 `product/info/ajax` 批量补全（列表缩略图是方形裁切、标题可能打码）。
 - **DLsite 登录**：非持久 `WKWebView` 打开 `maniax/login/=/skip_register/1`，见到 `loginchecked` 即存 www.dlsite.com 的 Cookie 与登录页 UA；每次请求把续发的 Cookie 写回。愿望单读 `maniax/load/favorite/product`，写 `maniax/cart/ajax`（`mode=wishlist` / `wishlist_remove`，`result_code` -1 为失败）。
 - **崩溃报告**：Ad Hoc 重签包能收到 MetricKit 诊断，前提是手机开着「分析与改进 → 与 App 开发者共享」，开关打开前的崩溃不会补发；下次启动时投递。报告里只有地址，用同一次构建的 `Tonari.app.dSYM`（`dwarfdump --uuid` 对上报告的 `binaryUUID`）执行 `atos -l 0x100000000`，地址取 `0x100000000 + offsetIntoBinaryTextSegment`。dSYM 每次构建都会被覆盖，要查旧报告得留着当时的 dSYM。
-- **离线下载**：`offline_works` 只记「哪部作品、哪个目录要离线」，文件在 `Documents/offline/<RJ>/<相对路径>`，下完才移入，存在即完整，不进备份。后台 `URLSession`（`httpMaximumConnectionsPerHost = 1`），每首开始前才解析直链；系统唤醒时等下一首交给 session 后才调 completion。删作品 / 来源会连带删表行，`OfflineDownloads` 观察表变化清掉多余文件。
+- **离线下载**：`offline_works` 只记「哪部作品、哪个目录要离线」，文件在 `Documents/offline/<RJ>/<相对路径>`，下完才移入，存在即完整，不进备份。后台 `URLSession`（`httpMaximumConnectionsPerHost = 1`，115 全走同一 CDN 域名，等于串行）。**App 在后台时新建的任务会被系统限速**（实测 1.8 MB/s，前台建的 11.7 MB/s，锁屏后仍保持），所以在前台把全部待下载曲目逐首解析直链、一次性交给 session，回到前台时补交未提交的；队列按作品加入先后、作品内按曲目列表的自然顺序（115 的 `file_path` 是 pickcode，不能用来排序）。直链有效期 50 分钟到 6 小时不等，排队中过期（非 200）换新链接重试一次，再失败或解析失败就整体暂停并写消息；暂停状态跨启动保留。系统唤醒时等所有解析中的链接交给 session 后才调 completion。删作品 / 来源会连带删表行，`OfflineDownloads` 观察表变化清掉多余文件。入口：详情页 ⋯ / 作品长按菜单下载，详情页播放按钮下进度条，主页 / 资料库工具栏总进度环（半屏「下载」），资料库「已下载」与存储空间「离线下载」同一列表。长按预览卡片不继承环境，用到 `@Environment` 对象的视图要显式 `.environment(...)` 注入。
 - **chobit 试听**：`chobit.cc/api/v1/dlsite/embed` → 嵌入页 `.track-list li[data-src]`，翻译版取原作。
 
 ## 5. 界面方案
 
-示意图在 `design/`，浏览器直接打开：[主页](design/home.html) · [发现](design/discover.html) · [媒体库](design/library-layouts.html) · [作品详情](design/work-detail.html) · [曲目翻页](design/track-pager.html) · [资源页](design/work-files.html) · [浏览](design/browse.html) · [收藏](design/favorites.html) · [设置](design/settings.html)（[整改](design/settings-cleanup.html)） · [迷你播放栏](design/mini-player.html) · [搜索](design/search.html) · [视频](design/video.html)。
+示意图在 `design/`，浏览器直接打开：[主页](design/home.html) · [发现](design/discover.html) · [媒体库](design/library-layouts.html) · [作品详情](design/work-detail.html) · [曲目翻页](design/track-pager.html) · [资源页](design/work-files.html) · [浏览](design/browse.html) · [收藏](design/favorites.html) · [设置](design/settings.html)（[整改](design/settings-cleanup.html)） · [迷你播放栏](design/mini-player.html) · [搜索](design/search.html) · [视频](design/video.html) · [离线下载进度](design/offline-progress.html)（采用全局 B、作品页 A）。
 
 整体对标 Apple Music / iOS 26 原生组件：去卡片底色与阴影，封面直接放背景上（DLsite 原图 4:3），长按用系统 `contextMenu`。示意图之外的规则：
 

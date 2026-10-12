@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>离线下载进度</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<style>
+:root{--bg:#f2f2f7;--card:#fff;--fill:#e5e5ea;--fill2:#f2f2f7;--text:#000;--sec:#8a8a8e;--ter:#c7c7cc;--accent:#d6452f;--sep:rgba(60,60,67,.18);--btn:#000;--btn-text:#fff}
+@media (prefers-color-scheme:dark){:root{--bg:#000;--card:#1c1c1e;--fill:#3a3a3c;--fill2:#2c2c2e;--text:#fff;--sec:#98989f;--ter:#48484a;--accent:#ff6b52;--sep:rgba(84,84,88,.6);--btn:#fff;--btn-text:#000}}
+*{box-sizing:border-box}
+body{margin:0;padding:24px 16px;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif}
+main{max-width:1080px;margin:0 auto}
+h1{font-size:20px;margin:0 0 4px}
+.meta{font-size:13px;color:var(--sec);margin:0 0 24px;line-height:1.5}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px;align-items:start}
+.label{font-size:13px;font-weight:600;margin:0 0 8px}
+.label small{font-weight:400;color:var(--sec)}
+.phone{background:var(--card);border-radius:28px;padding:14px 16px 18px;border:1px solid var(--sep);max-width:360px}
+.nav{display:flex;justify-content:space-between;color:var(--sec);font-size:13px;margin-bottom:10px}
+.cover{aspect-ratio:4/3;border-radius:10px;background:linear-gradient(135deg,#c7a6e6,#f3b3a6)}
+.title{font-size:17px;font-weight:600;margin:10px 0 2px;line-height:1.3}
+.cv{font-size:13px;color:var(--accent);margin:0}
+.sub{font-size:12px;color:var(--sec);margin:2px 0 12px}
+.buttons{display:flex;gap:10px;align-items:center}
+.circle{flex:none;width:42px;height:42px;border-radius:50%;background:var(--fill2);display:flex;align-items:center;justify-content:center;font-size:19px}
+.play{flex:1;height:42px;border-radius:99px;background:var(--btn);color:var(--btn-text);display:flex;align-items:center;justify-content:center;gap:6px;font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden}
+.status{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--sec);margin-top:12px}
+.status .grow{flex:1}
+.status a{color:var(--accent);text-decoration:none}
+.bar{height:4px;border-radius:2px;background:var(--fill);margin-top:6px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:2px}
+.ring{--p:28;width:42px;height:42px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(closest-side,var(--fill2) 78%,transparent 80% 100%),conic-gradient(var(--accent) calc(var(--p)*1%),var(--fill) 0)}
+.ring b{width:10px;height:10px;border-radius:2px;background:var(--accent)}
+.ring.small{width:14px;height:14px;background:radial-gradient(closest-side,var(--card) 62%,transparent 66% 100%),conic-gradient(var(--accent) calc(var(--p)*1%),var(--fill) 0)}
+.h{display:flex;justify-content:space-between;align-items:baseline;margin:18px 0 4px}
+.h span:first-child{font-size:17px;font-weight:700}
+.h small{font-size:13px;color:var(--sec);font-weight:400}
+.h .menu{font-size:13px;color:var(--accent)}
+.track{display:flex;align-items:center;gap:10px;font-size:14px;padding:9px 0;border-bottom:.5px solid var(--sep)}
+.track .n{width:18px;text-align:center;color:var(--sec);font-size:13px}
+.track .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.track .meta2{display:flex;align-items:center;gap:6px;color:var(--sec);font-size:12px;font-variant-numeric:tabular-nums}
+.track .dl{color:var(--sec);font-size:13px}
+.list .row{display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:.5px solid var(--sep)}
+.list .thumb{width:64px;height:48px;border-radius:6px;flex:none;background:linear-gradient(135deg,#a6c8e6,#e6b3d9)}
+.list .thumb.b{background:linear-gradient(135deg,#f0c27b,#d6452f)}
+.list .body{flex:1;min-width:0}
+.list .name{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.list .info{font-size:13px;color:var(--sec);font-variant-numeric:tabular-nums}
+.notes{font-size:13px;line-height:1.6;color:var(--sec);margin:10px 4px 0;padding-left:18px}
+.notes b{color:var(--text);font-weight:500}
+</style>
+</head>
+<body><main>
+<h1>离线下载进度</h1>
+<p class="meta">2026-10-12 · N11 补充。上半部分是全局入口（三选一），下半部分是作品页内的进度。示例：38 首、7.5 GB，下到第 12 首。</p>
+
+<style>
+.navbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.navbar .big{font-size:26px;font-weight:700}
+.navbar .acts{display:flex;gap:8px}
+.navbar .circle{width:34px;height:34px;font-size:17px}
+.navbar .ring{width:34px;height:34px}
+.navbar .ring b{width:8px;height:8px}
+.navbar .ring.icon b{display:none}
+.navbar .ring.icon::after{content:"";}
+.cat{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:.5px solid var(--sep);font-size:15px}
+.cat i{color:var(--accent);font-size:20px;width:22px;text-align:center}
+.cat .grow{flex:1}
+.cat .d{color:var(--sec);font-size:13px;font-variant-numeric:tabular-nums}
+.cat .chev{color:var(--ter);font-size:14px;width:auto}
+.card{background:var(--fill2);border-radius:14px;padding:12px;display:flex;gap:12px;align-items:center;margin:4px 0 14px}
+.card .thumb{width:56px;height:42px;border-radius:6px;flex:none;background:linear-gradient(135deg,#a6c8e6,#e6b3d9)}
+.card .body{flex:1;min-width:0}
+.sheet{margin-top:14px;border-top:.5px solid var(--sep);padding-top:10px}
+.sheet .grab{width:36px;height:5px;border-radius:3px;background:var(--fill);margin:0 auto 10px}
+.sec-title{font-size:13px;color:var(--sec);margin:16px 0 4px}
+</style>
+<div class="grid" style="margin-bottom:40px">
+  <section>
+    <p class="label">全局 A · 资料库分类行「已下载」</p>
+    <div class="phone">
+      <div class="navbar"><span class="big">资料库</span><span class="acts"><span class="circle"><i class="ti ti-plus"></i></span></span></div>
+      <div class="cat"><i class="ti ti-headphones"></i><span class="grow">作品</span><span class="d">219</span><i class="ti ti-chevron-right chev"></i></div>
+      <div class="cat"><i class="ti ti-movie"></i><span class="grow">视频</span><span class="d">3</span><i class="ti ti-chevron-right chev"></i></div>
+      <div class="cat"><i class="ti ti-heart"></i><span class="grow">收藏</span><span class="d">41</span><i class="ti ti-chevron-right chev"></i></div>
+      <div class="cat"><i class="ti ti-circle-arrow-down"></i><span class="grow">已下载</span><span class="d">正在下载 · 28%</span><i class="ti ti-chevron-right chev"></i></div>
+      <div class="cat"><i class="ti ti-microphone"></i><span class="grow">声优</span><i class="ti ti-chevron-right chev"></i></div>
+      <div class="cat"><i class="ti ti-clock"></i><span class="grow">播放历史</span><i class="ti ti-chevron-right chev"></i></div>
+    </div>
+    <ul class="notes">
+      <li>对应 Apple Music 资料库里的「已下载」。常驻入口，平时右侧显示部数，下载中显示进度。</li>
+      <li>点进去就是下方的「离线下载」列表，存储空间页的那一行保留，指向同一页。</li>
+      <li>不足：要先切到资料库 Tab 才看得到。</li>
+    </ul>
+  </section>
+
+  <section>
+    <p class="label">全局 B · A + 下载中的进度环按钮 <small>推荐</small></p>
+    <div class="phone">
+      <div class="navbar"><span class="big">Tonari</span><span class="acts"><span class="ring" style="--p:28"><b></b></span><span class="circle"><i class="ti ti-settings"></i></span></span></div>
+      <p class="sec-title">点进度环弹出半屏：</p>
+      <div class="sheet">
+        <div class="grab"></div>
+        <div class="navbar" style="margin-bottom:2px"><span style="font-size:17px;font-weight:600">下载</span><span style="font-size:14px;color:var(--accent)">全部暂停</span></div>
+        <div class="list">
+          <div class="row"><div class="thumb"></div><div class="body">
+            <div class="name">娘たちと過ごす甘々母乳ハーレム生活</div>
+            <div class="info">正在下载 12/38 · 2.1 / 7.5 GB</div>
+            <div class="bar"><i style="width:28%"></i></div>
+          </div></div>
+          <div class="row"><div class="thumb b"></div><div class="body">
+            <div class="name">另一部排队中的作品</div>
+            <div class="info">等待下载 · 0/12 · 1.4 GB</div>
+          </div></div>
+        </div>
+      </div>
+    </div>
+    <ul class="notes">
+      <li>有下载在进行或暂停时，<b>主页和资料库</b>右上角出现进度环（主页在齿轮左边，资料库在 ＋ 左边），整体进度按全部待下字节算；全部下完后自动消失。</li>
+      <li>点一下弹出半屏「下载」：只列未下完的作品，可全部暂停 / 继续，点作品进作品页。</li>
+      <li>平时的常驻入口用 A 的「已下载」分类行。和 Safari、App Store 的下载按钮同一个思路。</li>
+    </ul>
+  </section>
+
+  <section>
+    <p class="label">全局 C · 主页顶部「正在下载」卡片</p>
+    <div class="phone">
+      <div class="navbar"><span class="big">Tonari</span><span class="acts"><span class="circle"><i class="ti ti-settings"></i></span></span></div>
+      <div class="card"><div class="thumb"></div><div class="body">
+        <div style="font-size:14px;font-weight:600">正在下载 · 2 部作品</div>
+        <div class="list"><div class="info" style="font-size:12px">娘たちと過ごす… 12/38 · 28%</div></div>
+        <div class="bar"><i style="width:28%"></i></div>
+      </div><i class="ti ti-chevron-right" style="color:var(--ter)"></i></div>
+      <div style="height:120px;border-radius:14px;background:var(--fill2);display:flex;align-items:center;justify-content:center;color:var(--sec);font-size:13px">继续收听大卡</div>
+    </div>
+    <ul class="notes">
+      <li>下载中时主页最上面多一张卡片，下完消失；点卡片进「离线下载」列表。</li>
+      <li>不足：会把「继续收听」挤下去；在其他 Tab 时看不到。</li>
+    </ul>
+  </section>
+</div>
+<p class="label" style="margin-bottom:12px">作品页内的进度</p>
+
+<div class="grid">
+  <section>
+    <p class="label">方案 A · 线性进度条 <small>推荐</small></p>
+    <div class="phone">
+      <div class="nav"><i class="ti ti-chevron-left"></i><span>RJ01624471</span><span><i class="ti ti-dots"></i></span></div>
+      <div class="cover"></div>
+      <p class="title">娘たちと過ごす甘々母乳ハーレム生活</p>
+      <p class="cv">声优 A、声优 B、声优 C</p>
+      <p class="sub">社团 A · 2026-08-30 · 日文</p>
+      <div class="buttons">
+        <div class="circle"><i class="ti ti-arrows-shuffle"></i></div>
+        <div class="play"><i class="ti ti-player-play-filled"></i>继续播放 · 第1-3章</div>
+        <div class="circle"><i class="ti ti-heart"></i></div>
+      </div>
+      <div class="status"><i class="ti ti-circle-arrow-down"></i><span class="grow">正在下载 12/38 · 2.1 / 7.5 GB</span><a>暂停</a></div>
+      <div class="bar"><i style="width:28%"></i></div>
+      <div class="h"><span>曲目 <small>38 首</small></span><span class="menu">本編『SEありWAV』 <i class="ti ti-chevron-down"></i></span></div>
+      <div class="track"><span class="n">1</span><span class="t">第1-1章　『集会所』　プロローグ1</span><span class="meta2"><i class="ti ti-message-circle"></i><i class="ti ti-circle-arrow-down dl"></i>5:12</span></div>
+      <div class="track"><span class="n">2</span><span class="t">第1-2章　『ダンジョン』　プロローグ2</span><span class="meta2"><i class="ti ti-message-circle"></i><span class="ring small" style="--p:64"></span>8:40</span></div>
+      <div class="track"><span class="n">3</span><span class="t">第1-3章　『お屋敷』　プロローグ3</span><span class="meta2"><i class="ti ti-message-circle"></i>6:03</span></div>
+      <div class="track"><span class="n">4</span><span class="t">第2-1章　『寝室』　マリンパート</span><span class="meta2"><i class="ti ti-message-circle"></i>14:21</span></div>
+    </div>
+    <ul class="notes">
+      <li><b>进度条</b>按整部作品的字节数算，下完后消失，文字变成「已下载到本机 · 7.5 GB」。</li>
+      <li><b>暂停 / 继续</b>放在同一行右侧；失败暂停时文字变「下载已暂停」，按钮变「继续」。</li>
+    </ul>
+  </section>
+
+  <section>
+    <p class="label">方案 B · Apple Music 式圆环</p>
+    <div class="phone">
+      <div class="nav"><i class="ti ti-chevron-left"></i><span>RJ01624471</span><span><i class="ti ti-dots"></i></span></div>
+      <div class="cover"></div>
+      <p class="title">娘たちと過ごす甘々母乳ハーレム生活</p>
+      <p class="cv">声优 A、声优 B、声优 C</p>
+      <p class="sub">社团 A · 2026-08-30 · 日文</p>
+      <div class="buttons">
+        <div class="circle"><i class="ti ti-arrows-shuffle"></i></div>
+        <div class="play"><i class="ti ti-player-play-filled"></i>继续播放 · 第1-3章</div>
+        <div class="ring" style="--p:28"><b></b></div>
+        <div class="circle"><i class="ti ti-heart"></i></div>
+      </div>
+      <div class="h"><span>曲目 <small>38 首</small></span><span class="menu">本編『SEありWAV』 <i class="ti ti-chevron-down"></i></span></div>
+      <div class="track"><span class="n">1</span><span class="t">第1-1章　『集会所』　プロローグ1</span><span class="meta2"><i class="ti ti-message-circle"></i><i class="ti ti-circle-arrow-down dl"></i>5:12</span></div>
+      <div class="track"><span class="n">2</span><span class="t">第1-2章　『ダンジョン』　プロローグ2</span><span class="meta2"><i class="ti ti-message-circle"></i><span class="ring small" style="--p:64"></span>8:40</span></div>
+      <div class="track"><span class="n">3</span><span class="t">第1-3章　『お屋敷』　プロローグ3</span><span class="meta2"><i class="ti ti-message-circle"></i>6:03</span></div>
+      <div class="track"><span class="n">4</span><span class="t">第2-1章　『寝室』　マリンパート</span><span class="meta2"><i class="ti ti-message-circle"></i>14:21</span></div>
+    </div>
+    <ul class="notes">
+      <li><b>圆环按钮</b>：未下载是 <i class="ti ti-circle-arrow-down"></i>（点了开始下载），下载中是进度环（中间方块，点了暂停），下完是 <i class="ti ti-circle-check"></i>。⋯ 菜单里的「下载到本机」可以去掉。</li>
+      <li>只看圆环看不出「12/38」和 GB 数，要到「离线下载」列表里看。播放按钮会被挤窄一些。</li>
+    </ul>
+  </section>
+
+  <section>
+    <p class="label">设置 → 存储空间 → 离线下载 <small>两方案共用</small></p>
+    <div class="phone list">
+      <div class="nav"><i class="ti ti-chevron-left"></i><span style="color:var(--text);font-weight:600">离线下载</span><span></span></div>
+      <div class="row"><div class="thumb"></div><div class="body">
+        <div class="name">娘たちと過ごす甘々母乳ハーレム生活</div>
+        <div class="info">正在下载 12/38 · 2.1 / 7.5 GB</div>
+        <div class="bar"><i style="width:28%"></i></div>
+      </div></div>
+      <div class="row"><div class="thumb b"></div><div class="body">
+        <div class="name">王子大人系JK女友</div>
+        <div class="info">8 首 · 2.2 GB</div>
+      </div></div>
+    </div>
+    <ul class="notes">
+      <li><b>曲目行</b>：已下载的在时长前加小 <i class="ti ti-circle-arrow-down"></i>，正在下的显示小进度环，未下载的不加标记。</li>
+      <li>列表里左滑删除单部作品，点行进入作品页。</li>
+    </ul>
+  </section>
+</div>
+</main></body>
+</html>

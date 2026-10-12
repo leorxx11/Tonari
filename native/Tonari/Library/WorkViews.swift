@@ -156,6 +156,7 @@ private struct WorkContextMenu: ViewModifier {
 
     @Environment(AppModel.self) private var model
     @Environment(PlaybackController.self) private var player
+    @Environment(OfflineDownloads.self) private var offline
     @Environment(\.appDatabase) private var database
 
     func body(content: Content) -> some View {
@@ -168,6 +169,17 @@ private struct WorkContextMenu: ViewModifier {
             }
             Button("加入分组…", systemImage: "folder.badge.plus") {
                 model.collectionPicker = .work(work)
+            }
+            if offline.entry(work.productId) != nil {
+                Button("删除下载", systemImage: "xmark.circle", role: .destructive) {
+                    offline.drop(work.productId)
+                    model.notices.show("已删除下载")
+                }
+            } else if offline.canKeep(work), trackCount != 0 {
+                Button("下载到本机", systemImage: "arrow.down.circle") {
+                    offline.keep(work)
+                    model.notices.downloadAdded(paused: offline.paused)
+                }
             }
             Button("重新扫描", systemImage: "arrow.clockwise", action: rescan)
                 .disabled(model.tasks.isBusy)
@@ -187,6 +199,8 @@ private struct WorkContextMenu: ViewModifier {
             }
             .padding(.bottom, 12)
             .frame(width: 320)
+            // The preview is hosted apart from the view tree and inherits none of its environment.
+            .environment(offline)
         }
     }
 

@@ -74,6 +74,7 @@ struct HomeView: View {
             }
             .navigationTitle("Tonari")
             .toolbar {
+                ToolbarItem(placement: .topBarTrailing) { DownloadsToolbarButton() }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("设置", systemImage: "gearshape") { model.showingSettings = true }
                         .badge(unread)

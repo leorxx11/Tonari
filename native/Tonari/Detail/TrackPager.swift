@@ -41,6 +41,7 @@ struct TrackPager: View {
                     Image(systemName: "captions.bubble").font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 0)
+                TrackDownloadMark(track: track)
                 if track.durationMs > 0 {
                     Text(Formatting.trackTime(ms: track.durationMs))
                         .font(.subheadline.monospacedDigit())

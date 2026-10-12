@@ -78,6 +78,7 @@ struct TonariApp: App {
             DiagnosticLog.shared.write("app", "lifecycle", ["phase": "\(phase)"])
             PrivacyShield.update(phase)
             if phase == .background { player.savePosition() }
+            if phase == .active { offline.becameActive() }
         }
     }
 }

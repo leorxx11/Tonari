@@ -325,14 +325,17 @@ struct WorkDetailView: View {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 Menu("更多", systemImage: "ellipsis") {
                     Button("加入分组…", systemImage: "folder.badge.plus") { model.collectionPicker = .work(work) }
-                    if isP115 {
-                        let _ = offline.revision
-                        if offline.status(of: productId) != nil {
-                            Button("删除下载", systemImage: "xmark.circle", role: .destructive) { offline.drop(productId) }
-                        } else {
-                            Button("下载到本机", systemImage: "arrow.down.circle") { offline.keep(productId, folder: folder!.path) }
-                                .disabled(folder == nil)
+                    if offline.entry(productId) != nil {
+                        Button("删除下载", systemImage: "xmark.circle", role: .destructive) {
+                            offline.drop(productId)
+                            model.notices.show("已删除下载")
                         }
+                    } else if isP115 {
+                        Button("下载到本机", systemImage: "arrow.down.circle") {
+                            offline.keep(productId, folder: folder!.path)
+                            model.notices.downloadAdded(paused: offline.paused)
+                        }
+                            .disabled(folder == nil)
                     }
                     Link(destination: DLsite.workURL(productId)) {
                         Label("在 DLsite 中打开", systemImage: "safari")
