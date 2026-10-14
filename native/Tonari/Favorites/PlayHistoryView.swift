@@ -98,31 +98,14 @@ private struct HistoryRow: View {
 
     private var content: some View {
         HStack(spacing: 12) {
-            Group {
-                if item.coverPath != nil {
-                    LocalImage(path: item.coverPath)
-                } else {
-                    ZStack {
-                        Color(.secondarySystemBackground)
-                        Image(systemName: symbol).foregroundStyle(.secondary)
-                    }
-                }
-            }
-            .frame(width: 52, height: item.entry.kind == "video" ? 30 : 52)
-            .frame(height: 52)
-            .clipShape(.rect(cornerRadius: 6))
+            LocalImage(path: item.coverPath, seed: item.workId ?? item.entry.id)
+                .frame(width: 52, height: item.entry.kind == "video" ? 30 : 52)
+                .clipShape(.rect(cornerRadius: 6))
+                .frame(height: 52)
             VStack(alignment: .leading, spacing: 3) {
                 Text(item.entry.title).font(.subheadline).lineLimit(2)
                 Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
-        }
-    }
-
-    private var symbol: String {
-        switch item.entry.kind {
-        case "work": "music.note.list"
-        case "video": "film"
-        default: "music.note"
         }
     }
 

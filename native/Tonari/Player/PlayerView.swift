@@ -143,7 +143,7 @@ struct PlayerView: View {
     }
 
     private var artwork: some View {
-        PlayerArtwork(path: player.work?.mainImageLocalPath, cornerRadius: panel == nil ? 14 : 8)
+        PlayerArtwork(path: player.work?.mainImageLocalPath, seed: player.work?.productId, cornerRadius: panel == nil ? 14 : 8)
             .matchedGeometryEffect(id: "artwork", in: artworkSpace)
     }
 

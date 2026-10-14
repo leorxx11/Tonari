@@ -196,8 +196,8 @@ struct HomeView: View {
                 .lineLimit(1)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
-                .foregroundStyle(active ? Color(.systemBackground) : .primary)
-                .background(active ? Color.primary : Color(.tertiarySystemFill), in: .capsule)
+                .foregroundStyle(active ? Color.sealInk : .primary)
+                .background(active ? AnyShapeStyle(.seal) : AnyShapeStyle(Color(.tertiarySystemFill)), in: .capsule)
         }
         .buttonStyle(.plain)
         .disabled(!player.hasCurrent && content.resume == nil)
@@ -214,7 +214,7 @@ struct HomeView: View {
 
     private func pickButton(_ title: String, systemImage: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Label(title, systemImage: systemImage)
+            Label { Text(title) } icon: { Image(systemName: systemImage).foregroundStyle(Color.seal) }
                 .font(.subheadline.weight(.semibold))
                 .frame(maxWidth: .infinity, minHeight: 44)
                 .background(Color(.tertiarySystemFill), in: .rect(cornerRadius: 12))
@@ -261,7 +261,7 @@ private struct ResumeCard: View {
     var body: some View {
         let playing = player.work?.productId == resume.work.productId && player.isPlaying
         NavigationLink(value: Route.work(resume.work.productId)) {
-            LocalImage(path: resume.work.mainImageLocalPath)
+            LocalImage(path: resume.work.mainImageLocalPath, seed: resume.work.productId)
                 .aspectRatio(4 / 3, contentMode: .fit)
                 .overlay(alignment: .bottom) {
                     LinearGradient(colors: [.clear, .black.opacity(0.7)], startPoint: .top, endPoint: .bottom)
@@ -287,10 +287,10 @@ private struct ResumeCard: View {
             } label: {
                 Label(playing ? "播放中" : "播放", systemImage: playing ? "waveform" : "play.fill")
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.black)
+                    .foregroundStyle(Color.sealInk)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 8)
-                    .background(.white, in: .capsule)
+                    .background(.seal, in: .capsule)
             }
             .buttonStyle(.plain)
             .padding(14)
@@ -320,7 +320,7 @@ private struct VideoResumeCard: View {
         Button {
             if playing { model.showingVideo = true } else { model.playVideo(progress.video, with: video) }
         } label: {
-            VideoThumbnail(coverPath: cover, cornerRadius: 14)
+            VideoThumbnail(coverPath: cover, seed: progress.id, cornerRadius: 14)
                 .overlay(alignment: .bottom) {
                     LinearGradient(colors: [.clear, .black.opacity(0.7)], startPoint: .top, endPoint: .bottom)
                         .frame(height: 120)
@@ -341,10 +341,10 @@ private struct VideoResumeCard: View {
                 .overlay(alignment: .bottomTrailing) {
                     Label(playing ? "播放中" : "播放", systemImage: playing ? "waveform" : "play.fill")
                         .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.black)
+                        .foregroundStyle(Color.sealInk)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 8)
-                        .background(.white, in: .capsule)
+                        .background(.seal, in: .capsule)
                         .padding(14)
                 }
                 .contentShape(.rect)
@@ -362,7 +362,7 @@ private struct WorkTile: View {
     var body: some View {
         NavigationLink(value: Route.work(work.productId)) {
             VStack(alignment: .leading, spacing: 2) {
-                LocalImage(path: work.mainImageLocalPath)
+                LocalImage(path: work.mainImageLocalPath, seed: work.productId)
                     .aspectRatio(4 / 3, contentMode: .fit)
                     .clipShape(.rect(cornerRadius: 8))
                     .padding(.bottom, 4)

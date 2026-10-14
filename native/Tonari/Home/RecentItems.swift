@@ -45,7 +45,7 @@ struct RecentTile: View {
 
     var body: some View {
         let tile = VStack(alignment: .leading, spacing: 2) {
-            LocalImage(path: item.coverPath)
+            LocalImage(path: item.coverPath, seed: item.workId ?? item.entry.id)
                 .aspectRatio(4 / 3, contentMode: .fit)
                 .clipShape(.rect(cornerRadius: 8))
                 .padding(.bottom, 4)

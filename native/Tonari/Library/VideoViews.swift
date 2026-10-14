@@ -155,7 +155,7 @@ struct VideoLibraryView: View {
     }
 
     private func thumbnail(_ item: VideoItem, cornerRadius: CGFloat) -> some View {
-        VideoThumbnail(coverPath: item.coverPath, cornerRadius: cornerRadius)
+        VideoThumbnail(coverPath: item.coverPath, seed: item.id, cornerRadius: cornerRadius)
             .overlay(alignment: .bottomTrailing) {
                 if item.isFavorite {
                     Image(systemName: "heart.fill")
@@ -216,7 +216,7 @@ struct ContinueWatchingRow: View {
                 ForEach(watching.progress) { item in
                     Button { model.playVideo(item.video, with: video) } label: {
                         VStack(alignment: .leading, spacing: 2) {
-                            VideoThumbnail(coverPath: watching.covers[item.id])
+                            VideoThumbnail(coverPath: watching.covers[item.id], seed: item.id)
                                 .overlay(alignment: .bottom) { progressBar(item) }
                                 .padding(.bottom, 4)
                             Text(item.video.title).font(.subheadline).lineLimit(1)
@@ -287,7 +287,7 @@ struct VideoRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            VideoThumbnail(coverPath: video.coverPath, cornerRadius: 6)
+            VideoThumbnail(coverPath: video.coverPath, seed: video.id, cornerRadius: 6)
                 .frame(width: 96)
             VStack(alignment: .leading, spacing: 3) {
                 Text(video.displayTitle).font(.subheadline.weight(.medium)).lineLimit(2)

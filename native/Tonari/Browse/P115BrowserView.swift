@@ -130,7 +130,7 @@ struct P115BrowserView: View {
         NavigationLink(value: Route.p115Folder(stack + [entry])) {
             if let work {
                 HStack(spacing: 12) {
-                    LocalImage(path: work.mainImageLocalPath)
+                    LocalImage(path: work.mainImageLocalPath, seed: work.productId)
                         .frame(width: 64, height: 48)
                         .clipShape(.rect(cornerRadius: 6))
                     VStack(alignment: .leading, spacing: 2) {

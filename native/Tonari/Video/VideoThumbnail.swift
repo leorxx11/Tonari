@@ -2,9 +2,10 @@ import SwiftUI
 import TonariCore
 
 /// A video's 16:9 picture: its own cover, else the default cover chosen in
-/// settings, else a film glyph on black.
+/// settings, else the gradient `seed` (the video's id) picks.
 struct VideoThumbnail: View {
     let coverPath: String?
+    let seed: String?
     var cornerRadius: CGFloat = 8
 
     /// Relative to Documents, under the Flutter build's key.
@@ -14,12 +15,9 @@ struct VideoThumbnail: View {
     var body: some View {
         Group {
             if let path = coverPath ?? defaultCover {
-                LocalImage(path: path)
+                LocalImage(path: path, seed: seed)
             } else {
-                ZStack {
-                    Color.black
-                    Image(systemName: "film").foregroundStyle(.white.opacity(0.6))
-                }
+                CoverPlaceholder(seed: seed)
             }
         }
         .aspectRatio(16 / 9, contentMode: .fit)

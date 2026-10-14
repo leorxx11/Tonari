@@ -2,29 +2,35 @@ import SwiftUI
 import UIKit
 
 /// Image stored under Documents (paths like `images/RJ01234567/main.jpg`),
-/// decoded off the main thread at the size it is shown and cached.
+/// decoded off the main thread at the size it is shown and cached. Without
+/// one, a gradient picked by `seed` (the work's RJ number) stands in.
 struct LocalImage: View {
     let path: String?
+    var seed: String?
     var contentMode = ContentMode.fill
 
     @Environment(\.displayScale) private var displayScale
     @State private var image: UIImage?
+    @State private var failed = false
 
     var body: some View {
         GeometryReader { proxy in
             ZStack {
-                Color(.secondarySystemBackground)
                 if let image = image ?? ThumbnailCache.shared.anySize(path: path) {
                     Image(uiImage: image)
                         .resizable()
                         .aspectRatio(contentMode: contentMode)
                         .frame(width: proxy.size.width, height: proxy.size.height)
+                } else if path == nil || failed {
+                    CoverPlaceholder(seed: seed)
                 } else {
-                    Image(systemName: "photo").foregroundStyle(.tertiary)
+                    // Still decoding: a gradient here would flash across every cell of a scrolling grid.
+                    Color(.secondarySystemBackground)
                 }
             }
             .task(id: TaskKey(path: path, width: proxy.size.width, generation: ThumbnailCache.shared.generation)) {
                 image = await ThumbnailCache.shared.image(path: path, size: proxy.size, scale: displayScale)
+                failed = image == nil
             }
         }
         .clipped()
@@ -34,6 +40,27 @@ struct LocalImage: View {
         let path: String?
         let width: CGFloat
         let generation: Int
+    }
+}
+
+/// One of a few soft gradients with a light bloom, the same for a work every launch.
+struct CoverPlaceholder: View {
+    let seed: String?
+
+    private static let palettes: [[Color]] = [
+        [Color(red: 0.953, green: 0.776, blue: 0.788), Color(red: 0.718, green: 0.412, blue: 0.490), Color(red: 0.369, green: 0.227, blue: 0.361)],
+        [Color(red: 0.812, green: 0.890, blue: 0.945), Color(red: 0.494, green: 0.635, blue: 0.788), Color(red: 0.247, green: 0.302, blue: 0.471)],
+        [Color(red: 0.965, green: 0.886, blue: 0.753), Color(red: 0.847, green: 0.635, blue: 0.424), Color(red: 0.486, green: 0.310, blue: 0.227)],
+        [Color(red: 0.851, green: 0.918, blue: 0.859), Color(red: 0.525, green: 0.702, blue: 0.573), Color(red: 0.239, green: 0.369, blue: 0.310)],
+        [Color(red: 0.902, green: 0.839, blue: 0.949), Color(red: 0.647, green: 0.545, blue: 0.788), Color(red: 0.310, green: 0.239, blue: 0.447)],
+    ]
+
+    var body: some View {
+        let colors = Self.palettes[(seed ?? "").unicodeScalars.reduce(0) { $0 + Int($1.value) } % Self.palettes.count]
+        LinearGradient(colors: colors, startPoint: UnitPoint(x: 0.25, y: 0), endPoint: UnitPoint(x: 0.75, y: 1))
+            .overlay {
+                EllipticalGradient(colors: [.white.opacity(0.35), .clear], center: UnitPoint(x: 0.7, y: 0.3), endRadiusFraction: 0.45)
+            }
     }
 }
 

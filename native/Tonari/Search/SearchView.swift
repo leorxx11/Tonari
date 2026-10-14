@@ -186,7 +186,7 @@ struct SearchView: View {
             model.searchPath.append(Route.work(productId))
         } label: {
             HStack(spacing: 14) {
-                LocalImage(path: cover)
+                LocalImage(path: cover, seed: productId)
                     .frame(width: 48, height: 48)
                     .clipShape(.rect(cornerRadius: 6))
                 VStack(alignment: .leading, spacing: 2) {

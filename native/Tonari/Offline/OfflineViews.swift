@@ -183,7 +183,7 @@ private struct OfflineWorkRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            LocalImage(path: entry.work.mainImageLocalPath)
+            LocalImage(path: entry.work.mainImageLocalPath, seed: entry.work.productId)
                 .frame(width: 64, height: 48)
                 .clipShape(.rect(cornerRadius: 6))
             VStack(alignment: .leading, spacing: 4) {

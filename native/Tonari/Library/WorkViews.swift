@@ -11,7 +11,7 @@ struct WorkCover: View {
     @Environment(OfflineDownloads.self) private var offline
 
     var body: some View {
-        LocalImage(path: work.mainImageLocalPath)
+        LocalImage(path: work.mainImageLocalPath, seed: work.productId)
             .aspectRatio(4 / 3, contentMode: .fit)
             .clipShape(.rect(cornerRadius: cornerRadius))
             .overlay(alignment: .bottomTrailing) {
@@ -93,7 +93,7 @@ struct WorkListRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            LocalImage(path: work.mainImageLocalPath)
+            LocalImage(path: work.mainImageLocalPath, seed: work.productId)
                 .frame(width: 64, height: 48)
                 .clipShape(.rect(cornerRadius: 6))
             VStack(alignment: .leading, spacing: 2) {

@@ -147,7 +147,9 @@ struct WorkDetailView: View {
         }
         .tabViewStyle(.page(indexDisplayMode: images.count > 1 ? .always : .never))
         .aspectRatio(4 / 3, contentMode: .fit)
-        .background(Color(.secondarySystemBackground))
+        .background {
+            if images.isEmpty { CoverPlaceholder(seed: work.productId) } else { Color(.secondarySystemBackground) }
+        }
         .clipShape(.rect(cornerRadius: 10))
     }
 

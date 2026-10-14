@@ -26,7 +26,7 @@ private struct AudioMiniPlayer: View {
     var body: some View {
         let line = player.currentLine
         HStack(spacing: 0) {
-            PlayerArtwork(path: player.work?.mainImageLocalPath, cornerRadius: 6)
+            PlayerArtwork(path: player.work?.mainImageLocalPath, seed: player.work?.productId, cornerRadius: 6)
                 .frame(width: 34, height: 34)
             GeometryReader { proxy in
                 let width = proxy.size.width
@@ -76,7 +76,7 @@ private struct AudioMiniPlayer: View {
         .onTapGesture { model.showingPlayer = true }
         .contextMenu { menu } preview: {
             MiniPlayerPreview(title: player.title, detail: player.subtitle) {
-                PlayerArtwork(path: player.work?.mainImageLocalPath, cornerRadius: 8).frame(width: 56, height: 56)
+                PlayerArtwork(path: player.work?.mainImageLocalPath, seed: player.work?.productId, cornerRadius: 8).frame(width: 56, height: 56)
             }
         }
         .tint(.primary)
@@ -163,7 +163,7 @@ private struct VideoMiniPlayer: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            VideoThumbnail(coverPath: video.libraryItem?.coverPath, cornerRadius: 5)
+            VideoThumbnail(coverPath: video.libraryItem?.coverPath, seed: video.video?.id, cornerRadius: 5)
                 .frame(width: 48)
             VStack(alignment: .leading, spacing: 1) {
                 Text(video.title).font(.subheadline.weight(.medium)).lineLimit(1)
@@ -196,7 +196,7 @@ private struct VideoMiniPlayer: View {
             Button("结束播放", systemImage: "xmark", role: .destructive) { nowPlaying.closeVideo() }
         } preview: {
             MiniPlayerPreview(title: video.title, detail: video.sourceName) {
-                VideoThumbnail(coverPath: video.libraryItem?.coverPath)
+                VideoThumbnail(coverPath: video.libraryItem?.coverPath, seed: video.video?.id)
                     .frame(width: 80)
             }
         }
@@ -239,22 +239,14 @@ struct PlayPauseButton: View {
     }
 }
 
-/// A work's cover, or a cloud glyph for files played from a browser.
+/// A work's cover, or its placeholder gradient.
 struct PlayerArtwork: View {
     let path: String?
+    let seed: String?
     var cornerRadius: CGFloat = 12
 
     var body: some View {
-        Group {
-            if let path {
-                LocalImage(path: path)
-            } else {
-                ZStack {
-                    Color(.secondarySystemBackground)
-                    Image(systemName: "icloud").foregroundStyle(.secondary)
-                }
-            }
-        }
-        .clipShape(.rect(cornerRadius: cornerRadius))
+        LocalImage(path: path, seed: seed)
+            .clipShape(.rect(cornerRadius: cornerRadius))
     }
 }

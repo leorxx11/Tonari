@@ -32,7 +32,7 @@ struct PlaybackSettingsView: View {
             }
             Section {
                 HStack(spacing: 14) {
-                    VideoThumbnail(coverPath: nil, cornerRadius: 6).frame(width: 96)
+                    VideoThumbnail(coverPath: nil, seed: nil, cornerRadius: 6).frame(width: 96)
                     VStack(alignment: .leading, spacing: 8) {
                         PhotosPicker(defaultCover == nil ? "选择图片" : "更换图片", selection: $pickedCover, matching: .images)
                         if defaultCover != nil {

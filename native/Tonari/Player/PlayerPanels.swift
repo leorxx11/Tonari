@@ -156,7 +156,7 @@ struct QueuePanel: View {
 
     private func row(_ index: Int) -> some View {
         HStack(spacing: 12) {
-            PlayerArtwork(path: player.work?.mainImageLocalPath, cornerRadius: 6)
+            PlayerArtwork(path: player.work?.mainImageLocalPath, seed: player.work?.productId, cornerRadius: 6)
                 .frame(width: 44, height: 44)
             VStack(alignment: .leading, spacing: 2) {
                 Text(player.title(at: index)).font(.body).lineLimit(1)

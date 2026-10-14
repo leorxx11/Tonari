@@ -104,15 +104,15 @@ private struct Rankings: View {
             }
             .pickerStyle(.segmented)
             TabView(selection: $board) {
-                page(stats.topWorks.map { ($0.item.productId, $0.item.displayTitle, $0.item.mainImageLocalPath, $0.ms) }) { id in
+                page(stats.topWorks.map { ($0.item.productId, $0.item.displayTitle, $0.item.mainImageLocalPath, $0.ms) }, artwork: true) { id in
                     model.push(.work(id))
                 }
                 .tag(Board.works)
-                page(stats.topVoiceActors.map { ($0.item, $0.item, nil, $0.ms) }) { name in
+                page(stats.topVoiceActors.map { ($0.item, $0.item, nil, $0.ms) }, artwork: false) { name in
                     model.push(.chip(WorkChip(.voiceActor, name)))
                 }
                 .tag(Board.voiceActors)
-                page(stats.topCircles.map { ($0.item, $0.item, nil, $0.ms) }) { name in
+                page(stats.topCircles.map { ($0.item, $0.item, nil, $0.ms) }, artwork: false) { name in
                     model.push(.chip(WorkChip(.circle, name)))
                 }
                 .tag(Board.circles)
@@ -123,8 +123,8 @@ private struct Rankings: View {
         .padding(.vertical, 6)
     }
 
-    /// Rows of (id, title, cover, ms); a nil cover draws no artwork.
-    private func page(_ rows: [(String, String, String?, Int)], open: @escaping (String) -> Void) -> some View {
+    /// Rows of (id, title, cover, ms); works carry artwork, creators don't.
+    private func page(_ rows: [(String, String, String?, Int)], artwork: Bool, open: @escaping (String) -> Void) -> some View {
         let top = rows.first?.3 ?? 1
         return VStack(spacing: 0) {
             if rows.isEmpty {
@@ -137,8 +137,8 @@ private struct Rankings: View {
                             .font(.title3.bold().monospacedDigit())
                             .foregroundStyle(index < 3 ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
                             .frame(width: 22)
-                        if let cover = row.2 {
-                            LocalImage(path: cover).frame(width: 40, height: 40).clipShape(.rect(cornerRadius: 4))
+                        if artwork {
+                            LocalImage(path: row.2, seed: row.0).frame(width: 40, height: 40).clipShape(.rect(cornerRadius: 4))
                         }
                         VStack(alignment: .leading, spacing: 4) {
                             HStack {

@@ -189,12 +189,9 @@ private struct SealBadge: View {
         Image("TabSeal")
             .resizable()
             .padding(6)
-            .foregroundStyle(Color(red: 0.969, green: 0.914, blue: 0.784))
+            .foregroundStyle(Color.sealInk)
             .frame(width: 52, height: 52)
-            .background(
-                LinearGradient(colors: [.seal, Color(red: 0.639, green: 0.133, blue: 0.114)], startPoint: .topLeading, endPoint: .bottomTrailing),
-                in: .rect(cornerRadius: 12)
-            )
+            .background(.seal, in: .rect(cornerRadius: 12))
     }
 }
 
@@ -211,9 +208,4 @@ private nonisolated struct LibrarySummary: Equatable, Sendable {
             """)!
         return LibrarySummary(works: row["works"], durationMs: row["duration"], monthListenedMs: try ListenStats.fetch(db).monthMs)
     }
-}
-
-private extension Color {
-    /// The seal red of the app icon.
-    static let seal = Color(red: 0.878, green: 0.294, blue: 0.251)
 }
