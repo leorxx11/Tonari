@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>设置页图标方案</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<style>
+:root{--surface-0:#f5f5f4;--surface-2:#fff;--border:rgba(0,0,0,.1);--text-primary:#1a1a19;--text-secondary:#5f5e5a;--text-muted:#888780}
+@media (prefers-color-scheme:dark){:root{--surface-0:#161615;--surface-2:#2c2c2a;--border:rgba(255,255,255,.1);--text-primary:#f1efe8;--text-secondary:#b4b2a9;--text-muted:#888780}}
+body{margin:0;padding:24px 16px;background:var(--surface-0);color:var(--text-primary);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif}
+main{max-width:860px;margin:0 auto}
+h1{font-size:18px;font-weight:600;margin:0 0 4px}
+h2{font-size:15px;font-weight:600;margin:0}
+.meta{font-size:13px;color:var(--text-secondary);margin:0 0 20px;line-height:1.6}
+.card{background:var(--surface-2);border:0.5px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px}
+.head{display:flex;align-items:baseline;gap:8px;margin-bottom:4px;flex-wrap:wrap}
+.tag{font-size:12px;color:var(--text-muted)}
+.desc{font-size:13px;color:var(--text-secondary);margin:0 0 6px;line-height:1.6}
+.impl{font-size:12px;color:var(--text-muted);margin:0 0 14px;line-height:1.6}
+code{font-family:ui-monospace,Menlo,monospace;font-size:12px}
+.pair{display:flex;gap:16px;flex-wrap:wrap}
+.seg{display:inline-flex;background:rgba(120,120,128,.14);border-radius:8px;padding:2px;margin-bottom:12px}
+.seg button{border:0;background:none;font:inherit;font-size:12px;padding:4px 12px;border-radius:6px;color:var(--text-secondary);cursor:pointer}
+.seg button.on{background:var(--surface-2);color:var(--text-primary);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+
+/* Phone: its own palette, independent from the page theme. */
+.phone{--bg:#f2f2f7;--grp:#fff;--sep:rgba(60,60,67,.18);--fg:#000;--fg2:rgba(60,60,67,.6);--fill:rgba(120,120,128,.14);
+  --seal1:#e04b40;--seal2:#a3221d;--ink:#f7e9c8;--sealText:#c8372d;
+  flex:1 1 300px;max-width:340px;background:var(--bg);color:var(--fg);border-radius:22px;padding:14px 14px 6px;box-sizing:border-box}
+.phone.dark{--bg:#000;--grp:#1c1c1e;--sep:rgba(84,84,88,.6);--fg:#fff;--fg2:rgba(235,235,245,.6);--fill:rgba(120,120,128,.26);
+  --seal1:#e5544a;--seal2:#a3221d;--ink:#f7e9c8;--sealText:#ec6a60}
+.bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.bar .t{font-size:24px;font-weight:700}
+.bar .done{width:30px;height:30px;border-radius:50%;background:var(--fill);display:flex;align-items:center;justify-content:center;font-size:16px}
+.cap{font-size:12px;color:var(--fg2);margin:12px 0 5px 14px}
+.grp{background:var(--grp);border-radius:22px;overflow:hidden}
+.row{display:flex;align-items:center;gap:12px;font-size:15px;padding:0 14px;min-height:44px;position:relative}
+.row+.row::before{content:"";position:absolute;top:0;right:0;left:var(--inset,56px);border-top:0.5px solid var(--sep)}
+.row .l{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .v{font-size:15px;color:var(--fg2);white-space:nowrap}
+.row .chev{color:var(--fg2);opacity:.6;font-size:15px}
+.badge{background:var(--seal1);color:#fff;border-radius:99px;font-size:13px;font-weight:500;padding:1px 8px}
+.ic{width:29px;height:29px;flex:none;display:flex;align-items:center;justify-content:center;font-size:18px}
+
+/* A: plain gray symbols */
+.sA .ic{color:var(--fg2);font-size:20px}
+/* B: vermilion symbols */
+.sB .ic{color:var(--sealText);font-size:20px}
+/* C: tiles, neutral or seal */
+.sC .ic{border-radius:7px;background:var(--fill);color:var(--fg);font-size:16px}
+.sC.sealtiles .ic{background:linear-gradient(160deg,var(--seal1),var(--seal2));color:var(--ink)}
+/* D: brand header + gray symbols */
+.sD .ic{color:var(--fg2);font-size:20px}
+.hero{display:flex;align-items:center;gap:12px;padding:14px}
+.seal{width:52px;height:52px;border-radius:12px;flex:none;background:linear-gradient(160deg,var(--seal1),var(--seal2));
+  display:flex;align-items:center;justify-content:center;position:relative}
+.seal::after{content:"";position:absolute;inset:7px;border:1.5px solid rgba(247,233,200,.5);border-radius:6px}
+.seal span{color:var(--ink);font-family:"Songti SC","STSong","Hiragino Mincho ProN",serif;font-weight:900;font-size:28px}
+.hero .n{font-size:17px;font-weight:600}
+.hero .s{font-size:13px;color:var(--fg2);margin-top:2px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);border-top:0.5px solid var(--sep)}
+.stats div{padding:9px 0;text-align:center}
+.stats div+div{border-left:0.5px solid var(--sep)}
+.stats b{display:block;font-size:16px;font-weight:600}
+.stats small{font-size:11px;color:var(--fg2)}
+</style>
+</head>
+<body><main>
+<h1>设置页图标方案</h1>
+<p class="meta">2026-10-14 选定 D。落地时两处调整：时长沿用首页卡片的 <code>20.9h</code> 写法；「完成」按钮不用强调色，改为灰色圆钮（收藏夹选择、文件预览两个弹窗同步）。<br>现状：十几种颜色的白底块图标（照搬 iOS 设置 App），和 App 的朱红印章主色、其余页面 <code>.tint(.primary)</code> 的单色基调对不上。下面四个方案只改图标和顶部，分组、行内容、右侧值都不变；每个方案左浅色右深色。</p>
+<div id="schemes"></div>
+</main>
+<script>
+const sections = [
+  [null, [["bell","消息",null,"badge"]]],
+  ["通用", [["circle-half-2","外观","跟随系统"],["player-play","播放","步长 15 秒"],["hand-stop","隐私","后台模糊"]]],
+  ["账户与服务", [["cloud","115 网盘","已登录"],["shopping-cart","DLsite","已登录"],["language","翻译","DeepSeek"]]],
+  ["媒体库", [["folder","媒体来源","3"],["trash","已移除作品","5"],["chart-bar","更新 DLsite 统计数据","3 天前",false]]],
+  ["数据", [["database","备份与恢复","2 天前"],["device-sd-card","存储空间","1.2 GB"]]],
+  ["支持", [["stethoscope","诊断日志",null],["info-circle","关于 Tonari","1.0 (42)"]]],
+];
+
+const row = ([icon, title, value, chev]) => `
+  <div class="row"><span class="ic"><i class="ti ti-${icon}"></i></span><span class="l">${title}</span>
+  ${chev === "badge" ? `<span class="badge">3</span>` : value ? `<span class="v">${value}</span>` : ""}
+  ${chev === false ? "" : `<i class="ti ti-chevron-right chev"></i>`}</div>`;
+
+const list = (skip = []) => sections.map(([cap, rows]) => {
+  const kept = rows.filter(r => !skip.includes(r[1]));
+  if (!kept.length) return "";
+  return `${cap ? `<p class="cap">${cap}</p>` : `<div style="height:6px"></div>`}<div class="grp">${kept.map(row).join("")}</div>`;
+}).join("");
+
+const hero = `
+  <div style="height:6px"></div>
+  <div class="grp">
+    <div class="hero"><div class="seal"><span>隣</span></div>
+      <div style="flex:1"><div class="n">Tonari</div><div class="s">1.0 (42) · 关于与致谢</div></div>
+      <i class="ti ti-chevron-right chev" style="color:var(--fg2);opacity:.6"></i></div>
+    <div class="stats"><div><b>286</b><small>作品</small></div><div><b>412 h</b><small>总时长</small></div><div><b>38 h</b><small>本月收听</small></div></div>
+  </div>`;
+
+const phone = (cls, theme, body) => `
+  <div class="phone ${theme} ${cls}">
+    <div class="bar"><span class="t">设置</span><span class="done"><i class="ti ti-check"></i></span></div>
+    ${body}
+  </div>`;
+
+const schemes = [
+  {key:"A", cls:"sA", name:"单色符号，无底块", tag:"最克制 · 推荐",
+   desc:"去掉彩色方块，只留灰色 SF Symbol，和作品详情、文件列表的观感一致。消息未读数用朱红角标，是整页唯一的颜色。iOS 26 原生 App（音乐、文件、日记）的二级列表都是这种做法。",
+   impl:"改动：<code>SettingsIcon</code> 删掉，行改成 <code>Label(title, systemImage:)</code>，List 上加 <code>.foregroundStyle(.secondary)</code> 只作用于图标（用 <code>LabelStyle</code>）。"},
+  {key:"B", cls:"sB", name:"朱红符号，无底块", tag:"带品牌色",
+   desc:"同 A 的骨架，但符号用印章的朱红。页面有统一的品牌色，又不会像一排红方块那样压眼。缺点：红色符号会和「删除/危险」的语义有一点混淆（已移除作品那行尤其明显）。",
+   impl:"改动：同 A，图标色换成全局 <code>Color.seal</code>（新增到 Assets 的颜色，浅/深色各一份）。"},
+  {key:"C", cls:"sC", name:"保留底块，统一颜色", tag:"最接近现状",
+   desc:"保留 iOS 设置那种方块的节奏感，只把颜色统一。下面可以切换：中性灰底 + 黑白符号，或朱印底 + 米色符号（和 App 图标同款配色）。",
+   impl:"改动：只改 <code>SettingsIcon</code> 一处，删掉每行的 <code>tint:</code> 参数。", toggle:true},
+  {key:"D", cls:"sD", name:"品牌头卡 + 单色符号", tag:"改动最大",
+   desc:"顶部放一张印章头卡：图标、版本、片库统计（作品数、总时长、本月收听），点进去就是关于页；「关于 Tonari」行因此并入头卡。下面的行用 A 的灰色符号。整页只有印章一处朱红，像 Apple Music 个人页顶部那样有一个视觉锚点。",
+   impl:"改动：A 的全部 + 新增头卡视图，统计数据复用收听统计页已有的查询；消息仍在头卡下方单独一组。", hero:true},
+];
+
+document.getElementById("schemes").innerHTML = schemes.map(s => {
+  const body = s.hero ? hero + list(["关于 Tonari"]) : list();
+  return `<div class="card" id="card-${s.key}">
+    <div class="head"><h2>${s.key}. ${s.name}</h2><span class="tag">${s.tag}</span></div>
+    <p class="desc">${s.desc}</p><p class="impl">${s.impl}</p>
+    ${s.toggle ? `<div class="seg"><button class="on" data-v="">中性灰底</button><button data-v="seal">朱印底</button></div>` : ""}
+    <div class="pair">${phone(s.cls, "light", body)}${phone(s.cls, "dark", body)}</div>
+  </div>`;
+}).join("");
+
+document.querySelectorAll("#card-C .seg button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("#card-C .seg button").forEach(x => x.classList.toggle("on", x === b));
+  document.querySelectorAll("#card-C .phone").forEach(p => p.classList.toggle("sealtiles", b.dataset.v === "seal"));
+});
+</script>
+</body>
+</html>

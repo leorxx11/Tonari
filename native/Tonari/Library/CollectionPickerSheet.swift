@@ -50,8 +50,8 @@ struct CollectionPickerSheet: View {
             .navigationTitle("加入分组")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("完成") { dismiss() }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("完成", systemImage: "checkmark") { dismiss() }
                 }
                 ToolbarItem(placement: .topBarLeading) {
                     Button("新建分组", systemImage: "plus") { naming = true }

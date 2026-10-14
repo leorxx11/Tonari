@@ -259,7 +259,7 @@ struct TextPreviewSheet: View {
             .navigationTitle(file.name)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
+                ToolbarItem(placement: .topBarTrailing) {
                     Button("完成", systemImage: "checkmark") { dismiss() }
                 }
             }
