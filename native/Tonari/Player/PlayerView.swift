@@ -250,7 +250,7 @@ struct PlayerView: View {
     private var bottomBar: some View {
         HStack(alignment: .top) {
             panelButton(.lyrics, title: "字幕", symbol: "quote.bubble")
-                .disabled(player.currentSubtitle == nil)
+                .disabled(player.currentSubtitle == nil && panel != .lyrics)
             Spacer()
             RouteButton()
             Spacer()

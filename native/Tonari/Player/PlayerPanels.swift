@@ -86,6 +86,8 @@ struct LyricsPanel: View {
             }
         } else {
             ContentUnavailableView("此音轨没有字幕", systemImage: "quote.bubble")
+                .contentShape(.rect)
+                .onTapGesture(perform: onBlankTap)
         }
     }
 }
