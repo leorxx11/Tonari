@@ -2,7 +2,9 @@ import SwiftUI
 import TonariCore
 
 /// A video's 16:9 picture: its own cover, else the default cover chosen in
-/// settings, else the gradient `seed` (the video's id) picks.
+/// settings, else the gradient `seed` (the video's id) picks. A cover of
+/// another shape, such as a frame grabbed from a portrait video, is shown
+/// whole over a blurred fill of itself.
 struct VideoThumbnail: View {
     let coverPath: String?
     let seed: String?
@@ -15,7 +17,10 @@ struct VideoThumbnail: View {
     var body: some View {
         Group {
             if let path = coverPath ?? defaultCover {
-                LocalImage(path: path, seed: seed)
+                ZStack {
+                    LocalImage(path: path, seed: seed).blur(radius: 16, opaque: true)
+                    LocalImage(path: path, seed: seed, contentMode: .fit)
+                }
             } else {
                 CoverPlaceholder(seed: seed)
             }
