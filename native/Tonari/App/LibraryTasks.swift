@@ -59,23 +59,39 @@ extension AppModel {
         await enrichment.runPending()
     }
 
-    /// Imports RJ works found in a 115 folder, or the one work it is.
+    /// Imports RJ works found in a 115 folder, or the one work it is, then
+    /// downloads their subtitles as a task of its own while metadata fills in.
     func importP115Folder(_ folder: RemoteEntry, database: AppDatabase, enrichment: EnrichmentQueue) async {
         let importer = P115Import(database: database, client: .shared)
         let tasks = tasks
+        var imported: P115Import.Imported?
         await tasks.run("导入 115 网盘", detail: folder.name) {
-            let summary = try await importer.importFolder(folder) { found, current in
-                Task { @MainActor in tasks.report("已找到 \(found) 个作品 · \(current)") }
+            let result = try await importer.importFolder(folder) { found, current in
+                Task { @MainActor in tasks.report("扫描中 · 已找到 \(found) 个新作品 · \(current)") }
             }
-            if !summary.incompleteWorks.isEmpty {
+            let incomplete = result.summary.incompleteWorks
+            if !incomplete.isEmpty {
                 try database.logEvent(
-                    category: "import", severity: .warning, title: "\(summary.incompleteWorks.count) 个作品扫描失败",
-                    detail: "疑似 115 风控，已跳过，可稍后重新导入整个文件夹。", sourceName: folder.name
+                    category: "import", severity: .warning, title: "\(incomplete.count) 个作品扫描失败",
+                    detail: "疑似 115 风控，已跳过：\(incomplete.joined(separator: "、"))。可稍后重新导入整个文件夹。",
+                    sourceName: folder.name
                 )
             }
-            return summary.resultText
+            imported = result
+            return result.summary.resultText
         }
-        await enrichment.runPending()
+        guard let imported, imported.subtitleCount > 0 else {
+            await enrichment.runPending()
+            return
+        }
+        async let enriched: Void = enrichment.runPending()
+        await tasks.run("下载字幕", detail: "0 / \(imported.subtitleCount)") {
+            let downloaded = try await importer.importSubtitles(imported) { done, total in
+                Task { @MainActor in tasks.report("\(done) / \(total)") }
+            }
+            return "字幕下载完成：\(downloaded) / \(imported.subtitleCount)"
+        }
+        await enriched
     }
     /// Copies videos picked in Files into the app and adds them to the library.
     func importVideos(_ urls: [URL], database: AppDatabase) async {

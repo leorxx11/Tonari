@@ -15,7 +15,7 @@ public struct ImportSummary: Sendable {
     public var resultText: String {
         var text = "导入完成：新增 \(worksInserted)，已有 \(worksSkipped) 跳过，共 \(tracksTotal) 音轨。封面和元数据后台补全中。"
         if !incompleteWorks.isEmpty {
-            text += "\n\(incompleteWorks.count) 个作品扫描失败，已跳过，可稍后重新导入。"
+            text += "\n\(incompleteWorks.count) 个作品扫描失败已跳过，可稍后重新导入：\(incompleteWorks.joined(separator: "、"))"
         }
         return text
     }
@@ -29,21 +29,22 @@ extension AppDatabase {
     /// - `reviveTombstoned`: an explicit single-work reimport brings back a
     ///   removed work; a folder import never does.
     /// - `skipExisting`: leave works already in the library untouched.
-    /// - `remoteSubtitles`: for remote sources, the subtitle bytes that were
-    ///   downloaded, keyed by file path; nil reads local files from disk.
+    /// - `includesSubtitles`: false leaves subtitles to `applySubtitles`, for
+    ///   remote sources that download them once the works are in.
     public func applyScanResult(
         _ scan: ScanResult,
         sourceFolderId: String?,
         reviveTombstoned: Bool = false,
         skipExisting: Bool = false,
-        remoteSubtitles: [String: Data]? = nil
+        includesSubtitles: Bool = true
     ) throws -> ImportSummary {
         var summary = ImportSummary()
         let skip: Set<String> = skipExisting ? try activeWorkIds(among: scan.works.map(\.productId)) : []
         summary.worksSkipped = skip.count + scan.skippedExisting
         // File IO outside the write transaction.
-        let subtitles = scan.works.filter { !skip.contains($0.productId) && !$0.incomplete }
-            .flatMap { Self.readSubtitles($0, remote: remoteSubtitles) }
+        let subtitles = includesSubtitles
+            ? scan.works.filter { !skip.contains($0.productId) && !$0.incomplete }.flatMap { Self.readSubtitles($0, remote: nil) }
+            : []
         let now = Date.now
 
         try writer.write { db in
@@ -95,30 +96,9 @@ extension AppDatabase {
                 }
                 try Track.filter(Column("work_id") == id && !trackIds.contains(Column("id"))).deleteAll(db)
 
-                // A subtitle row shares its track's id; upserting keeps the
-                // user's time offset and any translation.
-                var subtitleIds: [String] = []
-                for parsed in subtitles where parsed.workId == id {
-                    let trackId = Self.fileId(id, parsed.audioRelativePath)
-                    guard trackIds.contains(trackId) else { continue }
-                    subtitleIds.append(trackId)
-                    if var row = try Subtitle.fetchOne(db, key: trackId) {
-                        row.filePath = parsed.path
-                        row.fileFormat = parsed.format
-                        row.fileHash = parsed.hash
-                        row.originalLinesJson = parsed.lines
-                        row.updatedAt = now
-                        try row.update(db)
-                    } else {
-                        try Subtitle(
-                            id: trackId, trackId: trackId, filePath: parsed.path, fileFormat: parsed.format,
-                            fileHash: parsed.hash, timeOffsetMs: 0, originalLinesJson: parsed.lines,
-                            translatedLinesJson: nil, translatedAt: nil, translatedByModel: nil,
-                            createdAt: now, updatedAt: now
-                        ).insert(db)
-                    }
+                if includesSubtitles {
+                    try Self.writeSubtitles(db, subtitles.filter { $0.workId == id }, workId: id, trackIds: trackIds, at: now)
                 }
-                try Subtitle.filter(trackIds.contains(Column("track_id")) && !subtitleIds.contains(Column("id"))).deleteAll(db)
 
                 // Everything that isn't audio, so the folder tree can be drawn.
                 var fileIds: [String] = []
@@ -142,6 +122,48 @@ extension AppDatabase {
             }
         }
         return summary
+    }
+
+    /// Writes the subtitles of works applied with `includesSubtitles: false`,
+    /// from the bytes downloaded since, keyed by file path.
+    public func applySubtitles(_ scan: ScanResult, to workIds: Set<String>, downloaded: [String: Data]) throws {
+        let works = scan.works.filter { workIds.contains($0.productId) }
+        let subtitles = works.flatMap { Self.readSubtitles($0, remote: downloaded) }
+        let now = Date.now
+        try writer.write { db in
+            for work in works {
+                let id = work.productId
+                let trackIds = work.files(.audio).map { Self.fileId(id, $0.relativePath) }
+                try Self.writeSubtitles(db, subtitles.filter { $0.workId == id }, workId: id, trackIds: trackIds, at: now)
+            }
+        }
+    }
+
+    /// A subtitle row shares its track's id; upserting keeps the user's time
+    /// offset and any translation.
+    private static func writeSubtitles(_ db: Database, _ subtitles: [ParsedSubtitle], workId: String, trackIds: [String], at now: Date) throws {
+        var subtitleIds: [String] = []
+        for parsed in subtitles {
+            let trackId = fileId(workId, parsed.audioRelativePath)
+            guard trackIds.contains(trackId) else { continue }
+            subtitleIds.append(trackId)
+            if var row = try Subtitle.fetchOne(db, key: trackId) {
+                row.filePath = parsed.path
+                row.fileFormat = parsed.format
+                row.fileHash = parsed.hash
+                row.originalLinesJson = parsed.lines
+                row.updatedAt = now
+                try row.update(db)
+            } else {
+                try Subtitle(
+                    id: trackId, trackId: trackId, filePath: parsed.path, fileFormat: parsed.format,
+                    fileHash: parsed.hash, timeOffsetMs: 0, originalLinesJson: parsed.lines,
+                    translatedLinesJson: nil, translatedAt: nil, translatedByModel: nil,
+                    createdAt: now, updatedAt: now
+                ).insert(db)
+            }
+        }
+        try Subtitle.filter(trackIds.contains(Column("track_id")) && !subtitleIds.contains(Column("id"))).deleteAll(db)
     }
 
     /// Non-removed works among `ids`.

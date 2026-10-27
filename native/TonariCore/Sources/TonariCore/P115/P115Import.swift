@@ -5,8 +5,17 @@ import GRDB
 /// path and works the cid of their folder, which is all playback and
 /// rescans need.
 public struct P115Import: Sendable {
-    /// (works found so far, what is being scanned or downloaded)
+    /// (works found so far, the work being scanned)
     public typealias Progress = @Sendable (Int, String) -> Void
+
+    /// Works already in the library whose subtitles are still on 115.
+    public struct Imported: Sendable {
+        public let summary: ImportSummary
+        let scan: ScanResult
+        let subtitles: [ScannedFile]
+
+        public var subtitleCount: Int { subtitles.count }
+    }
 
     public struct Transport: Sendable {
         var list: @Sendable (String) async throws -> [RemoteEntry]
@@ -28,10 +37,12 @@ public struct P115Import: Sendable {
         self.transport = transport
     }
 
-    /// Scans a folder and imports what it finds. Works already in the library
-    /// are skipped while scanning, so re-importing a big folder only lists
-    /// the new ones and doesn't trip 115's rate limit.
-    public func importFolder(_ folder: RemoteEntry, progress: Progress? = nil) async throws -> ImportSummary {
+    /// Scans a folder and imports what it finds, leaving subtitles to
+    /// `importSubtitles` so the works show up, and a scan that 115 cut short
+    /// is reported, without waiting a request per subtitle. Works already in
+    /// the library are skipped while scanning, so re-importing a big folder
+    /// only lists the new ones and doesn't trip 115's rate limit.
+    public func importFolder(_ folder: RemoteEntry, progress: Progress? = nil) async throws -> Imported {
         let folderId = try await ensureSource(folder)
         let skip = try await database.reader.read { db in
             try Set(String.fetchAll(db, sql: "SELECT product_id FROM works WHERE is_removed = 0"))
@@ -40,17 +51,16 @@ public struct P115Import: Sendable {
         if scan.works.isEmpty, let error = scan.errors.first, scan.skippedExisting == 0 {
             throw P115Error.failed("扫描失败：\(error)")
         }
-        let subtitles = try await downloadSubtitles(scan, progress: progress)
-        return try database.applyScanResult(scan, sourceFolderId: folderId, remoteSubtitles: subtitles)
+        return imported(scan, try database.applyScanResult(scan, sourceFolderId: folderId, includesSubtitles: false))
     }
 
     /// Rescans one work's own folder, reviving it if removed.
     public func reimportWork(_ work: Work) async throws -> ImportSummary {
         let entry = RemoteEntry(id: work.localFolderPath, path: work.localFolderPath, name: work.productId, kind: .folder, sourceId: P115Client.sourceId)
         let scan = try await scan(entry, skip: [], progress: nil)
-        let subtitles = try await downloadSubtitles(scan, progress: nil)
-        let summary = try database.applyScanResult(scan, sourceFolderId: work.importedFolderId, reviveTombstoned: true, remoteSubtitles: subtitles)
+        let summary = try database.applyScanResult(scan, sourceFolderId: work.importedFolderId, reviveTombstoned: true, includesSubtitles: false)
         if summary.incompleteWorks.contains(work.productId) { throw P115Error.failed("扫描未完成：\(work.productId)") }
+        try await importSubtitles(imported(scan, summary))
         return summary
     }
 
@@ -153,23 +163,32 @@ public struct P115Import: Sendable {
 
     // MARK: - Subtitles and source
 
-    /// A subtitle that fails to download is skipped; an expired login or a
-    /// block aborts, since every later request would fail the same way.
-    private func downloadSubtitles(_ scan: ScanResult, progress: Progress?) async throws -> [String: Data] {
-        let subtitles = scan.works.filter { !$0.incomplete }.flatMap { $0.files(.subtitle) }
+    private func imported(_ scan: ScanResult, _ summary: ImportSummary) -> Imported {
+        let subtitles = scan.works.filter { summary.workIds.contains($0.productId) }.flatMap { $0.files(.subtitle) }
             .filter { SubtitleParser.supports(FileKind.ext($0.fileName)) }
-        var out: [String: Data] = [:]
-        for (index, subtitle) in subtitles.enumerated() {
-            progress?(scan.works.count, "下载字幕 \(index + 1)/\(subtitles.count)")
+        return Imported(summary: summary, scan: scan, subtitles: subtitles)
+    }
+
+    /// Downloads and writes the subtitles of imported works, returning how
+    /// many came down; `progress` gets (done, total). A subtitle that fails to download is skipped; an
+    /// expired login or a block aborts before anything is written, since
+    /// every later request would fail the same way, and the works keep the
+    /// subtitles they had.
+    @discardableResult
+    public func importSubtitles(_ imported: Imported, progress: (@Sendable (Int, Int) -> Void)? = nil) async throws -> Int {
+        var downloaded: [String: Data] = [:]
+        for (index, subtitle) in imported.subtitles.enumerated() {
+            progress?(index, imported.subtitles.count)
             do {
-                out[subtitle.path] = try await transport.download(subtitle.path)
+                downloaded[subtitle.path] = try await transport.download(subtitle.path)
             } catch let error as P115Error where error == .authExpired || error == .blocked {
                 throw error
             } catch {
                 DiagnosticLog.shared.write("p115", "subtitle_download_failed", ["file": subtitle.fileName, "error": "\(error)"])
             }
         }
-        return out
+        try database.applySubtitles(imported.scan, to: imported.summary.workIds, downloaded: downloaded)
+        return downloaded.count
     }
 
     private func ensureSource(_ folder: RemoteEntry) async throws -> String {

@@ -28,13 +28,16 @@ struct P115ImportTests {
         "c21": [RemoteEntry(id: "f4", path: "f4", name: "a.flac", kind: .audio, size: 10, pickcode: "pc4", sourceId: "p115")],
     ]
 
-    func importer(_ db: AppDatabase, failing: Set<String> = []) -> P115Import {
+    func importer(_ db: AppDatabase, failing: Set<String> = [], subtitle: String = "はい", blocked: Bool = false) -> P115Import {
         P115Import(database: db, transport: .init(
             list: { cid in
                 if failing.contains(cid) { throw P115Error.failed("限流") }
                 return Self.tree[cid]!
             },
-            download: { _ in Data("WEBVTT\n\n00:00.000 --> 00:01.000\nはい\n".utf8) }
+            download: { _ in
+                if blocked { throw P115Error.blocked }
+                return Data("WEBVTT\n\n00:00.000 --> 00:01.000\n\(subtitle)\n".utf8)
+            }
         ))
     }
 
@@ -42,8 +45,11 @@ struct P115ImportTests {
 
     @Test func importsWorksWithPickcodesAndSubtitles() async throws {
         let db = try AppDatabase.inMemory()
-        let summary = try await importer(db).importFolder(root)
-        #expect(summary.worksInserted == 2)
+        let imported = try await importer(db).importFolder(root)
+        #expect(imported.summary.worksInserted == 2)
+        #expect(imported.subtitleCount == 1)
+        #expect(try await db.reader.read { try Subtitle.fetchCount($0) } == 0)
+        #expect(try await importer(db).importSubtitles(imported) == 1)
         let (work, tracks, subtitle, source) = try await db.reader.read { db in
             (
                 try Work.fetchOne(db, key: "RJ01000001")!,
@@ -65,16 +71,42 @@ struct P115ImportTests {
         let db = try AppDatabase.inMemory()
         _ = try await importer(db).importFolder(root)
         let again = try await importer(db).importFolder(root)
-        #expect(again.worksInserted == 0)
-        #expect(again.worksSkipped == 2)
+        #expect(again.summary.worksInserted == 0)
+        #expect(again.summary.worksSkipped == 2)
+        #expect(again.subtitleCount == 0)
         #expect(try await db.reader.read { try ImportedFolder.fetchCount($0) } == 1)
     }
 
     @Test func failedSubfolderMarksWorkIncomplete() async throws {
         let db = try AppDatabase.inMemory()
-        let summary = try await importer(db, failing: ["c11"]).importFolder(root)
-        #expect(summary.incompleteWorks == ["RJ01000001"])
+        let imported = try await importer(db, failing: ["c11"]).importFolder(root)
+        #expect(imported.summary.incompleteWorks == ["RJ01000001"])
+        #expect(imported.summary.resultText.hasSuffix("可稍后重新导入：RJ01000001"))
+        #expect(imported.subtitleCount == 0)
         #expect(try await db.reader.read { try Work.fetchOne($0, key: "RJ01000001") } == nil)
+    }
+
+    @Test func blockedSubtitleDownloadKeepsWorksAndOldSubtitles() async throws {
+        let db = try AppDatabase.inMemory()
+        try await importer(db).importSubtitles(try await importer(db).importFolder(root))
+        let work = try await db.reader.read { try Work.fetchOne($0, key: "RJ01000001")! }
+        await #expect(throws: P115Error.blocked) {
+            try await importer(db, blocked: true).reimportWork(work)
+        }
+        let (tracks, subtitle) = try await db.reader.read { db in
+            (try Track.filter(Column("work_id") == "RJ01000001").fetchCount(db), try Subtitle.fetchOne(db, key: "RJ01000001|01.mp3")!)
+        }
+        #expect(tracks == 2)
+        #expect(subtitle.originalLinesJson.map(\.text) == ["はい"])
+    }
+
+    @Test func rescanReplacesSubtitles() async throws {
+        let db = try AppDatabase.inMemory()
+        try await importer(db).importSubtitles(try await importer(db).importFolder(root))
+        let work = try await db.reader.read { try Work.fetchOne($0, key: "RJ01000001")! }
+        _ = try await importer(db, subtitle: "いいえ").reimportWork(work)
+        let subtitle = try await db.reader.read { try Subtitle.fetchOne($0, key: "RJ01000001|01.mp3")! }
+        #expect(subtitle.originalLinesJson.map(\.text) == ["いいえ"])
     }
 
     @Test func singleWorkRescanRevivesTombstone() async throws {
