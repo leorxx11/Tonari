@@ -28,15 +28,24 @@ struct P115BrowserView: View {
     @State private var gallery: GallerySelection?
     @AppStorage(RemoteSort.preferenceKey) private var sort = RemoteSort.name
     @AppStorage(RemoteSort.ascendingKey) private var ascending = true
+    @State private var query = ""
     @Namespace private var galleryZoom
 
     private var current: RemoteEntry { stack.last! }
+
+    /// Searching matches subfolders by their name on 115, not the titles
+    /// shown for imported works, and leaves files out.
+    private var shown: [RemoteEntry] {
+        let sorted = sort.sorted(entries, ascending: ascending)
+        return query.isEmpty ? sorted : sorted.filter { $0.isFolder && $0.name.localizedCaseInsensitiveContains(query) }
+    }
 
     var body: some View {
         List {
             if loaded && !entries.isEmpty { rows }
         }
         .listStyle(.plain)
+        .searchable(text: $query, placement: .navigationBarDrawer, prompt: "搜索文件夹名")
         .overlay { overlay }
         .safeAreaInset(edge: .bottom) { TaskBanner() }
         .navigationTitle(current.name)
@@ -125,7 +134,7 @@ struct P115BrowserView: View {
     }
 
     @ViewBuilder private var rows: some View {
-        let shown = sort.sorted(entries, ascending: ascending)
+        let shown = shown
         let audio = shown.filter { $0.kind == .audio }
         let images = shown.filter { $0.kind == .image }
         if !audio.isEmpty {
@@ -258,6 +267,8 @@ struct P115BrowserView: View {
             ProgressView()
         } else if !loading && loaded && entries.isEmpty {
             ContentUnavailableView("此目录为空", systemImage: "folder")
+        } else if !query.isEmpty && shown.isEmpty {
+            ContentUnavailableView.search(text: query)
         }
     }
 
