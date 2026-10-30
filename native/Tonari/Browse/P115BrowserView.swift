@@ -26,6 +26,8 @@ struct P115BrowserView: View {
     @State private var textPreview: PreviewFile?
     @State private var documentPreview: PreviewFile?
     @State private var gallery: GallerySelection?
+    @AppStorage(RemoteSort.preferenceKey) private var sort = RemoteSort.name
+    @AppStorage(RemoteSort.ascendingKey) private var ascending = true
     @Namespace private var galleryZoom
 
     private var current: RemoteEntry { stack.last! }
@@ -54,6 +56,7 @@ struct P115BrowserView: View {
             }
             .sharedBackgroundVisibility(.hidden)
             ToolbarItemGroup(placement: .topBarTrailing) {
+                sortMenu
                 // Kept out of the list, where it was easy to hit by accident.
                 Button("导入此文件夹", systemImage: "square.and.arrow.down") { confirmingImport = true }
                     .disabled(!loaded || model.tasks.isBusy)
@@ -96,9 +99,35 @@ struct P115BrowserView: View {
         .onAppear { BrowseLocation.save(stack, P115Client.sourceId) }
     }
 
+    /// After the Files app: the current field carries its direction, and
+    /// picking it again flips it.
+    private var sortMenu: some View {
+        Menu("排序", systemImage: "arrow.up.arrow.down") {
+            ForEach(RemoteSort.allCases, id: \.self) { field in
+                Toggle(isOn: Binding(get: { sort == field }, set: { _ in pickSort(field) })) {
+                    if sort == field {
+                        Label(field.label, systemImage: ascending ? "chevron.up" : "chevron.down")
+                    } else {
+                        Text(field.label)
+                    }
+                }
+            }
+        }
+    }
+
+    private func pickSort(_ field: RemoteSort) {
+        if sort == field {
+            ascending.toggle()
+        } else {
+            sort = field
+            ascending = field.defaultAscending
+        }
+    }
+
     @ViewBuilder private var rows: some View {
-        let audio = entries.filter { $0.kind == .audio }
-        let images = entries.filter { $0.kind == .image }
+        let shown = sort.sorted(entries, ascending: ascending)
+        let audio = shown.filter { $0.kind == .audio }
+        let images = shown.filter { $0.kind == .image }
         if !audio.isEmpty {
             Button {
                 player.play(files: audio, at: 0, sourceName: P115Client.sourceName)
@@ -115,7 +144,7 @@ struct P115BrowserView: View {
             }
             .tint(.primary)
         }
-        ForEach(entries) { entry in
+        ForEach(shown) { entry in
             if entry.isFolder {
                 folderRow(entry)
             } else {

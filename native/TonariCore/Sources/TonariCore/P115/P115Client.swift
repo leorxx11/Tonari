@@ -12,18 +12,20 @@ public struct RemoteEntry: Sendable, Hashable, Identifiable, Codable {
     public let name: String
     public let kind: Kind
     public let size: Int?
+    public let modifiedAt: Date?
     /// 115 only: the handle used to fetch a file's direct link.
     public let pickcode: String?
     public let sourceId: String
 
     public var isFolder: Bool { kind == .folder }
 
-    public init(id: String, path: String, name: String, kind: Kind, size: Int? = nil, pickcode: String? = nil, sourceId: String) {
+    public init(id: String, path: String, name: String, kind: Kind, size: Int? = nil, modifiedAt: Date? = nil, pickcode: String? = nil, sourceId: String) {
         self.id = id
         self.path = path
         self.name = name
         self.kind = kind
         self.size = size
+        self.modifiedAt = modifiedAt
         self.pickcode = pickcode
         self.sourceId = sourceId
     }
@@ -118,9 +120,7 @@ public actor P115Client {
             let count = Self.int(json["count"] ?? json["total"]) ?? 0
             if page.count < limit || (count > 0 && offset >= count) { break }
         }
-        return entries.sorted {
-            $0.isFolder != $1.isFolder ? $0.isFolder : $0.name.lowercased() < $1.name.lowercased()
-        }
+        return RemoteSort.name.sorted(entries, ascending: true)
     }
 
     /// The signed CDN link for a file. The CDN answers 403 "no cookie value"
@@ -286,13 +286,14 @@ public actor P115Client {
         (json["data"] as? [[String: Any]] ?? []).map { item in
             let fid = item["fid"].map { "\($0)" } ?? ""
             let name = "\(item["n"] ?? item["name"] ?? item["file_name"] ?? "")"
+            let modifiedAt = int(item["te"]).map { Date(timeIntervalSince1970: TimeInterval($0)) }
             guard !fid.isEmpty, fid != "0" else {
                 let cid = "\(item["cid"] ?? item["file_id"] ?? "")"
-                return RemoteEntry(id: cid, path: cid, name: name, kind: .folder, sourceId: sourceId)
+                return RemoteEntry(id: cid, path: cid, name: name, kind: .folder, modifiedAt: modifiedAt, sourceId: sourceId)
             }
             return RemoteEntry(
                 id: fid, path: fid, name: name, kind: RemoteEntry.Kind(FileKind(fileName: name)),
-                size: int(item["s"] ?? item["file_size"]), pickcode: "\(item["pc"] ?? item["pick_code"] ?? "")", sourceId: sourceId
+                size: int(item["s"] ?? item["file_size"]), modifiedAt: modifiedAt, pickcode: "\(item["pc"] ?? item["pick_code"] ?? "")", sourceId: sourceId
             )
         }
     }

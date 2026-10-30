@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>浏览排序与搜索</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<style>
+:root{--surface-0:#f5f5f4;--surface-2:#fff;--border:rgba(0,0,0,.1);--text-primary:#1a1a19;--text-secondary:#5f5e5a;--text-muted:#888780}
+@media (prefers-color-scheme:dark){:root{--surface-0:#161615;--surface-2:#2c2c2a;--border:rgba(255,255,255,.1);--text-primary:#f1efe8;--text-secondary:#b4b2a9;--text-muted:#888780}}
+body{margin:0;padding:24px 16px;background:var(--surface-0);color:var(--text-primary);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif}
+main{max-width:1210px;margin:0 auto}
+h1{font-size:18px;font-weight:600;margin:0 0 4px}
+h2{font-size:15px;font-weight:600;margin:0}
+.meta{font-size:13px;color:var(--text-secondary);margin:0 0 20px;line-height:1.6}
+.card{background:var(--surface-2);border:0.5px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px}
+.head{display:flex;align-items:baseline;gap:8px;margin-bottom:4px;flex-wrap:wrap}
+.tag{font-size:12px;color:var(--text-muted)}
+.desc{font-size:13px;color:var(--text-secondary);margin:0 0 14px;line-height:1.6}
+code{font-family:ui-monospace,Menlo,monospace;font-size:12px}
+.pair{display:flex;gap:16px;flex-wrap:wrap}
+.opt{flex:0 0 375px;min-width:0}
+.opt h3{font-size:14px;font-weight:600;margin:10px 0 2px}
+.opt h3 small{font-weight:400;color:var(--text-muted);margin-left:6px}
+.opt p{font-size:12px;color:var(--text-secondary);margin:0;line-height:1.6}
+.opt p code{font-size:11px}
+
+/* Phone at 1px = 1pt, a 375pt screen. */
+.phone{--bg:#fff;--fg:#000;--fg2:rgba(60,60,67,.6);--fg3:rgba(60,60,67,.3);--sep:rgba(60,60,67,.29);--fill:rgba(120,120,128,.12);
+  --glass:rgba(255,255,255,.78);--glassBorder:rgba(0,0,0,.08);--menu:rgba(250,250,250,.86);--dim:rgba(0,0,0,.12);
+  --seal1:#e04b40;--seal2:#a3221d;--ink:#f7e9c8;
+  position:relative;width:375px;height:600px;background:var(--bg);color:var(--fg);border-radius:28px;box-sizing:border-box;overflow:hidden;
+  border:0.5px solid var(--border);font-size:17px}
+@media (prefers-color-scheme:dark){.phone{--bg:#000;--fg:#fff;--fg2:rgba(235,235,245,.6);--fg3:rgba(235,235,245,.3);--sep:rgba(84,84,88,.6);--fill:rgba(120,120,128,.24);
+  --glass:rgba(40,40,42,.78);--glassBorder:rgba(255,255,255,.1);--menu:rgba(44,44,46,.9);--dim:rgba(0,0,0,.35);--seal1:#e5544a}}
+.status{height:44px}
+.bar{display:flex;align-items:center;gap:8px;padding:0 16px;height:44px}
+.g{height:44px;min-width:44px;border-radius:22px;background:var(--glass);border:0.5px solid var(--glassBorder);display:flex;align-items:center;justify-content:center;font-size:20px;box-sizing:border-box;box-shadow:0 1px 6px rgba(0,0,0,.06)}
+.g.grp{padding:0 4px}
+.g.grp i{width:40px;text-align:center}
+.g.hi{background:var(--fg);color:var(--bg)}
+.bar .ttl{font-size:17px;font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.search{margin:8px 16px 6px;height:36px;border-radius:18px;background:var(--fill);display:flex;align-items:center;gap:6px;padding:0 10px;font-size:17px;color:var(--fg2)}
+.search i{font-size:17px}
+.search .q{color:var(--fg)}
+.search .caret{display:inline-block;width:2px;height:20px;background:#007aff;vertical-align:middle;margin-left:1px}
+.search .x{margin-left:auto;font-size:16px;color:var(--fg3)}
+.searchrow{display:flex;align-items:center;gap:8px;margin:8px 16px 6px}
+.searchrow .search{margin:0;flex:1}
+.searchrow .g{width:44px;height:36px;min-width:36px}
+.scope{display:flex;margin:4px 16px 8px;background:var(--fill);border-radius:9px;padding:2px;font-size:13px}
+.scope span{flex:1;text-align:center;padding:5px 0;border-radius:7px}
+.scope .on{background:var(--bg);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+
+.list{padding-left:16px}
+.row{display:flex;align-items:center;gap:12px;min-height:60px;padding-right:16px;position:relative}
+.row::after{content:"";position:absolute;left:46px;right:0;bottom:0;border-bottom:0.5px solid var(--sep)}
+.row.cover::after{left:76px}
+.ic{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;flex:none}
+.cv{width:64px;height:48px;border-radius:6px;flex:none;background:linear-gradient(150deg,#f3c6c9,#b7697d 55%,#5e3a5c)}
+.cv.b{background:linear-gradient(150deg,#cfe3f1,#7ea2c9 55%,#3f4d78)}
+.t{flex:1;min-width:0}
+.t p{margin:0;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t p+p{font-size:12px;color:var(--fg2);margin-top:2px}
+.t b{font-weight:600}
+.chev{color:var(--fg3);font-size:14px}
+.play{width:34px;height:34px;border-radius:50%;background:var(--fg);color:var(--bg);display:flex;align-items:center;justify-content:center;font-size:16px;flex:none}
+.cnt{color:var(--fg2);font-size:15px}
+.k-folder{color:#007aff;background:rgba(0,122,255,.12)}
+.k-audio{color:#ff2d55;background:rgba(255,45,85,.12)}
+.k-sub{color:#32ade6;background:rgba(50,173,230,.12)}
+.k-img{color:#34c759;background:rgba(52,199,89,.12)}
+.k-video{color:#af52de;background:rgba(175,82,222,.12)}
+.hdr{font-size:20px;font-weight:700;padding:14px 16px 4px}
+.hdr small{font-size:13px;font-weight:400;color:var(--fg2);margin-left:6px}
+.hint{font-size:12px;color:var(--fg2);text-align:center;padding:6px 16px}
+.spin{display:flex;flex-direction:column;align-items:center;gap:8px;padding-top:120px;color:var(--fg2);font-size:13px}
+.spin i{font-size:24px}
+
+.dim{position:absolute;inset:0;background:var(--dim)}
+.menu{position:absolute;right:12px;top:94px;width:250px;background:var(--menu);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-radius:22px;
+  box-shadow:0 10px 40px rgba(0,0,0,.18);border:0.5px solid var(--glassBorder);padding:6px 0;font-size:17px}
+.menu .it{display:flex;align-items:center;height:44px;padding:0 16px 0 12px;gap:8px}
+.menu .it .ck{width:20px;font-size:16px;text-align:center}
+.menu .it .lb{flex:1}
+.menu .it .tr{font-size:17px;color:var(--fg2)}
+.menu .sp{height:8px;background:rgba(120,120,128,.1);margin:4px 0}
+.menu .cap{font-size:13px;color:var(--fg2);padding:6px 16px 2px 40px}
+.menu.sub{right:28px;top:256px;width:230px}
+</style>
+</head>
+<body><main>
+<h1>浏览：排序与搜索</h1>
+<p class="meta">2026-10-31 草案 · 115 文件夹页（<code>P115BrowserView</code>）。手机按 375pt 原生尺寸画；行样式沿用现有 <code>FileRow</code>，不新增强调色。
+每组挑一个方案（或说哪里要改），确认后再写代码。<br>
+通用约定：文件夹始终排在文件前面；文件夹没有大小，按大小排时文件夹之间按名称排；默认「名称 · 升序」。115 列表接口能拿到名称、大小、修改时间（<code>te</code>）、创建时间（<code>tp</code>）。</p>
+
+<section class="card" id="sort">
+  <div class="head"><h2>1 · 排序菜单</h2><span class="tag">工具栏右侧，现在是「导入此文件夹」「回到浏览首页」两个按钮</span></div>
+  <p class="desc">字段：名称 / 修改时间 / 大小。选好的排序全局记住（<code>@AppStorage</code>），所有 115 文件夹共用一个。</p>
+  <div class="pair" id="sortOpts"></div>
+</section>
+
+<section class="card" id="bar">
+  <div class="head"><h2>2 · 搜索栏位置</h2><span class="tag"><code>.searchable</code> 的三种摆法</span></div>
+  <p class="desc">提示文字都是「搜索此文件夹」。</p>
+  <div class="pair" id="barOpts"></div>
+</section>
+
+<section class="card" id="result">
+  <div class="head"><h2>3 · 搜索范围与结果</h2><span class="tag">输入「耳かき」时的样子</span></div>
+  <p class="desc">115 有服务端搜索接口（<code>webapi.115.com/files/search</code>），会递归搜当前目录下的所有子目录，但结果只带父目录 id，不带完整路径；而且和列表、播放共用同一个 1.2 秒一次的请求节流。这个接口用扫码登录的 Cookie 能不能调通，要在真机上验证。</p>
+  <div class="pair" id="resultOpts"></div>
+</section>
+
+<script>
+const bar = (title, buttons) => `<div class="status"></div><div class="bar"><span class="g"><i class="ti ti-chevron-left"></i></span><span class="ttl">${title}</span>${buttons}</div>`;
+const grp = icons => `<span class="g grp">${icons.map(i => `<i class="ti ti-${i}"></i>`).join("")}</span>`;
+const row = (kind, icon, title, detail, chev = false) =>
+  `<div class="row"><span class="ic k-${kind}"><i class="ti ti-${icon}"></i></span><div class="t"><p>${title}</p><p>${detail}</p></div>${chev ? `<i class="ti ti-chevron-right chev"></i>` : ""}</div>`;
+const work = (title, detail, b = "") =>
+  `<div class="row cover"><span class="cv ${b}"></span><div class="t"><p>${title}</p><p>${detail}</p></div><i class="ti ti-chevron-right chev"></i></div>`;
+const playRow = (label, count) =>
+  `<div class="row"><span class="play"><i class="ti ti-player-play-filled"></i></span><div class="t"><p><b>${label}</b></p></div><span class="cnt">${count}</span></div>`;
+const folderList = `
+  ${work("耳かきと添い寝の夜", "RJ01098024 · 已导入")}
+  ${work("双子のささやき 総集編", "RJ01011111 · 已导入", "b")}
+  ${row("folder", "folder-filled", "RJ01234567 耳かき専門店", "RJ01234567 · 未导入", true)}
+  ${row("folder", "folder-filled", "RJ01240001 雨音と囁き", "RJ01240001 · 未导入", true)}
+  ${row("folder", "folder-filled", "其他资料", "文件夹", true)}
+  ${row("audio", "music", "おまけ_フリートーク.mp3", "18.2 MB")}
+  ${row("img", "photo", "cover.jpg", "1.2 MB")}`;
+const menuItem = (label, check, trail = "") =>
+  `<div class="it"><span class="ck">${check ? `<i class="ti ti-check"></i>` : ""}</span><span class="lb">${label}</span>${trail}</div>`;
+const opt = (id, title, tag, phone, desc) =>
+  `<div class="opt"><div class="phone">${phone}</div><h3>${id} · ${title}<small>${tag}</small></h3><p>${desc}</p></div>`;
+
+document.getElementById("sortOpts").innerHTML = [
+  opt("S1", "独立按钮 · 点当前项切换方向", "推荐", `
+    ${bar("ASMR / 2025", grp(["arrows-sort", "download", "home"]))}
+    <div class="list">${folderList}</div>
+    <div class="dim"></div>
+    <div class="menu">
+      ${menuItem("名称", false)}
+      ${menuItem("修改时间", true, `<i class="ti ti-chevron-down tr"></i>`)}
+      ${menuItem("大小", false)}
+    </div>`,
+    "和「文件」App 一样：三个字段一组，当前字段右侧显示 ↑/↓，再点一次当前字段就切换升降序。工具栏多一个 ⇅，和发现页 <code>CatalogSortMenu</code> 一样用 <code>Menu</code> + 图标。"),
+  opt("S2", "独立按钮 · 字段和方向分两组", "", `
+    ${bar("ASMR / 2025", grp(["arrows-sort", "download", "home"]))}
+    <div class="list">${folderList}</div>
+    <div class="dim"></div>
+    <div class="menu">
+      ${menuItem("名称", false)}
+      ${menuItem("修改时间", true)}
+      ${menuItem("大小", false)}
+      <div class="sp"></div>
+      ${menuItem("升序", false)}
+      ${menuItem("降序", true)}
+    </div>`,
+    "两个 <code>Picker</code> 放在一个 <code>Menu</code> 里：上面一组选字段，下面一组选方向。方向写得明白，就是菜单长一点。"),
+  opt("S3", "收进「···」更多菜单", "", `
+    ${bar("ASMR / 2025", `<span class="g"><i class="ti ti-dots"></i></span>`)}
+    <div class="list">${folderList}</div>
+    <div class="dim"></div>
+    <div class="menu">
+      ${menuItem("导入此文件夹", false, `<i class="ti ti-download tr"></i>`)}
+      ${menuItem("回到浏览首页", false, `<i class="ti ti-home tr"></i>`)}
+      <div class="sp"></div>
+      ${menuItem("排序方式", false, `<span class="tr" style="font-size:15px">修改时间 <i class="ti ti-chevron-right"></i></span>`)}
+    </div>
+    <div class="menu sub">
+      ${menuItem("名称", false)}
+      ${menuItem("修改时间", true, `<i class="ti ti-chevron-down tr"></i>`)}
+      ${menuItem("大小", false)}
+    </div>`,
+    "工具栏只留一个 ··· 按钮，导入、回首页、排序都收进去，排序是子菜单（同 S1 的点选方式）。工具栏最清爽，代价是导入和排序都要多点一下。"),
+].join("");
+
+document.getElementById("barOpts").innerHTML = [
+  opt("B1", "下拉露出", "推荐", `
+    ${bar("ASMR / 2025", grp(["arrows-sort", "download", "home"]))}
+    <div class="search"><i class="ti ti-search"></i>搜索此文件夹</div>
+    <div class="list">${folderList}</div>`,
+    "<code>.searchable(text:prompt:)</code> 默认摆法，和「文件」、Apple Music 资料库一样：刚进来时搜索框藏在导航栏下面，列表往下一拉就出来，往上滚又收起。不占列表空间。"),
+  opt("B2", "常驻导航栏下方", "", `
+    ${bar("ASMR / 2025", grp(["arrows-sort", "download", "home"]))}
+    <div class="search"><i class="ti ti-search"></i>搜索此文件夹</div>
+    <div class="list">${folderList}</div>`,
+    "<code>placement: .navigationBarDrawer(displayMode: .always)</code>：搜索框一直显示，随时能点，但每个文件夹页都固定占掉一行。静态看和 B1 下拉后的样子一样。"),
+  opt("B3", "工具栏放大镜", "", `
+    ${bar("ASMR / 2025", grp(["search", "arrows-sort", "download", "home"]))}
+    <div class="list">${folderList}</div>
+    <div class="hint">点 🔍 后在导航栏下方展开搜索框并弹出键盘</div>`,
+    "工具栏加一个 🔍，点了才出现搜索框（<code>.searchable(isPresented:)</code> 由按钮打开）。平时完全看不到搜索框，代价是工具栏变成四个按钮，一般配 S3 一起用。"),
+].join("");
+
+const kb = `<div style="position:absolute;left:0;right:0;bottom:0;height:200px;background:var(--fill);display:flex;align-items:center;justify-content:center;color:var(--fg2);font-size:13px">键盘</div>`;
+document.getElementById("resultOpts").innerHTML = [
+  opt("R1", "只过滤当前文件夹", "推荐", `
+    ${bar("本編", grp(["arrows-sort", "download", "home"]))}
+    <div class="searchrow"><div class="search"><i class="ti ti-search"></i><span class="q">耳かき</span><span class="caret"></span><i class="ti ti-circle-x-filled x"></i></div><span style="font-size:17px">取消</span></div>
+    <div class="list">
+      ${playRow("播放匹配的音频", "3 首")}
+      ${row("audio", "music", "02. <b>耳かき</b>（右）.wav", "88.0 MB")}
+      ${row("audio", "music", "03. <b>耳かき</b>（左）.wav", "86.4 MB")}
+      ${row("audio", "music", "05. 梵天<b>耳かき</b>.wav", "52.1 MB")}
+      ${row("sub", "message-2", "02. <b>耳かき</b>（右）.srt", "12 KB")}
+    </div>`,
+    "在已经加载的列表里按名称即时过滤，不发 115 请求。顶部「播放本文件夹」只播放匹配到的音频；匹配的字加粗；没有结果时显示系统的「无结果」页。离开页面清空搜索词。"),
+  opt("R2", "115 递归搜索", "", `
+    ${bar("ASMR", grp(["arrows-sort", "download", "home"]))}
+    <div class="searchrow"><div class="search"><i class="ti ti-search"></i><span class="q">耳かき</span><i class="ti ti-circle-x-filled x"></i></div><span style="font-size:17px">取消</span></div>
+    <div class="hdr">文件夹<small>2</small></div>
+    <div class="list">
+      ${work("<b>耳かき</b>と添い寝の夜", "RJ01098024 · 已导入")}
+      ${row("folder", "folder-filled", "RJ01234567 <b>耳かき</b>専門店", "RJ01234567 · 未导入", true)}
+    </div>
+    <div class="hdr">文件<small>14</small></div>
+    <div class="list">
+      ${row("audio", "music", "02. <b>耳かき</b>（右）.wav", "88.0 MB")}
+      ${row("audio", "music", "梵天<b>耳かき</b>_ASMR.mp3", "41.7 MB")}
+    </div>`,
+    "回车后调 115 的搜索接口，搜当前目录和所有子目录，结果像 Apple Music 一样按「文件夹 / 文件」分组。因为没有完整路径，点结果里的文件夹会当作当前目录的下一级打开（返回键回到当前目录）。每次搜索都要花一次被节流的请求。"),
+  opt("R3", "范围切换：本文件夹 / 含子文件夹", "", `
+    ${bar("ASMR", grp(["arrows-sort", "download", "home"]))}
+    <div class="searchrow"><div class="search"><i class="ti ti-search"></i><span class="q">耳かき</span><span class="caret"></span><i class="ti ti-circle-x-filled x"></i></div><span style="font-size:17px">取消</span></div>
+    <div class="scope"><span class="on">此文件夹</span><span>包含子文件夹</span></div>
+    <div class="list">
+      ${work("<b>耳かき</b>と添い寝の夜", "RJ01098024 · 已导入")}
+      ${row("folder", "folder-filled", "RJ01234567 <b>耳かき</b>専門店", "RJ01234567 · 未导入", true)}
+    </div>
+    <div class="hint">切到「包含子文件夹」后按回车，结果同 R2</div>
+    ${kb}`,
+    "<code>.searchScopes</code> 在搜索框下面加一个分段控件：「此文件夹」同 R1 输入即过滤，「包含子文件夹」同 R2 回车后请求 115。两种都有，界面和代码都更多。"),
+].join("");
+</script>
+</main></body></html>

@@ -123,3 +123,37 @@ struct P115ImportTests {
         #expect(P115Client.mergeCookies("UID=u; CID=c", ["acw_tc=x; Path=/", "CID=c2"]) == "UID=u; CID=c2; acw_tc=x")
     }
 }
+
+struct RemoteSortTests {
+    static func entry(_ name: String, folder: Bool = false, size: Int? = nil, modified: TimeInterval) -> RemoteEntry {
+        RemoteEntry(id: name, path: name, name: name, kind: folder ? .folder : .audio, size: size, modifiedAt: Date(timeIntervalSince1970: modified), sourceId: "p115")
+    }
+
+    static let entries = [
+        entry("b.mp3", size: 30, modified: 300),
+        entry("Beta", folder: true, modified: 100),
+        entry("a.mp3", size: 10, modified: 200),
+        entry("alpha", folder: true, modified: 400),
+        entry("c.mp3", size: 20, modified: 200),
+    ]
+
+    @Test(arguments: [
+        (RemoteSort.name, true, ["alpha", "Beta", "a.mp3", "b.mp3", "c.mp3"]),
+        (.name, false, ["Beta", "alpha", "c.mp3", "b.mp3", "a.mp3"]),
+        (.modifiedAt, false, ["alpha", "Beta", "b.mp3", "a.mp3", "c.mp3"]),
+        (.modifiedAt, true, ["Beta", "alpha", "a.mp3", "c.mp3", "b.mp3"]),
+        (.size, false, ["alpha", "Beta", "b.mp3", "c.mp3", "a.mp3"]),
+        (.size, true, ["alpha", "Beta", "a.mp3", "c.mp3", "b.mp3"]),
+    ])
+    func keepsFoldersFirst(sort: RemoteSort, ascending: Bool, names: [String]) {
+        #expect(sort.sorted(Self.entries, ascending: ascending).map(\.name) == names)
+    }
+
+    @Test func parsesModifiedTimeOfFilesAndFolders() {
+        let entries = P115Client.entries(["data": [
+            ["cid": "10", "n": "RJ01000001", "te": "1700000000"],
+            ["fid": "20", "cid": "10", "n": "01.mp3", "s": 1024, "pc": "pc", "te": "1700000100"],
+        ]])
+        #expect(entries.map(\.modifiedAt) == [Date(timeIntervalSince1970: 1_700_000_000), Date(timeIntervalSince1970: 1_700_000_100)])
+    }
+}
