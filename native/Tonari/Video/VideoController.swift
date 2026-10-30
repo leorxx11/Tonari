@@ -134,7 +134,13 @@ final class VideoController: SleepTarget {
         positionMs = max(0, durationMs > 0 ? min(ms, durationMs) : ms)
         // The clock keeps reporting the old time for a moment after a seek.
         seekingUntil = .now.addingTimeInterval(0.6)
-        engine?.seek(toMs: Int64(positionMs))
+        let target = positionMs
+        let requested = Date.now
+        engine?.seek(toMs: Int64(target)) { result in
+            DiagnosticLog.shared.write("video", "seek", [
+                "targetMs": target, "result": result, "tookMs": Int(Date.now.timeIntervalSince(requested) * 1000),
+            ])
+        }
         // A paused picture still has to show where the seek landed.
         renderer?.isRunning = true
         publishNowPlaying()
@@ -220,6 +226,7 @@ final class VideoController: SleepTarget {
                 let audio = engine.audioInfo
                 DiagnosticLog.shared.write("video", "loaded", [
                     "startMs": startMs, "durationMs": durationMs, "codec": engine.videoInfo?.codec ?? "none",
+                    "video": engine.videoInfo.map { "\($0.width)x\($0.height) \($0.frameRate)fps \($0.pixelFormat)" } ?? "none",
                     "transcode": transcode, "audio": audio.map { "\($0.codec) \($0.bitRate / 1000)kbps \($0.sampleRate)Hz \($0.channels)ch" } ?? "none",
                 ])
                 if andPlay {
@@ -303,6 +310,10 @@ final class VideoController: SleepTarget {
 
     private func fail(_ error: Error) {
         DiagnosticLog.shared.write("video", "play_error", ["error": "\(error)", "transcode": usesTranscode])
+        // The engine holds the half-opened media; playing it would run without
+        // a duration, so the next play opens the video again.
+        releaseEngine()
+        isPlaying = false
         offersTranscode = error is VideoError && video?.isP115 == true && !usesTranscode
         errorMessage = error is P115Error || error is VideoError ? error.localizedDescription : "无法播放：\(error.localizedDescription)"
     }
@@ -344,8 +355,15 @@ final class VideoController: SleepTarget {
     /// appear, not on every later report that still carries them.
     private func statusChanged(_ status: MDKPlayer.MediaStatus) {
         let added = status.subtracting(lastStatus)
+        let removed = lastStatus.subtracting(status)
         lastStatus = status
+        if !added.union(removed).intersection([.buffering, .stalled]).isEmpty, let engine {
+            DiagnosticLog.shared.write("video", "buffer", [
+                "status": status.names, "bufferedMs": engine.bufferedMs, "positionMs": engine.positionMs,
+            ])
+        }
         if added.contains(.end) {
+            DiagnosticLog.shared.write("video", "end", ["positionMs": positionMs, "engineMs": engine?.positionMs ?? -1, "durationMs": durationMs])
             positionMs = durationMs
             saveProgress()
             if sleep.trackCompleted() { pause() }
@@ -373,7 +391,8 @@ final class VideoController: SleepTarget {
     }
 
     private func tick() {
-        guard let engine, isPlaying else { return }
+        // While loading, the engine may still be playing the previous video.
+        guard let engine, isPlaying, !isLoading else { return }
         if let seekingUntil, Date.now < seekingUntil { return }
         seekingUntil = nil
         positionMs = Int(engine.positionMs)

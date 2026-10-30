@@ -238,8 +238,20 @@ public final class MDKPlayer: @unchecked Sendable {
         didSet { api!.pointee.setVolume(player, volume) }
     }
 
-    public func seek(toMs position: Int64) {
-        _ = api!.pointee.seekWithFlags(player, position, MDK_SeekFlag_FromStart, mdkSeekCallback())
+    /// `done` gets the first frame's time after the seek, or a negative
+    /// SeekError.
+    public func seek(toMs position: Int64, done: @escaping @Sendable (Int64) -> Void) {
+        final class Box {
+            let done: @Sendable (Int64) -> Void
+            init(_ done: @escaping @Sendable (Int64) -> Void) { self.done = done }
+        }
+        let callback = mdkSeekCallback(
+            cb: { ms, opaque in
+                Unmanaged<Box>.fromOpaque(opaque!).takeRetainedValue().done(ms)
+            },
+            opaque: Unmanaged.passRetained(Box(done)).toOpaque()
+        )
+        _ = api!.pointee.seekWithFlags(player, position, MDK_SeekFlag_FromStart, callback)
     }
 
     public var videoInfo: VideoInfo? {
