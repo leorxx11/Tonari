@@ -58,12 +58,12 @@ public enum DLsiteParser {
         // doesn't discard the cached translation.
         doc.outputSettings().prettyPrint(pretty: false)
         var outline: [String: Element] = [:]
-        for row in try doc.select("#work_outline tr") {
-            if let th = try row.select("th").first(), let td = try row.select("td").first() {
-                outline[try th.text().trimmingCharacters(in: .whitespaces)] = td
+        for item in try doc.select(".c-productInfo__item") {
+            if let key = try item.select("dt.c-productInfo__key").first(), let value = try item.select("dd.c-productInfo__value").first() {
+                outline[try key.text().trimmingCharacters(in: .whitespaces)] = value
             }
         }
-        let description = try doc.select("[itemprop=description]").first()
+        let description = try doc.select(".c-productInfo__inner:has(section.c-productContent)").first()
         let ogImage = try? doc.select("meta[property=og:image]").first()?.attr("content")
         let imageId = ogImage.flatMap(imageProductId)
         let original = imageId.flatMap { $0 == productId ? nil : $0 }
@@ -77,29 +77,29 @@ public enum DLsiteParser {
             title: text("#work_name") ?? productId,
             mainImageUrl: ogImage.flatMap(nonEmpty).map(absolute) ?? mainImageURL(imageId ?? productId)
         )
-        work.titleRomaji = try? doc.select("meta[itemprop=alternateName]").first()?.attr("content")
+        work.titleRomaji = productJSON(doc)?["alternateName"] as? String
         work.originalProductId = original
         work.circleId = try? (doc.select(".ga4_event_item_\(productId)").first()
             ?? doc.select("[data-product_id][data-maker_id]").first())?.attr("data-maker_id")
-        work.circleName = text(".maker_name")
+        work.circleName = text(".c-productInfo__makerName")
         work.releaseDate = outline["发售日"].flatMap(releaseDate)
         work.voiceActors = outline["声优"].map(anchorTexts) ?? []
         work.illustrators = outline["插画"].map(anchorTexts) ?? []
         work.scenarioWriters = outline["剧情"].map(anchorTexts) ?? []
         work.musicians = outline["音乐"].map(anchorTexts) ?? []
-        work.ageRating = outline["年龄指定"].flatMap(titledSpan)
-        work.workType = workType(doc, outline["作品形式"])
-        work.workTypeName = outline["作品形式"].flatMap(titledSpan)
+        work.ageRating = outline["年龄指定"].flatMap(valueText)
+        work.workType = (try? doc.select("[data-product_id][data-work_type]").first()?.attr("data-work_type")).flatMap(nonEmpty)
+        work.workTypeName = outline["作品形式"].flatMap(valueText)
         work.fileFormats = outline["文件形式"].map(fileFormats) ?? []
-        work.supportedLanguages = outline["支持的语言"].map(languages) ?? []
+        work.supportedLanguages = outline["支持的语言"].map(anchorTexts) ?? []
         work.genres = outline["分类"].map(genres) ?? []
-        work.fileSize = outline["文件容量"].flatMap { try? $0.text() }.flatMap(nonEmpty)
+        work.fileSize = outline["文件容量"].flatMap(valueText)
         let seriesLink = try? outline["系列名"]?.select("a").first()
-        work.seriesId = (try? seriesLink?.attr("href"))?.firstMatch(of: /\/title\/=\/title_id\/(\w+)/).map { String($0.1) }
+        work.seriesId = (try? seriesLink?.attr("href"))?.firstMatch(of: /\/title_id\/(\w+)/).map { String($0.1) }
         work.seriesName = (try? seriesLink?.text()).flatMap(nonEmpty)
         work.descriptionHtml = (try? description?.html()).flatMap(nonEmpty)
-        work.sampleImageUrls = (try? doc.select(".product-slider-data div[data-src]").array().compactMap { div in
-            let src = try div.attr("data-src")
+        work.sampleImageUrls = (try? doc.select(".key-visual-slider img").array().compactMap { img in
+            let src = try img.attr("src")
             return src.isEmpty || src.contains("_img_main") ? nil : absolute(src)
         }) ?? []
         work.descriptionImageUrls = (try? description?.select("img").array().compactMap { img in
@@ -168,33 +168,25 @@ public enum DLsiteParser {
         (try? td.select("a").array().compactMap { nonEmpty(try $0.text()) }) ?? []
     }
 
-    private static func titledSpan(_ td: Element) -> String? {
-        guard let span = try? td.select("span[title]").first() else { return nil }
-        return (try? span.attr("title")).flatMap(nonEmpty) ?? (try? span.text()).flatMap(nonEmpty)
+    private static func valueText(_ td: Element) -> String? {
+        (try? td.text()).flatMap(nonEmpty)
     }
 
-    private static func workType(_ doc: Document, _ td: Element?) -> String? {
-        if let type = (try? doc.select("[data-product_id][data-work_type]").first()?.attr("data-work_type")).flatMap(nonEmpty) {
-            return type
-        }
-        let classes = (try? td?.select("span[class^=icon_]").first()?.classNames()) ?? []
-        return classes.first { $0.hasPrefix("icon_") }.map { String($0.dropFirst("icon_".count)) }
-    }
-
-    private static func titles(_ td: Element) -> [String] {
-        (try? td.select("span[title]").array().compactMap { nonEmpty(try $0.attr("title")) }) ?? []
-    }
-
+    /// `<span>WAV</span> / MP3同梱`: labelled formats, then the extras
+    /// written after slashes.
     private static func fileFormats(_ td: Element) -> [String] {
-        let extras = (try? td.select(".additional_info").array().flatMap { extra in
-            try extra.text().split(separator: "/").compactMap { nonEmpty(String($0)) }
-        }) ?? []
-        return titles(td) + extras
+        guard let box = try? td.select("div").first() else { return [] }
+        let labels = (try? box.select("span").array().compactMap { nonEmpty(try $0.text()) }) ?? []
+        return labels + box.ownText().split(separator: "/").compactMap { nonEmpty(String($0)) }
     }
 
-    private static func languages(_ td: Element) -> [String] {
-        let spans = titles(td)
-        return spans.isEmpty ? anchorTexts(td) : spans
+    /// The schema.org Product block, the only place left with the
+    /// romanized title.
+    private static func productJSON(_ doc: Document) -> [String: Any]? {
+        let scripts = (try? doc.select("script[type=application/ld+json]").array()) ?? []
+        return scripts.lazy
+            .compactMap { (try? JSONSerialization.jsonObject(with: Data($0.data().utf8))) as? [String: Any] }
+            .first { $0["@type"] as? String == "Product" }
     }
 
     private static func genres(_ td: Element) -> [Work.Genre] {

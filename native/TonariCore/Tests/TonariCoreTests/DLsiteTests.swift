@@ -44,14 +44,26 @@ struct DLsiteParserTests {
         #expect(work.seriesId == nil)
         #expect(work.seriesName == nil)
         #expect(work.originalProductId == nil)
-        #expect(work.descriptionHtml?.isEmpty == false)
+    }
+
+    @Test func readsDescription() throws {
+        let items = try WorkDescription.parse(work.descriptionHtml!)
+        #expect(items.count == 9)
+        #expect(items.first == .text([.heading("▼お姉ちゃんライフ-おはなし▼")]))
+        guard case .text(let blocks) = items.last, case .paragraph(let credits) = blocks.first else {
+            Issue.record("description should end with the credits")
+            return
+        }
+        #expect(credits.hasPrefix("【クレジット】") && credits.contains("柚木つばめ様"))
     }
 
     @Test func readsImages() {
         #expect(work.mainImageUrl == "https://img.dlsite.jp/modpub/images2/work/doujin/RJ01561000/RJ01560714_img_main.jpg")
-        #expect(work.sampleImageUrls.count >= 7)
+        #expect(work.sampleImageUrls.count == 5)
         #expect(work.sampleImageUrls.allSatisfy { !$0.contains("_img_main") })
-        #expect(work.sampleImageUrls.first?.hasPrefix("https://img.dlsite.jp/modpub/images2/work/doujin/RJ01561000/RJ01560714_img_smp") == true)
+        #expect(work.sampleImageUrls.first == "https://img.dlsite.jp/modpub/images2/work/doujin/RJ01561000/RJ01560714_img_smp1.jpg")
+        #expect(work.descriptionImageUrls.count == 4)
+        #expect(work.descriptionImageUrls.allSatisfy { $0.hasPrefix("https://img.dlsite.jp/modpub/images2/parts/RJ01561000/RJ01560714/") })
     }
 
     @Test func translationEditionPointsAtOriginal() {
@@ -159,7 +171,7 @@ struct MetadataEnrichmentTests {
         #expect(work.circleName == "Rad.Revel")
         #expect(work.dlCount == 3991)
         #expect(work.mainImageLocalPath == "images/RJ01560714/main.jpg")
-        #expect(work.sampleImageLocalPaths.count >= 7)
+        #expect(work.sampleImageLocalPaths.count == 5)
         #expect(work.scrapedAt != nil)
         #expect(!MetadataEnrichment.needsEnrichment(work, documents: documents))
 
