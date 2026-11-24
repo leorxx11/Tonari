@@ -6,7 +6,7 @@
 
 | 决策 | 选择 | 理由 |
 |---|---|---|
-| 最低系统 | iOS 26 | 自用不上架；直接用 `tabViewBottomAccessory`、`tabBarMinimizeBehavior` 等 iOS 26 API，不写兼容代码 |
+| 最低系统 | iOS 26.1 | 自用不上架；直接用 `tabViewBottomAccessory`、`tabBarMinimizeBehavior` 等 iOS 26 API，不写兼容代码 |
 | UI | SwiftUI 为主，UIKit 补位；系统主题 + 底部 Tab | PiP、DocumentPicker、横屏视频需要 UIKit；不沿用 Kikoeru 配色与侧边抽屉 |
 | 数据库 | GRDB，沿用 Drift schema | 能直接打开 Flutter 版的库；Flutter 备份恢复即数据迁移 |
 | 工程 | Xcode 工程（同步文件夹）+ SPM 包 `TonariCore` | 纯逻辑放 SPM 包，`swift test` 快 |

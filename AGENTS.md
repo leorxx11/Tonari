@@ -32,7 +32,7 @@
 ## 项目背景
 
 - Tonari 是 iOS 端 ASMR 播放器，按 DLsite RJ 编号组织作品，支持本地导入与云端片库（115 网盘、WebDAV）。
-- 技术栈：Swift 6 + SwiftUI（UIKit 补位）、GRDB、SwiftSoup、mdk-sdk（视频），iOS 26+，iPhone 优先。
+- 技术栈：Swift 6 + SwiftUI（UIKit 补位）、GRDB、SwiftSoup、mdk-sdk（视频），iOS 26.1+，iPhone 优先。
 - 显示名 `Tonari`。仓库公开，MIT 许可。使用说明 `docs/USAGE.md`，需求与设计 `docs/REQUIREMENTS.md`，排期与实现要点 `docs/PLAN.md`，界面示意 `docs/design/`；功能变化时同步更新 `docs/REQUIREMENTS.md` 与 README 的功能列表，导入、字幕规则变化时同步更新使用说明；README 与使用说明都是中英两份。
 - UI 对标 Apple Music / iOS 26 原生组件。
 - Flutter 版已归档：分支 `flutter`、标签 `flutter-final`，已切换到原生版日常使用，Flutter 版不再维护。
@@ -73,5 +73,6 @@
 
 - 源码层 `PRODUCT_BUNDLE_IDENTIFIER` 保持 `com.leo.tonari.native`（免费证书调试用）。
 - 正式包用 `ios-resign` skill 重签 Release 产物的 .app，Bundle ID 由描述文件锁定，产物为同目录 `Tonari-signed.ipa`。证书、Team 与正式版 Bundle ID 记在本地记忆，不写入版本库。
+- GitHub Release 发未签名 ipa：Release 不签名构建的 `Tonari.app` 放进 `Payload/` 压成 `Tonari-<版本>-unsigned.ipa`，tag 为 `v` + `MARKETING_VERSION`，说明里附 SHA-256；不要上传 `Tonari-signed.ipa`。
 - `p12`、`mobileprovision`、`证书_*` 目录永远不要进版本库。
 - 发版验收重点检查文件 App 导入文件夹时“打开”按钮有反应；签名 entitlements 配错最容易破坏这个功能。

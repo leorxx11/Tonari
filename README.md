@@ -10,7 +10,8 @@
 
 <p align="center">
   <a href="https://github.com/leorxx11/Tonari/actions/workflows/ci.yml"><img src="https://github.com/leorxx11/Tonari/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <img src="https://img.shields.io/badge/iOS-26%2B-black" alt="iOS 26+">
+  <a href="https://github.com/leorxx11/Tonari/releases/latest"><img src="https://img.shields.io/github/v/release/leorxx11/Tonari" alt="Release"></a>
+  <img src="https://img.shields.io/badge/iOS-26.1%2B-black" alt="iOS 26.1+">
   <img src="https://img.shields.io/badge/Swift-6-F05138" alt="Swift 6">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT"></a>
 </p>
@@ -40,10 +41,12 @@
 
 ## 安装
 
-Tonari 不上架 App Store，也不提供签好名的安装包，需要自己构建：
+Tonari 不上架 App Store，需要 iOS 26.1 或更高，两种装法：
 
-- 用 Xcode 直接装到自己的 iPhone，免费 Apple ID 就行（签名 7 天有效，过期后重新安装）。
-- 或者构建 Release 产物，用自己的证书重签成 ipa 再侧载。
+- 从 [Releases](https://github.com/leorxx11/Tonari/releases/latest) 下载未签名的 ipa，用侧载工具（例如 Sideloadly、AltStore / SideStore）或自己的证书签名后安装。
+- 按下面「构建」用 Xcode 直接装到自己的 iPhone。
+
+免费 Apple ID 的签名 7 天有效，过期后用同一个 Apple ID 重新签名覆盖安装，数据会保留；换证书或 Bundle ID 则相当于换了一个 App，见[使用说明](docs/USAGE.md#备份与换签名)。
 
 ## 构建
 

@@ -10,7 +10,8 @@
 
 <p align="center">
   <a href="https://github.com/leorxx11/Tonari/actions/workflows/ci.yml"><img src="https://github.com/leorxx11/Tonari/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <img src="https://img.shields.io/badge/iOS-26%2B-black" alt="iOS 26+">
+  <a href="https://github.com/leorxx11/Tonari/releases/latest"><img src="https://img.shields.io/github/v/release/leorxx11/Tonari" alt="Release"></a>
+  <img src="https://img.shields.io/badge/iOS-26.1%2B-black" alt="iOS 26.1+">
   <img src="https://img.shields.io/badge/Swift-6-F05138" alt="Swift 6">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT"></a>
 </p>
@@ -42,10 +43,12 @@ The full spec (in Chinese) is in [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md).
 
 ## Install
 
-Tonari is not on the App Store and no signed builds are provided. Build it yourself:
+Tonari is not on the App Store and needs iOS 26.1 or later. Two ways to install it:
 
-- Run it from Xcode on your own iPhone. A free Apple ID works; the signature lasts 7 days, after which you reinstall.
-- Or build for Release and re-sign the product with your own certificate into an ipa to sideload.
+- Download the unsigned ipa from [Releases](https://github.com/leorxx11/Tonari/releases/latest) and sign it with a sideloading tool (for example Sideloadly or AltStore / SideStore) or your own certificate.
+- Or follow Build below and run it from Xcode on your own iPhone.
+
+A free Apple ID's signature lasts 7 days; when it expires, re-sign with the same Apple ID and install over it, and your data stays. A different certificate or Bundle ID makes a different app, see the [usage guide](docs/USAGE.en.md#backups-and-re-signing).
 
 ## Build
 

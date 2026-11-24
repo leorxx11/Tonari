@@ -10,8 +10,8 @@ iOS 上的 ASMR / 同人音声播放器，以 DLsite 作品（RJ 编号）为单
 
 ### 2.1 平台与分发
 
-- iOS 26+，iPhone 优先，竖屏（视频播放页可横屏）。
-- 不上架 App Store，自行签名侧载。不做需要额外 entitlement 的扩展：Share Extension、Widget、Action Extension、Live Activity。
+- iOS 26.1+，iPhone 优先，竖屏（视频播放页可横屏）。
+- 不上架 App Store，GitHub Releases 发布未签名 ipa，用户自行签名侧载。不做需要额外 entitlement 的扩展：Share Extension、Widget、Action Extension、Live Activity。
 
 ### 2.2 技术栈
 
@@ -135,7 +135,7 @@ App Intents：继续收听、播放作品、随机播放、睡眠定时、打开
 | 云存储 | WebDAV 直连 + 115 Cookie 登录直连；115 OpenAPI、Alist 中间层、本地流播代理都已放弃 |
 | 后端 / 同步 | 无后端，纯客户端，不做云同步 |
 | LLM 协议 | OpenAI 兼容 |
-| 分发 | 自行签名侧载，不上架 |
+| 分发 | Releases 发布未签名 ipa，自行签名侧载，不上架 |
 | 文件导入 | 文件 App 选择，不做 Share Extension |
 
 ## 6. 沿革
