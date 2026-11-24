@@ -210,7 +210,7 @@ final class VideoController: SleepTarget {
             do {
                 guard let self else { return }
                 try accessFolder(of: video)
-                let (url, headers, expiresAt) = try await Self.source(of: video, transcode: transcode)
+                let (url, headers, expiresAt) = try await Self.source(of: video, transcode: transcode, database: database)
                 try Task.checkCancellation()
                 self.expiresAt = expiresAt
                 let engine = engine ?? makeEngine()
@@ -237,19 +237,23 @@ final class VideoController: SleepTarget {
             } catch is CancellationError {
             } catch {
                 self?.isLoading = false
-                self?.fail(error)
+                await self?.fail(error)
             }
         }
     }
 
     /// Imports play from Documents; 115 files from a signed link that
-    /// needs its cookies along and expires.
-    private static func source(of video: PlayableVideo, transcode: Bool) async throws -> (url: String, headers: [(name: String, value: String)], expiresAt: Date?) {
+    /// needs its cookies along and expires; WebDAV files with Basic auth.
+    private static func source(of video: PlayableVideo, transcode: Bool, database: AppDatabase) async throws -> (url: String, headers: [(name: String, value: String)], expiresAt: Date?) {
         if video.isLocal {
             return (URL.documentsDirectory.appending(path: video.path).path, [], nil)
         }
         if video.isInFolder {
             return (video.path, [], nil)
+        }
+        if video.isWebdav {
+            let media = try database.webdavClient(video.sourceId).media(video.path)
+            return (media.url.absoluteString, media.headers, nil)
         }
         let media = transcode
             ? try await P115Client.shared.transcoded(pickcode: video.pickcode!)
@@ -308,14 +312,23 @@ final class VideoController: SleepTarget {
         return engine
     }
 
-    private func fail(_ error: Error) {
+    /// A WebDAV video that won't open usually means its server is off; one
+    /// probe tells that apart from a bad file, and names the server in the
+    /// alert and in 消息.
+    private func fail(_ error: Error) async {
         DiagnosticLog.shared.write("video", "play_error", ["error": "\(error)", "transcode": usesTranscode])
         // The engine holds the half-opened media; playing it would run without
         // a duration, so the next play opens the video again.
         releaseEngine()
         isPlaying = false
+        if let video, video.isWebdav, !(error is WebdavError), let client = try? database.webdavClient(video.sourceId),
+           let message = await client.probe() {
+            errorMessage = message
+            try! database.logEvent(category: "network", title: message, detail: error.localizedDescription, sourceName: client.server.name)
+            return
+        }
         offersTranscode = error is VideoError && video?.isP115 == true && !usesTranscode
-        errorMessage = error is P115Error || error is VideoError ? error.localizedDescription : "无法播放：\(error.localizedDescription)"
+        errorMessage = error is P115Error || error is WebdavError || error is VideoError ? error.localizedDescription : "无法播放：\(error.localizedDescription)"
     }
 
     /// The engine gave up on the media itself, not on reaching it.
@@ -375,7 +388,7 @@ final class VideoController: SleepTarget {
                 retried = true
                 load(from: positionMs, andPlay: true)
             } else {
-                fail(VideoError.interrupted)
+                Task { await fail(VideoError.interrupted) }
             }
         }
     }

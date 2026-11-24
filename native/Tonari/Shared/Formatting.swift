@@ -39,3 +39,7 @@ enum Formatting {
         Int64(n).formatted(.byteCount(style: .file))
     }
 }
+
+extension String {
+    var trimmed: String { trimmingCharacters(in: .whitespacesAndNewlines) }
+}

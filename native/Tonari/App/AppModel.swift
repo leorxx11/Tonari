@@ -7,9 +7,13 @@ enum AppTab: Hashable {
 }
 
 enum Route: Hashable {
-    case p115Folder([RemoteEntry])
+    /// From a source's root down to the folder shown.
+    case remoteFolder([RemoteEntry])
     case p115Login
     case p115Settings
+    case webdavServers
+    /// Nil adds a new server.
+    case webdavServer(String?)
     case playbackSettings
     case playHistory
     case listenStats
@@ -130,8 +134,14 @@ final class AppModel {
     /// Opens 115 where the user left off, or its login when signed out.
     func openP115() {
         browsePath = NavigationPath(
-            P115Client.shared.loginState == .loggedIn ? BrowseLocation.routes(P115Client.sourceId) : [Route.p115Login]
+            P115Client.shared.loginState == .loggedIn ? BrowseLocation.routes(BrowseLocation.p115Root) : [Route.p115Login]
         )
+        tab = .browse
+    }
+
+    /// Opens a WebDAV server where the user left off.
+    func openWebdav(_ server: WebdavServer) {
+        browsePath = NavigationPath(BrowseLocation.routes(server.root))
         tab = .browse
     }
 
@@ -198,9 +208,11 @@ extension View {
     func appDestinations() -> some View {
         navigationDestination(for: Route.self) { route in
             switch route {
-            case .p115Folder(let stack): P115BrowserView(stack: stack)
+            case .remoteFolder(let stack): RemoteBrowserView(stack: stack)
             case .p115Login: P115LoginView()
             case .p115Settings: P115SettingsView()
+            case .webdavServers: WebdavServersView()
+            case .webdavServer(let id): WebdavServerEditView(serverId: id)
             case .playbackSettings: PlaybackSettingsView()
             case .playHistory: PlayHistoryView()
             case .listenStats: ListenStatsView()

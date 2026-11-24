@@ -28,8 +28,8 @@ struct P115ImportTests {
         "c21": [RemoteEntry(id: "f4", path: "f4", name: "a.flac", kind: .audio, size: 10, pickcode: "pc4", sourceId: "p115")],
     ]
 
-    func importer(_ db: AppDatabase, failing: Set<String> = [], subtitle: String = "はい", blocked: Bool = false) -> P115Import {
-        P115Import(database: db, transport: .init(
+    func importer(_ db: AppDatabase, failing: Set<String> = [], subtitle: String = "はい", blocked: Bool = false) -> RemoteImport {
+        RemoteImport(database: db, source: .p115(
             list: { cid in
                 if failing.contains(cid) { throw P115Error.failed("限流") }
                 return Self.tree[cid]!

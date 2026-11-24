@@ -186,7 +186,7 @@ struct SubtitlePreviewSheet: View {
             await database.observe({ db in try Subtitle.fetchOne(db, key: track.id) }) { subtitle = $0 }
         case .file(let file):
             do {
-                let text = TextDecoding.decode(try await file.data())
+                let text = TextDecoding.decode(try await file.data(database))
                 fileLines = SubtitleParser.parse(text, format: (file.name as NSString).pathExtension)
             } catch {
                 DiagnosticLog.shared.write("files", "subtitle_preview_failed", ["file": file.name, "error": "\(error)"])
@@ -206,6 +206,7 @@ extension View {
 
 private struct DocumentPreview: ViewModifier {
     @Binding var file: PreviewFile?
+    @Environment(\.appDatabase) private var database
     @State private var url: URL?
     @State private var failure: String?
 
@@ -221,7 +222,7 @@ private struct DocumentPreview: ViewModifier {
             .task(id: file) {
                 guard let file else { return }
                 do {
-                    url = try await file.temporaryCopy()
+                    url = try await file.temporaryCopy(database)
                 } catch {
                     DiagnosticLog.shared.write("files", "document_preview_failed", ["file": file.name, "error": "\(error)"])
                     failure = error.localizedDescription
@@ -242,6 +243,7 @@ struct TextPreviewSheet: View {
     let file: PreviewFile
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.appDatabase) private var database
     @State private var text: String?
     @State private var failure: String?
 
@@ -266,7 +268,7 @@ struct TextPreviewSheet: View {
         }
         .task {
             do {
-                text = TextDecoding.decode(try await file.data())
+                text = TextDecoding.decode(try await file.data(database))
             } catch {
                 DiagnosticLog.shared.write("files", "text_preview_failed", ["file": file.name, "error": "\(error)"])
                 failure = error.localizedDescription

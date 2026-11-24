@@ -1,14 +1,17 @@
 import SwiftUI
 import TonariCore
 
-/// Places to browse, after the Files app's locations: 115, where it was
-/// left, and a local folder picked through Files to import.
+/// Places to browse, after the Files app's locations: 115 and each WebDAV
+/// server, where each was left, and a local folder picked through Files to
+/// import.
 struct BrowseView: View {
     @Environment(AppModel.self) private var model
     @Environment(EnrichmentQueue.self) private var enrichment
     @Environment(\.appDatabase) private var database
     @State private var p115 = P115Client.LoginState.loggedOut
     @State private var p115Location: [RemoteEntry] = []
+    @State private var servers: [WebdavServer] = []
+    @State private var serverStacks: [String: [RemoteEntry]] = [:]
     @State private var pickingFolder = false
 
     var body: some View {
@@ -22,6 +25,17 @@ struct BrowseView: View {
                         }
                     }
                     .tint(.primary)
+                    ForEach(servers) { server in
+                        Button { model.openWebdav(server) } label: {
+                            FileRow(icon: "externaldrive.connected.to.line.below.fill", tint: .gray, title: server.name, detail: detail(server)) {
+                                Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+                            }
+                        }
+                        .tint(.primary)
+                        .contextMenu {
+                            Button("编辑服务器", systemImage: "pencil") { model.browsePath.append(Route.webdavServer(server.id)) }
+                        }
+                    }
                     Button { pickingFolder = true } label: {
                         FileRow(icon: "iphone", tint: .gray, title: "本机文件夹", detail: "从「文件」App 选取并导入")
                     }
@@ -30,6 +44,9 @@ struct BrowseView: View {
                 }
             }
             .navigationTitle("浏览")
+            .toolbar {
+                NavigationLink(value: Route.webdavServer(nil)) { Label("添加 WebDAV 服务器", systemImage: "plus") }
+            }
             .appDestinations()
             .safeAreaInset(edge: .bottom) { TaskBanner() }
             .fileImporter(isPresented: $pickingFolder, allowedContentTypes: [.folder]) { result in
@@ -39,8 +56,24 @@ struct BrowseView: View {
             .onAppear {
                 p115 = P115Client.shared.loginState
                 p115Location = BrowseLocation.load(P115Client.sourceId) ?? []
+                loadServerLocations()
+            }
+            .task {
+                await database.observe(WebdavServers.all) {
+                    servers = $0
+                    loadServerLocations()
+                }
             }
         }
+    }
+
+    private func loadServerLocations() {
+        serverStacks = Dictionary(uniqueKeysWithValues: servers.map { ($0.id, BrowseLocation.stack($0.root)) })
+    }
+
+    private func detail(_ server: WebdavServer) -> String {
+        let names = serverStacks[server.id]!.dropFirst().map(\.name)
+        return names.isEmpty ? server.address : "上次在 \(names.joined(separator: " / "))"
     }
 
     private var p115Detail: String {

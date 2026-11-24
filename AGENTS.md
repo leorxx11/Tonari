@@ -31,7 +31,7 @@
 
 ## 项目背景
 
-- Tonari 是 iOS 端 ASMR 播放器，按 DLsite RJ 编号组织作品，支持本地导入与云端片库（115 网盘；WebDAV 待移植）。
+- Tonari 是 iOS 端 ASMR 播放器，按 DLsite RJ 编号组织作品，支持本地导入与云端片库（115 网盘、WebDAV）。
 - 技术栈：Swift 6 + SwiftUI（UIKit 补位）、GRDB、SwiftSoup、mdk-sdk（视频），iOS 26+，iPhone 优先。
 - 显示名 `Tonari`。需求文档 `REQUIREMENTS.md`；原生版排期 `native/PLAN.md`，功能对照清单 `native/PARITY.md`（完成一项勾一项），界面示意 `native/design/`。
 - UI 对标 Apple Music / iOS 26 原生组件。

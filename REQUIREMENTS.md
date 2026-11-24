@@ -26,7 +26,7 @@
 - **本地数据库**：GRDB（沿用 Flutter 版 Drift schema，备份双向互通）
 - **音频核心**：AVPlayer + AVAudioSession（中断、路由变化自行处理）
 - **视频核心**：mdk-sdk（外部 Metal 渲染上下文）
-- **云存储**：115 网盘（cookie 登录 + 签名直链带 Cookie/Referer 头直连播放）；WebDAV 待移植
+- **云存储**：115 网盘（cookie 登录 + 签名直链带 Cookie/Referer 头直连播放）；WebDAV（PROPFIND 列目录，Basic 认证头直连播放）
 - **HTTP**：URLSession
 - **HTML 解析**：SwiftSoup
 - **文件访问**：`fileImporter` + security-scoped bookmark
@@ -249,7 +249,9 @@
 - 直链有效期由 URL 参数 `t` 给出：音频约 30 分钟～数小时，视频数天；音频在过期前 2 分钟内重新获取，播放中出错或链接过期后卡住时重取一次
 - 待观察：115 对同一直链限约 2 条并发连接（超出 `403 115 pmt`），直连后连接数由播放器决定
 
-**字幕**：远程字幕单独下载解析（115 走整文件直连下载）。
+**WebDAV 直连流播**：文件 URL（服务器绝对路径逐段百分号编码）+ `Authorization: Basic` 头，音频经 `AVURLAssetHTTPHeaderFieldsKey`、视频经 mdk 的 `avio.headers` 交给播放器；链接不过期。只支持 Basic 认证。http 服务器需要 ATS 例外（`NSAllowsArbitraryLoads`）。播放失败时对服务器做一次 PROPFIND 探测，连不上或认证失败就点名服务器并记入消息。
+
+**字幕**：远程字幕单独下载解析（115 和 WebDAV 都走整文件直连下载）。
 
 ## 4. 数据模型
 

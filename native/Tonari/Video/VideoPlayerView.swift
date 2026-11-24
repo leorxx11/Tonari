@@ -257,7 +257,7 @@ struct VideoPlayerView: View {
             if let origin = video.origin {
                 Button("查看所在文件夹", systemImage: "folder") {
                     dismiss()
-                    model.browsePath = NavigationPath(origin.indices.map { Route.p115Folder(Array(origin.prefix($0 + 1))) })
+                    model.browsePath = NavigationPath(origin.indices.map { Route.remoteFolder(Array(origin.prefix($0 + 1))) })
                     model.tab = .browse
                 }
             }

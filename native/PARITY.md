@@ -1,6 +1,6 @@
 # 功能对照清单
 
-原生版与 Flutter 版对齐的验收清单，按阶段分组。每项括号内是 Flutter 版对应源码。已于 N7 切换前全部对齐，剩下的 `[ ]` 属于暂缓的 N4b WebDAV。
+原生版与 Flutter 版对齐的验收清单，按阶段分组。每项括号内是 Flutter 版对应源码。N7 切换前对齐了 WebDAV 以外的全部项，N4b（2026-11）补齐 WebDAV。
 
 ## N1 数据层 + 骨架
 
@@ -56,15 +56,15 @@
 
 ## N4 云端片库
 
-- [ ] WebDAV 服务器管理：增删改、测试连接、删除时提示受影响作品数（`webdav_settings_page.dart`、`webdav_server_edit_page.dart`）
-- [ ] WebDAV 浏览、导入目录到媒体库（`webdav_browser_page.dart`）
+- [x] WebDAV 服务器管理：增删改、测试连接、删除时提示受影响作品数（`webdav_settings_page.dart`、`webdav_server_edit_page.dart`）。原生版删除服务器时连同它的来源、作品、视频库条目和播放记录一起删，不再留下无法播放的作品
+- [x] WebDAV 浏览、导入目录到媒体库（`webdav_browser_page.dart`）：与 115 共用浏览页（播放、预览、视频、导入、记住位置）和导入流程（扫描跳过已导入、字幕后台下载、重新扫描单个作品）
 - [x] 115 扫码登录、退出登录（`p115_login_page.dart`、`p115_settings_page.dart`）
 - [x] 115 浏览（每级文件夹一页，记住上次位置）、导入、风控检测与中断（`p115_browser_page.dart`）
-- [x] 浏览页：115 入口与登录状态（WebDAV 随 N4b）（`browse_page.dart`、`remote_browser_page.dart`）
+- [x] 浏览页：115 入口与登录状态、每台 WebDAV 服务器一行（`browse_page.dart`、`remote_browser_page.dart`）
 - [x] 远程扫描阶段跳过已导入作品；导入在后台进行
 - [x] 远程字幕下载解析
 - [x] 115 直链带请求头直连播放；音频过期前 2 分钟内重新获取；播放中出错或链接过期后卡住时重取一次（原生版不用 8 秒定时器）
-- [ ] 播放失败时探测一次来源并点名不可达的来源，记入消息
+- [x] 播放失败时探测一次来源并点名不可达的来源，记入消息（WebDAV；音频与视频）
 - [x] 媒体来源页：查看、删除来源（级联硬删，显示作品数）（`media_sources_page.dart`）
 
 ## N5 视频

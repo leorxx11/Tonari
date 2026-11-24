@@ -1,18 +1,18 @@
 import SwiftUI
 import TonariCore
 
-/// One 115 folder. Each level is its own page on the navigation stack, so
-/// back steps up a single folder and the title names the current one. RJ
-/// folders already in the library show their cover and title, looked up
-/// locally so browsing costs no extra 115 requests; subfolders show no
-/// summary for the same reason.
-struct P115BrowserView: View {
+/// One folder on 115 or a WebDAV server. Each level is its own page on the
+/// navigation stack, so back steps up a single folder and the title names
+/// the current one. RJ folders already in the library show their cover and
+/// title, looked up locally so browsing costs no extra requests (115 rate
+/// limits them); subfolders show no summary for the same reason.
+struct RemoteBrowserView: View {
     @Environment(AppModel.self) private var model
     @Environment(EnrichmentQueue.self) private var enrichment
     @Environment(\.appDatabase) private var database
     @Environment(PlaybackController.self) private var player
     @Environment(VideoController.self) private var video
-    /// From the 115 root down to this folder.
+    /// From the source's root, named after it, down to this folder.
     let stack: [RemoteEntry]
     @State private var entries: [RemoteEntry] = []
     @State private var loaded = false
@@ -32,9 +32,10 @@ struct P115BrowserView: View {
     @Namespace private var galleryZoom
 
     private var current: RemoteEntry { stack.last! }
+    private var sourceName: String { stack.first!.name }
 
-    /// Searching matches subfolders by their name on 115, not the titles
-    /// shown for imported works, and leaves files out.
+    /// Searching matches subfolders by their name on the server, not the
+    /// titles shown for imported works, and leaves files out.
     private var shown: [RemoteEntry] {
         let sorted = sort.sorted(entries, ascending: ascending)
         return query.isEmpty ? sorted : sorted.filter { $0.isFolder && $0.name.localizedCaseInsensitiveContains(query) }
@@ -90,7 +91,7 @@ struct P115BrowserView: View {
         .fullScreenCover(item: $gallery) { GalleryView(selection: $0, namespace: galleryZoom) }
         .refreshable { await load() }
         // Coming back from a subfolder keeps the listing instead of spending
-        // another rate-limited request on it.
+        // another (on 115, rate-limited) request on it.
         .task { if !loaded { await load() } }
         .task(id: entries.map(\.id)) {
             let ids = entries.filter(\.isFolder).compactMap { RJID.extract($0.name) }
@@ -105,7 +106,7 @@ struct P115BrowserView: View {
                 keptVideos = $0.1
             }
         }
-        .onAppear { BrowseLocation.save(stack, P115Client.sourceId) }
+        .onAppear { BrowseLocation.save(stack) }
     }
 
     /// After the Files app: the current field carries its direction, and
@@ -139,7 +140,7 @@ struct P115BrowserView: View {
         let images = shown.filter { $0.kind == .image }
         if !audio.isEmpty {
             Button {
-                player.play(files: audio, at: 0, sourceName: P115Client.sourceName)
+                player.play(files: audio, at: 0, sourceName: sourceName)
             } label: {
                 HStack(spacing: 12) {
                     Image(systemName: "play.fill")
@@ -165,7 +166,7 @@ struct P115BrowserView: View {
     @ViewBuilder private func folderRow(_ entry: RemoteEntry) -> some View {
         let rjId = RJID.extract(entry.name)
         let work = rjId.flatMap { imported[$0] }
-        NavigationLink(value: Route.p115Folder(stack + [entry])) {
+        NavigationLink(value: Route.remoteFolder(stack + [entry])) {
             if let work {
                 HStack(spacing: 12) {
                     LocalImage(path: work.mainImageLocalPath, seed: work.productId)
@@ -201,36 +202,36 @@ struct P115BrowserView: View {
         case .audio:
             let playing = player.currentFile?.id == entry.id
             Button {
-                player.play(files: audio, at: audio.firstIndex(of: entry)!, sourceName: P115Client.sourceName)
+                player.play(files: audio, at: audio.firstIndex(of: entry)!, sourceName: sourceName)
             } label: {
                 FileRow(icon: playing ? "waveform" : icon, tint: tint, title: entry.name, detail: playing ? "正在播放 · \(size)" : size)
             }
             .tint(.primary)
         case .subtitle:
-            Button { subtitlePreview = .file(.p115(entry)) } label: {
+            Button { subtitlePreview = .file(.remote(entry)) } label: {
                 FileRow(icon: icon, tint: tint, title: entry.name, detail: size)
             }
             .tint(.primary)
         case .image:
             Button {
-                gallery = GallerySelection(images: images.map { .file(.p115($0)) }, index: images.firstIndex(of: entry)!)
+                gallery = GallerySelection(images: images.map { .file(.remote($0)) }, index: images.firstIndex(of: entry)!)
             } label: {
                 FileRow(icon: icon, tint: tint, title: entry.name, detail: size)
             }
             .tint(.primary)
             .matchedTransitionSource(id: entry.id, in: galleryZoom)
         case .text:
-            Button { textPreview = .p115(entry) } label: {
+            Button { textPreview = .remote(entry) } label: {
                 FileRow(icon: icon, tint: tint, title: entry.name, detail: size)
             }
             .tint(.primary)
         case .document:
-            Button { documentPreview = .p115(entry) } label: {
+            Button { documentPreview = .remote(entry) } label: {
                 FileRow(icon: icon, tint: tint, title: entry.name, detail: size)
             }
             .tint(.primary)
         case .video:
-            let playable = PlayableVideo(p115: entry, sourceName: P115Client.sourceName)
+            let playable = PlayableVideo(remote: entry, sourceName: sourceName)
             let kept = keptVideos.contains(playable.id)
             Button {
                 model.playVideo(playable, origin: stack, with: video)
@@ -259,6 +260,8 @@ struct P115BrowserView: View {
             } actions: {
                 if error as? P115Error == .authExpired || error as? P115Error == .notLoggedIn {
                     NavigationLink("重新登录", value: Route.p115Login)
+                } else if error as? WebdavError == .unauthorized {
+                    NavigationLink("编辑服务器", value: Route.webdavServer(current.sourceId))
                 } else {
                     Button("重试") { Task { await load() } }
                 }
@@ -276,18 +279,18 @@ struct P115BrowserView: View {
         loading = true
         error = nil
         do {
-            entries = try await P115Client.shared.list(current.path)
+            entries = try await RemoteFiles(database).list(current)
             loaded = true
         } catch is CancellationError {
         } catch {
             self.error = error
-            DiagnosticLog.shared.write("p115", "list_failed", ["cid": current.path, "error": "\(error)"])
+            DiagnosticLog.shared.write("browse", "list_failed", ["source": current.sourceId, "path": current.path, "error": "\(error)"])
         }
         loading = false
     }
 
     private func startImport(_ folder: RemoteEntry) {
-        Task { await model.importP115Folder(folder, database: database, enrichment: enrichment) }
+        Task { await model.importRemoteFolder(folder, database: database, enrichment: enrichment) }
     }
 }
 
@@ -304,20 +307,33 @@ enum BrowseLocation {
     }
 
     static func load(_ sourceId: String) -> [RemoteEntry]? {
-        guard let raw = UserDefaults.standard.string(forKey: "browse_stack_\(sourceId)"),
+        guard let raw = UserDefaults.standard.string(forKey: key(sourceId)),
               let stored = try? JSONDecoder().decode([Stored].self, from: Data(raw.utf8)), !stored.isEmpty
         else { return nil }
         return stored.map { RemoteEntry(id: $0.id, path: $0.path, name: $0.name, kind: .folder, sourceId: $0.sourceId) }
     }
 
-    /// A page per level of the stack last browsed, or the root.
-    static func routes(_ sourceId: String) -> [Route] {
-        let stack = load(sourceId) ?? [p115Root]
-        return stack.indices.map { .p115Folder(Array(stack.prefix($0 + 1))) }
+    /// The stack last browsed under `root`, or the root alone. One left
+    /// under a WebDAV base path since edited starts over.
+    static func stack(_ root: RemoteEntry) -> [RemoteEntry] {
+        let stored = load(root.sourceId)
+        return stored?.first?.path == root.path ? [root] + stored!.dropFirst() : [root]
     }
 
-    static func save(_ stack: [RemoteEntry], _ sourceId: String) {
-        let stored = stack.map { Stored(id: $0.id, path: $0.path, name: $0.name, sourceId: $0.sourceId) }
-        UserDefaults.standard.set(String(decoding: try! JSONEncoder().encode(stored), as: UTF8.self), forKey: "browse_stack_\(sourceId)")
+    /// A page per level of the stack last browsed.
+    static func routes(_ root: RemoteEntry) -> [Route] {
+        let stack = stack(root)
+        return stack.indices.map { .remoteFolder(Array(stack.prefix($0 + 1))) }
     }
+
+    static func save(_ stack: [RemoteEntry]) {
+        let stored = stack.map { Stored(id: $0.id, path: $0.path, name: $0.name, sourceId: $0.sourceId) }
+        UserDefaults.standard.set(String(decoding: try! JSONEncoder().encode(stored), as: UTF8.self), forKey: key(stack[0].sourceId))
+    }
+
+    static func forget(_ sourceId: String) {
+        UserDefaults.standard.removeObject(forKey: key(sourceId))
+    }
+
+    private static func key(_ sourceId: String) -> String { "browse_stack_\(sourceId)" }
 }

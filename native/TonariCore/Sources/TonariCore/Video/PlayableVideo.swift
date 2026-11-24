@@ -1,21 +1,22 @@
 import Foundation
 import GRDB
 
-/// A video the player can open, wherever it came from: a 115 file (browsed,
-/// in the library or in the history) or one imported from Files. Ids match
+/// A video the player can open, wherever it came from: a 115 or WebDAV file
+/// (browsed, in the library or in the history) or one imported from Files. Ids match
 /// the Flutter build, so history, library rows and covers line up.
 public struct PlayableVideo: Sendable, Hashable, Identifiable {
     public static let localSourceId = "video_import"
     public static let localSourceName = "本地导入"
 
     public let id: String
-    /// `p115`, `local` (copied into Documents) or `folder` (inside a work's
-    /// imported folder).
+    /// `p115`, `webdav`, `local` (copied into Documents) or `folder` (inside
+    /// a work's imported folder).
     public let sourceKind: String
     public let sourceId: String
     public let sourceName: String
-    /// The 115 file id (the pickcode for one met in a work), a path relative
-    /// to Documents for imports, or the absolute path inside a folder.
+    /// The 115 file id (the pickcode for one met in a work), the WebDAV
+    /// server path, a path relative to Documents for imports, or the
+    /// absolute path inside a folder.
     public let path: String
     public let fileName: String
     public let pickcode: String?
@@ -24,11 +25,12 @@ public struct PlayableVideo: Sendable, Hashable, Identifiable {
     public var title: String { PlaybackStore.fileTitle(fileName) }
     public var isLocal: Bool { sourceKind == "local" }
     public var isP115: Bool { sourceKind == "p115" }
+    public var isWebdav: Bool { sourceKind == "webdav" }
     public var isInFolder: Bool { sourceKind == "folder" }
 
-    public init(p115 entry: RemoteEntry, sourceName: String) {
+    public init(remote entry: RemoteEntry, sourceName: String) {
         id = PlaybackStore.historyId(entry)
-        sourceKind = "p115"
+        sourceKind = entry.sourceId == P115Client.sourceId ? "p115" : "webdav"
         sourceId = entry.sourceId
         self.sourceName = sourceName
         path = entry.path
@@ -47,6 +49,19 @@ public struct PlayableVideo: Sendable, Hashable, Identifiable {
         path = pickcode
         self.fileName = fileName
         self.pickcode = pickcode
+        self.size = size
+    }
+
+    /// A video in a work imported from WebDAV; the id matches the same file
+    /// browsed on the server.
+    public init(webdav folder: ImportedFolder, path: String, fileName: String, size: Int?) {
+        id = "webdav:\(folder.serverId!):\(path)"
+        sourceKind = "webdav"
+        sourceId = folder.serverId!
+        sourceName = folder.displayName
+        self.path = path
+        self.fileName = fileName
+        pickcode = nil
         self.size = size
     }
 
@@ -87,7 +102,7 @@ public struct PlayableVideo: Sendable, Hashable, Identifiable {
 
     /// The video a history entry played, when it is one this build can open.
     public init?(history entry: PlayHistoryEntry) {
-        guard entry.kind == "video", let sourceKind = entry.sourceKind, ["p115", "local", "folder"].contains(sourceKind),
+        guard entry.kind == "video", let sourceKind = entry.sourceKind, ["p115", "webdav", "local", "folder"].contains(sourceKind),
               let sourceId = entry.sourceId, let path = entry.path, let fileName = entry.fileName
         else { return nil }
         id = entry.id

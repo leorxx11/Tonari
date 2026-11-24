@@ -281,10 +281,10 @@ public struct PlaybackStore: Sendable {
 }
 
 extension PlayHistoryEntry {
-    /// A 115 audio file played from the browser, playable again as is.
-    /// The 115 audio file an entry played, to play it again.
+    /// The 115 or WebDAV audio file an entry played from the browser, to
+    /// play it again.
     public var remoteFile: RemoteEntry? {
-        guard kind == "audio", sourceKind == "p115", let pickcode, let path, let fileName, let sourceId else { return nil }
+        guard kind == "audio", sourceKind == "p115" || sourceKind == "webdav", let path, let fileName, let sourceId else { return nil }
         return RemoteEntry(id: path, path: path, name: fileName, kind: .audio, size: size, pickcode: pickcode, sourceId: sourceId)
     }
 }

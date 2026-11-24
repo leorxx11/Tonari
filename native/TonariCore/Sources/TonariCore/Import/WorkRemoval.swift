@@ -24,13 +24,16 @@ extension AppDatabase {
     /// included. Returns how many works went with it.
     @discardableResult
     public func deleteSource(_ folderId: String) throws -> Int {
-        try writer.write { db in
-            let ids = try String.fetchAll(db, Work.filter(Column("imported_folder_id") == folderId).select(Column("product_id")))
-            try Self.deleteSnapshot(of: ids, db)
-            try Work.filter(keys: ids).deleteAll(db)
-            try ImportedFolder.deleteOne(db, key: folderId)
-            return ids.count
-        }
+        try writer.write { try Self.deleteSource(folderId, $0) }
+    }
+
+    @discardableResult
+    static func deleteSource(_ folderId: String, _ db: Database) throws -> Int {
+        let ids = try String.fetchAll(db, Work.filter(Column("imported_folder_id") == folderId).select(Column("product_id")))
+        try deleteSnapshot(of: ids, db)
+        try Work.filter(keys: ids).deleteAll(db)
+        try ImportedFolder.deleteOne(db, key: folderId)
+        return ids.count
     }
 
     private static func deleteSnapshot(of productIds: [String], _ db: Database) throws {

@@ -44,7 +44,7 @@ final class PlaybackController: SleepTarget {
     @ObservationIgnored private var scopedFolder: URL?
     /// When the current 115 link stops working.
     @ObservationIgnored private var expiresAt: Date?
-    /// Nothing usable is loaded yet: a restored 115 track waits for play,
+    /// Nothing usable is loaded yet: a restored remote track waits for play,
     /// or a new track is loading while the old item still plays and its
     /// clock must not count as the new track's position.
     @ObservationIgnored private var needsLoad = false
@@ -304,8 +304,8 @@ final class PlaybackController: SleepTarget {
                 publishNowPlaying()
             } catch is CancellationError {
             } catch {
+                await fail(error)
                 isLoading = false
-                fail(error)
             }
         }
     }
@@ -313,7 +313,7 @@ final class PlaybackController: SleepTarget {
     private func asset() async throws -> AVURLAsset {
         switch queue! {
         case .files(let files, _):
-            return try await remoteAsset(pickcode: files[index].pickcode!)
+            return try await remoteAsset(files[index])
         case .work(let queue):
             let track = queue.tracks[index]
             switch queue.source?.type {
@@ -322,9 +322,9 @@ final class PlaybackController: SleepTarget {
                     expiresAt = nil
                     return AVURLAsset(url: local)
                 }
-                return try await remoteAsset(pickcode: track.filePath)
+                return try await remoteAsset(RemoteEntry(file: track.filePath, name: track.fileName, of: queue.source!))
             case "webdav":
-                throw P115Error.failed("暂不支持播放 WebDAV 作品")
+                return try await remoteAsset(RemoteEntry(file: track.filePath, name: track.fileName, of: queue.source!))
             default:
                 expiresAt = nil
                 return AVURLAsset(url: URL(filePath: track.filePath))
@@ -332,8 +332,8 @@ final class PlaybackController: SleepTarget {
         }
     }
 
-    private func remoteAsset(pickcode: String) async throws -> AVURLAsset {
-        let media = try await P115Client.shared.resolve(pickcode: pickcode)
+    private func remoteAsset(_ file: RemoteEntry) async throws -> AVURLAsset {
+        let media = try await RemoteFiles(database).media(file)
         expiresAt = media.expiresAt
         let headers = Dictionary(media.headers.map { ($0.name, $0.value) }, uniquingKeysWith: { $1 })
         return AVURLAsset(url: media.url, options: ["AVURLAssetHTTPHeaderFieldsKey": headers])
@@ -367,9 +367,29 @@ final class PlaybackController: SleepTarget {
         queue = .work(workQueue)
     }
 
-    private func fail(_ error: Error) {
+    /// A WebDAV item that won't play usually means its server is off; one
+    /// probe tells that apart from a bad file, and names the server in the
+    /// alert and in 消息.
+    private func fail(_ error: Error) async {
         DiagnosticLog.shared.write("player", "play_error", ["remote": isRemote, "error": "\(error)"])
-        errorMessage = error is P115Error ? error.localizedDescription : "无法播放：\(error.localizedDescription)"
+        if !(error is WebdavError), let serverId = webdavServerId, let client = try? database.webdavClient(serverId),
+           let message = await client.probe() {
+            errorMessage = message
+            try! database.logEvent(
+                category: "network", title: message, detail: error.localizedDescription,
+                productId: work?.productId, workTitle: work?.displayTitle, sourceName: client.server.name
+            )
+            return
+        }
+        errorMessage = error is P115Error || error is WebdavError ? error.localizedDescription : "无法播放：\(error.localizedDescription)"
+    }
+
+    private var webdavServerId: String? {
+        switch queue {
+        case .work(let queue): queue.source?.type == "webdav" ? queue.source?.serverId : nil
+        case .files(let files, _): files[index].sourceId == P115Client.sourceId ? nil : files[index].sourceId
+        case nil: nil
+        }
     }
 
     /// A mid-play failure on a remote item is usually its link expiring;
@@ -380,7 +400,7 @@ final class PlaybackController: SleepTarget {
             retried = true
             load(from: positionMs, andPlay: true)
         } else {
-            fail(error ?? P115Error.failed("播放中断"))
+            Task { await fail(error ?? P115Error.failed("播放中断")) }
         }
     }
 
@@ -428,7 +448,7 @@ final class PlaybackController: SleepTarget {
     }
 
     /// Brings back what was playing last in the mini player, paused where
-    /// it was left. 115 links can't be built offline, so tracks without a
+    /// it was left. Remote links are fetched on play, so tracks without a
     /// downloaded copy load on play.
     private func restore() {
         switch try! store.lastPlayed() {

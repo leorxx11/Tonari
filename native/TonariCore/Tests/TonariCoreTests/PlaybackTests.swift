@@ -99,7 +99,7 @@ struct PlaybackStoreTests {
     @Test func videosResumeWhereTheyWereLeftUnlessFinished() throws {
         let (database, store) = try database()
         let entry = RemoteEntry(id: "v", path: "v", name: "第4章.mkv", kind: .video, size: 10, pickcode: "vpc", sourceId: P115Client.sourceId)
-        let video = PlayableVideo(p115: entry, sourceName: "115 网盘")
+        let video = PlayableVideo(remote: entry, sourceName: "115 网盘")
         #expect(video.id == "p115:vpc")
         #expect(try store.videoResumeMs(video) == 0)
         try store.recordVideo(video, at: Fixtures.date)

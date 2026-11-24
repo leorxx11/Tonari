@@ -59,28 +59,32 @@ extension AppModel {
         await enrichment.runPending()
     }
 
-    /// Imports RJ works found in a 115 folder, or the one work it is, then
-    /// downloads their subtitles as a task of its own while metadata fills in.
-    func importP115Folder(_ folder: RemoteEntry, database: AppDatabase, enrichment: EnrichmentQueue) async {
-        let importer = P115Import(database: database, client: .shared)
+    /// Imports RJ works found in a 115 or WebDAV folder, or the one work it
+    /// is, then downloads their subtitles as a task of its own while
+    /// metadata fills in.
+    func importRemoteFolder(_ folder: RemoteEntry, database: AppDatabase, enrichment: EnrichmentQueue) async {
+        let p115 = folder.sourceId == P115Client.sourceId
         let tasks = tasks
-        var imported: P115Import.Imported?
-        await tasks.run("导入 115 网盘", detail: folder.name) {
-            let result = try await importer.importFolder(folder) { found, current in
+        var importer: RemoteImport?
+        var imported: RemoteImport.Imported?
+        await tasks.run(p115 ? "导入 115 网盘" : "导入 WebDAV", detail: folder.name) {
+            let remote = p115 ? RemoteImport.p115(database) : RemoteImport.webdav(database, client: try database.webdavClient(folder.sourceId))
+            importer = remote
+            let result = try await remote.importFolder(folder) { found, current in
                 Task { @MainActor in tasks.report("扫描中 · 已找到 \(found) 个新作品 · \(current)") }
             }
             let incomplete = result.summary.incompleteWorks
             if !incomplete.isEmpty {
                 try database.logEvent(
                     category: "import", severity: .warning, title: "\(incomplete.count) 个作品扫描失败",
-                    detail: "疑似 115 风控，已跳过：\(incomplete.joined(separator: "、"))。可稍后重新导入整个文件夹。",
+                    detail: "\(p115 ? "疑似 115 风控" : "列目录失败")，已跳过：\(incomplete.joined(separator: "、"))。可稍后重新导入整个文件夹。",
                     sourceName: folder.name
                 )
             }
             imported = result
             return result.summary.resultText
         }
-        guard let imported, imported.subtitleCount > 0 else {
+        guard let importer, let imported, imported.subtitleCount > 0 else {
             await enrichment.runPending()
             return
         }
@@ -113,8 +117,8 @@ extension AppModel {
         guard let folder else { throw LocalImport.Failure("原始导入位置已不存在，无法重新扫描") }
         switch folder.type {
         case "local": return try await LocalImport(database: database).reimportWork(work, from: folder)
-        case "p115": return try await P115Import(database: database, client: .shared).reimportWork(work)
-        default: throw LocalImport.Failure("暂不支持重新扫描 WebDAV 来源")
+        case "p115": return try await RemoteImport.p115(database).reimportWork(work)
+        default: return try await RemoteImport.webdav(database, client: try database.webdavClient(folder.serverId!)).reimportWork(work)
         }
     }
 }

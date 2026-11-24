@@ -11,6 +11,7 @@ struct SettingsView: View {
     @Environment(\.appDatabase) private var database
     @State private var confirmingStats = false
     @State private var p115 = P115Client.LoginState.loggedOut
+    @State private var webdavCount = 0
     @State private var sourceCount = 0
     @State private var removedCount = 0
     @State private var clearable: Int?
@@ -72,6 +73,7 @@ struct SettingsView: View {
                 }
                 Section("账户与服务") {
                     row(P115Client.sourceName, systemImage: "icloud", value: p115.label, route: .p115Settings)
+                    row("WebDAV", systemImage: "externaldrive.connected.to.line.below", value: webdavCount > 0 ? "\(webdavCount) 台" : "未添加", route: .webdavServers)
                     row("DLsite", systemImage: "cart", value: model.wishlist.isSignedIn ? "已登录" : "未登录", route: .dlsiteAccount)
                     row("翻译", systemImage: "character.bubble", value: translator ?? "未设置", route: .translation)
                 }
@@ -125,7 +127,7 @@ struct SettingsView: View {
                     (
                         try SourceQueries.all(db).count, try SourceQueries.removedWorks(db).count,
                         try AppEvents.unreadCount(db), try LlmProviders.defaultProvider(db)?.name,
-                        try LibrarySummary.fetch(db)
+                        try LibrarySummary.fetch(db), try WebdavServer.fetchCount(db)
                     )
                 }) {
                     sourceCount = $0.0
@@ -133,6 +135,7 @@ struct SettingsView: View {
                     unread = $0.2
                     translator = $0.3
                     library = $0.4
+                    webdavCount = $0.5
                 }
             }
         }

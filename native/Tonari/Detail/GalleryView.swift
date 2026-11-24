@@ -4,7 +4,7 @@ import UIKit
 
 enum GalleryImage: Hashable {
     case local(String)
-    /// A work's bundled image or one met while browsing 115.
+    /// A work's bundled image or one met while browsing 115 or WebDAV.
     case file(PreviewFile)
 
     /// Also the zoom transition's source id: whatever shows this image on
@@ -86,6 +86,7 @@ private struct ZoomableImage: View {
     @Binding var zoomed: Bool
     let toggleChrome: () -> Void
 
+    @Environment(\.appDatabase) private var database
     @State private var uiImage: UIImage?
     @State private var failed = false
     @State private var scale: CGFloat = 1
@@ -150,7 +151,7 @@ private struct ZoomableImage: View {
             return UIImage(contentsOfFile: URL.documentsDirectory.appending(path: path).path)
         case .file(let file):
             do {
-                return UIImage(data: try await file.data())
+                return UIImage(data: try await file.data(database))
             } catch {
                 DiagnosticLog.shared.write("files", "image_load_failed", ["file": file.name, "error": "\(error)"])
                 return nil
