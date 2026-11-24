@@ -99,6 +99,10 @@ The original Flutter version is archived on the [`flutter`](https://github.com/l
 
 Tonari is an unofficial third-party client with no affiliation with DLsite, 115 or their operators. The app neither provides nor hosts any content; buy works on DLsite.
 
+## Links
+
+- [LINUX DO](https://linux.do/): the community where Tonari is shared
+
 ## License
 
 [MIT](LICENSE)

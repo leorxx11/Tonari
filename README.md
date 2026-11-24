@@ -97,6 +97,10 @@ cd native && xcodebuild -project Tonari.xcodeproj -scheme Tonari -configuration 
 
 Tonari 是非官方的第三方客户端，与 DLsite、115 网盘及其运营方没有任何关联。App 不提供、不托管任何作品内容，作品请在 DLsite 购买。
 
+## 友情链接
+
+- [LINUX DO](https://linux.do/)：新的理想型社区
+
 ## 许可
 
 [MIT](LICENSE)
