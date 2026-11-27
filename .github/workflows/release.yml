@@ -1,0 +1,69 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Unsigned ipa
+    runs-on: xcode-27
+    timeout-minutes: 60
+    env:
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Checkout leaves the tag pointing straight at the commit, which loses
+      # an annotated tag's message, so fetch the tag object itself.
+      - name: Read the tag's notes
+        run: |
+          git fetch --force origin "refs/tags/$TAG:refs/tags/$TAG"
+          if [ "$(git cat-file -t "$TAG")" != tag ]; then
+            echo "::error::$TAG is not an annotated tag; its message is the release notes"
+            exit 1
+          fi
+          git tag -l --format='%(contents)' "$TAG" > "$RUNNER_TEMP/changes.md"
+
+      - name: Build
+        working-directory: native
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Tonari.xcodeproj \
+            -scheme Tonari \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            build \
+            | xcbeautify --renderer github-actions
+
+      - name: Package
+        run: |
+          app=native/build/DerivedData/Build/Products/Release-iphoneos/Tonari.app
+          version=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" "$app/Info.plist")
+          if [ "v$version" != "$TAG" ]; then
+            echo "::error::Tag $TAG does not match MARKETING_VERSION $version"
+            exit 1
+          fi
+          ipa="Tonari-$version-unsigned.ipa"
+          mkdir -p dist/Payload
+          ditto "$app" dist/Payload/Tonari.app
+          (cd dist && zip -qry "$ipa" Payload)
+          sha=$(shasum -a 256 "dist/$ipa" | cut -d' ' -f1)
+          {
+            cat "$RUNNER_TEMP/changes.md"
+            echo
+            sed -e "s/{{VERSION}}/$version/g" -e "s/{{SHA256}}/$sha/g" .github/release-notes.md
+          } > "$RUNNER_TEMP/notes.md"
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          echo "IPA=dist/$ipa" >> "$GITHUB_ENV"
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$TAG" "$IPA" --verify-tag --title "Tonari $VERSION" --notes-file "$RUNNER_TEMP/notes.md"

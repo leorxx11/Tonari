@@ -73,6 +73,6 @@
 
 - 源码层 `PRODUCT_BUNDLE_IDENTIFIER` 保持 `com.leo.tonari.native`（免费证书调试用）。
 - 正式包用 `ios-resign` skill 重签 Release 产物的 .app，Bundle ID 由描述文件锁定，产物为同目录 `Tonari-signed.ipa`。证书、Team 与正式版 Bundle ID 记在本地记忆，不写入版本库。
-- GitHub Release 发未签名 ipa：Release 不签名构建的 `Tonari.app` 放进 `Payload/` 压成 `Tonari-<版本>-unsigned.ipa`，tag 为 `v` + `MARKETING_VERSION`，说明里附 SHA-256；不要上传 `Tonari-signed.ipa`。
+- GitHub Release 发未签名 ipa，由 `.github/workflows/release.yml` 自动发布：改 `MARKETING_VERSION` 提交推送后，打带说明的 tag `git tag -a v<版本> -m "<更新说明>"` 并推送。tag 说明写中英两份更新（`## 更新` / `## What's new`），workflow 不签名构建、打包 `Tonari-<版本>-unsigned.ipa`，Release 说明 = tag 说明 + `.github/release-notes.md`（安装说明，自动填版本号与 SHA-256）。tag 与 `MARKETING_VERSION` 不一致或不是带说明的 tag 时失败。不要上传 `Tonari-signed.ipa`。
 - `p12`、`mobileprovision`、`证书_*` 目录永远不要进版本库。
 - 发版验收重点检查文件 App 导入文件夹时“打开”按钮有反应；签名 entitlements 配错最容易破坏这个功能。
