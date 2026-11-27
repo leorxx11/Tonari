@@ -37,7 +37,7 @@ struct PlayerView: View {
                         .frame(width: 36, height: 5)
                         .padding(.top, 8)
                     if let panel {
-                        compactHeader.padding(.top, 20)
+                        compactHeader.padding(.top, 20).padding(.horizontal, 28)
                         Group {
                             switch panel {
                             case .lyrics:
@@ -50,7 +50,7 @@ struct PlayerView: View {
                                 } onFlickBack: {
                                     if !controlsVisible { showControls() }
                                 }
-                            case .queue: QueuePanel(showingSleep: $showingSleep)
+                            case .queue: QueuePanel(showingSleep: $showingSleep).padding(.horizontal, 28)
                             }
                         }
                         .frame(maxHeight: .infinity)
@@ -62,12 +62,14 @@ struct PlayerView: View {
                             .shadow(color: .black.opacity(player.isPlaying ? 0.25 : 0.12), radius: player.isPlaying ? 24 : 12, y: 10)
                             .scaleEffect(player.isPlaying ? 1 : 0.84)
                             .animation(.spring(duration: 0.45, bounce: 0.25), value: player.isPlaying)
+                            .padding(.horizontal, 28)
                         Spacer(minLength: 16)
                         HStack(spacing: 12) {
                             titles(font: .title3.bold())
                             Spacer(minLength: 0)
                             moreMenu
                         }
+                        .padding(.horizontal, 28)
                     }
                     if panel != .lyrics { controlBlock }
                 }
@@ -81,7 +83,6 @@ struct PlayerView: View {
                             .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
                 }
-                .padding(.horizontal, 28)
                 // Sit the bottom row just above the home indicator, as Apple Music does.
                 .padding(.bottom, 20)
                 .ignoresSafeArea(edges: .bottom)
@@ -106,6 +107,7 @@ struct PlayerView: View {
             VolumeRow().padding(.top, 22)
             bottomBar.padding(.top, 22)
         }
+        .padding(.horizontal, 28)
         // Floating over the lyrics, the gaps between controls must not reach
         // the lines faded out underneath.
         .contentShape(.rect)

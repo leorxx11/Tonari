@@ -37,6 +37,7 @@ struct LyricsPanel: View {
                                 .scaleEffect(index == current ? 1 : 0.97, anchor: .leading)
                                 .animation(.spring(duration: 0.4), value: current)
                                 .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 28)
                                 .contentShape(.rect)
                                 .onTapGesture {
                                     holdUntil = nil
