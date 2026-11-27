@@ -47,8 +47,10 @@ struct CategoryBrowseView: View {
     }
 }
 
-/// Works not played for a month, longest ago first, for 好久没听.
-struct ForgottenWorksView: View {
+/// A home shelf in full: 好久没听 or 还没听过.
+struct ShelfWorksView: View {
+    let shelf: HomeShelf
+
     @Environment(\.appDatabase) private var database
     @State private var works: [Work] = []
     @State private var trackCounts: [String: Int] = [:]
@@ -65,19 +67,45 @@ struct ForgottenWorksView: View {
         .listStyle(.plain)
         .overlay {
             if works.isEmpty {
-                ContentUnavailableView("没有好久没听的作品", systemImage: "clock", description: Text("一个月以上没播放过的作品会出现在这里"))
+                switch shelf {
+                case .forgotten:
+                    ContentUnavailableView("没有好久没听的作品", systemImage: "clock", description: Text("一个月以上没播放过的作品会出现在这里"))
+                case .unplayed:
+                    ContentUnavailableView("作品都听过了", systemImage: "checkmark.circle", description: Text("导入后还没播放过的作品会出现在这里"))
+                }
             }
         }
-        .navigationTitle("好久没听")
+        .navigationTitle(shelf.title)
         .navigationBarTitleDisplayMode(.inline)
         .task {
-            await database.observe({ db in
-                (try HomeQueries.forgotten(db), try WorkQueries.trackCounts(db), try WorkQueries.remoteFolderIds(db))
+            await database.observe({ [shelf] db in
+                (try shelf.works(db), try WorkQueries.trackCounts(db), try WorkQueries.remoteFolderIds(db))
             }) {
                 works = $0.0
                 trackCounts = $0.1
                 remoteIds = $0.2
             }
+        }
+    }
+}
+
+nonisolated enum HomeShelf: Hashable, Sendable {
+    /// Played before, not for a month; longest ago first.
+    case forgotten
+    /// Never played since import; longest in the library first.
+    case unplayed
+
+    var title: String {
+        switch self {
+        case .forgotten: "好久没听"
+        case .unplayed: "还没听过"
+        }
+    }
+
+    func works(limit: Int? = nil, _ db: Database) throws -> [Work] {
+        switch self {
+        case .forgotten: try HomeQueries.forgotten(limit: limit, db)
+        case .unplayed: try HomeQueries.unplayed(limit: limit, db)
         }
     }
 }

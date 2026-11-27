@@ -74,6 +74,17 @@ public enum HomeQueries {
         return try request.fetchAll(db)
     }
 
+    /// Never played since import, longest in the library first. Works
+    /// without audio are left out: playing their videos never marks them.
+    public static func unplayed(limit: Int? = nil, _ db: Database) throws -> [Work] {
+        var request = Work
+            .filter(Column("is_removed") == false && Column("last_played_at") == nil)
+            .filter(sql: "EXISTS (SELECT 1 FROM tracks WHERE tracks.work_id = works.product_id)")
+            .order(Column("local_imported_at"), Column("product_id"))
+        if let limit { request = request.limit(limit) }
+        return try request.fetchAll(db)
+    }
+
     public static func recentlyAdded(limit: Int, _ db: Database) throws -> [Work] {
         try Work.filter(Column("is_removed") == false)
             .order(Column("local_imported_at").desc, Column("product_id"))

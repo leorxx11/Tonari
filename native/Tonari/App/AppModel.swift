@@ -39,8 +39,8 @@ enum Route: Hashable {
     /// The library's full work wall, formerly the 媒体库 tab.
     case works
     case videos
-    /// Works not played for a month, longest ago first.
-    case forgotten
+    /// 好久没听 or 还没听过 in full.
+    case shelf(HomeShelf)
     /// Every voice actor, circle or tag in the library.
     case categories(WorkChip.Kind)
     /// A DLsite list: a ranking, new releases, a creator's works…
@@ -235,7 +235,7 @@ extension View {
             case .collection(let id): CollectionDetailView(collectionId: id)
             case .works: WorksView()
             case .videos: VideoLibraryView()
-            case .forgotten: ForgottenWorksView()
+            case .shelf(let shelf): ShelfWorksView(shelf: shelf)
             case .categories(let kind): CategoryBrowseView(kind: kind)
             case .catalog(let query): CatalogListView(query: query)
             case .onlineWork(let id): OnlineWorkView(productId: id)

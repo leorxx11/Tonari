@@ -31,6 +31,28 @@ struct HomeQueriesTests {
         #expect(ids == ["RJ2", "RJ1"])
     }
 
+    @Test func unplayedOldestFirstAndOnlyWithAudio() throws {
+        try database.writer.write { db in
+            try work("RJ1", added: 20).insert(db)
+            try work("RJ2", added: 10).insert(db)
+            try work("RJ3", played: 3).insert(db)
+            try work("RJ4").insert(db)
+            var removed = work("RJ5")
+            removed.isRemoved = true
+            try removed.insert(db)
+            for workId in ["RJ1", "RJ2", "RJ3", "RJ5"] {
+                try Track(
+                    id: "\(workId)|01.wav", workId: workId, filePath: "/\(workId)/01.wav", relativePath: "01.wav", fileName: "01.wav",
+                    fileFormat: "wav", fileSizeBytes: 1, durationMs: 1000, sampleRate: nil, bitRate: nil, categoryHint: nil,
+                    userCategory: nil, parentDirName: "", trackNumber: nil, title: "01", alternateQualityPathsJson: [:],
+                    lastPositionMs: 0, playCount: 0, createdAt: now, updatedAt: now, titleZh: nil
+                ).insert(db)
+            }
+        }
+        let ids = try database.reader.read { try HomeQueries.unplayed($0) }.map(\.productId)
+        #expect(ids == ["RJ2", "RJ1"])
+    }
+
     @Test func recentlyAddedNewestFirst() throws {
         try database.writer.write { db in
             try work("RJ1", added: 10).insert(db)

@@ -3,8 +3,8 @@ import TonariCore
 
 /// The first tab: what to listen to now. Pick up where listening or
 /// watching left off (with a sleep timer on the way), let chance or a tag
-/// choose, or revisit what's recent, forgotten or new. Settings open from
-/// the gear.
+/// choose, or revisit what's recent, forgotten, never played or new.
+/// Settings open from the gear.
 struct HomeView: View {
     @Environment(AppModel.self) private var model
     @Environment(PlaybackController.self) private var player
@@ -14,7 +14,7 @@ struct HomeView: View {
     @State private var unread = 0
     @State private var pickingTags = false
 
-    private static let rowLimit = 10
+    nonisolated private static let rowLimit = 10
 
     nonisolated private struct Content: Sendable {
         var resume: HomeQueries.Resume?
@@ -23,6 +23,7 @@ struct HomeView: View {
         var recent: [RecentItem] = []
         var watching = ContinueWatching()
         var forgotten: [Work] = []
+        var unplayed: [Work] = []
         var added: [Work] = []
         var voiceActors: [String] = []
         var trackCounts: [String: Int] = [:]
@@ -46,9 +47,16 @@ struct HomeView: View {
                         section("继续观看", route: nil) { ContinueWatchingRow(watching: content.watching) }
                     }
                     if !content.forgotten.isEmpty {
-                        section("好久没听", route: .forgotten) {
+                        section(HomeShelf.forgotten.title, route: .shelf(.forgotten)) {
                             row(content.forgotten) { work in
                                 WorkTile(work: work, caption: work.lastPlayedAt!.formatted(.relative(presentation: .named)), trackCount: content.trackCounts[work.productId])
+                            }
+                        }
+                    }
+                    if !content.unplayed.isEmpty {
+                        section(HomeShelf.unplayed.title, route: .shelf(.unplayed)) {
+                            row(content.unplayed) { work in
+                                WorkTile(work: work, caption: "\(work.localImportedAt.formatted(.relative(presentation: .named)))添加", trackCount: content.trackCounts[work.productId])
                             }
                         }
                     }
@@ -103,6 +111,7 @@ struct HomeView: View {
                     recent: try RecentItem.fetch(limit: Self.rowLimit, db),
                     watching: watching,
                     forgotten: try HomeQueries.forgotten(limit: Self.rowLimit, db),
+                    unplayed: try HomeQueries.unplayed(limit: Self.rowLimit, db),
                     added: try HomeQueries.recentlyAdded(limit: Self.rowLimit, db),
                     voiceActors: try HomeQueries.topVoiceActors(limit: 8, db),
                     trackCounts: try WorkQueries.trackCounts(db),
